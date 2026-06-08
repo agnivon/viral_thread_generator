@@ -10,6 +10,9 @@
 
 import type * as actions_threadsActions from "../actions/threadsActions.js";
 import type * as actions_tokensActions from "../actions/tokensActions.js";
+import type * as auth from "../auth.js";
+import type * as clearAuth from "../clearAuth.js";
+import type * as crons from "../crons.js";
 import type * as http from "../http.js";
 import type * as lib_ThreadsAPI from "../lib/ThreadsAPI.js";
 import type * as lib_agents_graph from "../lib/agents/graph.js";
@@ -33,6 +36,9 @@ import type {
 declare const fullApi: ApiFromModules<{
   "actions/threadsActions": typeof actions_threadsActions;
   "actions/tokensActions": typeof actions_tokensActions;
+  auth: typeof auth;
+  clearAuth: typeof clearAuth;
+  crons: typeof crons;
   http: typeof http;
   "lib/ThreadsAPI": typeof lib_ThreadsAPI;
   "lib/agents/graph": typeof lib_agents_graph;

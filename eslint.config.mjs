@@ -44,6 +44,7 @@ export default defineConfig([
         {
           varsIgnorePattern: "^_",
           argsIgnorePattern: "^_",
+          caughtErrorsIgnorePattern: "^_",
         },
       ],
 
@@ -57,6 +58,6 @@ export default defineConfig([
       "@typescript-eslint/require-await": "off",
     },
   },
-  globalIgnores(["convex/_generated"]),
+  globalIgnores(["convex/_generated", ".next/**"]),
   ...convexPlugin.configs.recommended,
 ]);

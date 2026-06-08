@@ -4,6 +4,7 @@
 
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
+import { authTables } from "@convex-dev/auth/server";
 
 // Export validators for reuse throughout the codebase
 export const platformValidator = v.union(v.literal("threads"));
@@ -16,6 +17,7 @@ export const tokenTypeValidator = v.union(
 
 export default defineSchema(
   {
+    ...authTables,
     accessTokens: defineTable({
       token: v.string(),
       userId: v.string(),
@@ -28,15 +30,16 @@ export default defineSchema(
     })
       .index("by_token", ["token"])
       .index("by_platform_and_active", ["platform", "active"]),
-    threadFactoryStates: defineTable({
+    threadDrafts: defineTable({
       url: v.string(),
       raw_markdown: v.string(),
       core_hooks: v.array(v.string()),
-      selected_hook: v.string(),
+      selected_hook: v.union(v.string(), v.null()),
       thread_draft: v.array(v.string()),
-      critique: v.string(),
+      critique: v.union(v.string(), v.null()),
       iterations: v.number(),
       is_approved: v.boolean(),
+      is_published: v.boolean(),
     }),
   },
   // If you ever get an error about schema mismatch

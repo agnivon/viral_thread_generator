@@ -2,6 +2,7 @@ import { httpRouter } from "convex/server";
 import { httpAction } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { ThreadsAuthAPI } from "./lib/ThreadsAPI";
+import { auth } from "./auth";
 
 const http = httpRouter();
 
@@ -123,5 +124,7 @@ http.route({
     }
   }),
 });
+
+auth.addHttpRoutes(http);
 
 export default http;

@@ -12,7 +12,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-test("saveThreadFactoryState mutation saves state correctly", async () => {
+test("saveThreadDraft mutation saves state correctly", async () => {
   const t = convexTest(schema, modules);
 
   const inputState = {
@@ -26,15 +26,15 @@ test("saveThreadFactoryState mutation saves state correctly", async () => {
     is_approved: true,
   };
 
-  const id = await t.mutation(internal.mutations.threadsMutations.saveThreadFactoryState, inputState);
+  const id = await t.mutation(internal.mutations.threadsMutations.saveThreadDraft, inputState);
   expect(id).toBeDefined();
 
   // Read it back
   const saved = await t.query(async (ctx) => {
-    return await ctx.db.get("threadFactoryStates", id);
+    return await ctx.db.get("threadDrafts", id);
   });
 
-  expect(saved).toMatchObject(inputState);
+  expect(saved).toMatchObject({ ...inputState, is_published: false });
 });
 
 test("generateThread action runs graph and saves result", async () => {
@@ -55,7 +55,8 @@ test("generateThread action runs graph and saves result", async () => {
 
   const invokeSpy = vi.spyOn(ThreadFactoryGraph, "invoke").mockResolvedValue(mockGraphOutput);
 
-  const recordId = await t.action(internal.actions.threadsActions.generateThread, {
+  const tAuth = t.withIdentity({ subject: "mock-user-id" });
+  const recordId = await tAuth.action(api.actions.threadsActions.generateThread, {
     url: "https://example.com/target-url",
   });
 
@@ -73,10 +74,11 @@ test("generateThread action runs graph and saves result", async () => {
 
   // Verify the saved state in the database matches the mocked output
   const saved = await t.query(async (ctx) => {
-    return await ctx.db.get("threadFactoryStates", recordId);
+    return await ctx.db.get("threadDrafts", recordId);
   });
 
-  expect(saved).toMatchObject(mockGraphOutput);
+  const { parse_success: _p, retries: _r, ...expectedDbFields } = mockGraphOutput;
+  expect(saved).toMatchObject(expectedDbFields);
 });
 
 test("publishThread action retrieves state and publishes thread of posts sequentially", async () => {
@@ -93,7 +95,7 @@ test("publishThread action retrieves state and publishes thread of posts sequent
   });
 
   // 2. Insert thread factory state record
-  const stateId = await t.mutation(internal.mutations.threadsMutations.saveThreadFactoryState, {
+  const stateId = await t.mutation(internal.mutations.threadsMutations.saveThreadDraft, {
     url: "https://example.com/source-url",
     raw_markdown: "Some raw markdown",
     core_hooks: [],
@@ -111,7 +113,8 @@ test("publishThread action retrieves state and publishes thread of posts sequent
     .mockResolvedValueOnce("post-id-3");
 
   // 4. Run the publishThread action
-  const result = await t.action(api.actions.threadsActions.publishThread, {
+  const tAuth = t.withIdentity({ subject: "mock-user-id" });
+  const result = await tAuth.action(api.actions.threadsActions.publishThread, {
     id: stateId,
   });
 

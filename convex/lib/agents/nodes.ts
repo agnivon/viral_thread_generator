@@ -146,7 +146,7 @@ export const ThreadWriterNode = async (state: ThreadFactoryStateType) => {
     draft = await structuredLlm.invoke([
       { role: "system", content: THREAD_WRITER_NODE_PROMPT },
       { role: "user", content: `HOOK:\n${state.selected_hook}\n\nSOURCE:\n${state.raw_markdown}${critiqueContext}` }
-    ]);
+    ], { timeout: 300000 });
     if (!draft || !draft.thread_draft) parse_success = false;
   } catch (_e) {
     parse_success = false;

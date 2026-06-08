@@ -1,19 +1,37 @@
+# Next.js
+/.next/
+/out/
+/build
+
+# dependencies
+/node_modules
+/.pnpm-store
 !**/glob-import/dir/node_modules
+
+# misc
 .DS_Store
 .idea
 *.cpuprofile
-*.local
 *.log
-/.vscode/
+.eslintcache
 /docs/.vitepress/cache
 dist
 dist-ssr
 explorations
-node_modules
 playground-temp
 temp
 TODOs.md
-.eslintcache
+/.vscode/
+
+# local env files
+.env*.local
+*.local
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
 
 # LangGraph API
 .langgraph_api

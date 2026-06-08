@@ -2,16 +2,22 @@
 
 import { v } from "convex/values";
 import { internalAction, action } from "../_generated/server";
-import { internal } from "../_generated/api";
+import { internal, api } from "../_generated/api";
 import { Id } from "../_generated/dataModel";
+import { getAuthUserId } from "@convex-dev/auth/server";
 import { ThreadFactoryGraph } from "../lib/agents/graph.js";
 import { ThreadsAPI } from "../lib/ThreadsAPI.js";
 
-export const generateThread = internalAction({
+export const generateThread = action({
   args: {
     url: v.string(),
   },
-  handler: async (ctx, args): Promise<Id<"threadFactoryStates">> => {
+  handler: async (ctx, args): Promise<Id<"threadDrafts">> => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      throw new Error("Unauthorized");
+    }
+
     console.log(`[generateThread] Started for URL: ${args.url}`);
     const initialState = {
       url: args.url,
@@ -30,7 +36,7 @@ export const generateThread = internalAction({
 
     console.log("[generateThread] Saving final state to database...");
     const recordId = await ctx.runMutation(
-      internal.mutations.threadsMutations.saveThreadFactoryState,
+      internal.mutations.threadsMutations.saveThreadDraft,
       {
         url: finalState.url,
         raw_markdown: finalState.raw_markdown,
@@ -50,9 +56,14 @@ export const generateThread = internalAction({
 
 export const publishThread = action({
   args: {
-    id: v.id("threadFactoryStates"),
+    id: v.id("threadDrafts"),
   },
   handler: async (ctx, args): Promise<{ postIds: string[] }> => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      throw new Error("Unauthorized");
+    }
+
     console.log(`[publishThread] Action started for state ID: ${args.id}`);
 
     // 1. Retrieve the latest threads long-lived token
@@ -70,7 +81,7 @@ export const publishThread = action({
     // 2. Retrieve the corresponding threads factory state
     console.log(`[publishThread] Retrieving thread factory state for ID: ${args.id}`);
     const state = await ctx.runQuery(
-      internal.queries.threadsQueries.getThreadFactoryState,
+      api.queries.threadsQueries.getThreadDraft,
       { id: args.id }
     );
     if (!state) {
@@ -86,7 +97,7 @@ export const publishThread = action({
 
     // 3. Initialize ThreadsAPI
     console.log("[publishThread] Initializing ThreadsAPI with 'me' as userId...");
-    const api = new ThreadsAPI(tokenDoc.token, "me");
+    const threadsApi = new ThreadsAPI(tokenDoc.token, "me");
 
     // 4. Publish the posts in sequence
     // A post containing the url should be appended to the end
@@ -103,9 +114,9 @@ export const publishThread = action({
       console.log(`[publishThread] [Post ${i + 1}/${postsToPublish.length}] Publishing... Type: ${isFirst ? 'Root Post' : `Reply to ${replyToId}`}. Content preview: "${snippet}"`);
       
       if (isFirst) {
-        replyToId = await api.createPost({ text: postText });
+        replyToId = await threadsApi.createPost({ text: postText });
       } else {
-        replyToId = await api.createReply(replyToId!, { text: postText });
+        replyToId = await threadsApi.createReply(replyToId!, { text: postText });
       }
       
       console.log(`[publishThread] [Post ${i + 1}/${postsToPublish.length}] Successfully published! Post ID: ${replyToId}`);
@@ -113,6 +124,7 @@ export const publishThread = action({
     }
 
     console.log("[publishThread] All posts published successfully. Post IDs:", postIds);
+    await ctx.runMutation(internal.mutations.threadsMutations.markAsPublished, { id: args.id });
     return { postIds };
   },
 });

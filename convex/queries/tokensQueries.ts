@@ -1,4 +1,4 @@
-import { internalQuery } from "../_generated/server";
+import { internalQuery, query } from "../_generated/server";
 import { Doc } from "../_generated/dataModel";
 import { platformValidator, tokenTypeValidator } from "../schema";
 
@@ -20,5 +20,28 @@ export const getLatestToken = internalQuery({
       // eslint-disable-next-line @convex-dev/no-filter-in-query
       .filter((q) => q.eq(q.field("type"), args.type))
       .first();
+  },
+});
+
+/**
+ * Checks if there is an active access token of the specified platform and type.
+ */
+export const hasActiveToken = query({
+  args: {
+    platform: platformValidator,
+    type: tokenTypeValidator,
+  },
+  handler: async (ctx, args): Promise<boolean> => {
+    const token = await ctx.db
+      .query("accessTokens")
+      .withIndex("by_platform_and_active", (q) =>
+        q.eq("platform", args.platform as any).eq("active", true)
+      )
+      .order("desc")
+      // eslint-disable-next-line @convex-dev/no-filter-in-query
+      .filter((q) => q.eq(q.field("type"), args.type))
+      .first();
+      
+    return !!token;
   },
 });

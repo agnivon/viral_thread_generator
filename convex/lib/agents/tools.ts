@@ -9,14 +9,33 @@ import "dotenv/config";
 // 1. WebScraperTool (Firecrawl API)
 export const WebScraperTool = tool(
   async ({ url }) => {
-    const app = new FirecrawlApp({ apiKey: process.env.FIRECRAWL_API_KEY });
-    const scrapeResult = await app.scrapeUrl(url, { formats: ["markdown"] }) as any;
-    
-    if (!scrapeResult.success && scrapeResult.error) {
-      throw new Error(`Failed to scrape: ${scrapeResult.error}`);
+    try {
+      const app = new FirecrawlApp({ apiKey: process.env.FIRECRAWL_API_KEY });
+      const scrapeResult = await app.scrapeUrl(url, { formats: ["markdown"] }) as any;
+  
+      if (!scrapeResult.success && scrapeResult.error) {
+        throw new Error(`Failed to scrape: ${scrapeResult.error}`);
+      }
+  
+      return scrapeResult.markdown || "No content found.";
+    } catch (e) {
+      console.warn(`[WebScraperTool] Firecrawl failed for ${url}, falling back to Jina Reader...`);
+      try {
+        const jinaResponse = await fetch(`https://r.jina.ai/${url}`, {
+          headers: {
+            "Authorization": `Bearer ${process.env.JINA_API_KEY}`
+          }
+        });
+        if (!jinaResponse.ok) {
+           throw new Error(`Jina Reader failed with status: ${jinaResponse.status}`);
+        }
+        const text = await jinaResponse.text();
+        return text || "No content found.";
+      } catch (fallbackErr) {
+        console.error(`[WebScraperTool] Jina Reader fallback failed for ${url}`, fallbackErr);
+        throw fallbackErr;
+      }
     }
-    
-    return scrapeResult.markdown || "No content found.";
   },
   {
     name: "web_scraper",
@@ -60,7 +79,7 @@ export const TopicContextExpanderTool = tool(
       searchDepth: "basic",
       includeAnswer: false,
     });
-    
+
     return JSON.stringify(response.results);
   },
   {
@@ -68,6 +87,29 @@ export const TopicContextExpanderTool = tool(
     description: "Searches the web for recent context or public sentiment on a topic.",
     schema: z.object({
       query: z.string().describe("The search query"),
+    }),
+  }
+);
+
+// 4. ContentAuthenticityCheckerTool
+export const ContentAuthenticityCheckerTool = tool(
+  async ({ query }) => {
+    const client = tavily({ apiKey: process.env.TAVILY_API_KEY });
+    const response = await client.search(query, {
+      searchDepth: "advanced",
+      includeAnswer: true,
+    });
+
+    return JSON.stringify({
+      answer: response.answer,
+      results: response.results.slice(0, 3)
+    });
+  },
+  {
+    name: "content_authenticity_checker",
+    description: "Searches the web to verify if a specific claim or data point in a drafted thread is factually accurate and authentic.",
+    schema: z.object({
+      query: z.string().describe("The factual claim to verify against the web"),
     }),
   }
 );

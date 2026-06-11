@@ -1,6 +1,8 @@
 import { internalQuery, query } from "../_generated/server";
 import { Doc } from "../_generated/dataModel";
 import { platformValidator, tokenTypeValidator } from "../schema";
+import { v } from "convex/values";
+import { getAuthUserId } from "@convex-dev/auth/server";
 
 /**
  * Retrieves the latest active access token of the specified platform and type.
@@ -9,12 +11,13 @@ export const getLatestToken = internalQuery({
   args: {
     platform: platformValidator,
     type: tokenTypeValidator,
+    userId: v.id("users"),
   },
   handler: async (ctx, args): Promise<Doc<"accessTokens"> | null> => {
     return await ctx.db
       .query("accessTokens")
-      .withIndex("by_platform_and_active", (q) =>
-        q.eq("platform", args.platform as any).eq("active", true)
+      .withIndex("by_userId_platform_active", (q) =>
+        q.eq("userId", args.userId).eq("platform", args.platform as any).eq("active", true)
       )
       .order("desc")
       // eslint-disable-next-line @convex-dev/no-filter-in-query
@@ -32,10 +35,15 @@ export const hasActiveToken = query({
     type: tokenTypeValidator,
   },
   handler: async (ctx, args): Promise<boolean> => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      return false;
+    }
+
     const token = await ctx.db
       .query("accessTokens")
-      .withIndex("by_platform_and_active", (q) =>
-        q.eq("platform", args.platform as any).eq("active", true)
+      .withIndex("by_userId_platform_active", (q) =>
+        q.eq("userId", userId).eq("platform", args.platform as any).eq("active", true)
       )
       .order("desc")
       // eslint-disable-next-line @convex-dev/no-filter-in-query

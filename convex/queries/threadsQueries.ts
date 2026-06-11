@@ -12,7 +12,11 @@ export const getThreadDraft = query({
     if (!userId) {
       throw new Error("Unauthorized");
     }
-    return await ctx.db.get("threadDrafts", args.id);
+    const draft = await ctx.db.get("threadDrafts", args.id);
+    if (draft && draft.userId !== userId) {
+      throw new Error("Unauthorized");
+    }
+    return draft;
   },
 });
 
@@ -23,6 +27,10 @@ export const getAllThreadDrafts = query({
     if (!userId) {
       throw new Error("Unauthorized");
     }
-    return await ctx.db.query("threadDrafts").order("desc").collect();
+    return await ctx.db
+      .query("threadDrafts")
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
+      .order("desc")
+      .collect();
   },
 });

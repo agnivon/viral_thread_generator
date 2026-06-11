@@ -46,6 +46,7 @@ export const generateThread = action({
         critique: finalState.critique,
         iterations: finalState.iterations,
         is_approved: finalState.is_approved,
+        userId: userId as Id<"users">,
       }
     );
     console.log(`[generateThread] Final state saved with ID: ${recordId}`);
@@ -66,11 +67,14 @@ export const publishThread = action({
 
     console.log(`[publishThread] Action started for state ID: ${args.id}`);
 
+    console.log("[publishThread] Refreshing Threads token if necessary...");
+    await ctx.runAction(internal.actions.tokensActions.refreshThreadsToken, { userId: userId as Id<"users"> });
+
     // 1. Retrieve the latest threads long-lived token
     console.log("[publishThread] Retrieving the latest Threads access token...");
     const tokenDoc = await ctx.runQuery(
       internal.queries.tokensQueries.getLatestToken,
-      { platform: "threads", type: "long lived" }
+      { platform: "threads", type: "long lived", userId: userId as Id<"users"> }
     );
     if (!tokenDoc) {
       console.error("[publishThread] No active Threads access token found in the database.");
@@ -124,7 +128,7 @@ export const publishThread = action({
     }
 
     console.log("[publishThread] All posts published successfully. Post IDs:", postIds);
-    await ctx.runMutation(internal.mutations.threadsMutations.markAsPublished, { id: args.id });
+    await ctx.runMutation(internal.mutations.threadsMutations.markAsPublished, { id: args.id, userId: userId as Id<"users"> });
     return { postIds };
   },
 });

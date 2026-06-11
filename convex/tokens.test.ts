@@ -29,12 +29,13 @@ test("threads token refresh flow - refreshes when near expiry", async () => {
   const initialToken = await t.query(internal.queries.tokensQueries.getLatestToken, {
     platform: "threads",
     type: "long lived",
+    userId: "12345" as any,
   });
   expect(initialToken).toBeNull();
 
   // 2. Insert an initial active Threads token (expiring in 1 hour, i.e., near expiry)
   const initialTokenId = await t.mutation(internal.mutations.tokensMutations.updateToken, {
-    userId: "12345",
+    userId: "12345" as any, platformUserId: "platform-12345",
     newToken: "initial-long-lived-token",
     expiresIn: 3600, // 1 hour (less than 24 hours, should refresh)
     platform: "threads",
@@ -45,6 +46,7 @@ test("threads token refresh flow - refreshes when near expiry", async () => {
   const activeToken = await t.query(internal.queries.tokensQueries.getLatestToken, {
     platform: "threads",
     type: "long lived",
+    userId: "12345" as any,
   });
   expect(activeToken).not.toBeNull();
   expect(activeToken?.token).toBe("initial-long-lived-token");
@@ -69,7 +71,7 @@ test("threads token refresh flow - refreshes when near expiry", async () => {
   vi.stubGlobal("fetch", fetchMock);
 
   // 4. Run the refresh action
-  const result = await t.action(internal.actions.tokensActions.refreshThreadsToken, {});
+  const result = await t.action(internal.actions.tokensActions.refreshThreadsToken, { userId: "12345" as any });
   expect(result.expiresIn).toBe(5184000);
   expect(result.tokenId).toBeDefined();
   expect(result.refreshed).toBe(true);
@@ -98,7 +100,7 @@ test("threads token refresh flow - skipped when not near expiry", async () => {
 
   // 1. Insert an active Threads token far in the future (expires in 10 days)
   const initialTokenId = await t.mutation(internal.mutations.tokensMutations.updateToken, {
-    userId: "12345",
+    userId: "12345" as any, platformUserId: "platform-12345",
     newToken: "fresh-long-lived-token",
     expiresIn: 10 * 24 * 60 * 60, // 10 days (greater than 24 hours, should NOT refresh)
     platform: "threads",
@@ -112,7 +114,7 @@ test("threads token refresh flow - skipped when not near expiry", async () => {
   vi.stubGlobal("fetch", fetchMock);
 
   // 3. Run the refresh action
-  const result = await t.action(internal.actions.tokensActions.refreshThreadsToken, {});
+  const result = await t.action(internal.actions.tokensActions.refreshThreadsToken, { userId: "12345" as any });
   
   expect(result.refreshed).toBe(false);
   expect(result.tokenId).toBe(initialTokenId);
@@ -121,6 +123,7 @@ test("threads token refresh flow - skipped when not near expiry", async () => {
   const activeToken = await t.query(internal.queries.tokensQueries.getLatestToken, {
     platform: "threads",
     type: "long lived",
+    userId: "12345" as any,
   });
   expect(activeToken?.token).toBe("fresh-long-lived-token");
 });
@@ -174,7 +177,7 @@ test("storeAuthToken and deleteTokensByPlatform mutations", async () => {
 
   // Add a pre-existing token
   await t.mutation(internal.mutations.tokensMutations.updateToken, {
-    userId: "12345",
+    userId: "12345" as any, platformUserId: "platform-12345",
     newToken: "pre-existing-token",
     expiresIn: 3600,
     platform: "threads",
@@ -184,6 +187,7 @@ test("storeAuthToken and deleteTokensByPlatform mutations", async () => {
   // Call the delete mutation
   await t.mutation(internal.mutations.tokensMutations.deleteTokensByPlatform, {
     platform: "threads",
+    userId: "12345" as any,
   });
 
   // Verify deletion worked
@@ -194,7 +198,7 @@ test("storeAuthToken and deleteTokensByPlatform mutations", async () => {
 
   // Call the store mutation singularly for short-lived token
   const shortLivedId = await t.mutation(internal.mutations.tokensMutations.storeAuthToken, {
-    userId: "12345",
+    userId: "12345" as any, platformUserId: "platform-12345",
     platform: "threads",
     token: "new-short-lived",
     type: "short lived",
@@ -204,7 +208,7 @@ test("storeAuthToken and deleteTokensByPlatform mutations", async () => {
 
   // Call the store mutation singularly for long-lived token
   const longLivedId = await t.mutation(internal.mutations.tokensMutations.storeAuthToken, {
-    userId: "12345",
+    userId: "12345" as any, platformUserId: "platform-12345",
     platform: "threads",
     token: "new-long-lived",
     type: "long lived",
@@ -294,6 +298,7 @@ test("http action /auth callback", async () => {
   const activeToken = await t.query(internal.queries.tokensQueries.getLatestToken, {
     platform: "threads",
     type: "long lived",
+    userId: "12345" as any,
   });
   expect(activeToken).not.toBeNull();
   expect(activeToken?.token).toBe("mock-long-lived-token");

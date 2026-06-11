@@ -6,11 +6,11 @@ import { platformValidator, tokenTypeValidator } from "../schema";
 /**
  * Helper function to delete all tokens for a platform.
  */
-async function deleteTokensByPlatformInternal(ctx: any, platform: string) {
+async function deleteTokensByPlatformInternal(ctx: any, platform: string, userId: string) {
   const existingTokens = await ctx.db
     .query("accessTokens")
-    .withIndex("by_platform_and_active", (q: any) =>
-      q.eq("platform", platform)
+    .withIndex("by_userId_platform_active", (q: any) =>
+      q.eq("userId", userId).eq("platform", platform)
     )
     .collect();
 
@@ -25,9 +25,10 @@ async function deleteTokensByPlatformInternal(ctx: any, platform: string) {
 export const deleteTokensByPlatform = internalMutation({
   args: {
     platform: platformValidator,
+    userId: v.id("users"),
   },
   handler: async (ctx, args): Promise<void> => {
-    await deleteTokensByPlatformInternal(ctx, args.platform);
+    await deleteTokensByPlatformInternal(ctx, args.platform, args.userId);
   },
 });
 
@@ -38,7 +39,8 @@ export const deleteTokensByPlatform = internalMutation({
 export const updateToken = internalMutation({
   args: {
     oldTokenId: v.optional(v.id("accessTokens")),
-    userId: v.string(),
+    userId: v.id("users"),
+    platformUserId: v.string(),
     newToken: v.string(),
     expiresIn: v.number(), // in seconds
     platform: platformValidator,
@@ -56,6 +58,7 @@ export const updateToken = internalMutation({
     const tokenId = await ctx.db.insert("accessTokens", {
       token: args.newToken,
       userId: args.userId,
+      platformUserId: args.platformUserId,
       platform: args.platform as any,
       type: args.type,
       active: true,
@@ -73,7 +76,8 @@ export const updateToken = internalMutation({
  */
 export const storeAuthToken = internalMutation({
   args: {
-    userId: v.string(),
+    userId: v.id("users"),
+    platformUserId: v.string(),
     platform: platformValidator,
     token: v.string(),
     type: tokenTypeValidator,
@@ -85,6 +89,7 @@ export const storeAuthToken = internalMutation({
     const tokenId = await ctx.db.insert("accessTokens", {
       token: args.token,
       userId: args.userId,
+      platformUserId: args.platformUserId,
       platform: args.platform as any,
       type: args.type,
       active: args.active,

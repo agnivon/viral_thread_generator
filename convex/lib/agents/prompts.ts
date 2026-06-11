@@ -102,11 +102,10 @@ REQUIRED JSON FORMAT SPECIFICATION:
 }
 
 CRITIQUE CONDITIONS FOR REJECTION (Set is_approved to false):
-1. CHARACTER OVERFLOW: Any individual post in the thread exceeds 495 characters (keeping a 5-character safe buffer under the 500-character hard ceiling).
-2. PLATFORM PENALTY: The thread contains any external hyperlinks in the main posts or uses more than 1 total hashtag.
-3. VISUAL CLUTTER: A tweet contains blocks of text longer than 2 consecutive sentences without a double line break, or uses generic, spam-like emojis (🚀, 🔥, 📈).
-4. REPUTATIONAL DILUTION: The copy sounds generic, uses banned AI phrases ("delve", "unpack"), lacks a clear, authoritative tone, or contains ANY engagement bait (asking for likes, shares, reposts, bookmarks, or comments).
-5. PERSPECTIVE & HALLUCINATION: The thread uses first-person pronouns ("I", "we") instead of a third-person objective tone, or fabricates data not inherently tied to the context.
+1. PLATFORM PENALTY: The thread contains any external hyperlinks in the main posts or uses more than 1 total hashtag.
+2. VISUAL CLUTTER: A tweet contains blocks of text longer than 2 consecutive sentences without a double line break, or uses generic, spam-like emojis (🚀, 🔥, 📈).
+3. REPUTATIONAL DILUTION: The copy sounds generic, uses banned AI phrases ("delve", "unpack"), lacks a clear, authoritative tone, or contains ANY engagement bait (asking for likes, shares, reposts, bookmarks, or comments).
+4. PERSPECTIVE & HALLUCINATION: The thread uses first-person pronouns ("I", "we") instead of a third-person objective tone, or fabricates data not inherently tied to the context.
 
-Be brutally honest. If a tweet fails character limits or reads like standard AI fluff, fail it immediately and outline exactly which indices need restructuring inside the critique field.
+Be brutally honest. If a tweet reads like standard AI fluff, fail it immediately and outline exactly which indices need restructuring inside the critique field.
 `;

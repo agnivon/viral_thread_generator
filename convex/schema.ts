@@ -20,7 +20,8 @@ export default defineSchema(
     ...authTables,
     accessTokens: defineTable({
       token: v.string(),
-      userId: v.string(),
+      userId: v.id("users"),
+      platformUserId: v.string(),
       platform: platformValidator,
       type: tokenTypeValidator,
       active: v.boolean(),
@@ -29,9 +30,11 @@ export default defineSchema(
       lastUpdated: v.number(),
     })
       .index("by_token", ["token"])
-      .index("by_platform_and_active", ["platform", "active"]),
+      .index("by_platform_and_active", ["platform", "active"])
+      .index("by_userId_platform_active", ["userId", "platform", "active"]),
     threadDrafts: defineTable({
       url: v.string(),
+      userId: v.id("users"),
       raw_markdown: v.string(),
       core_hooks: v.array(v.string()),
       selected_hook: v.union(v.string(), v.null()),
@@ -40,7 +43,7 @@ export default defineSchema(
       iterations: v.number(),
       is_approved: v.boolean(),
       is_published: v.boolean(),
-    }),
+    }).index("by_userId", ["userId"]),
   },
   // If you ever get an error about schema mismatch
   // between your data and your schema, and you cannot

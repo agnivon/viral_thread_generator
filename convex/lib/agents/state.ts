@@ -10,6 +10,7 @@ export const ThreadFactoryState = new StateSchema({
   critique: z.string().default(""),
   iterations: z.number().default(0),
   is_approved: z.boolean().default(false),
+  is_character_valid: z.boolean().default(true),
   parse_success: z.boolean().default(true),
   retries: z.object({
     scraper: z.number().default(0),

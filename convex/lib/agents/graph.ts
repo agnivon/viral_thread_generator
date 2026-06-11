@@ -2,7 +2,7 @@
 
 import { StateGraph, START, END } from "@langchain/langgraph";
 import { ThreadFactoryState, ThreadFactoryStateType } from "./state.js";
-import { ScraperNode, HookStrategistNode, ThreadWriterNode, ViralityCriticNode } from "./nodes.js";
+import { ScraperNode, HookStrategistNode, ThreadWriterNode, CharacterValidatorNode, ViralityCriticNode } from "./nodes.js";
 
 const route_after_scraper = (state: ThreadFactoryStateType) => {
   if (!state.parse_success) {
@@ -25,6 +25,13 @@ const route_after_writer = (state: ThreadFactoryStateType) => {
     if ((state.retries?.writer || 0) >= 3) throw new Error("ThreadWriterNode failed after 3 retries");
     return "ThreadWriterNode";
   }
+  return "CharacterValidatorNode";
+};
+
+const route_after_validator = (state: ThreadFactoryStateType) => {
+  if (!state.is_character_valid) {
+    return "ThreadWriterNode";
+  }
   return "ViralityCriticNode";
 };
 
@@ -43,10 +50,12 @@ export const ThreadFactoryGraph = new StateGraph(ThreadFactoryState)
   .addNode("ScraperNode", ScraperNode)
   .addNode("HookStrategistNode", HookStrategistNode)
   .addNode("ThreadWriterNode", ThreadWriterNode)
+  .addNode("CharacterValidatorNode", CharacterValidatorNode)
   .addNode("ViralityCriticNode", ViralityCriticNode)
   .addEdge(START, "ScraperNode")
   .addConditionalEdges("ScraperNode", route_after_scraper, ["HookStrategistNode", "ScraperNode"])
   .addConditionalEdges("HookStrategistNode", route_after_hook, ["ThreadWriterNode", "HookStrategistNode"])
-  .addConditionalEdges("ThreadWriterNode", route_after_writer, ["ViralityCriticNode", "ThreadWriterNode"])
+  .addConditionalEdges("ThreadWriterNode", route_after_writer, ["CharacterValidatorNode", "ThreadWriterNode"])
+  .addConditionalEdges("CharacterValidatorNode", route_after_validator, ["ViralityCriticNode", "ThreadWriterNode"])
   .addConditionalEdges("ViralityCriticNode", route_after_critic, [END, "ThreadWriterNode", "ViralityCriticNode"])
   .compile();

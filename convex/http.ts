@@ -11,6 +11,12 @@ http.route({
   method: "GET",
   handler: httpAction(async (ctx, req) => {
     const url = new URL(req.url);
+    const userId = await auth.getUserId(ctx);
+
+    if (!userId) {
+      return new Response("Unauthorized", { status: 401 });
+    }
+
     let code = url.searchParams.get("code");
     if (code) {
       code = code.replace(/#_$/, "");
@@ -65,11 +71,13 @@ http.route({
       // 4. Delete existing tokens for the platform to avoid duplicates
       await ctx.runMutation(internal.mutations.tokensMutations.deleteTokensByPlatform, {
         platform: "threads",
+        userId: userId,
       });
 
       // 5. Store both tokens singularly in the database
       await ctx.runMutation(internal.mutations.tokensMutations.storeAuthToken, {
-        userId: String(shortLivedData.user_id),
+        userId: userId,
+        platformUserId: String(shortLivedData.user_id),
         platform: "threads",
         token: shortLivedData.access_token,
         type: "short lived",
@@ -78,7 +86,8 @@ http.route({
       });
 
       await ctx.runMutation(internal.mutations.tokensMutations.storeAuthToken, {
-        userId: String(shortLivedData.user_id),
+        userId: userId,
+        platformUserId: String(shortLivedData.user_id),
         platform: "threads",
         token: longLivedData.access_token,
         type: "long lived",

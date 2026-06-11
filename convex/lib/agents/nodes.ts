@@ -9,7 +9,7 @@ import {
   VIRALITY_CRITIC_NODE_PROMPT
 } from "./prompts.js";
 import { ThreadFactoryStateType } from "./state.js";
-import { CharacterValidatorTool, TopicContextExpanderTool, WebScraperTool } from "./tools.js";
+import { CharacterValidatorTool, TopicContextExpanderTool, WebScraperTool, ContentAuthenticityCheckerTool } from "./tools.js";
 import {
   scraperPrimaryLlm, scraperFallbackLlm,
   hookPrimaryLlm, hookFallbackLlm1, hookFallbackLlm2,
@@ -159,28 +159,70 @@ export const ThreadWriterNode = async (state: ThreadFactoryStateType) => {
   };
 };
 
+export const CharacterValidatorNode = async (state: ThreadFactoryStateType) => {
+  const validationStr = await CharacterValidatorTool.invoke({ thread_draft: state.thread_draft });
+  const validation = JSON.parse(validationStr);
+
+  if (!validation.isValid) {
+    return {
+      is_character_valid: false,
+      critique: `FIX REQUIRED: Posts at indices ${validation.offendingIndices.join(", ")} exceed 500 characters. You must rewrite these to be shorter.`,
+      iterations: state.iterations + 1
+    };
+  }
+
+  return {
+    is_character_valid: true
+  };
+};
+
 export const ViralityCriticNode = async (state: ThreadFactoryStateType) => {
   const schema = z.object({
     is_approved: z.boolean(),
     critique: z.string()
   });
 
-  const structuredLlm = criticPrimaryLlm.withStructuredOutput(schema, { name: "virality_critic" }).withFallbacks({
-    fallbacks: [criticFallbackLlm.withStructuredOutput(schema, { name: "virality_critic" })]
+  const primaryAgent = createAgent({
+    model: criticPrimaryLlm,
+    tools: [ContentAuthenticityCheckerTool],
+    systemPrompt: VIRALITY_CRITIC_NODE_PROMPT,
+    responseFormat: schema
   });
 
-  const validationStr = await CharacterValidatorTool.invoke({ thread_draft: state.thread_draft });
-  const validation = JSON.parse(validationStr);
+  const fallbackAgent = createAgent({
+    model: criticFallbackLlm,
+    tools: [ContentAuthenticityCheckerTool],
+    systemPrompt: VIRALITY_CRITIC_NODE_PROMPT,
+    responseFormat: schema
+  });
 
-  let review;
+  let result;
   let parse_success = true;
   try {
-    review = await structuredLlm.invoke([
-      { role: "system", content: VIRALITY_CRITIC_NODE_PROMPT },
-      { role: "user", content: `THREAD:\n${JSON.stringify(state.thread_draft, null, 2)}\n\nCHARACTER VALIDATION:\n${validationStr}` }
-    ]);
-    if (!review) parse_success = false;
-  } catch (_e) {
+    result = await primaryAgent.invoke({
+      messages: [
+        { role: "user", content: `THREAD:\n${JSON.stringify(state.thread_draft, null, 2)}` }
+      ]
+    });
+  } catch (_e1) {
+    try {
+      result = await fallbackAgent.invoke({
+        messages: [
+          { role: "user", content: `THREAD:\n${JSON.stringify(state.thread_draft, null, 2)}` }
+        ]
+      });
+    } catch (_e2) {
+      parse_success = false;
+    }
+  }
+
+  let finalCritique = "";
+  let finalApproval = false;
+
+  if (parse_success && result?.structuredResponse) {
+    finalCritique = result.structuredResponse.critique || "";
+    finalApproval = result.structuredResponse.is_approved || false;
+  } else {
     parse_success = false;
   }
 
@@ -189,14 +231,6 @@ export const ViralityCriticNode = async (state: ThreadFactoryStateType) => {
       retries: { ...(state.retries || {}), critic: (state.retries?.critic || 0) + 1 },
       parse_success: false
     };
-  }
-
-  let finalCritique = review?.critique || "";
-  let finalApproval = review?.is_approved || false;
-
-  if (!validation.isValid) {
-    finalApproval = false;
-    finalCritique += `\nFIX REQUIRED: Posts at indices ${validation.offendingIndices.join(", ")} exceed 500 characters.`;
   }
 
   return {

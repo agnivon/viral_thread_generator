@@ -16,14 +16,16 @@ test("saveThreadDraft mutation saves state correctly", async () => {
   const t = convexTest(schema, modules);
 
   const inputState = {
-    url: "https://example.com/test-url",
-    raw_markdown: "Some raw markdown content",
-    core_hooks: ["hookA", "hookB"],
-    selected_hook: "hookA",
-    thread_draft: ["tweet 1", "tweet 2"],
-    critique: "Perfect",
+    url: "https://example.com/source-url",
+    raw_markdown: "Mock raw markdown content",
+    core_hooks: ["Hook 1", "Hook 2"],
+    selected_hook: "Hook 1",
+    thread_draft: ["Draft 1", "Draft 2"],
+    critique: "Mock critique",
     iterations: 1,
-    is_approved: true,
+    is_approved: false,
+    is_character_valid: true,
+    userId: "mock-user-id" as any,
   };
 
   const id = await t.mutation(internal.mutations.threadsMutations.saveThreadDraft, inputState);
@@ -49,6 +51,7 @@ test("generateThread action runs graph and saves result", async () => {
     critique: "Needs minor polish",
     iterations: 3,
     is_approved: false,
+    is_character_valid: true,
     parse_success: true,
     retries: { scraper: 0, hook: 0, writer: 0, critic: 0 },
   };
@@ -86,8 +89,9 @@ test("publishThread action retrieves state and publishes thread of posts sequent
 
   // 1. Insert threads active access token
   await t.mutation(internal.mutations.tokensMutations.storeAuthToken, {
-    userId: "mock-user-id",
+    userId: "mock-user-id" as any,
     platform: "threads",
+    platformUserId: "mock-platform-user",
     token: "mock-long-lived-token",
     type: "long lived",
     active: true,
@@ -97,13 +101,14 @@ test("publishThread action retrieves state and publishes thread of posts sequent
   // 2. Insert thread factory state record
   const stateId = await t.mutation(internal.mutations.threadsMutations.saveThreadDraft, {
     url: "https://example.com/source-url",
-    raw_markdown: "Some raw markdown",
+    raw_markdown: "Mock raw markdown content",
     core_hooks: [],
-    selected_hook: "",
-    thread_draft: ["First post text", "Second post text"],
-    critique: "",
-    iterations: 0,
+    selected_hook: "Hook 1",
+    thread_draft: ["Draft 1", "Draft 2"],
+    critique: "Mock critique",
+    iterations: 1,
     is_approved: true,
+    userId: "mock-user-id" as any,
   });
 
   // 3. Spy/Mock ThreadsAPI calls

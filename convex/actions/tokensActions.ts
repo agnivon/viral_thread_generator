@@ -4,18 +4,19 @@ import { internalAction } from "../_generated/server";
 import { internal } from "../_generated/api";
 import { Doc, Id } from "../_generated/dataModel";
 import { ThreadsAuthAPI } from "../lib/ThreadsAPI";
+import { v } from "convex/values";
 
 /**
  * Action to retrieve the latest token, check if it's near expiry (less than 24 hrs),
  * and refresh it via Threads API if needed, updating the database.
  */
 export const refreshThreadsToken = internalAction({
-  args: {},
-  handler: async (ctx): Promise<{ tokenId: Id<"accessTokens">; expiresIn: number; refreshed: boolean }> => {
+  args: { userId: v.id("users") },
+  handler: async (ctx, args): Promise<{ tokenId: Id<"accessTokens">; expiresIn: number; refreshed: boolean }> => {
     // 1. Retrieve the latest token
     const latestTokenDoc: Doc<"accessTokens"> | null = await ctx.runQuery(
       internal.queries.tokensQueries.getLatestToken,
-      { platform: "threads", type: "long lived" }
+      { platform: "threads", type: "long lived", userId: args.userId }
     );
 
     if (!latestTokenDoc) {
@@ -44,7 +45,8 @@ export const refreshThreadsToken = internalAction({
       internal.mutations.tokensMutations.updateToken,
       {
         oldTokenId: latestTokenDoc._id,
-        userId: latestTokenDoc.userId,
+        userId: args.userId,
+        platformUserId: latestTokenDoc.platformUserId as string,
         newToken: refreshResult.access_token,
         expiresIn: refreshResult.expires_in,
         platform: "threads",

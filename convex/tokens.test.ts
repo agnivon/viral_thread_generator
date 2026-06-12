@@ -5,6 +5,7 @@ import { internal } from "./_generated/api";
 import schema from "./schema";
 import { ThreadsAuthAPI } from "./lib/ThreadsAPI";
 import http from "./http";
+import { auth } from "./auth";
 
 const modules = import.meta.glob("./**/*.ts");
 
@@ -24,18 +25,21 @@ afterEach(() => {
 
 test("threads token refresh flow - refreshes when near expiry", async () => {
   const t = convexTest(schema, modules);
+  const userId = await t.mutation(async (ctx) => {
+    return await ctx.db.insert("users", {});
+  });
 
   // 1. Initial query should return null when no tokens exist
   const initialToken = await t.query(internal.queries.tokensQueries.getLatestToken, {
     platform: "threads",
     type: "long lived",
-    userId: "12345" as any,
+    userId,
   });
   expect(initialToken).toBeNull();
 
   // 2. Insert an initial active Threads token (expiring in 1 hour, i.e., near expiry)
   const initialTokenId = await t.mutation(internal.mutations.tokensMutations.updateToken, {
-    userId: "12345" as any, platformUserId: "platform-12345",
+    userId, platformUserId: "platform-12345",
     newToken: "initial-long-lived-token",
     expiresIn: 3600, // 1 hour (less than 24 hours, should refresh)
     platform: "threads",
@@ -46,7 +50,7 @@ test("threads token refresh flow - refreshes when near expiry", async () => {
   const activeToken = await t.query(internal.queries.tokensQueries.getLatestToken, {
     platform: "threads",
     type: "long lived",
-    userId: "12345" as any,
+    userId,
   });
   expect(activeToken).not.toBeNull();
   expect(activeToken?.token).toBe("initial-long-lived-token");
@@ -71,7 +75,7 @@ test("threads token refresh flow - refreshes when near expiry", async () => {
   vi.stubGlobal("fetch", fetchMock);
 
   // 4. Run the refresh action
-  const result = await t.action(internal.actions.tokensActions.refreshThreadsToken, { userId: "12345" as any });
+  const result = await t.action(internal.actions.tokensActions.refreshThreadsToken, { userId });
   expect(result.expiresIn).toBe(5184000);
   expect(result.tokenId).toBeDefined();
   expect(result.refreshed).toBe(true);
@@ -97,10 +101,13 @@ test("threads token refresh flow - refreshes when near expiry", async () => {
 
 test("threads token refresh flow - skipped when not near expiry", async () => {
   const t = convexTest(schema, modules);
+  const userId = await t.mutation(async (ctx) => {
+    return await ctx.db.insert("users", {});
+  });
 
   // 1. Insert an active Threads token far in the future (expires in 10 days)
   const initialTokenId = await t.mutation(internal.mutations.tokensMutations.updateToken, {
-    userId: "12345" as any, platformUserId: "platform-12345",
+    userId, platformUserId: "platform-12345",
     newToken: "fresh-long-lived-token",
     expiresIn: 10 * 24 * 60 * 60, // 10 days (greater than 24 hours, should NOT refresh)
     platform: "threads",
@@ -114,8 +121,8 @@ test("threads token refresh flow - skipped when not near expiry", async () => {
   vi.stubGlobal("fetch", fetchMock);
 
   // 3. Run the refresh action
-  const result = await t.action(internal.actions.tokensActions.refreshThreadsToken, { userId: "12345" as any });
-  
+  const result = await t.action(internal.actions.tokensActions.refreshThreadsToken, { userId });
+
   expect(result.refreshed).toBe(false);
   expect(result.tokenId).toBe(initialTokenId);
 
@@ -123,7 +130,7 @@ test("threads token refresh flow - skipped when not near expiry", async () => {
   const activeToken = await t.query(internal.queries.tokensQueries.getLatestToken, {
     platform: "threads",
     type: "long lived",
-    userId: "12345" as any,
+    userId,
   });
   expect(activeToken?.token).toBe("fresh-long-lived-token");
 });
@@ -174,10 +181,13 @@ test("ThreadsAuthAPI static methods", async () => {
 
 test("storeAuthToken and deleteTokensByPlatform mutations", async () => {
   const t = convexTest(schema, modules);
+  const userId = await t.mutation(async (ctx) => {
+    return await ctx.db.insert("users", {});
+  });
 
   // Add a pre-existing token
   await t.mutation(internal.mutations.tokensMutations.updateToken, {
-    userId: "12345" as any, platformUserId: "platform-12345",
+    userId, platformUserId: "platform-12345",
     newToken: "pre-existing-token",
     expiresIn: 3600,
     platform: "threads",
@@ -187,7 +197,7 @@ test("storeAuthToken and deleteTokensByPlatform mutations", async () => {
   // Call the delete mutation
   await t.mutation(internal.mutations.tokensMutations.deleteTokensByPlatform, {
     platform: "threads",
-    userId: "12345" as any,
+    userId,
   });
 
   // Verify deletion worked
@@ -198,7 +208,7 @@ test("storeAuthToken and deleteTokensByPlatform mutations", async () => {
 
   // Call the store mutation singularly for short-lived token
   const shortLivedId = await t.mutation(internal.mutations.tokensMutations.storeAuthToken, {
-    userId: "12345" as any, platformUserId: "platform-12345",
+    userId, platformUserId: "platform-12345",
     platform: "threads",
     token: "new-short-lived",
     type: "short lived",
@@ -208,7 +218,7 @@ test("storeAuthToken and deleteTokensByPlatform mutations", async () => {
 
   // Call the store mutation singularly for long-lived token
   const longLivedId = await t.mutation(internal.mutations.tokensMutations.storeAuthToken, {
-    userId: "12345" as any, platformUserId: "platform-12345",
+    userId, platformUserId: "platform-12345",
     platform: "threads",
     token: "new-long-lived",
     type: "long lived",
@@ -241,6 +251,11 @@ test("storeAuthToken and deleteTokensByPlatform mutations", async () => {
 
 test("http action /auth callback", async () => {
   const t = convexTest(schema, modules);
+  const userId = await t.mutation(async (ctx) => {
+    return await ctx.db.insert("users", {});
+  });
+
+  vi.spyOn(auth, "getUserId").mockResolvedValue(userId);
 
   // Mock global fetch for OAuth exchange requests
   const fetchMock = vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
@@ -298,7 +313,7 @@ test("http action /auth callback", async () => {
   const activeToken = await t.query(internal.queries.tokensQueries.getLatestToken, {
     platform: "threads",
     type: "long lived",
-    userId: "12345" as any,
+    userId,
   });
   expect(activeToken).not.toBeNull();
   expect(activeToken?.token).toBe("mock-long-lived-token");

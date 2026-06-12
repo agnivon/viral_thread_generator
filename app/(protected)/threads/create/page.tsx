@@ -30,14 +30,13 @@ export default function CreateThreadPage() {
     setIsLoading(true);
     setError(null);
 
-    try {
-      const id = await generateThread({ url });
-      router.push(`/threads/drafts/${id}/approve`);
-    } catch (err: any) {
+    // Trigger thread generation in the background
+    generateThread({ url }).catch((err) => {
       console.error("Failed to generate thread:", err);
-      setError(err.message || "An unexpected error occurred while generating the thread.");
-      setIsLoading(false);
-    }
+    });
+
+    // Redirect to drafts list page immediately
+    router.push("/threads/drafts");
   };
 
   return (

@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/card";
 import { Button, buttonVariants } from "@/components/ui/button";
 import Link from "next/link";
+import { toast } from "sonner";
 
 export default function ApproveDraftPage() {
   const params = useParams();
@@ -29,11 +30,11 @@ export default function ApproveDraftPage() {
     try {
       setIsPublishing(true);
       const result = await publishAction({ id });
-      alert(`Success! Published ${result.postIds.length} posts to Threads.`);
-      router.push("/threads/drafts");
+      toast.success(`Successfully published ${result.postIds.length} posts to Threads.`);
+      // router.push("/threads/drafts");
     } catch (e: any) {
       console.error(e);
-      alert(`Failed to publish: ${e.message}`);
+      toast.error(`Failed to publish: ${e.message || "Unknown error"}`);
     } finally {
       setIsPublishing(false);
     }
@@ -59,6 +60,40 @@ export default function ApproveDraftPage() {
             <CardDescription>We couldn't find the requested thread draft.</CardDescription>
           </CardHeader>
           <CardContent>
+            <Link href="/threads/create" className={buttonVariants({ className: "w-full" })}>
+              Create a New Thread
+            </Link>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  const genStatus = state.generation_status ?? "success";
+
+  if (genStatus === "processing") {
+    return (
+      <div className="flex min-h-[50vh] flex-col items-center justify-center p-4">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <p className="text-muted-foreground animate-pulse">This thread draft is still generating. Please wait...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (genStatus === "failed") {
+    return (
+      <div className="flex min-h-[50vh] flex-col items-center justify-center p-4">
+        <Card className="max-w-md w-full">
+          <CardHeader>
+            <CardTitle className="text-destructive">Generation Failed</CardTitle>
+            <CardDescription>We encountered an error while generating this thread.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              You can try generating a new thread from the dashboard.
+            </p>
             <Link href="/threads/create" className={buttonVariants({ className: "w-full" })}>
               Create a New Thread
             </Link>
@@ -125,9 +160,9 @@ export default function ApproveDraftPage() {
 
         <div className="space-y-6">
           <div className="flex flex-col gap-2">
-            <Button 
-              className="w-full" 
-              size="lg" 
+            <Button
+              className="w-full"
+              size="lg"
               disabled={isPublishing || state.is_published}
               onClick={handlePublish}
             >

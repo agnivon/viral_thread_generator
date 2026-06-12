@@ -14,6 +14,9 @@ afterEach(() => {
 
 test("saveThreadDraft mutation saves state correctly", async () => {
   const t = convexTest(schema, modules);
+  const userId = await t.mutation(async (ctx) => {
+    return await ctx.db.insert("users", {});
+  });
 
   const inputState = {
     url: "https://example.com/source-url",
@@ -24,8 +27,7 @@ test("saveThreadDraft mutation saves state correctly", async () => {
     critique: "Mock critique",
     iterations: 1,
     is_approved: false,
-    is_character_valid: true,
-    userId: "mock-user-id" as any,
+    userId,
   };
 
   const id = await t.mutation(internal.mutations.threadsMutations.saveThreadDraft, inputState);
@@ -36,11 +38,26 @@ test("saveThreadDraft mutation saves state correctly", async () => {
     return await ctx.db.get("threadDrafts", id);
   });
 
-  expect(saved).toMatchObject({ ...inputState, is_published: false });
+  expect(saved).toMatchObject({
+    url: inputState.url,
+    raw_markdown: inputState.raw_markdown,
+    core_hooks: inputState.core_hooks,
+    selected_hook: inputState.selected_hook,
+    thread_draft: inputState.thread_draft,
+    critique: inputState.critique,
+    iterations: inputState.iterations,
+    is_approved: inputState.is_approved,
+    userId: inputState.userId,
+    is_published: false,
+    generation_status: "success",
+  });
 });
 
 test("generateThread action runs graph and saves result", async () => {
   const t = convexTest(schema, modules);
+  const userId = await t.mutation(async (ctx) => {
+    return await ctx.db.insert("users", {});
+  });
 
   const mockGraphOutput = {
     url: "https://example.com/target-url",
@@ -58,7 +75,7 @@ test("generateThread action runs graph and saves result", async () => {
 
   const invokeSpy = vi.spyOn(ThreadFactoryGraph, "invoke").mockResolvedValue(mockGraphOutput);
 
-  const tAuth = t.withIdentity({ subject: "mock-user-id" });
+  const tAuth = t.withIdentity({ subject: userId });
   const recordId = await tAuth.action(api.actions.threadsActions.generateThread, {
     url: "https://example.com/target-url",
   });
@@ -81,21 +98,34 @@ test("generateThread action runs graph and saves result", async () => {
   });
 
   const { parse_success: _p, retries: _r, ...expectedDbFields } = mockGraphOutput;
-  expect(saved).toMatchObject(expectedDbFields);
+  expect(saved).toMatchObject({
+    url: expectedDbFields.url,
+    raw_markdown: expectedDbFields.raw_markdown,
+    core_hooks: expectedDbFields.core_hooks,
+    selected_hook: expectedDbFields.selected_hook,
+    thread_draft: expectedDbFields.thread_draft,
+    critique: expectedDbFields.critique,
+    iterations: expectedDbFields.iterations,
+    is_approved: expectedDbFields.is_approved,
+    generation_status: "success",
+  });
 });
 
 test("publishThread action retrieves state and publishes thread of posts sequentially", async () => {
   const t = convexTest(schema, modules);
+  const userId = await t.mutation(async (ctx) => {
+    return await ctx.db.insert("users", {});
+  });
 
-  // 1. Insert threads active access token
+  // 1. Insert threads active access token (expiring in 10 days, so refresh is skipped)
   await t.mutation(internal.mutations.tokensMutations.storeAuthToken, {
-    userId: "mock-user-id" as any,
+    userId,
     platform: "threads",
     platformUserId: "mock-platform-user",
     token: "mock-long-lived-token",
     type: "long lived",
     active: true,
-    expiresIn: 3600,
+    expiresIn: 10 * 24 * 60 * 60,
   });
 
   // 2. Insert thread factory state record
@@ -108,7 +138,7 @@ test("publishThread action retrieves state and publishes thread of posts sequent
     critique: "Mock critique",
     iterations: 1,
     is_approved: true,
-    userId: "mock-user-id" as any,
+    userId,
   });
 
   // 3. Spy/Mock ThreadsAPI calls
@@ -118,7 +148,7 @@ test("publishThread action retrieves state and publishes thread of posts sequent
     .mockResolvedValueOnce("post-id-3");
 
   // 4. Run the publishThread action
-  const tAuth = t.withIdentity({ subject: "mock-user-id" });
+  const tAuth = t.withIdentity({ subject: userId });
   const result = await tAuth.action(api.actions.threadsActions.publishThread, {
     id: stateId,
   });
@@ -127,10 +157,10 @@ test("publishThread action retrieves state and publishes thread of posts sequent
   expect(result.postIds).toEqual(["post-id-1", "post-id-2", "post-id-3"]);
 
   expect(createPostSpy).toHaveBeenCalledTimes(1);
-  expect(createPostSpy).toHaveBeenCalledWith({ text: "First post text" });
+  expect(createPostSpy).toHaveBeenCalledWith({ text: "Draft 1" });
 
   expect(createReplySpy).toHaveBeenCalledTimes(2);
-  expect(createReplySpy).toHaveBeenNthCalledWith(1, "post-id-1", { text: "Second post text" });
+  expect(createReplySpy).toHaveBeenNthCalledWith(1, "post-id-1", { text: "Draft 2" });
   expect(createReplySpy).toHaveBeenNthCalledWith(2, "post-id-2", { text: "https://example.com/source-url" });
 });
 

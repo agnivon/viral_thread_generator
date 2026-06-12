@@ -138,14 +138,17 @@ export const ThreadWriterNode = async (state: ThreadFactoryStateType) => {
     ]
   });
 
-  const critiqueContext = state.critique ? `\nCRITIQUE TO ADDRESS:\n${state.critique}` : "";
+  const previousDraftContext = state.thread_draft && state.thread_draft.length > 0 
+    ? `\n\nPREVIOUS THREAD DRAFT:\n${JSON.stringify(state.thread_draft, null, 2)}` 
+    : "";
+  const critiqueContext = state.critique ? `\n\nCRITIQUE TO ADDRESS:\n${state.critique}` : "";
 
   let draft;
   let parse_success = true;
   try {
     draft = await structuredLlm.invoke([
       { role: "system", content: THREAD_WRITER_NODE_PROMPT },
-      { role: "user", content: `HOOK:\n${state.selected_hook}\n\nSOURCE:\n${state.raw_markdown}${critiqueContext}` }
+      { role: "user", content: `HOOK:\n${state.selected_hook}\n\nSOURCE:\n${state.raw_markdown}${previousDraftContext}${critiqueContext}` }
     ], { timeout: 300000 });
     if (!draft || !draft.thread_draft) parse_success = false;
   } catch (_e) {
@@ -201,14 +204,14 @@ export const ViralityCriticNode = async (state: ThreadFactoryStateType) => {
   try {
     result = await primaryAgent.invoke({
       messages: [
-        { role: "user", content: `THREAD:\n${JSON.stringify(state.thread_draft, null, 2)}` }
+        { role: "user", content: `SOURCE MATERIAL:\n${state.raw_markdown}\n\nTHREAD:\n${JSON.stringify(state.thread_draft, null, 2)}` }
       ]
     });
   } catch (_e1) {
     try {
       result = await fallbackAgent.invoke({
         messages: [
-          { role: "user", content: `THREAD:\n${JSON.stringify(state.thread_draft, null, 2)}` }
+          { role: "user", content: `SOURCE MATERIAL:\n${state.raw_markdown}\n\nTHREAD:\n${JSON.stringify(state.thread_draft, null, 2)}` }
         ]
       });
     } catch (_e2) {

@@ -19,6 +19,14 @@ export const generateThread = action({
     }
 
     console.log(`[generateThread] Started for URL: ${args.url}`);
+    const recordId = await ctx.runMutation(
+      internal.mutations.threadsMutations.initializeThreadDraft,
+      {
+        url: args.url,
+        userId: userId as Id<"users">,
+      }
+    );
+
     const initialState = {
       url: args.url,
       raw_markdown: "",
@@ -30,26 +38,38 @@ export const generateThread = action({
       is_approved: false,
     };
 
-    console.log("[generateThread] Invoking ThreadFactoryGraph...");
-    const finalState = await ThreadFactoryGraph.invoke(initialState);
-    console.log(`[generateThread] ThreadFactoryGraph finished. Iterations: ${finalState.iterations}, Approved: ${finalState.is_approved}`);
+    try {
+      console.log("[generateThread] Invoking ThreadFactoryGraph...");
+      const finalState = await ThreadFactoryGraph.invoke(initialState);
+      console.log(`[generateThread] ThreadFactoryGraph finished. Iterations: ${finalState.iterations}, Approved: ${finalState.is_approved}`);
 
-    console.log("[generateThread] Saving final state to database...");
-    const recordId = await ctx.runMutation(
-      internal.mutations.threadsMutations.saveThreadDraft,
-      {
-        url: finalState.url,
-        raw_markdown: finalState.raw_markdown,
-        core_hooks: finalState.core_hooks,
-        selected_hook: finalState.selected_hook,
-        thread_draft: finalState.thread_draft,
-        critique: finalState.critique,
-        iterations: finalState.iterations,
-        is_approved: finalState.is_approved,
-        userId: userId as Id<"users">,
-      }
-    );
-    console.log(`[generateThread] Final state saved with ID: ${recordId}`);
+      console.log("[generateThread] Saving final state to database...");
+      await ctx.runMutation(
+        internal.mutations.threadsMutations.updateThreadDraftStatus,
+        {
+          id: recordId,
+          generation_status: "success",
+          raw_markdown: finalState.raw_markdown,
+          core_hooks: finalState.core_hooks,
+          selected_hook: finalState.selected_hook,
+          thread_draft: finalState.thread_draft,
+          critique: finalState.critique,
+          iterations: finalState.iterations,
+          is_approved: finalState.is_approved,
+        }
+      );
+      console.log(`[generateThread] Final state saved with ID: ${recordId}`);
+    } catch (err) {
+      console.error(`[generateThread] ThreadFactoryGraph failed:`, err);
+      await ctx.runMutation(
+        internal.mutations.threadsMutations.updateThreadDraftStatus,
+        {
+          id: recordId,
+          generation_status: "failed",
+        }
+      );
+      throw err;
+    }
 
     return recordId;
   },

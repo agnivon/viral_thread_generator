@@ -35,14 +35,19 @@ export default defineSchema(
     threadDrafts: defineTable({
       url: v.string(),
       userId: v.id("users"),
-      raw_markdown: v.string(),
-      core_hooks: v.array(v.string()),
-      selected_hook: v.union(v.string(), v.null()),
-      thread_draft: v.array(v.string()),
-      critique: v.union(v.string(), v.null()),
-      iterations: v.number(),
-      is_approved: v.boolean(),
-      is_published: v.boolean(),
+      raw_markdown: v.optional(v.string()),
+      core_hooks: v.optional(v.array(v.string())),
+      selected_hook: v.optional(v.union(v.string(), v.null())),
+      thread_draft: v.optional(v.array(v.string())),
+      critique: v.optional(v.union(v.string(), v.null())),
+      iterations: v.optional(v.number()),
+      is_approved: v.optional(v.boolean()),
+      is_published: v.optional(v.boolean()),
+      generation_status: v.union(
+        v.literal("processing"),
+        v.literal("success"),
+        v.literal("failed")
+      ),
     }).index("by_userId", ["userId"]),
   },
   // If you ever get an error about schema mismatch

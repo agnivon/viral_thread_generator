@@ -5,6 +5,7 @@ import "./globals.css";
 import { Geist } from "next/font/google";
 import { cn } from "@/lib/utils";
 import { ThemeProvider } from "@/components/theme-provider";
+import { Toaster } from "@/components/ui/sonner";
 
 const geist = Geist({subsets:['latin'],variable:'--font-sans'});
 
@@ -29,6 +30,7 @@ export default function RootLayout({
             disableTransitionOnChange
           >
             <ConvexClientProvider>{children}</ConvexClientProvider>
+            <Toaster />
           </ThemeProvider>
         </body>
       </html>

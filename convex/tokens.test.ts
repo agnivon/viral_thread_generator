@@ -321,3 +321,190 @@ test("http action /auth callback", async () => {
   expect(activeToken?.type).toBe("long lived");
   expect(activeToken?.active).toBe(true);
 });
+
+test("getTokensNearExpiry query returns tokens near expiry and null otherwise", async () => {
+  const t = convexTest(schema, modules);
+  const userId = await t.mutation(async (ctx) => {
+    return await ctx.db.insert("users", {});
+  });
+
+  const now = Date.now();
+  const nearExpiryLimit = 24 * 60 * 60 * 1000; // 24 hours
+
+  // 1. Initially it should return null
+  const initialCheck = await t.query(internal.queries.tokensQueries.getTokensNearExpiry, {
+    userId,
+    platform: "threads",
+    type: "long lived",
+    now,
+    nearExpiryLimit,
+  });
+  expect(initialCheck).toBeNull();
+
+  // 2. Insert a token expiring in 1 hour (near expiry)
+  const tokenIdNear = await t.mutation(internal.mutations.tokensMutations.updateToken, {
+    userId,
+    platformUserId: "p1",
+    newToken: "token-near",
+    expiresIn: 3600, // 1 hour
+    platform: "threads",
+    type: "long lived",
+  });
+
+  const checkNear = await t.query(internal.queries.tokensQueries.getTokensNearExpiry, {
+    userId,
+    platform: "threads",
+    type: "long lived",
+    now,
+    nearExpiryLimit,
+  });
+  expect(checkNear).not.toBeNull();
+  expect(checkNear?._id).toBe(tokenIdNear);
+
+  // 3. Mark it inactive and check again -> should be null
+  await t.mutation(async (ctx) => {
+    await ctx.db.patch("accessTokens", tokenIdNear, { active: false });
+  });
+  const checkInactive = await t.query(internal.queries.tokensQueries.getTokensNearExpiry, {
+    userId,
+    platform: "threads",
+    type: "long lived",
+    now,
+    nearExpiryLimit,
+  });
+  expect(checkInactive).toBeNull();
+
+  // 4. Insert a token expiring in 10 days (far from expiry)
+  await t.mutation(internal.mutations.tokensMutations.updateToken, {
+    userId,
+    platformUserId: "p1",
+    newToken: "token-far",
+    expiresIn: 10 * 24 * 3600, // 10 days
+    platform: "threads",
+    type: "long lived",
+  });
+
+  const checkFar = await t.query(internal.queries.tokensQueries.getTokensNearExpiry, {
+    userId,
+    platform: "threads",
+    type: "long lived",
+    now,
+    nearExpiryLimit,
+  });
+  expect(checkFar).toBeNull();
+});
+
+test("getAllTokensNearExpiry query returns all active tokens near expiry", async () => {
+  const t = convexTest(schema, modules);
+  const userId1 = await t.mutation(async (ctx) => {
+    return await ctx.db.insert("users", {});
+  });
+  const userId2 = await t.mutation(async (ctx) => {
+    return await ctx.db.insert("users", {});
+  });
+
+  const now = Date.now();
+  const nearExpiryLimit = 48 * 60 * 60 * 1000; // 48 hours
+
+  // 1. Insert a token expiring in 1 hour (near expiry, <48h) for user 1
+  const tokenIdNear = await t.mutation(internal.mutations.tokensMutations.updateToken, {
+    userId: userId1,
+    platformUserId: "p1",
+    newToken: "token-near",
+    expiresIn: 3600, // 1 hour
+    platform: "threads",
+    type: "long lived",
+  });
+
+  // 2. Insert a token expiring in 10 days (not near expiry, >48h) for user 2
+  await t.mutation(internal.mutations.tokensMutations.updateToken, {
+    userId: userId2,
+    platformUserId: "p2",
+    newToken: "token-far",
+    expiresIn: 10 * 24 * 3600, // 10 days
+    platform: "threads",
+    type: "long lived",
+  });
+
+  // 3. Query all tokens near expiry
+  const checkNear = await t.query(internal.queries.tokensQueries.getAllTokensNearExpiry, {
+    platform: "threads",
+    type: "long lived",
+    now,
+    nearExpiryLimit,
+  });
+
+  expect(checkNear.length).toBe(1);
+  expect(checkNear[0]._id).toBe(tokenIdNear);
+});
+
+test("refreshAllThreadsTokens action bulk refreshes tokens near expiry", async () => {
+  const t = convexTest(schema, modules);
+  const userId1 = await t.mutation(async (ctx) => {
+    return await ctx.db.insert("users", {});
+  });
+  const userId2 = await t.mutation(async (ctx) => {
+    return await ctx.db.insert("users", {});
+  });
+
+  // 1. Insert a token expiring in 1 hour (near expiry) for user 1
+  await t.mutation(internal.mutations.tokensMutations.updateToken, {
+    userId: userId1,
+    platformUserId: "p1",
+    newToken: "token-near",
+    expiresIn: 3600, // 1 hour
+    platform: "threads",
+    type: "long lived",
+  });
+
+  // 2. Insert a token expiring in 10 days (not near expiry) for user 2
+  const tokenIdFar = await t.mutation(internal.mutations.tokensMutations.updateToken, {
+    userId: userId2,
+    platformUserId: "p2",
+    newToken: "token-far",
+    expiresIn: 10 * 24 * 3600, // 10 days
+    platform: "threads",
+    type: "long lived",
+  });
+
+  // 3. Mock fetch request for refreshAccessToken
+  const fetchMock = vi.fn().mockImplementation(async (url: string, _init?: RequestInit) => {
+    expect(url).toContain("refresh_access_token");
+    expect(url).toContain("access_token=token-near");
+    return {
+      ok: true,
+      status: 200,
+      json: async () => ({
+        access_token: "refreshed-token-near",
+        token_type: "Bearer",
+        expires_in: 5184000, // 60 days
+      }),
+    } as Response;
+  });
+  vi.stubGlobal("fetch", fetchMock);
+
+  // 4. Run the bulk refresh action
+  const result = await t.action(internal.actions.tokensActions.refreshAllThreadsTokens, {});
+  expect(result.refreshedCount).toBe(1);
+  expect(result.errors.length).toBe(0);
+
+  // 5. Verify database state
+  const user1Token = await t.query(internal.queries.tokensQueries.getLatestToken, {
+    platform: "threads",
+    type: "long lived",
+    userId: userId1,
+  });
+  expect(user1Token).not.toBeNull();
+  expect(user1Token?.token).toBe("refreshed-token-near");
+
+  const user2Token = await t.query(internal.queries.tokensQueries.getLatestToken, {
+    platform: "threads",
+    type: "long lived",
+    userId: userId2,
+  });
+  expect(user2Token).not.toBeNull();
+  expect(user2Token?.token).toBe("token-far");
+  expect(user2Token?._id).toBe(tokenIdFar);
+});
+
+

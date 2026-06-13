@@ -53,13 +53,13 @@ export const updateThreadDraftStatus = internalMutation({
   },
   handler: async (ctx, args) => {
     const { id, ...updates } = args;
-    await ctx.db.patch(id, updates);
+    await ctx.db.patch("threadDrafts", id, updates);
   },
 });
 
 export const markAsPublished = internalMutation({
   args: { id: v.id("threadDrafts"), userId: v.id("users") },
   handler: async (ctx, args) => {
-    await ctx.db.patch(args.id, { is_published: true });
+    await ctx.db.patch("threadDrafts", args.id, { is_published: true });
   },
 });

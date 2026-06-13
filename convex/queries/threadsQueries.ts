@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { internalQuery, query } from "../_generated/server";
+import { query } from "../_generated/server";
 import { Doc } from "../_generated/dataModel";
 import { getAuthUserId } from "@convex-dev/auth/server";
 

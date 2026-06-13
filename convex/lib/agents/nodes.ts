@@ -1,7 +1,7 @@
 "use node";
 
-import { createAgent } from "langchain";
 import { z } from "zod";
+import { buildAgents, invokeWithFallbacks } from "./utils.js";
 import {
   HOOK_STRATEGIST_NODE_PROMPT,
   SCRAPER_NODE_PROMPT,
@@ -42,81 +42,41 @@ export const ScraperNode = async (state: ThreadFactoryStateType) => {
 };
 
 export const HookStrategistNode = async (state: ThreadFactoryStateType) => {
-  const primaryAgent = createAgent({
-    model: hookPrimaryLlm,
-    tools: [TopicContextExpanderTool],
-    systemPrompt: HOOK_STRATEGIST_NODE_PROMPT,
-    responseFormat: z.object({
-      core_hooks: z.array(z.string()).min(1, "Must generate at least one hook"),
-      selected_hook: z.string().min(1, "Must select a hook")
-    })
+  const schema = z.object({
+    core_hooks: z.array(z.string()).min(1, "Must generate at least one hook"),
+    selected_hook: z.string().min(1, "Must select a hook")
   });
 
-  const fallbackAgent1 = createAgent({
-    model: hookFallbackLlm1,
-    tools: [TopicContextExpanderTool],
-    systemPrompt: HOOK_STRATEGIST_NODE_PROMPT,
-    responseFormat: z.object({
-      core_hooks: z.array(z.string()).min(1, "Must generate at least one hook"),
-      selected_hook: z.string().min(1, "Must select a hook")
-    })
-  });
-
-  const fallbackAgent2 = createAgent({
-    model: hookFallbackLlm2,
-    tools: [TopicContextExpanderTool],
-    systemPrompt: HOOK_STRATEGIST_NODE_PROMPT,
-    responseFormat: z.object({
-      core_hooks: z.array(z.string()).min(1, "Must generate at least one hook"),
-      selected_hook: z.string().min(1, "Must select a hook")
-    })
-  });
+  const agents = buildAgents(
+    [hookPrimaryLlm, hookFallbackLlm1, hookFallbackLlm2],
+    {
+      tools: [TopicContextExpanderTool],
+      systemPrompt: HOOK_STRATEGIST_NODE_PROMPT,
+      responseFormat: schema
+    }
+  );
 
   let result;
+  let parse_success = false;
+
   try {
-    result = await primaryAgent.invoke({
+    result = await invokeWithFallbacks(agents, {
       messages: [{ role: "user", content: state.raw_markdown }]
     });
-  } catch (_e1) {
-    console.warn("primaryAgent failed, using fallbackAgent1");
-    try {
-      result = await fallbackAgent1.invoke({
-        messages: [{ role: "user", content: state.raw_markdown }]
-      });
-    } catch (_e2) {
-      console.warn("fallbackAgent1 failed, using fallbackAgent2");
-      result = await fallbackAgent2.invoke({
-        messages: [{ role: "user", content: state.raw_markdown }]
-      });
-    }
+    parse_success = true;
+  } catch (_e) {
+    parse_success = false;
   }
 
   let core_hooks: string[] = [];
   let selected_hook = "";
-  let parse_success = false;
 
-  if (result.structuredResponse) {
+  if (parse_success && result?.structuredResponse) {
     core_hooks = result.structuredResponse.core_hooks || [];
     selected_hook = result.structuredResponse.selected_hook || "";
-    parse_success = true;
+  } else {
+    parse_success = false;
   }
-  /* Fallback parsing commented out as requested
-  else {
-    // Fallback: The model outputted unstructured text, try to extract JSON from the last message
-    const lastMessage = result.messages[result.messages.length - 1].content as string;
-    try {
-      const jsonMatch = lastMessage.match(/```(?:json)?\n?([\s\S]*?)```/);
-      const jsonStr = jsonMatch ? jsonMatch[1] : lastMessage;
-      const parsed = JSON.parse(jsonStr);
-      core_hooks = parsed.core_hooks || [lastMessage];
-      selected_hook = parsed.selected_hook || lastMessage;
-    } catch {
-      console.warn("Failed to parse JSON from unstructured output. Using raw text as fallback.");
-      core_hooks = [lastMessage];
-      selected_hook = lastMessage;
-    }
-  }
-  */
 
   return {
     core_hooks,
@@ -185,38 +145,27 @@ export const ViralityCriticNode = async (state: ThreadFactoryStateType) => {
     critique: z.string()
   });
 
-  const primaryAgent = createAgent({
-    model: criticPrimaryLlm,
-    tools: [ContentAuthenticityCheckerTool],
-    systemPrompt: VIRALITY_CRITIC_NODE_PROMPT,
-    responseFormat: schema
-  });
-
-  const fallbackAgent = createAgent({
-    model: criticFallbackLlm,
-    tools: [ContentAuthenticityCheckerTool],
-    systemPrompt: VIRALITY_CRITIC_NODE_PROMPT,
-    responseFormat: schema
-  });
+  const agents = buildAgents(
+    [criticPrimaryLlm, criticFallbackLlm],
+    {
+      tools: [ContentAuthenticityCheckerTool],
+      systemPrompt: VIRALITY_CRITIC_NODE_PROMPT,
+      responseFormat: schema
+    }
+  );
 
   let result;
-  let parse_success = true;
+  let parse_success = false;
+
   try {
-    result = await primaryAgent.invoke({
+    result = await invokeWithFallbacks(agents, {
       messages: [
         { role: "user", content: `SOURCE MATERIAL:\n${state.raw_markdown}\n\nTHREAD:\n${JSON.stringify(state.thread_draft, null, 2)}` }
       ]
     });
-  } catch (_e1) {
-    try {
-      result = await fallbackAgent.invoke({
-        messages: [
-          { role: "user", content: `SOURCE MATERIAL:\n${state.raw_markdown}\n\nTHREAD:\n${JSON.stringify(state.thread_draft, null, 2)}` }
-        ]
-      });
-    } catch (_e2) {
-      parse_success = false;
-    }
+    parse_success = true;
+  } catch (_e) {
+    parse_success = false;
   }
 
   let finalCritique = "";

@@ -18,7 +18,7 @@ export const WebScraperTool = tool(
       }
   
       return scrapeResult.markdown || "No content found.";
-    } catch (e) {
+    } catch (_e) {
       console.warn(`[WebScraperTool] Firecrawl failed for ${url}, falling back to Jina Reader...`);
       try {
         const jinaResponse = await fetch(`https://r.jina.ai/${url}`, {

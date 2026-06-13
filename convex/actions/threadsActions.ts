@@ -1,7 +1,7 @@
 "use node";
 
 import { v } from "convex/values";
-import { internalAction, action } from "../_generated/server";
+import { action } from "../_generated/server";
 import { internal, api } from "../_generated/api";
 import { Id } from "../_generated/dataModel";
 import { getAuthUserId } from "@convex-dev/auth/server";
@@ -23,7 +23,7 @@ export const generateThread = action({
       internal.mutations.threadsMutations.initializeThreadDraft,
       {
         url: args.url,
-        userId: userId as Id<"users">,
+        userId: userId,
       }
     );
 
@@ -88,13 +88,13 @@ export const publishThread = action({
     console.log(`[publishThread] Action started for state ID: ${args.id}`);
 
     console.log("[publishThread] Refreshing Threads token if necessary...");
-    await ctx.runAction(internal.actions.tokensActions.refreshThreadsToken, { userId: userId as Id<"users"> });
+    await ctx.runAction(internal.actions.tokensActions.refreshThreadsToken, { userId: userId });
 
     // 1. Retrieve the latest threads long-lived token
     console.log("[publishThread] Retrieving the latest Threads access token...");
     const tokenDoc = await ctx.runQuery(
       internal.queries.tokensQueries.getLatestToken,
-      { platform: "threads", type: "long lived", userId: userId as Id<"users"> }
+      { platform: "threads", type: "long lived", userId: userId }
     );
     if (!tokenDoc) {
       console.error("[publishThread] No active Threads access token found in the database.");
@@ -148,7 +148,7 @@ export const publishThread = action({
     }
 
     console.log("[publishThread] All posts published successfully. Post IDs:", postIds);
-    await ctx.runMutation(internal.mutations.threadsMutations.markAsPublished, { id: args.id, userId: userId as Id<"users"> });
+    await ctx.runMutation(internal.mutations.threadsMutations.markAsPublished, { id: args.id, userId: userId });
     return { postIds };
   },
 });

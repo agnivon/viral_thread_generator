@@ -6,12 +6,59 @@ import { auth } from "./auth";
 
 const http = httpRouter();
 
+async function verifyState(stateStr: string, secret: string): Promise<string | null> {
+  try {
+    const parts = stateStr.split(":");
+    if (parts.length !== 3) return null;
+    
+    const [userId, timestampStr, signatureHex] = parts;
+    const timestamp = Number(timestampStr);
+    
+    // Check expiration (1 hour)
+    if (isNaN(timestamp) || Date.now() - timestamp > 3600000 || Date.now() - timestamp < -60000) {
+      return null;
+    }
+    
+    const dataToSign = `${userId}:${timestampStr}`;
+    
+    const encoder = new TextEncoder();
+    const keyData = encoder.encode(secret);
+    const data = encoder.encode(dataToSign);
+    
+    // Convert hex string back to Uint8Array
+    const sigBytes = new Uint8Array(
+      signatureHex.match(/.{1,2}/g)!.map(byte => parseInt(byte, 16))
+    );
+    
+    const key = await crypto.subtle.importKey(
+      "raw",
+      keyData,
+      { name: "HMAC", hash: "SHA-256" },
+      false,
+      ["verify"]
+    );
+    
+    const isValid = await crypto.subtle.verify("HMAC", key, sigBytes, data);
+    return isValid ? userId : null;
+  } catch (err) {
+    console.error("Error verifying state:", err);
+    return null;
+  }
+}
+
 http.route({
   path: "/auth",
   method: "GET",
   handler: httpAction(async (ctx, req) => {
     const url = new URL(req.url);
-    const userId = await auth.getUserId(ctx);
+    const stateStr = url.searchParams.get("state") || "";
+    const clientSecret = process.env.THREADS_APP_SECRET;
+
+    if (!clientSecret) {
+      return new Response("Threads API configurations are missing in the environment variables", { status: 500 });
+    }
+
+    const userId = await verifyState(stateStr, clientSecret) as any;
 
     if (!userId) {
       return new Response("Unauthorized", { status: 401 });
@@ -46,10 +93,9 @@ http.route({
     }
 
     const clientId = process.env.THREADS_APP_ID;
-    const clientSecret = process.env.THREADS_APP_SECRET;
     const redirectUri = process.env.THREADS_REDIRECT_URI;
 
-    if (!clientId || !clientSecret || !redirectUri) {
+    if (!clientId || !redirectUri) {
       return new Response("Threads API configurations are missing in the environment variables", { status: 500 });
     }
 

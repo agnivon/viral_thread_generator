@@ -255,6 +255,26 @@ test("http action /auth callback", async () => {
     return await ctx.db.insert("users", {});
   });
 
+  const signState = async (uid: string, secret: string) => {
+    const timestamp = Date.now();
+    const dataToSign = `${uid}:${timestamp}`;
+    const encoder = new TextEncoder();
+    const key = await crypto.subtle.importKey(
+      "raw",
+      encoder.encode(secret),
+      { name: "HMAC", hash: "SHA-256" },
+      false,
+      ["sign"]
+    );
+    const signatureBuffer = await crypto.subtle.sign("HMAC", key, encoder.encode(dataToSign));
+    const signatureHex = Array.from(new Uint8Array(signatureBuffer))
+      .map(b => b.toString(16).padStart(2, '0'))
+      .join('');
+    return `${dataToSign}:${signatureHex}`;
+  };
+
+  const signedState = await signState(userId, "mock-app-secret");
+
   vi.spyOn(auth, "getUserId").mockResolvedValue(userId);
 
   // Mock global fetch for OAuth exchange requests
@@ -296,14 +316,14 @@ test("http action /auth callback", async () => {
   } as any;
 
   // 1. Check response when code is missing (should fail with 400)
-  const reqNoCode = new Request("https://intent-cuttlefish-35.convex.site/auth");
+  const reqNoCode = new Request(`https://intent-cuttlefish-35.convex.site/auth?state=${encodeURIComponent(signedState)}`);
   const resNoCode = await (route![0] as any)._handler(mockCtx, reqNoCode);
   expect(resNoCode.status).toBe(400);
   const htmlNoCode = await resNoCode.text();
   expect(htmlNoCode).toContain("Authorization Failed");
 
   // 2. Check response when code is provided (should succeed with 200 after stripping #_)
-  const reqWithCode = new Request("https://intent-cuttlefish-35.convex.site/auth?code=mock-auth-code%23_");
+  const reqWithCode = new Request(`https://intent-cuttlefish-35.convex.site/auth?code=mock-auth-code%23_&state=${encodeURIComponent(signedState)}`);
   const resWithCode = await (route![0] as any)._handler(mockCtx, reqWithCode);
   expect(resWithCode.status).toBe(200);
   const htmlWithCode = await resWithCode.text();

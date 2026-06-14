@@ -144,11 +144,21 @@ export default function ApproveDraftPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               {state.thread_draft.map((post, index) => (
-                <div key={index} className="p-4 border rounded-lg bg-card/50 relative">
-                  <span className="absolute -top-3 -left-3 bg-primary text-primary-foreground h-6 w-6 rounded-full flex items-center justify-center text-xs font-bold shadow-sm">
-                    {index + 1}
-                  </span>
-                  <p className="whitespace-pre-wrap text-sm">{post}</p>
+                <div key={index} className="p-4 border rounded-lg bg-card/50 relative flex flex-col justify-between min-h-[100px]">
+                  <div>
+                    <span className="absolute -top-3 -left-3 bg-primary text-primary-foreground h-6 w-6 rounded-full flex items-center justify-center text-xs font-bold shadow-sm">
+                      {index + 1}
+                    </span>
+                    <p className="whitespace-pre-wrap text-sm">{post}</p>
+                  </div>
+                  <div className="mt-4 pt-2 border-t flex justify-between items-center text-xs text-muted-foreground select-none">
+                    <span>{post.length} character{post.length !== 1 ? 's' : ''}</span>
+                    {post.length > 500 ? (
+                      <span className="text-destructive font-medium">Exceeds Threads limit (500)</span>
+                    ) : (
+                      <span>{500 - post.length} remaining</span>
+                    )}
+                  </div>
                 </div>
               ))}
               {state.thread_draft.length === 0 && (

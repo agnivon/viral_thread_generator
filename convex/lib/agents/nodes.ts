@@ -102,13 +102,14 @@ export const ThreadWriterNode = async (state: ThreadFactoryStateType) => {
     ? `\n\nPREVIOUS THREAD DRAFT:\n${JSON.stringify(state.thread_draft, null, 2)}` 
     : "";
   const critiqueContext = state.critique ? `\n\nCRITIQUE TO ADDRESS:\n${state.critique}` : "";
+  const charCritiqueContext = state.character_critique ? `\n\nCHARACTER & FORMATTING CONSTRAINTS FAILED:\n${state.character_critique}\nFix the previous draft to respect these exact formatting constraints.` : "";
 
   let draft;
   let parse_success = true;
   try {
     draft = await structuredLlm.invoke([
       { role: "system", content: THREAD_WRITER_NODE_PROMPT },
-      { role: "user", content: `HOOK:\n${state.selected_hook}\n\nSOURCE:\n${state.raw_markdown}${previousDraftContext}${critiqueContext}` }
+      { role: "user", content: `HOOK:\n${state.selected_hook}\n\nSOURCE:\n${state.raw_markdown}${previousDraftContext}${critiqueContext}${charCritiqueContext}` }
     ], { timeout: 300000 });
     if (!draft || !draft.thread_draft) parse_success = false;
   } catch (_e) {
@@ -129,13 +130,13 @@ export const CharacterValidatorNode = async (state: ThreadFactoryStateType) => {
   if (!validation.isValid) {
     return {
       is_character_valid: false,
-      critique: `FIX REQUIRED: Posts at indices ${validation.offendingIndices.join(", ")} exceed 500 characters. You must rewrite these to be shorter.`,
-      iterations: state.iterations + 1
+      character_critique: `FORMATTING ERRORS REQUIRED TO FIX:\n${validation.errors.join("\n")}`
     };
   }
 
   return {
-    is_character_valid: true
+    is_character_valid: true,
+    character_critique: ""
   };
 };
 

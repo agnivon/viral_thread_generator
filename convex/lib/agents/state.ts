@@ -8,6 +8,7 @@ export const ThreadFactoryState = new StateSchema({
   selected_hook: z.string().default(""),
   thread_draft: z.array(z.string()).default(() => []),
   critique: z.string().default(""),
+  character_critique: z.string().default(""),
   iterations: z.number().default(0),
   is_approved: z.boolean().default(false),
   is_character_valid: z.boolean().default(true),

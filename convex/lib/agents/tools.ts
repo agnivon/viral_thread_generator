@@ -49,22 +49,30 @@ export const WebScraperTool = tool(
 // 2. CharacterValidatorTool
 export const CharacterValidatorTool = tool(
   async ({ thread_draft }) => {
-    const offendingIndices: number[] = [];
+    const errors: string[] = [];
     thread_draft.forEach((post, index) => {
-      // Basic character count; in real world, account for emoji lengths etc.
-      if (post.length > 500) {
-        offendingIndices.push(index);
+      let position = "Body";
+      if (index === 0) position = "Hook";
+      else if (index === thread_draft.length - 1) position = "CTA";
+
+      if (post.length > 280) {
+        errors.push(`Post ${index + 1} (${position}) is ${post.length} characters long. Maximum allowed is 280 characters.`);
+      }
+      
+      const lineBreaks = (post.match(/\n/g) || []).length;
+      if (lineBreaks > 4) {
+         errors.push(`Post ${index + 1} (${position}) has ${lineBreaks} line breaks. Maximum allowed is 4 line breaks.`);
       }
     });
 
     return JSON.stringify({
-      isValid: offendingIndices.length === 0,
-      offendingIndices,
+      isValid: errors.length === 0,
+      errors
     });
   },
   {
     name: "character_validator",
-    description: "Validates if any post in the thread draft exceeds 500 characters.",
+    description: "Validates if any post exceeds 280 characters or 4 line breaks.",
     schema: z.object({
       thread_draft: z.array(z.string()).describe("The list of thread posts to validate"),
     }),

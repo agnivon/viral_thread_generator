@@ -22,6 +22,7 @@ import type * as lib_agents_nodes from "../lib/agents/nodes.js";
 import type * as lib_agents_prompts from "../lib/agents/prompts.js";
 import type * as lib_agents_state from "../lib/agents/state.js";
 import type * as lib_agents_tools from "../lib/agents/tools.js";
+import type * as lib_agents_utils from "../lib/agents/utils.js";
 import type * as mutations_threadsMutations from "../mutations/threadsMutations.js";
 import type * as mutations_tokensMutations from "../mutations/tokensMutations.js";
 import type * as queries_threadsQueries from "../queries/threadsQueries.js";
@@ -48,6 +49,7 @@ declare const fullApi: ApiFromModules<{
   "lib/agents/prompts": typeof lib_agents_prompts;
   "lib/agents/state": typeof lib_agents_state;
   "lib/agents/tools": typeof lib_agents_tools;
+  "lib/agents/utils": typeof lib_agents_utils;
   "mutations/threadsMutations": typeof mutations_threadsMutations;
   "mutations/tokensMutations": typeof mutations_tokensMutations;
   "queries/threadsQueries": typeof queries_threadsQueries;

@@ -66,6 +66,7 @@ test("generateThread action runs graph and saves result", async () => {
     selected_hook: "g2",
     thread_draft: ["draft post 1", "draft post 2"],
     critique: "Needs minor polish",
+    character_critique: "",
     iterations: 3,
     is_approved: false,
     is_character_valid: true,

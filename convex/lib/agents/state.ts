@@ -3,6 +3,7 @@ import { z } from "zod";
 
 export const ThreadFactoryState = new StateSchema({
   url: z.string(),
+  guidance: z.string().optional(),
   raw_markdown: z.string().default(""),
   core_hooks: z.array(z.string()).default(() => []),
   selected_hook: z.string().default(""),
@@ -18,7 +19,8 @@ export const ThreadFactoryState = new StateSchema({
     hook: z.number().default(0),
     writer: z.number().default(0),
     critic: z.number().default(0),
-  }).default({ scraper: 0, hook: 0, writer: 0, critic: 0 }),
+    validator: z.number().default(0),
+  }).default({ scraper: 0, hook: 0, writer: 0, critic: 0, validator: 0 }),
 });
 
 export type ThreadFactoryStateType = typeof ThreadFactoryState.State;

@@ -30,6 +30,14 @@ const route_after_writer = (state: ThreadFactoryStateType) => {
 
 const route_after_validator = (state: ThreadFactoryStateType) => {
   if (!state.is_character_valid) {
+    if ((state.retries?.validator || 0) >= 3) {
+      if (!state.character_critique.includes("characters long")) {
+        console.log("[route_after_validator] Max character validation retries reached, but only line break errors remain. Proceeding.");
+        return "ViralityCriticNode";
+      }
+      console.log("[route_after_validator] Max character validation retries reached, aborting character fixes");
+      return END;
+    }
     return "ThreadWriterNode";
   }
   return "ViralityCriticNode";
@@ -56,6 +64,6 @@ export const ThreadFactoryGraph = new StateGraph(ThreadFactoryState)
   .addConditionalEdges("ScraperNode", route_after_scraper, ["HookStrategistNode", "ScraperNode"])
   .addConditionalEdges("HookStrategistNode", route_after_hook, ["ThreadWriterNode", "HookStrategistNode"])
   .addConditionalEdges("ThreadWriterNode", route_after_writer, ["CharacterValidatorNode", "ThreadWriterNode"])
-  .addConditionalEdges("CharacterValidatorNode", route_after_validator, ["ViralityCriticNode", "ThreadWriterNode"])
+  .addConditionalEdges("CharacterValidatorNode", route_after_validator, [END, "ViralityCriticNode", "ThreadWriterNode"])
   .addConditionalEdges("ViralityCriticNode", route_after_critic, [END, "ThreadWriterNode", "ViralityCriticNode"])
   .compile();

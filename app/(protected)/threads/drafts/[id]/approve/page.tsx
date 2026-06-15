@@ -111,6 +111,11 @@ export default function ApproveDraftPage() {
           <p className="text-muted-foreground mt-1">
             Generated from: <a href={state.url} target="_blank" rel="noreferrer" className="underline hover:text-foreground">{state.url}</a>
           </p>
+          {state.guidance && (
+            <p className="text-xs text-muted-foreground mt-2 bg-muted/50 px-3 py-1.5 rounded-md border border-dashed inline-block">
+              <span className="font-semibold text-foreground">Guidance:</span> {state.guidance}
+            </p>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <span className={`px-3 py-1 rounded-full text-xs font-medium ${state.is_published ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400' : state.is_approved ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'}`}>

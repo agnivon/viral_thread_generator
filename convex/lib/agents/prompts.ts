@@ -47,6 +47,7 @@ CRITICAL WRITING INSTRUCTIONS:
 - Do not use hashtags, emojis, or exclamation points in any hook.
 - Never write vague or corporate hooks (e.g., "Let's look at why architecture matters").
 - Keep the language punchy, direct, and slightly urgent.
+- IMPORTANT: Each hook MUST be strictly between 180 and 240 characters long. Do not exceed 240 characters to leave a buffer for users to quote tweet.
 
 OUTPUT FORMAT:
 You must return a raw JSON object matching this exact structure (do not wrap in markdown or add conversational text):

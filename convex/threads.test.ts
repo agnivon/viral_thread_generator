@@ -61,6 +61,7 @@ test("generateThread action runs graph and saves result", async () => {
 
   const mockGraphOutput = {
     url: "https://example.com/target-url",
+    guidance: undefined,
     raw_markdown: "Graph markdown result",
     core_hooks: ["g1", "g2"],
     selected_hook: "g2",
@@ -71,7 +72,7 @@ test("generateThread action runs graph and saves result", async () => {
     is_approved: false,
     is_character_valid: true,
     parse_success: true,
-    retries: { scraper: 0, hook: 0, writer: 0, critic: 0 },
+    retries: { scraper: 0, hook: 0, writer: 0, critic: 0, validator: 0 },
   };
 
   const invokeSpy = vi.spyOn(ThreadFactoryGraph, "invoke").mockResolvedValue(mockGraphOutput);

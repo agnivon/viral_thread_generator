@@ -11,6 +11,7 @@ import { ThreadsAPI } from "../lib/ThreadsAPI.js";
 export const generateThread = action({
   args: {
     url: v.string(),
+    guidance: v.optional(v.string()),
   },
   handler: async (ctx, args): Promise<Id<"threadDrafts">> => {
     const userId = await getAuthUserId(ctx);
@@ -24,11 +25,13 @@ export const generateThread = action({
       {
         url: args.url,
         userId: userId,
+        guidance: args.guidance,
       }
     );
 
     const initialState = {
       url: args.url,
+      guidance: args.guidance,
       raw_markdown: "",
       core_hooks: [],
       selected_hook: "",

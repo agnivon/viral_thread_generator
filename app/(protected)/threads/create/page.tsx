@@ -17,6 +17,7 @@ import {
 
 export default function CreateThreadPage() {
   const [url, setUrl] = useState("");
+  const [guidance, setGuidance] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
@@ -31,7 +32,7 @@ export default function CreateThreadPage() {
     setError(null);
 
     // Trigger thread generation in the background
-    generateThread({ url }).catch((err) => {
+    generateThread({ url, guidance: guidance || undefined }).catch((err) => {
       console.error("Failed to generate thread:", err);
     });
 
@@ -60,6 +61,18 @@ export default function CreateThreadPage() {
                 onChange={(e) => setUrl(e.target.value)}
                 disabled={isLoading}
                 required
+              />
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="guidance">Guidance / Instructions (Optional)</Label>
+              <textarea
+                id="guidance"
+                placeholder="e.g., Focus on the technical specifications, use a professional tone, or emphasize key metrics."
+                value={guidance}
+                onChange={(e) => setGuidance(e.target.value)}
+                disabled={isLoading}
+                className="flex min-h-[80px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 resize-none"
               />
             </div>
             

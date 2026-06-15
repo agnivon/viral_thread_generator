@@ -60,8 +60,9 @@ export const HookStrategistNode = async (state: ThreadFactoryStateType) => {
   let parse_success = false;
 
   try {
+    const guidanceContext = state.guidance ? `\n\nADDITIONAL GUIDANCE:\n${state.guidance}` : "";
     result = await invokeWithFallbacks(agents, {
-      messages: [{ role: "user", content: state.raw_markdown }]
+      messages: [{ role: "user", content: `${state.raw_markdown}${guidanceContext}` }]
     });
     parse_success = true;
   } catch (_e) {
@@ -103,13 +104,14 @@ export const ThreadWriterNode = async (state: ThreadFactoryStateType) => {
     : "";
   const critiqueContext = state.critique ? `\n\nCRITIQUE TO ADDRESS:\n${state.critique}` : "";
   const charCritiqueContext = state.character_critique ? `\n\nCHARACTER & FORMATTING CONSTRAINTS FAILED:\n${state.character_critique}\nFix the previous draft to respect these exact formatting constraints.` : "";
+  const guidanceContext = state.guidance ? `\n\nADDITIONAL GUIDANCE:\n${state.guidance}` : "";
 
   let draft;
   let parse_success = true;
   try {
     draft = await structuredLlm.invoke([
       { role: "system", content: THREAD_WRITER_NODE_PROMPT },
-      { role: "user", content: `HOOK:\n${state.selected_hook}\n\nSOURCE:\n${state.raw_markdown}${previousDraftContext}${critiqueContext}${charCritiqueContext}` }
+      { role: "user", content: `HOOK:\n${state.selected_hook}\n\nSOURCE:\n${state.raw_markdown}${previousDraftContext}${critiqueContext}${charCritiqueContext}${guidanceContext}` }
     ], { timeout: 300000 });
     if (!draft || !draft.thread_draft) parse_success = false;
   } catch (_e) {
@@ -130,7 +132,8 @@ export const CharacterValidatorNode = async (state: ThreadFactoryStateType) => {
   if (!validation.isValid) {
     return {
       is_character_valid: false,
-      character_critique: `FORMATTING ERRORS REQUIRED TO FIX:\n${validation.errors.join("\n")}`
+      character_critique: `FORMATTING ERRORS REQUIRED TO FIX:\n${validation.errors.join("\n")}`,
+      retries: { ...(state.retries || {}), validator: (state.retries?.validator || 0) + 1 }
     };
   }
 
@@ -159,9 +162,10 @@ export const ViralityCriticNode = async (state: ThreadFactoryStateType) => {
   let parse_success = false;
 
   try {
+    const guidanceContext = state.guidance ? `\n\nADDITIONAL GUIDANCE:\n${state.guidance}` : "";
     result = await invokeWithFallbacks(agents, {
       messages: [
-        { role: "user", content: `SOURCE MATERIAL:\n${state.raw_markdown}\n\nTHREAD:\n${JSON.stringify(state.thread_draft, null, 2)}` }
+        { role: "user", content: `SOURCE MATERIAL:\n${state.raw_markdown}\n\nTHREAD:\n${JSON.stringify(state.thread_draft, null, 2)}${guidanceContext}` }
       ]
     });
     parse_success = true;
@@ -190,7 +194,7 @@ export const ViralityCriticNode = async (state: ThreadFactoryStateType) => {
     is_approved: finalApproval,
     critique: finalCritique,
     iterations: state.iterations + 1,
-    retries: { ...(state.retries || {}), critic: (state.retries?.critic || 0) + 1 },
+    retries: { ...(state.retries || {}), critic: (state.retries?.critic || 0) + 1, validator: 0 },
     parse_success: true
   };
 };

@@ -27,11 +27,13 @@ export const initializeThreadDraft = internalMutation({
   args: {
     url: v.string(),
     userId: v.id("users"),
+    guidance: v.optional(v.string()),
   },
   handler: async (ctx, args): Promise<Id<"threadDrafts">> => {
     return await ctx.db.insert("threadDrafts", {
       url: args.url,
       userId: args.userId,
+      guidance: args.guidance,
       is_approved: false,
       is_published: false,
       generation_status: "processing",

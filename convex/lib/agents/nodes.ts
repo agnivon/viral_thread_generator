@@ -99,8 +99,8 @@ export const ThreadWriterNode = async (state: ThreadFactoryStateType) => {
     ]
   });
 
-  const previousDraftContext = state.thread_draft && state.thread_draft.length > 0 
-    ? `\n\nPREVIOUS THREAD DRAFT:\n${JSON.stringify(state.thread_draft, null, 2)}` 
+  const previousDraftContext = state.thread_draft && state.thread_draft.length > 0
+    ? `\n\nPREVIOUS THREAD DRAFT:\n${JSON.stringify(state.thread_draft, null, 2)}`
     : "";
   const critiqueContext = state.critique ? `\n\nCRITIQUE TO ADDRESS:\n${state.critique}` : "";
   const charCritiqueContext = state.character_critique ? `\n\nCHARACTER & FORMATTING CONSTRAINTS FAILED:\n${state.character_critique}\nFix the previous draft to respect these exact formatting constraints.` : "";
@@ -167,7 +167,7 @@ export const ViralityCriticNode = async (state: ThreadFactoryStateType) => {
       messages: [
         { role: "user", content: `SOURCE MATERIAL:\n${state.raw_markdown}\n\nTHREAD:\n${JSON.stringify(state.thread_draft, null, 2)}${guidanceContext}` }
       ]
-    });
+    }, { timeout: 300000 });
     parse_success = true;
   } catch (_e) {
     parse_success = false;

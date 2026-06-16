@@ -12,6 +12,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { toast } from "sonner";
 
 export default function LoginPage() {
   const { signIn } = useAuthActions();
@@ -25,8 +26,10 @@ export default function LoginPage() {
     const formData = new FormData(event.currentTarget);
     try {
       await signIn("password", formData);
-    } catch (err) {
-      setError("Invalid email or password");
+    } catch (err: any) {
+      const msg = err?.message || "Invalid email or password";
+      setError(msg);
+      toast.error(msg);
     } finally {
       setIsLoading(false);
     }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from "convex/react";
+import { usePaginatedQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -15,7 +15,11 @@ import {
 } from "@radix-ui/react-icons";
 
 export default function DraftsPage() {
-  const drafts = useQuery(api.queries.threadsQueries.getAllThreadDrafts);
+  const { results: drafts, status, loadMore } = usePaginatedQuery(
+    api.queries.threadsQueries.getPaginatedThreadDrafts,
+    {},
+    { initialNumItems: 10 }
+  );
 
   const formatDate = (timestamp: number) => {
     return new Date(timestamp).toLocaleDateString(undefined, {
@@ -27,11 +31,13 @@ export default function DraftsPage() {
     });
   };
 
+  const isLoadingInitial = status === "LoadingFirstPage";
+
   return (
     <div className="container mx-auto px-4 py-12 max-w-5xl">
       <h1 className="text-3xl font-bold mb-8">Thread Drafts</h1>
 
-      {drafts === undefined ? (
+      {isLoadingInitial ? (
         <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
           <Loader2 className="w-10 h-10 animate-spin mb-4" />
           <p>Loading your drafts...</p>
@@ -44,7 +50,8 @@ export default function DraftsPage() {
           </Link>
         </div>
       ) : (
-        <div className="overflow-x-auto border rounded-lg bg-card shadow-sm w-full">
+        <>
+          <div className="overflow-x-auto border rounded-lg bg-card shadow-sm w-full">
           <table className="w-full text-sm text-left border-collapse min-w-[650px]">
             <thead className="bg-muted/50 text-muted-foreground text-xs uppercase border-b border-border">
               <tr>
@@ -130,6 +137,24 @@ export default function DraftsPage() {
             </tbody>
           </table>
         </div>
+        
+        {/* Pagination controls */}
+        {status === "CanLoadMore" && (
+          <div className="flex justify-center mt-6">
+            <Button onClick={() => loadMore(10)} variant="outline">
+              Load More
+            </Button>
+          </div>
+        )}
+        {status === "LoadingMore" && (
+          <div className="flex justify-center mt-6">
+            <Button disabled variant="outline">
+              <Loader2 className="w-4 h-4 animate-spin mr-2" />
+              Loading...
+            </Button>
+          </div>
+        )}
+        </>
       )}
     </div>
   );

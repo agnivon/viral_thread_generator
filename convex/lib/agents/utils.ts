@@ -32,11 +32,11 @@ export function buildAgents(models: any[], config: AgentConfig) {
  * @param params The invocation payload (e.g. { messages: [...] }).
  * @returns The successful result, or throws the final error if all agents fail.
  */
-export async function invokeWithFallbacks(agents: any[], params: any) {
+export async function invokeWithFallbacks(agents: any[], params: any, options?: any) {
   let lastError: unknown;
   for (let i = 0; i < agents.length; i++) {
     try {
-      const result = await agents[i].invoke(params);
+      const result = await agents[i].invoke(params, options);
       return result;
     } catch (e) {
       console.warn(`[Agent Fallback] Model at index ${i} failed. Trying next...`, e);

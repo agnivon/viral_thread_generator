@@ -2,6 +2,7 @@ import { v } from "convex/values";
 import { query } from "../_generated/server";
 import { Doc } from "../_generated/dataModel";
 import { getAuthUserId } from "@convex-dev/auth/server";
+import { paginationOptsValidator } from "convex/server";
 
 export const getThreadDraft = query({
   args: {
@@ -32,5 +33,22 @@ export const getAllThreadDrafts = query({
       .withIndex("by_userId", (q) => q.eq("userId", userId))
       .order("desc")
       .collect();
+  },
+});
+
+export const getPaginatedThreadDrafts = query({
+  args: {
+    paginationOpts: paginationOptsValidator,
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      throw new Error("Unauthorized");
+    }
+    return await ctx.db
+      .query("threadDrafts")
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
+      .order("desc")
+      .paginate(args.paginationOpts);
   },
 });

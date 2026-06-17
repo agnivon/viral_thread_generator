@@ -11,6 +11,14 @@ export const scraperPrimaryLlm = new ChatGoogle({
   apiKey: process.env.GOOGLE_API_KEY,
 });
 
+export const scraperPrimaryLlmBackup = new ChatGoogle({
+  model: "gemini-3.1-flash-lite",
+  temperature: 0.1,
+  maxOutputTokens: 2000,
+  maxRetries: 3,
+  apiKey: process.env.GOOGLE_API_KEY2,
+});
+
 export const scraperFallbackLlm = new ChatOpenAI({
   model: "gpt-5.4-mini",
   temperature: 0.1,
@@ -26,6 +34,13 @@ export const hookPrimaryLlm = new ChatGoogle({
   temperature: 0.8,
   maxRetries: 3,
   apiKey: process.env.GOOGLE_API_KEY,
+});
+
+export const hookPrimaryLlmBackup = new ChatGoogle({
+  model: "gemini-3.1-flash-lite",
+  temperature: 0.8,
+  maxRetries: 3,
+  apiKey: process.env.GOOGLE_API_KEY2,
 });
 
 export const hookFallbackLlm1 = new ChatOpenAI({
@@ -51,6 +66,13 @@ export const writerPrimaryLlm = new ChatGoogle({
   apiKey: process.env.GOOGLE_API_KEY,
 });
 
+export const writerPrimaryLlmBackup = new ChatGoogle({
+  model: "gemini-3.5-flash",
+  temperature: 0.8,
+  maxRetries: 3,
+  apiKey: process.env.GOOGLE_API_KEY2,
+});
+
 export const writerFallbackLlm1 = new ChatOpenAI({
   model: "gpt-5.4",
   temperature: 0.8,
@@ -67,12 +89,26 @@ export const writerFallbackLlm2 = new ChatGoogle({
   apiKey: process.env.GOOGLE_API_KEY,
 });
 
+export const writerFallbackLlm2Backup = new ChatGoogle({
+  model: "gemma-4-31b-it",
+  temperature: 0.8,
+  maxRetries: 3,
+  apiKey: process.env.GOOGLE_API_KEY2,
+});
+
 // ViralityCriticNode Models
 export const criticPrimaryLlm = new ChatGoogle({
   model: "gemini-3.5-flash",
   temperature: 0.0,
   maxRetries: 3,
   apiKey: process.env.GOOGLE_API_KEY,
+});
+
+export const criticPrimaryLlmBackup = new ChatGoogle({
+  model: "gemini-3.5-flash",
+  temperature: 0.0,
+  maxRetries: 3,
+  apiKey: process.env.GOOGLE_API_KEY2,
 });
 
 export const criticFallbackLlm = new ChatOpenAI({

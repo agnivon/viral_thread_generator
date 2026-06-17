@@ -11,16 +11,16 @@ import {
 import { ThreadFactoryStateType } from "./state.js";
 import { CharacterValidatorTool, TopicContextExpanderTool, WebScraperTool, ContentAuthenticityCheckerTool } from "./tools.js";
 import {
-  scraperPrimaryLlm, scraperFallbackLlm,
-  hookPrimaryLlm, hookFallbackLlm1, hookFallbackLlm2,
-  writerPrimaryLlm, writerFallbackLlm1, writerFallbackLlm2,
-  criticPrimaryLlm, criticFallbackLlm
+  scraperPrimaryLlm, scraperPrimaryLlmBackup, scraperFallbackLlm,
+  hookPrimaryLlm, hookPrimaryLlmBackup, hookFallbackLlm1, hookFallbackLlm2,
+  writerPrimaryLlm, writerPrimaryLlmBackup, writerFallbackLlm1, writerFallbackLlm2, writerFallbackLlm2Backup,
+  criticPrimaryLlm, criticPrimaryLlmBackup, criticFallbackLlm
 } from "./models.js";
 
 export const ScraperNode = async (state: ThreadFactoryStateType) => {
   const markdown = await WebScraperTool.invoke({ url: state.url });
 
-  const llm = scraperPrimaryLlm.withFallbacks({ fallbacks: [scraperFallbackLlm] });
+  const llm = scraperPrimaryLlm.withFallbacks({ fallbacks: [scraperPrimaryLlmBackup, scraperFallbackLlm] });
 
   try {
     const summary = await llm.invoke([
@@ -48,7 +48,7 @@ export const HookStrategistNode = async (state: ThreadFactoryStateType) => {
   });
 
   const agents = buildAgents(
-    [hookPrimaryLlm, hookFallbackLlm1, hookFallbackLlm2],
+    [hookPrimaryLlm, hookPrimaryLlmBackup, hookFallbackLlm1, hookFallbackLlm2],
     {
       tools: [TopicContextExpanderTool],
       systemPrompt: HOOK_STRATEGIST_NODE_PROMPT,
@@ -94,8 +94,10 @@ export const ThreadWriterNode = async (state: ThreadFactoryStateType) => {
 
   const structuredLlm = writerPrimaryLlm.withStructuredOutput(schema, { name: "thread_writer", method: "jsonSchema" }).withFallbacks({
     fallbacks: [
+      writerPrimaryLlmBackup.withStructuredOutput(schema, { name: "thread_writer", method: "jsonSchema" }),
       writerFallbackLlm1.withStructuredOutput(schema, { name: "thread_writer" }),
-      writerFallbackLlm2.withStructuredOutput(schema, { name: "thread_writer" })
+      writerFallbackLlm2.withStructuredOutput(schema, { name: "thread_writer" }),
+      writerFallbackLlm2Backup.withStructuredOutput(schema, { name: "thread_writer" })
     ]
   });
 
@@ -150,7 +152,7 @@ export const ViralityCriticNode = async (state: ThreadFactoryStateType) => {
   });
 
   const agents = buildAgents(
-    [criticPrimaryLlm, criticFallbackLlm],
+    [criticPrimaryLlm, criticPrimaryLlmBackup, criticFallbackLlm],
     {
       tools: [ContentAuthenticityCheckerTool],
       systemPrompt: VIRALITY_CRITIC_NODE_PROMPT,

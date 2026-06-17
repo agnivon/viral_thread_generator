@@ -148,7 +148,12 @@ export const CharacterValidatorNode = async (state: ThreadFactoryStateType) => {
 export const ViralityCriticNode = async (state: ThreadFactoryStateType) => {
   const schema = z.object({
     is_approved: z.boolean(),
-    critique: z.string()
+    virality_score: z.number(),
+    overall_critique: z.string(),
+    post_critiques: z.array(z.object({
+      post_index: z.number(),
+      critique: z.string()
+    }))
   });
 
   const agents = buildAgents(
@@ -177,10 +182,14 @@ export const ViralityCriticNode = async (state: ThreadFactoryStateType) => {
 
   let finalCritique = "";
   let finalApproval = false;
+  let virality_score;
+  let post_critiques: { post_index: number; critique: string }[] = [];
 
   if (parse_success && result?.structuredResponse) {
-    finalCritique = result.structuredResponse.critique || "";
+    finalCritique = result.structuredResponse.overall_critique || "";
     finalApproval = result.structuredResponse.is_approved || false;
+    virality_score = result.structuredResponse.virality_score;
+    post_critiques = result.structuredResponse.post_critiques || [];
   } else {
     parse_success = false;
   }
@@ -195,6 +204,8 @@ export const ViralityCriticNode = async (state: ThreadFactoryStateType) => {
   return {
     is_approved: finalApproval,
     critique: finalCritique,
+    virality_score,
+    post_critiques,
     iterations: state.iterations + 1,
     retries: { ...(state.retries || {}), critic: (state.retries?.critic || 0) + 1, validator: 0 },
     parse_success: true

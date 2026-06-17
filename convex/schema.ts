@@ -41,6 +41,11 @@ export default defineSchema(
       selected_hook: v.optional(v.union(v.string(), v.null())),
       thread_draft: v.optional(v.array(v.string())),
       critique: v.optional(v.union(v.string(), v.null())),
+      virality_score: v.optional(v.number()),
+      post_critiques: v.optional(v.array(v.object({
+        post_index: v.number(),
+        critique: v.string()
+      }))),
       iterations: v.optional(v.number()),
       is_approved: v.optional(v.boolean()),
       is_published: v.optional(v.boolean()),

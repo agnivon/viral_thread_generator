@@ -48,7 +48,7 @@ export const WebScraperTool = tool(
 
 // 2. CharacterValidatorTool
 export const CharacterValidatorTool = tool(
-  async ({ thread_draft }) => {
+  async ({ thread_draft, check_line_breaks }) => {
     const errors: string[] = [];
     thread_draft.forEach((post, index) => {
       let position = "Body";
@@ -59,9 +59,11 @@ export const CharacterValidatorTool = tool(
         errors.push(`Post ${index + 1} (${position}) is ${post.length} characters long. Maximum allowed is 280 characters.`);
       }
       
-      const lineBreaks = (post.match(/\n/g) || []).length;
-      if (lineBreaks > 4) {
-         errors.push(`Post ${index + 1} (${position}) has ${lineBreaks} line breaks. Maximum allowed is 4 line breaks.`);
+      if (check_line_breaks !== false) {
+        const lineBreaks = (post.match(/\n/g) || []).length;
+        if (lineBreaks > 4) {
+           errors.push(`Post ${index + 1} (${position}) has ${lineBreaks} line breaks. Maximum allowed is 4 line breaks.`);
+        }
       }
     });
 
@@ -72,9 +74,10 @@ export const CharacterValidatorTool = tool(
   },
   {
     name: "character_validator",
-    description: "Validates if any post exceeds 280 characters or 4 line breaks.",
+    description: "Validates if any post exceeds 280 characters. Optionally checks for maximum of 4 line breaks.",
     schema: z.object({
       thread_draft: z.array(z.string()).describe("The list of thread posts to validate"),
+      check_line_breaks: z.boolean().optional().default(false).describe("Whether to check if line breaks exceed 4 per post"),
     }),
   }
 );

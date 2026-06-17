@@ -105,25 +105,38 @@ export default function ApproveDraftPage() {
 
   return (
     <div className="container max-w-4xl mx-auto py-8 px-4 space-y-8">
-      <div className="flex items-center justify-between">
-        <div>
+      <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 border-b pb-6">
+        <div className="min-w-0 flex-1">
           <h1 className="text-3xl font-bold tracking-tight">Review Thread Draft</h1>
-          <p className="text-muted-foreground mt-1">
-            Generated from: <a href={state.url} target="_blank" rel="noreferrer" className="underline hover:text-foreground">{state.url}</a>
+          <p className="text-muted-foreground mt-1 text-sm break-all">
+            Generated from: <a href={state.url} target="_blank" rel="noreferrer" className="underline hover:text-foreground break-all">{state.url}</a>
           </p>
           {state.guidance && (
-            <p className="text-xs text-muted-foreground mt-2 bg-muted/50 px-3 py-1.5 rounded-md border border-dashed inline-block">
-              <span className="font-semibold text-foreground">Guidance:</span> {state.guidance}
-            </p>
+            <div className="mt-2">
+              <p className="text-xs text-muted-foreground bg-muted/50 px-3 py-1.5 rounded-md border border-dashed inline-block">
+                <span className="font-semibold text-foreground">Guidance:</span> {state.guidance}
+              </p>
+            </div>
           )}
         </div>
-        <div className="flex items-center gap-2">
-          <span className={`px-3 py-1 rounded-full text-xs font-medium ${state.is_published ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400' : state.is_approved ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'}`}>
+        <div className="flex flex-wrap items-center gap-2 self-start md:self-start">
+          <span className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap ${state.is_published ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400' : state.is_approved ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'}`}>
             {state.is_published ? "Published" : state.is_approved ? "Approved" : "Pending Review"}
           </span>
-          <span className="px-3 py-1 rounded-full text-xs font-medium bg-muted text-muted-foreground">
+          <span className="px-3 py-1 rounded-full text-xs font-medium bg-muted text-muted-foreground whitespace-nowrap">
             {state.iterations} Iteration{state.iterations !== 1 ? 's' : ''}
           </span>
+          {state.virality_score !== undefined && (
+            <span className={`px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${
+              state.virality_score >= 85 
+                ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400' 
+                : state.virality_score >= 70
+                  ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400'
+                  : 'bg-rose-100 text-rose-800 dark:bg-rose-900/30 dark:text-rose-400'
+            }`}>
+              Virality: {state.virality_score}/100
+            </span>
+          )}
         </div>
       </div>
 
@@ -148,24 +161,33 @@ export default function ApproveDraftPage() {
               <CardDescription>Review the generated thread sequence.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {state.thread_draft.map((post, index) => (
-                <div key={index} className="p-4 border rounded-lg bg-card/50 relative flex flex-col justify-between min-h-[100px]">
-                  <div>
-                    <span className="absolute -top-3 -left-3 bg-primary text-primary-foreground h-6 w-6 rounded-full flex items-center justify-center text-xs font-bold shadow-sm">
-                      {index + 1}
-                    </span>
-                    <p className="whitespace-pre-wrap text-sm">{post}</p>
-                  </div>
-                  <div className="mt-4 pt-2 border-t flex justify-between items-center text-xs text-muted-foreground select-none">
-                    <span>{post.length} character{post.length !== 1 ? 's' : ''}</span>
-                    {post.length > 500 ? (
-                      <span className="text-destructive font-medium">Exceeds Threads limit (500)</span>
-                    ) : (
-                      <span>{500 - post.length} remaining</span>
+              {state.thread_draft.map((post, index) => {
+                const postCritique = state.post_critiques?.find((pc) => pc.post_index === index);
+                return (
+                  <div key={index} className="p-4 border rounded-lg bg-card/50 relative flex flex-col justify-between min-h-[100px]">
+                    <div>
+                      <span className="absolute -top-3 -left-3 bg-primary text-primary-foreground h-6 w-6 rounded-full flex items-center justify-center text-xs font-bold shadow-sm">
+                        {index + 1}
+                      </span>
+                      <p className="whitespace-pre-wrap text-sm">{post}</p>
+                    </div>
+                    {postCritique && (
+                      <div className="mt-4 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-800 dark:text-amber-300 text-xs">
+                        <span className="font-semibold block mb-1">Post Critique:</span>
+                        <p className="leading-relaxed">{postCritique.critique}</p>
+                      </div>
                     )}
+                    <div className="mt-4 pt-2 border-t flex justify-between items-center text-xs text-muted-foreground select-none">
+                      <span>{post.length} character{post.length !== 1 ? 's' : ''}</span>
+                      {post.length > 500 ? (
+                        <span className="text-destructive font-medium">Exceeds Threads limit (500)</span>
+                      ) : (
+                        <span>{500 - post.length} remaining</span>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
               {state.thread_draft.length === 0 && (
                 <p className="text-muted-foreground italic text-center py-4">No draft content generated yet.</p>
               )}
@@ -195,6 +217,41 @@ export default function ApproveDraftPage() {
               Edit Draft
             </Button> */}
           </div>
+
+          {state.virality_score !== undefined && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-semibold">Virality Analysis</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  <div className="flex items-end justify-between">
+                    <span className="text-3xl font-extrabold text-foreground">{state.virality_score}</span>
+                    <span className="text-xs text-muted-foreground pb-1">out of 100</span>
+                  </div>
+                  <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
+                    <div 
+                      className={`h-full rounded-full transition-all duration-500 ${
+                        state.virality_score >= 85 
+                          ? 'bg-emerald-500' 
+                          : state.virality_score >= 70 
+                            ? 'bg-amber-500' 
+                            : 'bg-rose-500'
+                      }`}
+                      style={{ width: `${state.virality_score}%` }}
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    {state.virality_score >= 85 
+                      ? "Excellent virality potential! This thread is highly engaging and ready to perform." 
+                      : state.virality_score >= 70
+                        ? "Good potential. Meets baseline engagement criteria but could be tweaked."
+                        : "Low potential. Consider reviewing recommendations or generating a new thread."}
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           <Card>
             <CardHeader>

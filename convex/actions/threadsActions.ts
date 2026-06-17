@@ -57,6 +57,8 @@ export const generateThread = action({
           selected_hook: finalState.selected_hook,
           thread_draft: finalState.thread_draft,
           critique: finalState.critique,
+          virality_score: finalState.virality_score,
+          post_critiques: finalState.post_critiques,
           iterations: finalState.iterations,
           is_approved: finalState.is_approved,
         }

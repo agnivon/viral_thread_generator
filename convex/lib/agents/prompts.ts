@@ -124,18 +124,30 @@ You must analyze the thread and output a pristine, pure JSON object with zero ma
 
 REQUIRED JSON FORMAT SPECIFICATION:
 {
-  "is_approved": false, 
-  "critique": "Detailed actionable feedback string goes here if is_approved is false. Leave empty if true."
+  "is_approved": false,
+  "virality_score": 72, 
+  "overall_critique": "Detailed analysis of the macro narrative arc, pacing, and overall theme delivery.",
+  "post_critiques": [
+    {
+      "post_index": 1,
+      "critique": "Surgical feedback for this specific post index. Leave empty if this specific post passes all criteria."
+    }
+  ]
 }
 
 CRITICAL INSTRUCTION: Do not evaluate or critique numerical character counts or line break counts. This is handled programmatically by a separate node.
 
-CRITIQUE CONDITIONS FOR REJECTION (Set is_approved to false):
+CRITIQUE CONDITIONS FOR REJECTION (Set is_approved to false if virality_score < 85 OR if any condition below is violated):
 1. PLATFORM PENALTY: The thread contains any external hyperlinks in the main body posts, or uses more than 1 total hashtag across the entire sequence.
 2. THREADS FORMATTING VIOLATION: The copy contains raw markdown syntax for styling—specifically asterisks (** or *) used for bolding or italics. These do not render correctly on the Threads platform and are strictly banned as literal visual clutter.
 3. VISUAL CLUTTER: A post uses generic, spam-like or overused emojis (🚀, 🔥, 📈).
-4. REPUTATIONAL DILUTION & TOTAL ENGAGEMENT BAN: The copy sounds generic, lacks an authoritative tone, or utilizes banned AI-isms ("delve", "unpack", "in a world where", "let's dive deep"). Furthermore, it must contain ABSOLUTELY NO engagement bait or conversation loops. Completely reject any requests for likes, retweets, shares, bookmarks, or replies. This includes a strict ban on keyword comment triggers (e.g., "Reply with [Keyword] to get the file"). The copy must deliver immediate value with zero transaction hooks.
-5. PERSPECTIVE ALIGNMENT: Ensure the narrative voice matches the specific thread framework. If it is an analytical case study or trend breakdown, enforce a sharp third-person objective tone. If it is a personal narrative archetype (e.g., Build in Public, Zero-to-Hero, Aggregator, The Pivot), ALLOW authentic first-person pronouns ("I", "my", "we") , but reject artificial, hyped, or unearned claims.
+4. REPUTATIONAL DILUTION & TOTAL ENGAGEMENT BAN: The copy sounds generic, lacks an authoritative tone, or utilizes banned AI-isms ("delve", "unpack", "in a world where", "let's dive deep"). Furthermore, it must contain ABSOLUTELY NO engagement bait or conversation loops. Completely reject any requests for likes, retweets, shares, bookmarks, or replies. The copy must deliver immediate value with zero transaction hooks.
+5. PERSPECTIVE ALIGNMENT: Ensure the narrative voice matches the specific thread framework. If it is an analytical case study or trend breakdown, enforce a sharp third-person objective tone. If it is a personal narrative archetype (e.g., Build in Public, Zero-to-Hero, Aggregator, The Pivot), ALLOW authentic first-person pronouns ("I", "my", "we"), but reject artificial, hyped, or unearned claims.
 
-Be brutally honest. If a tweet reads like standard AI fluff or contains illegal cross-platform formatting characters, fail it immediately and outline exactly which indices need restructuring inside the critique field.
+SCORING MATRIX FOR VIRALITY_SCORE (0 - 100):
+- 90-100: Exceptional hook velocity, strong downward visual cues, flawless value retention even if the reader drops off early.
+- 70-89: Technically sound but utilizes predictable storytelling cadences or lacks a sharp curiosity gap.
+- 0-69: Fails core constraints, reads like a corporate summary, or contains banned formatting/engagement patterns.
+
+Be brutally honest. Map your 'post_critiques' array elements sequentially to match the exact post positions of the input thread.
 `;

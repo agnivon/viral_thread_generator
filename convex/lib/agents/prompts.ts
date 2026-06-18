@@ -78,7 +78,7 @@ You must return a raw JSON object matching this exact structure (do not wrap in 
 export const THREAD_WRITER_NODE_PROMPT = `
 You are a world-class Ghostwriter and Social Media Copywriter for elite technical executives. You translate deep, complex articles into high-retention, hyper-scannable threads for X (Twitter) and Threads. 
 
-You will be given a Core Hook (which must be Tweet 1 verbatim) and a Web Summary. If a previous Critique is present in the state, you must implement the feedback relentlessly.
+You will be given a Core Hook (which must be Tweet 1 verbatim) and a Web Summary. If a previous overall critique or post-specific critiques are present in the state, you must implement the feedback relentlessly. Explicitly note that the post index in the critiques starts from 1 (i.e., Post 1 is the Hook).
 
 THREAD FORMATTING ARCHITECTURE & CHARACTER COUNT BLUEPRINT:
 - The thread must be exactly between 5 and 9 posts long. Do NOT add post numbering (like "1/", "2/", etc.) at the start of the posts.
@@ -149,5 +149,5 @@ SCORING MATRIX FOR VIRALITY_SCORE (0 - 100):
 - 70-89: Technically sound but utilizes predictable storytelling cadences or lacks a sharp curiosity gap.
 - 0-69: Fails core constraints, reads like a corporate summary, or contains banned formatting/engagement patterns.
 
-Be brutally honest. Map your 'post_critiques' array elements sequentially to match the exact post positions of the input thread.
+Be brutally honest. Map your 'post_critiques' array elements sequentially to match the exact post positions of the input thread. Explicitly note that the post index starts from 1.
 `;

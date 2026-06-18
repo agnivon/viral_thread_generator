@@ -162,7 +162,7 @@ export default function ApproveDraftPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               {state.thread_draft.map((post, index) => {
-                const postCritique = state.post_critiques?.find((pc) => pc.post_index === index);
+                const postCritique = state.post_critiques?.find((pc) => pc.post_index === index + 1);
                 return (
                   <div key={index} className="p-4 border rounded-lg bg-card/50 relative flex flex-col justify-between min-h-[100px]">
                     <div>

@@ -105,6 +105,11 @@ export const ThreadWriterNode = async (state: ThreadFactoryStateType) => {
     ? `\n\nPREVIOUS THREAD DRAFT:\n${JSON.stringify(state.thread_draft, null, 2)}`
     : "";
   const critiqueContext = state.critique ? `\n\nCRITIQUE TO ADDRESS:\n${state.critique}` : "";
+  let postCritiquesContext = "";
+  if (state.post_critiques && state.post_critiques.length > 0) {
+    postCritiquesContext = "\n\nPOST-SPECIFIC CRITIQUES:\n" + 
+      state.post_critiques.map(pc => `Post ${pc.post_index}: ${pc.critique}`).join("\n");
+  }
   const charCritiqueContext = state.character_critique ? `\n\nCHARACTER & FORMATTING CONSTRAINTS FAILED:\n${state.character_critique}\nFix the previous draft to respect these exact formatting constraints.` : "";
   const guidanceContext = state.guidance ? `\n\nADDITIONAL GUIDANCE:\n${state.guidance}` : "";
 
@@ -113,7 +118,7 @@ export const ThreadWriterNode = async (state: ThreadFactoryStateType) => {
   try {
     draft = await structuredLlm.invoke([
       { role: "system", content: THREAD_WRITER_NODE_PROMPT },
-      { role: "user", content: `HOOK:\n${state.selected_hook}\n\nSOURCE:\n${state.raw_markdown}${previousDraftContext}${critiqueContext}${charCritiqueContext}${guidanceContext}` }
+      { role: "user", content: `HOOK:\n${state.selected_hook}\n\nSOURCE:\n${state.raw_markdown}${previousDraftContext}${critiqueContext}${postCritiquesContext}${charCritiqueContext}${guidanceContext}` }
     ], { timeout: 300000 });
     if (!draft || !draft.thread_draft) parse_success = false;
   } catch (_e) {

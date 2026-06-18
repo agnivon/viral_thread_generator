@@ -152,7 +152,6 @@ export const CharacterValidatorNode = async (state: ThreadFactoryStateType) => {
 
 export const ViralityCriticNode = async (state: ThreadFactoryStateType) => {
   const schema = z.object({
-    is_approved: z.boolean(),
     virality_score: z.number(),
     overall_critique: z.string(),
     post_critiques: z.array(z.object({
@@ -177,7 +176,7 @@ export const ViralityCriticNode = async (state: ThreadFactoryStateType) => {
     const guidanceContext = state.guidance ? `\n\nADDITIONAL GUIDANCE:\n${state.guidance}` : "";
     result = await invokeWithFallbacks(agents, {
       messages: [
-        { role: "user", content: `SOURCE MATERIAL:\n${state.raw_markdown}\n\nTHREAD:\n${JSON.stringify(state.thread_draft, null, 2)}${guidanceContext}` }
+        { role: "user", content: `CURRENT ITERATION ATTEMPT: ${state.iterations + 1}\n\nSOURCE MATERIAL:\n${state.raw_markdown}\n\nTHREAD:\n${JSON.stringify(state.thread_draft, null, 2)}${guidanceContext}` }
       ]
     }, { timeout: 300000 });
     parse_success = true;
@@ -192,8 +191,8 @@ export const ViralityCriticNode = async (state: ThreadFactoryStateType) => {
 
   if (parse_success && result?.structuredResponse) {
     finalCritique = result.structuredResponse.overall_critique || "";
-    finalApproval = result.structuredResponse.is_approved || false;
     virality_score = result.structuredResponse.virality_score;
+    finalApproval = typeof virality_score === 'number' && virality_score >= 85;
     post_critiques = result.structuredResponse.post_critiques || [];
   } else {
     parse_success = false;

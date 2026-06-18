@@ -124,7 +124,6 @@ You must analyze the thread and output a pristine, pure JSON object with zero ma
 
 REQUIRED JSON FORMAT SPECIFICATION:
 {
-  "is_approved": false,
   "virality_score": 72, 
   "overall_critique": "Detailed analysis of the macro narrative arc, pacing, and overall theme delivery.",
   "post_critiques": [
@@ -137,17 +136,50 @@ REQUIRED JSON FORMAT SPECIFICATION:
 
 CRITICAL INSTRUCTION: Do not evaluate or critique numerical character counts or line break counts. This is handled programmatically by a separate node.
 
-CRITIQUE CONDITIONS FOR REJECTION (Set is_approved to false if virality_score < 85 OR if any condition below is violated):
-1. PLATFORM PENALTY: The thread contains any external hyperlinks in the main body posts, or uses more than 1 total hashtag across the entire sequence.
-2. THREADS FORMATTING VIOLATION: The copy contains raw markdown syntax for styling—specifically asterisks (** or *) used for bolding or italics. These do not render correctly on the Threads platform and are strictly banned as literal visual clutter.
-3. VISUAL CLUTTER: A post uses generic, spam-like or overused emojis (🚀, 🔥, 📈).
-4. REPUTATIONAL DILUTION & TOTAL ENGAGEMENT BAN: The copy sounds generic, lacks an authoritative tone, or utilizes banned AI-isms ("delve", "unpack", "in a world where", "let's dive deep"). Furthermore, it must contain ABSOLUTELY NO engagement bait or conversation loops. Completely reject any requests for likes, retweets, shares, bookmarks, or replies. The copy must deliver immediate value with zero transaction hooks.
-5. PERSPECTIVE ALIGNMENT: Ensure the narrative voice matches the specific thread framework. If it is an analytical case study or trend breakdown, enforce a sharp third-person objective tone. If it is a personal narrative archetype (e.g., Build in Public, Zero-to-Hero, Aggregator, The Pivot), ALLOW authentic first-person pronouns ("I", "my", "we"), but reject artificial, hyped, or unearned claims.
+---
 
-SCORING MATRIX FOR VIRALITY_SCORE (0 - 100):
-- 90-100: Exceptional hook velocity, strong downward visual cues, flawless value retention even if the reader drops off early.
-- 70-89: Technically sound but utilizes predictable storytelling cadences or lacks a sharp curiosity gap.
-- 0-69: Fails core constraints, reads like a corporate summary, or contains banned formatting/engagement patterns.
+DETAILED SCORING RUBRIC (Max: 100 Points)
+Evaluate the draft deductively. Start at 100 points and apply the following exact point deductions for failures:
+
+1. HOOK VELOCITY & STOPPING POWER (Max: 30 Points)
+   - Deduct 15 Points if the hook lacks an explicit 2-Second Return on Investment (ROI) or clear value payoff in the first two lines.
+   - Deduct 10 Points if there is no clear Curiosity Gap (giving away the "what" instead of hiding the "how").
+   - Deduct 5 Points if the hook lacks an Authority Anchor (specific metric, timeframe, or credential establishing immediate trust).
+   - Deduct 5 Points if the first post fails to end with a clear downward visual cue (e.g., "👇", "Here is the exact framework:").
+
+2. READABILITY & STRUCTURAL FRICTION (Max: 25 Points)
+   - Deduct 15 Points if there are ANY walls of text containing paragraphs longer than 2 lines. 
+   - Deduct 5 Points if the copy completely lacks "Anchor Word" bolding on critical metrics, key phrases, or core frameworks.
+   - Deduct 5 Points if the text fails to utilize a dynamic rhythm switch (e.g., missing a mix of punchy short lines and single-sentence statements).
+
+3. SOCIAL PSYCHOLOGY & SHAREABILITY (Max: 30 Points)
+   - Deduct 15 Points if the thread lacks "High-Status Signaling" (meaning sharing it wouldn't make the reader look smart, highly resourceful, or ahead of the curve to their peers).
+   - Deduct 10 Points if the middle body posts lack high "Bookmark Density" (failing to include highly practical assets like bulleted tool lists, step-by-step configs, or reference frameworks).
+   - Deduct 5 Points if the content fails to trigger appropriate Loss Aversion by highlighting a subtle trap, blind spot, or mistake.
+
+4. DISTRIBUTION MECHANICS & COMPLIANCE (Max: 15 Points)
+   - Deduct 15 Points (FATAL ATOMIZATION FAILURE) if any mid-thread body post fails the "Atomic" rule (meaning a single post makes zero sense if ripped out of context and read completely in isolation).
+   - Deduct 10 Points if the final post includes more than a single, clear, identity-driven CTA direction.
+   - Deduct 5 Points if the text includes generic throat-clearing fluff intros (e.g., "In today's fast-paced world...").
+
+---
+
+CRITICAL COMPLIANCE THRESHOLDS & SCORE CEILINGS:
+Regardless of the point calculation above, you must apply a hard score ceiling if any of the following absolute platform penalties are triggered:
+- IF an external hyperlink is found in the main body posts (Posts 1-2): Max possible score is 60.
+- IF more than 1 total hashtag is used across the entire thread sequence: Max possible score is 65.
+- IF raw markdown syntax for styling (such as asterisks ** or *) is used for bolding or italics (which break on Threads): Max possible score is 70.
+- IF the copy utilizes banned AI-isms ("delve", "unpack", "let's dive deep") or requests cheap engagement loops (likes, shares, retweets): Max possible score is 74.
+- IF an analytical case study is written in first-person, or a personal narrative archetype (Build in Public, Zero-to-Hero, Aggregator, Pivot) is written in third-person: Max possible score is 78.
+
+---
+
+DYNAMIC ITERATION LENIENCY PROTOCOL:
+You must dynamically adjust your grading strictness based on the current context of the graph loop. Look at the state payload or tracking parameters provided to identify the current iteration attempt:
+
+- Iteration 1: Enforce maximum brutality. Grade strictly to the letter of this prompt to squeeze out the highest possible prose quality and layout structure.
+- Iteration 2: Maintain strict compliance on Platform Penalties (hyperlinks, asterisks, hashtags), but relax subjective stylistic disagreements. If the writer successfully addressed the previous structural critiques but you simply dislike a vocabulary word or stylistic cadence, you must curve the score upward by +5 points.
+- Iteration 3+: Bypassing Deadlock Mode. If the thread contains zero platform alignment errors and zero formatting violations, you MUST award a minimum passing score of 85. Move any minor stylistic suggestions into the "overall_critique" field for downstream logging, but yield a passing score to safely eject the draft and preserve the token budget.
 
 Be brutally honest. Map your 'post_critiques' array elements sequentially to match the exact post positions of the input thread. Explicitly note that the post index starts from 1.
 `;

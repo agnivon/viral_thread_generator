@@ -57,7 +57,7 @@ export default function DraftsPage() {
               <tr>
                 <th className="px-4 py-3 font-semibold">Source URL</th>
                 <th className="px-4 py-3 font-semibold">Status</th>
-                <th className="px-4 py-3 font-semibold text-center">Iterations</th>
+                <th className="px-4 py-3 font-semibold text-center">Virality</th>
                 <th className="px-4 py-3 font-semibold">Created At</th>
                 <th className="px-4 py-3 font-semibold text-right">Actions</th>
               </tr>
@@ -104,9 +104,19 @@ export default function DraftsPage() {
                       )}
                     </td>
                     <td className="px-4 py-3 text-center">
-                      <span className="text-muted-foreground">
-                        {genStatus === "success" ? (draft.iterations ?? 0) : "—"}
-                      </span>
+                      {genStatus === "success" && draft.virality_score !== undefined ? (
+                        <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                          draft.virality_score >= 85 
+                            ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400' 
+                            : draft.virality_score >= 70
+                              ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400'
+                              : 'bg-rose-100 text-rose-800 dark:bg-rose-900/30 dark:text-rose-400'
+                        }`}>
+                          {draft.virality_score}
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">
                       <span className="text-muted-foreground text-xs">

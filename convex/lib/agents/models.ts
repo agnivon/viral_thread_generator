@@ -2,55 +2,21 @@ import { ChatGoogle } from "@langchain/google";
 import { ChatOpenRouter } from "@langchain/openrouter";
 import { ChatOpenAI } from "@langchain/openai";
 
+const createGoogleModel = (model: string, temperature: number, apiKeyEnv: string, overrides: any = {}) => 
+  new ChatGoogle({ model, temperature, maxRetries: 3, apiKey: process.env[apiKeyEnv], ...overrides });
+
+const createOpenAIModel = (model: string, temperature: number, overrides: any = {}) =>
+  new ChatOpenAI({ model, temperature, maxRetries: 3, apiKey: process.env.OPENAI_API_KEY, ...overrides });
+
 // ScraperNode Models
-export const scraperPrimaryLlm = new ChatGoogle({
-  model: "gemini-3.1-flash-lite",
-  temperature: 0.1,
-  maxOutputTokens: 2000,
-  maxRetries: 3,
-  apiKey: process.env.GOOGLE_API_KEY,
-});
-
-export const scraperPrimaryLlmBackup = new ChatGoogle({
-  model: "gemini-3.1-flash-lite",
-  temperature: 0.1,
-  maxOutputTokens: 2000,
-  maxRetries: 3,
-  apiKey: process.env.GOOGLE_API_KEY2,
-});
-
-export const scraperFallbackLlm = new ChatOpenAI({
-  model: "gpt-5.4-mini",
-  temperature: 0.1,
-  maxTokens: 2000,
-  maxRetries: 3,
-  timeout: 45000,
-  apiKey: process.env.OPENAI_API_KEY,
-});
+export const scraperPrimaryLlm = createGoogleModel("gemini-3.1-flash-lite", 0.1, "GOOGLE_API_KEY", { maxOutputTokens: 2000 });
+export const scraperPrimaryLlmBackup = createGoogleModel("gemini-3.1-flash-lite", 0.1, "GOOGLE_API_KEY2", { maxOutputTokens: 2000 });
+export const scraperFallbackLlm = createOpenAIModel("gpt-5.4-mini", 0.1, { maxTokens: 2000, timeout: 45000 });
 
 // HookStrategistNode Models
-export const hookPrimaryLlm = new ChatGoogle({
-  model: "gemini-3.1-flash-lite",
-  temperature: 0.8,
-  maxRetries: 3,
-  apiKey: process.env.GOOGLE_API_KEY,
-});
-
-export const hookPrimaryLlmBackup = new ChatGoogle({
-  model: "gemini-3.1-flash-lite",
-  temperature: 0.8,
-  maxRetries: 3,
-  apiKey: process.env.GOOGLE_API_KEY2,
-});
-
-export const hookFallbackLlm1 = new ChatOpenAI({
-  model: "gpt-5.4-mini",
-  temperature: 0.8,
-  maxRetries: 3,
-  timeout: 20000,
-  apiKey: process.env.OPENAI_API_KEY,
-});
-
+export const hookPrimaryLlm = createGoogleModel("gemini-3.1-flash-lite", 0.8, "GOOGLE_API_KEY");
+export const hookPrimaryLlmBackup = createGoogleModel("gemini-3.1-flash-lite", 0.8, "GOOGLE_API_KEY2");
+export const hookFallbackLlm1 = createOpenAIModel("gpt-5.4-mini", 0.8, { timeout: 20000 });
 export const hookFallbackLlm2 = new ChatOpenRouter({
   model: "openrouter/free",
   temperature: 0.8,
@@ -59,62 +25,14 @@ export const hookFallbackLlm2 = new ChatOpenRouter({
 });
 
 // ThreadWriterNode Models
-export const writerPrimaryLlm = new ChatGoogle({
-  model: "gemini-3.5-flash",
-  temperature: 0.8,
-  maxRetries: 3,
-  apiKey: process.env.GOOGLE_API_KEY,
-});
-
-export const writerPrimaryLlmBackup = new ChatGoogle({
-  model: "gemini-3.5-flash",
-  temperature: 0.8,
-  maxRetries: 3,
-  apiKey: process.env.GOOGLE_API_KEY2,
-});
-
-export const writerFallbackLlm1 = new ChatOpenAI({
-  model: "gpt-5.4",
-  temperature: 0.8,
-  presencePenalty: 0.4,
-  maxRetries: 3,
-  timeout: 300000,
-  apiKey: process.env.OPENAI_API_KEY,
-});
-
-export const writerFallbackLlm2 = new ChatGoogle({
-  model: "gemma-4-31b-it",
-  temperature: 0.8,
-  maxRetries: 3,
-  apiKey: process.env.GOOGLE_API_KEY,
-});
-
-export const writerFallbackLlm2Backup = new ChatGoogle({
-  model: "gemma-4-31b-it",
-  temperature: 0.8,
-  maxRetries: 3,
-  apiKey: process.env.GOOGLE_API_KEY2,
-});
+export const writerPrimaryLlm = createGoogleModel("gemini-3.5-flash", 0.8, "GOOGLE_API_KEY");
+export const writerPrimaryLlmBackup = createGoogleModel("gemini-3.5-flash", 0.8, "GOOGLE_API_KEY2");
+export const writerFallbackLlm1 = createOpenAIModel("gpt-5.4", 0.8, { presencePenalty: 0.4, timeout: 300000 });
+export const writerFallbackLlm2 = createGoogleModel("gemma-4-31b-it", 0.8, "GOOGLE_API_KEY");
+export const writerFallbackLlm2Backup = createGoogleModel("gemma-4-31b-it", 0.8, "GOOGLE_API_KEY2");
 
 // ViralityCriticNode Models
-export const criticPrimaryLlm = new ChatGoogle({
-  model: "gemini-3.5-flash",
-  temperature: 0.0,
-  maxRetries: 3,
-  apiKey: process.env.GOOGLE_API_KEY,
-});
+export const criticPrimaryLlm = createGoogleModel("gemini-3.5-flash", 0.0, "GOOGLE_API_KEY");
+export const criticPrimaryLlmBackup = createGoogleModel("gemini-3.5-flash", 0.0, "GOOGLE_API_KEY2");
+export const criticFallbackLlm = createOpenAIModel("gpt-5.4-mini", 0.0, { timeout: 25000 });
 
-export const criticPrimaryLlmBackup = new ChatGoogle({
-  model: "gemini-3.5-flash",
-  temperature: 0.0,
-  maxRetries: 3,
-  apiKey: process.env.GOOGLE_API_KEY2,
-});
-
-export const criticFallbackLlm = new ChatOpenAI({
-  model: "gpt-5.4-mini",
-  temperature: 0.0,
-  maxRetries: 3,
-  timeout: 25000,
-  apiKey: process.env.OPENAI_API_KEY,
-});

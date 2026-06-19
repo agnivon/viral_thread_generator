@@ -1,7 +1,17 @@
 "use node";
 
+import { providerStrategy } from "langchain";
 import { z } from "zod";
-import { buildAgents, invokeWithFallbacks } from "./utils.js";
+import {
+  criticFallbackLlm,
+  criticPrimaryLlm, criticPrimaryLlmBackup,
+  hookFallbackLlm1, hookFallbackLlm2,
+  hookPrimaryLlm, hookPrimaryLlmBackup,
+  scraperFallbackLlm,
+  scraperPrimaryLlm, scraperPrimaryLlmBackup,
+  writerFallbackLlm1, writerFallbackLlm2, writerFallbackLlm2Backup,
+  writerPrimaryLlm, writerPrimaryLlmBackup
+} from "./models.js";
 import {
   HOOK_STRATEGIST_NODE_PROMPT,
   SCRAPER_NODE_PROMPT,
@@ -9,13 +19,9 @@ import {
   VIRALITY_CRITIC_NODE_PROMPT
 } from "./prompts.js";
 import { ThreadFactoryStateType } from "./state.js";
-import { CharacterValidatorTool, TopicContextExpanderTool, WebScraperTool, ContentAuthenticityCheckerTool } from "./tools.js";
-import {
-  scraperPrimaryLlm, scraperPrimaryLlmBackup, scraperFallbackLlm,
-  hookPrimaryLlm, hookPrimaryLlmBackup, hookFallbackLlm1, hookFallbackLlm2,
-  writerPrimaryLlm, writerPrimaryLlmBackup, writerFallbackLlm1, writerFallbackLlm2, writerFallbackLlm2Backup,
-  criticPrimaryLlm, criticPrimaryLlmBackup, criticFallbackLlm
-} from "./models.js";
+import { CharacterValidatorTool, ContentAuthenticityCheckerTool, TopicContextExpanderTool, WebScraperTool } from "./tools.js";
+import { buildAgents, invokeWithFallbacks } from "./utils.js";
+
 
 export const ScraperNode = async (state: ThreadFactoryStateType) => {
   const markdown = await WebScraperTool.invoke({ url: state.url });
@@ -52,7 +58,7 @@ export const HookStrategistNode = async (state: ThreadFactoryStateType) => {
     {
       tools: [TopicContextExpanderTool],
       systemPrompt: HOOK_STRATEGIST_NODE_PROMPT,
-      responseFormat: schema
+      responseFormat: providerStrategy(schema)
     }
   );
 
@@ -95,9 +101,9 @@ export const ThreadWriterNode = async (state: ThreadFactoryStateType) => {
   const structuredLlm = writerPrimaryLlm.withStructuredOutput(schema, { name: "thread_writer", method: "jsonSchema" }).withFallbacks({
     fallbacks: [
       writerPrimaryLlmBackup.withStructuredOutput(schema, { name: "thread_writer", method: "jsonSchema" }),
-      writerFallbackLlm1.withStructuredOutput(schema, { name: "thread_writer" }),
-      writerFallbackLlm2.withStructuredOutput(schema, { name: "thread_writer" }),
-      writerFallbackLlm2Backup.withStructuredOutput(schema, { name: "thread_writer" })
+      writerFallbackLlm1.withStructuredOutput(schema, { name: "thread_writer", method: "jsonSchema" }),
+      writerFallbackLlm2.withStructuredOutput(schema, { name: "thread_writer", method: "jsonSchema" }),
+      writerFallbackLlm2Backup.withStructuredOutput(schema, { name: "thread_writer", method: "jsonSchema" })
     ]
   });
 
@@ -107,7 +113,7 @@ export const ThreadWriterNode = async (state: ThreadFactoryStateType) => {
   const critiqueContext = state.critique ? `\n\nCRITIQUE TO ADDRESS:\n${state.critique}` : "";
   let postCritiquesContext = "";
   if (state.post_critiques && state.post_critiques.length > 0) {
-    postCritiquesContext = "\n\nPOST-SPECIFIC CRITIQUES:\n" + 
+    postCritiquesContext = "\n\nPOST-SPECIFIC CRITIQUES:\n" +
       state.post_critiques.map(pc => `Post ${pc.post_index}: ${pc.critique}`).join("\n");
   }
   const charCritiqueContext = state.character_critique ? `\n\nCHARACTER & FORMATTING CONSTRAINTS FAILED:\n${state.character_critique}\nFix the previous draft to respect these exact formatting constraints.` : "";
@@ -165,7 +171,7 @@ export const ViralityCriticNode = async (state: ThreadFactoryStateType) => {
     {
       tools: [ContentAuthenticityCheckerTool],
       systemPrompt: VIRALITY_CRITIC_NODE_PROMPT,
-      responseFormat: schema
+      responseFormat: providerStrategy(schema)
     }
   );
 

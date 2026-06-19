@@ -1,12 +1,11 @@
 "use node";
 
-import { createAgent } from "langchain";
-import { z } from "zod";
+import { createAgent, ProviderStrategy } from "langchain";
 
 export interface AgentConfig {
   tools?: any[];
   systemPrompt: string;
-  responseFormat: z.ZodType<any>;
+  responseFormat: ProviderStrategy;
 }
 
 /**

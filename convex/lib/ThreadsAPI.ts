@@ -81,6 +81,39 @@ export class ThreadsAPI {
   }
 
   /**
+   * Helper to execute API calls with exponential backoff on propagation errors
+   */
+  private async executeWithRetry<T>(
+    operationName: string,
+    actionFn: (attempt: number, maxAttempts: number) => Promise<T>,
+    shouldRetryFn: (error: any) => boolean,
+    retryWarningMsgFn: (delayMs: number, attempt: number, maxAttempts: number) => string,
+    maxAttempts: number = 5,
+    initialDelayMs: number = 2000
+  ): Promise<T> {
+    let attempts = 0;
+    let delayMs = initialDelayMs;
+
+    while (attempts < maxAttempts) {
+      try {
+        return await actionFn(attempts + 1, maxAttempts);
+      } catch (error: any) {
+        attempts++;
+        if (shouldRetryFn(error) && attempts < maxAttempts) {
+          console.warn(retryWarningMsgFn(delayMs, attempts, maxAttempts));
+          await new Promise(resolve => setTimeout(resolve, delayMs));
+          delayMs *= 2;
+        } else {
+          console.error(`[ThreadsAPI.${operationName}] error: ${error.message}`);
+          throw error;
+        }
+      }
+    }
+    console.error(`[ThreadsAPI.${operationName}] failed: max attempts exceeded`);
+    throw new Error(`Failed to ${operationName.replace(/([A-Z])/g, ' $1').toLowerCase().trim()}: max attempts exceeded`);
+  }
+
+  /**
    * Waits for a media container to finish processing
    */
   private async waitForContainer(containerId: string): Promise<void> {
@@ -264,50 +297,32 @@ export class ThreadsAPI {
       params.append('location_id', options.locationId);
     }
 
-    let attempts = 0;
     const maxAttempts = 5;
-    let delayMs = 2000;
-
-    while (attempts < maxAttempts) {
-      try {
-        console.log(`[ThreadsAPI.createContainer] POSTing to container creation endpoint (attempt ${attempts + 1}/${maxAttempts})...`);
+    return this.executeWithRetry(
+      'createContainer',
+      async (attempt, max) => {
+        console.log(`[ThreadsAPI.createContainer] POSTing to container creation endpoint (attempt ${attempt}/${max})...`);
         const res = await this.request(`${this.userId}/threads`, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-          },
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
           body: params.toString()
         });
 
-        if (!res.id) {
-          throw new Error('Failed to create container, no ID returned');
-        }
-
+        if (!res.id) throw new Error('Failed to create container, no ID returned');
         console.log(`[ThreadsAPI.createContainer] container successfully created with ID: ${res.id}`);
         return res.id;
-      } catch (error: any) {
-        attempts++;
+      },
+      (error) => {
         const isPropagationError = 
           error.message?.includes("does not exist") || 
           error.message?.includes("cannot be loaded") ||
           error.message?.includes("missing permissions") ||
           error.message?.includes("Unsupported post request");
-
-        if (isPropagationError && options.replyToId && attempts < maxAttempts) {
-          console.warn(
-            `[ThreadsAPI.createContainer] Threads API propagation delay detected for reply_to_id ${options.replyToId}. ` +
-            `Retrying in ${delayMs}ms (attempt ${attempts}/${maxAttempts})...`
-          );
-          await new Promise(resolve => setTimeout(resolve, delayMs));
-          delayMs *= 2;
-        } else {
-          console.error(`[ThreadsAPI.createContainer] error in container creation: ${error.message}`);
-          throw error;
-        }
-      }
-    }
-    console.error('[ThreadsAPI.createContainer] failed to create container: max attempts exceeded');
-    throw new Error('Failed to create container: max attempts exceeded');
+        return !!(isPropagationError && options.replyToId);
+      },
+      (delayMs, attempt, max) => `[ThreadsAPI.createContainer] Threads API propagation delay detected for reply_to_id ${options.replyToId}. Retrying in ${delayMs}ms (attempt ${attempt}/${max})...`,
+      maxAttempts
+    );
   }
 
   /**
@@ -318,47 +333,30 @@ export class ThreadsAPI {
     const params = new URLSearchParams();
     params.append('creation_id', creationId);
 
-    let attempts = 0;
     const maxAttempts = 5;
-    let delayMs = 2000;
-
-    while (attempts < maxAttempts) {
-      try {
-        console.log(`[ThreadsAPI.publishContainer] POSTing to publish endpoint (attempt ${attempts + 1}/${maxAttempts})...`);
+    return this.executeWithRetry(
+      'publishContainer',
+      async (attempt, max) => {
+        console.log(`[ThreadsAPI.publishContainer] POSTing to publish endpoint (attempt ${attempt}/${max})...`);
         const res = await this.request(`${this.userId}/threads_publish`, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-          },
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
           body: params.toString()
         });
 
         console.log(`[ThreadsAPI.publishContainer] container published successfully! Post ID: ${res.id}`);
         return res.id;
-      } catch (error: any) {
-        attempts++;
-        const isContainerNotFoundError = 
-          error.message?.includes("does not exist") || 
+      },
+      (error) => {
+        return error.message?.includes("does not exist") || 
           error.message?.includes("cannot be loaded") ||
           error.message?.includes("missing permissions") ||
           error.message?.includes("Unsupported post request") ||
           error.message?.includes("resource does not exist");
-
-        if (isContainerNotFoundError && attempts < maxAttempts) {
-          console.warn(
-            `[ThreadsAPI.publishContainer] Container not found/ready yet for ID ${creationId}. ` +
-            `Retrying publish in ${delayMs}ms (attempt ${attempts}/${maxAttempts})...`
-          );
-          await new Promise(resolve => setTimeout(resolve, delayMs));
-          delayMs *= 2;
-        } else {
-          console.error(`[ThreadsAPI.publishContainer] error in container publishing: ${error.message}`);
-          throw error;
-        }
-      }
-    }
-    console.error('[ThreadsAPI.publishContainer] failed to publish container: max attempts exceeded');
-    throw new Error('Failed to publish container: max attempts exceeded');
+      },
+      (delayMs, attempt, max) => `[ThreadsAPI.publishContainer] Container not found/ready yet for ID ${creationId}. Retrying publish in ${delayMs}ms (attempt ${attempt}/${max})...`,
+      maxAttempts
+    );
   }
 
   /**

@@ -67,6 +67,7 @@
     "portless": "^0.14.0",
     "postcss": "^8.5.15",
     "secretlint": "^13.0.2",
+    "skills": "^1.5.12",
     "tailwindcss": "4.3.0",
     "tailwindcss-animate": "^1.0.7",
     "typescript": "^6.0.3",

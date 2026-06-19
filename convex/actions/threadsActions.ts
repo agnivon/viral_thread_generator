@@ -47,20 +47,13 @@ export const generateThread = action({
       console.log(`[generateThread] ThreadFactoryGraph finished. Iterations: ${finalState.iterations}, Approved: ${finalState.is_approved}`);
 
       console.log("[generateThread] Saving final state to database...");
+      const { url, guidance, parse_success, retries, is_character_valid, character_critique, ...stateToSave } = finalState;
       await ctx.runMutation(
         internal.mutations.threadsMutations.updateThreadDraftStatus,
         {
           id: recordId,
           generation_status: "success",
-          raw_markdown: finalState.raw_markdown,
-          core_hooks: finalState.core_hooks,
-          selected_hook: finalState.selected_hook,
-          thread_draft: finalState.thread_draft,
-          critique: finalState.critique,
-          virality_score: finalState.virality_score,
-          post_critiques: finalState.post_critiques,
-          iterations: finalState.iterations,
-          is_approved: finalState.is_approved,
+          ...stateToSave,
         }
       );
       console.log(`[generateThread] Final state saved with ID: ${recordId}`);

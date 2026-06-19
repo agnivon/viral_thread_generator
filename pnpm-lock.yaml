@@ -156,6 +156,9 @@ importers:
       secretlint:
         specifier: ^13.0.2
         version: 13.0.2
+      skills:
+        specifier: ^1.5.12
+        version: 1.5.12
       tailwindcss:
         specifier: 4.3.0
         version: 4.3.0
@@ -3650,6 +3653,11 @@ packages:
 
   sisteransi@1.0.5:
     resolution: {integrity: sha512-bLGGlR1QxBcynn2d5YmDX4MGjlZvy2MRBDRNHLJ8VI6l6+9FUiyTFNJ0IveOSP0bcXgVDPRcfGqA0pjaqUpfVg==}
+
+  skills@1.5.12:
+    resolution: {integrity: sha512-0oiyQJgpvhm18UAe+ziocO+FfPw5w5jk4OB/ZIPx1JOPGhciIZs3XkGUr7dprDkSO8A2ysB/R1fVNYdU5SqS2g==}
+    engines: {node: '>=18'}
+    hasBin: true
 
   slice-ansi@4.0.0:
     resolution: {integrity: sha512-qMCMfhY040cVHT43K9BFygqYbUPFZKHOg7K73mtTWJRb8pyP3fzf4Ixd5SzdEJQ6MRUg/WBnOLxghZtKKurENQ==}
@@ -7769,6 +7777,10 @@ snapshots:
 
   sisteransi@1.0.5: {}
 
+  skills@1.5.12:
+    dependencies:
+      yaml: 2.9.0
+
   slice-ansi@4.0.0:
     dependencies:
       ansi-styles: 4.3.0
@@ -8245,8 +8257,7 @@ snapshots:
 
   yallist@3.1.1: {}
 
-  yaml@2.9.0:
-    optional: true
+  yaml@2.9.0: {}
 
   yargs-parser@21.1.1: {}
 

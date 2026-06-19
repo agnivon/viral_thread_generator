@@ -65,6 +65,13 @@ export const CharacterValidatorTool = tool(
            errors.push(`Post ${index + 1} (${position}) has ${lineBreaks} line breaks. Maximum allowed is 4 line breaks.`);
         }
       }
+
+      // Check for common LLM markdown formatting
+      const formattingRegex = /(\*\*|__|~~|`|#\s+|>+\s+|\[.*\]\(.*\))/g;
+      const foundFormatting = post.match(formattingRegex);
+      if (foundFormatting) {
+        errors.push(`Post ${index + 1} (${position}) contains invalid markdown formatting characters (${foundFormatting.join(", ")}). Remove all markdown formatting (bold, italic, headers, code blocks, etc).`);
+      }
     });
 
     return JSON.stringify({

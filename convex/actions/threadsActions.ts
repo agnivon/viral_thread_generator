@@ -5,6 +5,7 @@ import { action } from "../_generated/server";
 import { internal, api } from "../_generated/api";
 import { Id } from "../_generated/dataModel";
 import { getAuthUserId } from "@convex-dev/auth/server";
+import { awaitAllCallbacks } from "@langchain/core/callbacks/promises";
 import { ThreadFactoryGraph } from "../lib/agents/graph.js";
 import { ThreadsAPI } from "../lib/ThreadsAPI.js";
 
@@ -43,7 +44,21 @@ export const generateThread = action({
 
     try {
       console.log("[generateThread] Invoking ThreadFactoryGraph...");
-      const finalState = await ThreadFactoryGraph.invoke(initialState);
+      
+      // Set a timeout to ensure we can gracefully fail and update the database 
+      // before the Convex action hard limit (usually 5 mins) kills the execution.
+      const timeoutMs = 4.5 * 60 * 1000; // 4.5 minutes
+      let timeoutId: NodeJS.Timeout;
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        timeoutId = setTimeout(() => reject(new Error("Thread generation timed out")), timeoutMs);
+      });
+
+      const finalState = await Promise.race([
+        ThreadFactoryGraph.invoke(initialState),
+        timeoutPromise
+      ]);
+      clearTimeout(timeoutId!);
+
       console.log(`[generateThread] ThreadFactoryGraph finished. Iterations: ${finalState.iterations}, Approved: ${finalState.is_approved}`);
 
       console.log("[generateThread] Saving final state to database...");
@@ -57,6 +72,7 @@ export const generateThread = action({
         }
       );
       console.log(`[generateThread] Final state saved with ID: ${recordId}`);
+      await awaitAllCallbacks();
     } catch (err) {
       console.error(`[generateThread] ThreadFactoryGraph failed:`, err);
       await ctx.runMutation(
@@ -66,6 +82,7 @@ export const generateThread = action({
           generation_status: "failed",
         }
       );
+      try { await awaitAllCallbacks(); } catch (e) {}
       throw err;
     }
 

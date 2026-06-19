@@ -2,6 +2,7 @@
 
 import { providerStrategy } from "langchain";
 import { z } from "zod";
+import { RunnableConfig } from "@langchain/core/runnables";
 import {
   criticFallbackLlm,
   criticPrimaryLlm, criticPrimaryLlmBackup,
@@ -23,8 +24,8 @@ import { CharacterValidatorTool, ContentAuthenticityCheckerTool, TopicContextExp
 import { buildAgents, invokeWithFallbacks } from "./utils.js";
 
 
-export const ScraperNode = async (state: ThreadFactoryStateType) => {
-  const markdown = await WebScraperTool.invoke({ url: state.url });
+export const ScraperNode = async (state: ThreadFactoryStateType, config?: RunnableConfig) => {
+  const markdown = await WebScraperTool.invoke({ url: state.url }, config);
 
   const llm = scraperPrimaryLlm.withFallbacks({ fallbacks: [scraperPrimaryLlmBackup, scraperFallbackLlm] });
 
@@ -32,7 +33,7 @@ export const ScraperNode = async (state: ThreadFactoryStateType) => {
     const summary = await llm.invoke([
       { role: "system", content: SCRAPER_NODE_PROMPT },
       { role: "user", content: markdown as string }
-    ]);
+    ], config);
     return {
       raw_markdown: summary.content as string,
       parse_success: true,
@@ -47,7 +48,7 @@ export const ScraperNode = async (state: ThreadFactoryStateType) => {
   }
 };
 
-export const HookStrategistNode = async (state: ThreadFactoryStateType) => {
+export const HookStrategistNode = async (state: ThreadFactoryStateType, config?: RunnableConfig) => {
   const schema = z.object({
     core_hooks: z.array(z.string()).min(1, "Must generate at least one hook"),
     selected_hook: z.string().min(1, "Must select a hook")
@@ -69,7 +70,7 @@ export const HookStrategistNode = async (state: ThreadFactoryStateType) => {
     const guidanceContext = state.guidance ? `\n\nADDITIONAL GUIDANCE:\n${state.guidance}` : "";
     result = await invokeWithFallbacks(agents, {
       messages: [{ role: "user", content: `${state.raw_markdown}${guidanceContext}` }]
-    });
+    }, config);
     parse_success = true;
   } catch (_e) {
     parse_success = false;
@@ -93,7 +94,7 @@ export const HookStrategistNode = async (state: ThreadFactoryStateType) => {
   };
 };
 
-export const ThreadWriterNode = async (state: ThreadFactoryStateType) => {
+export const ThreadWriterNode = async (state: ThreadFactoryStateType, config?: RunnableConfig) => {
   const schema = z.object({
     thread_draft: z.array(z.string()).min(1, "Must generate at least one post for the thread draft")
   });
@@ -125,7 +126,7 @@ export const ThreadWriterNode = async (state: ThreadFactoryStateType) => {
     draft = await structuredLlm.invoke([
       { role: "system", content: THREAD_WRITER_NODE_PROMPT },
       { role: "user", content: `HOOK:\n${state.selected_hook}\n\nSOURCE:\n${state.raw_markdown}${previousDraftContext}${critiqueContext}${postCritiquesContext}${charCritiqueContext}${guidanceContext}` }
-    ], { timeout: 300000 });
+    ], { ...config, timeout: 300000 });
     if (!draft || !draft.thread_draft) parse_success = false;
   } catch (_e) {
     parse_success = false;
@@ -138,8 +139,8 @@ export const ThreadWriterNode = async (state: ThreadFactoryStateType) => {
   };
 };
 
-export const CharacterValidatorNode = async (state: ThreadFactoryStateType) => {
-  const validationStr = await CharacterValidatorTool.invoke({ thread_draft: state.thread_draft });
+export const CharacterValidatorNode = async (state: ThreadFactoryStateType, config?: RunnableConfig) => {
+  const validationStr = await CharacterValidatorTool.invoke({ thread_draft: state.thread_draft }, config);
   const validation = JSON.parse(validationStr);
 
   if (!validation.isValid) {
@@ -156,7 +157,7 @@ export const CharacterValidatorNode = async (state: ThreadFactoryStateType) => {
   };
 };
 
-export const ViralityCriticNode = async (state: ThreadFactoryStateType) => {
+export const ViralityCriticNode = async (state: ThreadFactoryStateType, config?: RunnableConfig) => {
   const schema = z.object({
     virality_score: z.number(),
     overall_critique: z.string(),
@@ -184,7 +185,7 @@ export const ViralityCriticNode = async (state: ThreadFactoryStateType) => {
       messages: [
         { role: "user", content: `CURRENT ITERATION ATTEMPT: ${state.iterations + 1}\n\nSOURCE MATERIAL:\n${state.raw_markdown}\n\nTHREAD:\n${JSON.stringify(state.thread_draft, null, 2)}${guidanceContext}` }
       ]
-    }, { timeout: 300000 });
+    }, { ...config, timeout: 300000 });
     parse_success = true;
   } catch (_e) {
     parse_success = false;

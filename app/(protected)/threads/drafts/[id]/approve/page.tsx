@@ -140,7 +140,7 @@ export default function ApproveDraftPage() {
         </div>
       </div>
 
-      {state.critique && (
+      {state.critique?.trim() && (
         <Card>
           <CardHeader>
             <CardTitle>AI Critique</CardTitle>
@@ -171,7 +171,7 @@ export default function ApproveDraftPage() {
                       </span>
                       <p className="whitespace-pre-wrap text-sm">{post}</p>
                     </div>
-                    {postCritique && (
+                    {postCritique?.critique?.trim() && (
                       <div className="mt-4 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-800 dark:text-amber-300 text-xs">
                         <span className="font-semibold block mb-1">Post Critique:</span>
                         <p className="leading-relaxed">{postCritique.critique}</p>

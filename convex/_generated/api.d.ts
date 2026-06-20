@@ -23,6 +23,7 @@ import type * as lib_agents_state from "../lib/agents/state.js";
 import type * as lib_agents_tools from "../lib/agents/tools.js";
 import type * as lib_agents_utils from "../lib/agents/utils.js";
 import type * as lib_threads_api from "../lib/threads/api.js";
+import type * as lib_workpool_index from "../lib/workpool/index.js";
 import type * as mutations_threadsMutations from "../mutations/threadsMutations.js";
 import type * as mutations_tokensMutations from "../mutations/tokensMutations.js";
 import type * as queries_threadsQueries from "../queries/threadsQueries.js";
@@ -50,6 +51,7 @@ declare const fullApi: ApiFromModules<{
   "lib/agents/tools": typeof lib_agents_tools;
   "lib/agents/utils": typeof lib_agents_utils;
   "lib/threads/api": typeof lib_threads_api;
+  "lib/workpool/index": typeof lib_workpool_index;
   "mutations/threadsMutations": typeof mutations_threadsMutations;
   "mutations/tokensMutations": typeof mutations_tokensMutations;
   "queries/threadsQueries": typeof queries_threadsQueries;
@@ -82,4 +84,7 @@ export declare const internal: FilterApi<
   FunctionReference<any, "internal">
 >;
 
-export declare const components: {};
+export declare const components: {
+  generationPool: import("@convex-dev/workpool/_generated/component.js").ComponentApi<"generationPool">;
+  publicationPool: import("@convex-dev/workpool/_generated/component.js").ComponentApi<"publicationPool">;
+};

@@ -5,6 +5,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Sparkles, Mail, Lock, Loader2 } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -36,18 +37,40 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center p-4 bg-background">
-      <Card className="w-full max-w-sm">
-        <CardHeader>
-          <CardTitle className="text-2xl text-center">Sign In</CardTitle>
-          <CardDescription className="text-center">
-            Enter your email below to sign in to your account.
-          </CardDescription>
+    <div className="relative min-h-screen flex items-center justify-center p-4 bg-background overflow-hidden">
+      {/* Background Mesh Decorative Gradients */}
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-lg h-[400px] bg-gradient-to-br from-violet-500/10 via-transparent to-transparent blur-3xl pointer-events-none -z-10" />
+      <div className="absolute -top-40 -right-40 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none -z-10" />
+
+      <Card className="group relative w-full max-w-sm overflow-hidden bg-card/45 backdrop-blur-xs border-border/80 hover:border-violet-500/30 hover:shadow-lg transition-all duration-300">
+        {/* Accent Highlight Line on Card Hover */}
+        <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-violet-600 to-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+
+        <CardHeader className="space-y-3 pb-6 text-center border-b border-border/30 bg-muted/10">
+          <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-violet-600 to-indigo-600 text-white shadow-xs">
+            <Sparkles className="h-5 w-5" />
+          </div>
+          <div className="space-y-1">
+            <CardTitle className="text-2xl font-extrabold tracking-tight bg-gradient-to-r from-violet-600 to-indigo-600 bg-clip-text text-transparent dark:from-violet-400 dark:to-indigo-400">
+              Sign In
+            </CardTitle>
+            <CardDescription className="text-xs font-semibold text-muted-foreground/80">
+              Enter your credentials to access your account.
+            </CardDescription>
+          </div>
         </CardHeader>
-        <CardContent>
-          <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="email">Email</Label>
+        
+        <CardContent className="p-6">
+          <form className="flex flex-col gap-5" onSubmit={handleSubmit}>
+            
+            {/* Email Input */}
+            <div className="space-y-2">
+              <Label 
+                htmlFor="email" 
+                className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5"
+              >
+                <Mail className="w-3.5 h-3.5 text-indigo-500" /> Email Address
+              </Label>
               <Input
                 id="email"
                 name="email"
@@ -56,10 +79,18 @@ export default function LoginPage() {
                 required
                 autoComplete="email"
                 disabled={isLoading}
+                className="w-full bg-background/50 border-border/80 focus-visible:ring-violet-500/30 focus-visible:border-violet-500 rounded-lg transition-all"
               />
             </div>
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="password">Password</Label>
+
+            {/* Password Input */}
+            <div className="space-y-2">
+              <Label 
+                htmlFor="password" 
+                className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5"
+              >
+                <Lock className="w-3.5 h-3.5 text-violet-500" /> Password
+              </Label>
               <Input
                 id="password"
                 name="password"
@@ -67,18 +98,32 @@ export default function LoginPage() {
                 required
                 autoComplete="current-password"
                 disabled={isLoading}
+                className="w-full bg-background/50 border-border/80 focus-visible:ring-violet-500/30 focus-visible:border-violet-500 rounded-lg transition-all"
               />
             </div>
+            
             <input name="flow" type="hidden" value="signIn" />
             
+            {/* Error Message */}
             {error && (
-              <div className="text-sm text-destructive text-center">
+              <div className="text-xs text-destructive text-center p-2.5 border border-destructive/20 rounded-lg bg-destructive/10">
                 {error}
               </div>
             )}
             
-            <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? "Signing in..." : "Sign in"}
+            {/* Submit Button */}
+            <Button 
+              type="submit" 
+              className="w-full rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white font-semibold py-6 shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 cursor-pointer" 
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <span className="flex items-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin" /> Signing in...
+                </span>
+              ) : (
+                "Sign In"
+              )}
             </Button>
           </form>
         </CardContent>

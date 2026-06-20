@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { query } from "../_generated/server";
+import { query, internalQuery } from "../_generated/server";
 import { Doc } from "../_generated/dataModel";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { paginationOptsValidator } from "convex/server";
@@ -50,5 +50,19 @@ export const getPaginatedThreadDrafts = query({
       .withIndex("by_userId", (q) => q.eq("userId", userId))
       .order("desc")
       .paginate(args.paginationOpts);
+  },
+});
+
+export const getThreadDraftInternal = internalQuery({
+  args: {
+    id: v.id("threadDrafts"),
+    userId: v.id("users"),
+  },
+  handler: async (ctx, args): Promise<Doc<"threadDrafts"> | null> => {
+    const draft = await ctx.db.get(args.id);
+    if (draft && draft.userId !== args.userId) {
+      throw new Error("Unauthorized");
+    }
+    return draft;
   },
 });

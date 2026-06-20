@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { internalMutation } from "../_generated/server";
+import { vOnCompleteArgs } from "@convex-dev/workpool";
 import { Id } from "../_generated/dataModel";
 
 export const saveThreadDraft = internalMutation({
@@ -42,6 +43,7 @@ export const initializeThreadDraft = internalMutation({
       is_approved: false,
       is_published: false,
       generation_status: "processing",
+      publication_status: "not_published",
     });
   },
 });
@@ -49,7 +51,8 @@ export const initializeThreadDraft = internalMutation({
 export const updateThreadDraftStatus = internalMutation({
   args: {
     id: v.id("threadDrafts"),
-    generation_status: v.union(v.literal("success"), v.literal("failed")),
+    generation_status: v.optional(v.union(v.literal("success"), v.literal("failed"))),
+    publication_status: v.optional(v.union(v.literal("not_published"), v.literal("publishing"), v.literal("success"), v.literal("failed"))),
     raw_markdown: v.optional(v.string()),
     core_hooks: v.optional(v.array(v.string())),
     selected_hook: v.optional(v.union(v.string(), v.null())),
@@ -62,6 +65,7 @@ export const updateThreadDraftStatus = internalMutation({
     }))),
     iterations: v.optional(v.number()),
     is_approved: v.optional(v.boolean()),
+    is_published: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     const { id, ...updates } = args;
@@ -75,3 +79,5 @@ export const markAsPublished = internalMutation({
     await ctx.db.patch("threadDrafts", args.id, { is_published: true });
   },
 });
+
+

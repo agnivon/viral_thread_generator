@@ -1,0 +1,260 @@
+{
+  "branding": {
+    "colorScheme": "light",
+    "fonts": [
+      {
+        "family": "Rethink Sans",
+        "role": "body"
+      },
+      {
+        "family": "Helvetica Neue",
+        "role": "body"
+      },
+      {
+        "family": "Segoe UI",
+        "role": "body"
+      }
+    ],
+    "colors": {
+      "primary": "#0050B3",
+      "secondary": "#4B8BF5",
+      "accent": "#E21B22",
+      "background": "#666666",
+      "textPrimary": "#666666",
+      "link": "#E21B22"
+    },
+    "typography": {
+      "fontFamilies": {
+        "primary": "Rethink Sans",
+        "heading": "Rethink Sans"
+      },
+      "fontStacks": {
+        "heading": [
+          "Rethink Sans",
+          "-apple-system",
+          "BlinkMacSystemFont",
+          "Helvetica Neue",
+          "Segoe UI",
+          "sans-serif"
+        ],
+        "body": [
+          "Rethink Sans",
+          "-apple-system",
+          "BlinkMacSystemFont",
+          "Helvetica Neue",
+          "Segoe UI",
+          "sans-serif"
+        ],
+        "paragraph": [
+          "Rethink Sans",
+          "-apple-system",
+          "BlinkMacSystemFont",
+          "Helvetica Neue",
+          "Segoe UI",
+          "sans-serif"
+        ]
+      },
+      "fontSizes": {
+        "h1": "28px",
+        "h2": "21px",
+        "body": "16px"
+      }
+    },
+    "spacing": {
+      "baseUnit": 4,
+      "borderRadius": "4px"
+    },
+    "components": {},
+    "images": {
+      "logo": "https://static.toiimg.com/photo/92222747.cms",
+      "favicon": "https://m.timesofindia.com/touch-icon-iphone-precomposed.png",
+      "ogImage": "https://static.toiimg.com/thumb/msid-131873711,width-1280,height-720,resizemode-6,overlay-toi_sw,pt-32,y_pad-600/photo.jpg",
+      "logoHref": "https://timesofindia.indiatimes.com",
+      "logoAlt": "TOI logo"
+    },
+    "__llm_logo_reasoning": {
+      "selectedIndex": 0,
+      "reasoning": "Selected #0 because it is the main visible logo with alt text matching the brand 'TOI logo', links to the homepage, and is of medium size, making it the primary brand logo.",
+      "confidence": 0.9,
+      "source": "llm"
+    },
+    "personality": {
+      "tone": "professional",
+      "energy": "medium",
+      "targetAudience": "general public"
+    },
+    "designSystem": {
+      "framework": "custom",
+      "componentLibrary": ""
+    },
+    "confidence": {
+      "buttons": 0,
+      "colors": 0.9,
+      "overall": 0.45
+    },
+    "__llm_metadata": {
+      "logoSelection": {
+        "llmCalled": true,
+        "llmSucceeded": true,
+        "finalSource": "llm",
+        "rawLogoSelection": {
+          "selectedLogoIndex": 0,
+          "selectedLogoReasoning": "Selected #0 because it is the main visible logo with alt text matching the brand 'TOI logo', links to the homepage, and is of medium size, making it the primary brand logo.",
+          "confidence": 0.9
+        }
+      },
+      "buttonClassification": {
+        "llmCalled": false,
+        "llmSucceeded": false
+      }
+    }
+  },
+  "metadata": {
+    "og:site_name": "The Times of India",
+    "og:title": "Man beaten to death while trying to board train at Delhi's Shahdara railway station",
+    "The Times of India": "app-id=427589329,app-argument=https://timesofindia.indiatimes.com/city/delhi/32-year-old-man-beaten-to-death-while-trying-to-board-train-at-delhis-shahdara-station/articleshow/131873590.cms",
+    "name": [
+      "The Times of India",
+      "City",
+      "delhi",
+      "mumbai",
+      "bengaluru",
+      "Hyderabad",
+      "kolkata",
+      "chennai",
+      "Crime News",
+      "agra",
+      "agartala",
+      "ahmedabad",
+      "ajmer",
+      "amaravati",
+      "amritsar",
+      "bareilly",
+      "bhubaneswar",
+      "bhopal",
+      "chandigarh",
+      "chhatrapati sambhajinagar",
+      "coimbatore",
+      "cuttack",
+      "dehradun",
+      "erode",
+      "faridabad",
+      "ghaziabad",
+      "goa",
+      "gurgaon",
+      "guwahati",
+      "hubballi",
+      "imphal",
+      "indore",
+      "itanagar",
+      "jaipur",
+      "jammu",
+      "jamshedpur",
+      "jodhpur",
+      "kanpur",
+      "kochi",
+      "kohima",
+      "kolhapur",
+      "kozhikode",
+      "ludhiana",
+      "lucknow",
+      "madurai",
+      "mangaluru",
+      "meerut",
+      "mumbai region",
+      "mysuru",
+      "nagpur",
+      "nashik",
+      "navi mumbai",
+      "noida",
+      "patna",
+      "prayagraj",
+      "puducherry",
+      "pune",
+      "raipur",
+      "rajkot",
+      "ranchi",
+      "thane",
+      "salem",
+      "shillong",
+      "shimla",
+      "srinagar",
+      "surat",
+      "trichy",
+      "thiruvananthapuram",
+      "udaipur",
+      "vadodara",
+      "varanasi",
+      "vijayawada",
+      "visakhapatnam",
+      "photos",
+      "Web Stories"
+    ],
+    "ogDescription": "NEW DELHI: A 32-year-old man was allegedly beaten to death by fellow passengers after an argument broke out amid a rush to board the Yoga Express at Shahdara railway station in east Delhi on Saturday.",
+    "HandheldFriendly": "true",
+    "google-site-verification": "GdaeWTVPddYtkw-2hEyDpLYMw9SjsNr4dS5Z-9tfcT0",
+    "ogUrl": "https://timesofindia.indiatimes.com/city/delhi/32-year-old-man-beaten-to-death-while-trying-to-board-train-at-delhis-shahdara-station/articleshow/131873590.cms",
+    "url": "https://timesofindia.indiatimes.com/city/delhi/32-year-old-man-beaten-to-death-while-trying-to-board-train-at-delhis-shahdara-station/articleshow/131873590.cms",
+    "title": "Man beaten to death while trying to board train at Delhi's Shahdara railway station | Delhi News - The Times of India",
+    "viewport": "width=device-width, initial-scale=1, maximum-scale=1",
+    "news_keywords": "Delhi train murder,Shahdara railway station incident,Pankaj Dhama death,Yoga Express altercation,culpable homicide case,passenger violence in Delhi,CCTV footage investigation,Delhi police investigation,crime news delhi",
+    "twitter:description": "NEW DELHI: A 32-year-old man was allegedly beaten to death by fellow passengers after an argument broke out amid a rush to board the Yoga Express at Shahdara railway station in east Delhi on Saturday.",
+    "fb:app_id": "117787264903013",
+    "og:image:height": "720",
+    "og:image": "https://static.toiimg.com/thumb/msid-131873711,width-1280,height-720,resizemode-6,overlay-toi_sw,pt-32,y_pad-600/photo.jpg",
+    "twitter:title": "Man beaten to death while trying to board train at Delhi's Shahdara railway station",
+    "MobileOptimized": "width",
+    "og:url": "https://timesofindia.indiatimes.com/city/delhi/32-year-old-man-beaten-to-death-while-trying-to-board-train-at-delhis-shahdara-station/articleshow/131873590.cms",
+    "og:image:width": "1280",
+    "mobile-web-app-capable": "yes",
+    "y_key": "b1abb36a8d5c19c9",
+    "ogSiteName": "The Times of India",
+    "twitter:url": "https://timesofindia.indiatimes.com/city/delhi/32-year-old-man-beaten-to-death-while-trying-to-board-train-at-delhis-shahdara-station/articleshow/131873590.cms",
+    "apple-mobile-web-app-capable": "yes",
+    "ogImage": "https://static.toiimg.com/thumb/msid-131873711,width-1280,height-720,resizemode-6,overlay-toi_sw,pt-32,y_pad-600/photo.jpg",
+    "description": "NEW DELHI: A 32-year-old man was allegedly beaten to death by fellow passengers after an argument broke out amid a rush to board the Yoga Express at S.",
+    "theme-color": "#af2c2c",
+    "position": [
+      "1",
+      "2",
+      "3"
+    ],
+    "twitter:image": "https://static.toiimg.com/thumb/msid-131873711,width-1280,height-720,resizemode-6,overlay-toi_sw,pt-32,y_pad-600/photo.jpg",
+    "keywords": "Delhi news, Delhi latest news, Delhi news live, Delhi news today, Today news Delhi,Delhi train murder,Shahdara railway station incident,Pankaj Dhama death,Yoga Express altercation,culpable homicide case,passenger violence in Delhi,CCTV footage investigation,Delhi police investigation,crime news delhi",
+    "language": "en",
+    "og:description": "NEW DELHI: A 32-year-old man was allegedly beaten to death by fellow passengers after an argument broke out amid a rush to board the Yoga Express at Shahdara railway station in east Delhi on Saturday.",
+    "width": "600",
+    "og:type": "article",
+    "height": "60",
+    "robots": [
+      "max-image-preview:large",
+      "NOODP"
+    ],
+    "ogTitle": "Man beaten to death while trying to board train at Delhi's Shahdara railway station",
+    "fb:pages": [
+      "26781952138",
+      "227797153941209"
+    ],
+    "favicon": "https://m.timesofindia.com/touch-icon-iphone-precomposed.png",
+    "scrapeId": "019ee5b1-290b-72a1-be80-cb62d91f2bbf",
+    "sourceURL": "https://timesofindia.indiatimes.com/city/delhi/32-year-old-man-beaten-to-death-while-trying-to-board-train-at-delhis-shahdara-station/articleshow/131873590.cms",
+    "statusCode": 200,
+    "contentType": "text/html",
+    "timezone": "America/New_York",
+    "proxyUsed": "basic",
+    "indexId": "fdfbe2ba-109a-4f04-a280-f775472d45ca",
+    "creditsUsed": 1,
+    "concurrencyLimited": false
+  },
+  "images": [
+    "https://static.toiimg.com/photo/83033472.cms",
+    "https://static.toiimg.com/photo/111986287.cms",
+    "https://static.toiimg.com/thumb/msid-131873711,imgsize-961683,width-400,height-225,resizemode-72/pankaj-dhama-was-allegedly-beaten-to-death-by-fellow-passengers-during-a-chaotic-rush-to-board-the-yoga-express.jpg",
+    "https://static.toiimg.com/photo/113254487.cms",
+    "https://static.toiimg.com/photo/92222747.cms",
+    "https://static.toiimg.com/thumb/25581306.jpg?photoid=25581306&resizemode=4&height=1&width=1",
+    "https://static.toiimg.com/photo/118390705.cms",
+    "https://static.toiimg.com/photo/122244803.cms",
+    "https://static.toiimg.com/photo/63379366.cms"
+  ]
+}

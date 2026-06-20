@@ -83,9 +83,9 @@ test("generateNewsThread action runs graph and saves result", async () => {
 
   const invokeSpy = vi.spyOn(NewsThreadFactoryGraph, "invoke").mockResolvedValue(mockGraphOutput);
 
-  const tAuth = t.withIdentity({ subject: userId });
-  const recordId = await tAuth.action(api.actions.threadsActions.generateNewsThread, {
+  const { recordId } = await t.action(internal.actions.threadsActions.generateNewsThread, {
     url: "https://example.com/target-url",
+    userId,
   });
 
   expect(recordId).toBeDefined();
@@ -161,9 +161,9 @@ test("publishThread action retrieves state and publishes thread of posts sequent
     .mockResolvedValueOnce("post-id-3");
 
   // 4. Run the publishThread action
-  const tAuth = t.withIdentity({ subject: userId });
-  const result = await tAuth.action(api.actions.threadsActions.publishThread, {
+  const result = await t.action(internal.actions.threadsActions.publishThread, {
     id: stateId,
+    userId,
   });
 
   // 5. Verify results

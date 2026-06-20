@@ -1,31 +1,52 @@
 "use node";
 
-import { v } from "convex/values";
-import { action } from "../_generated/server";
-import { internal, api } from "../_generated/api";
-import { Id } from "../_generated/dataModel";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { awaitAllCallbacks } from "@langchain/core/callbacks/promises";
+import { v } from "convex/values";
+import { internal } from "../_generated/api";
+import { action, internalAction } from "../_generated/server";
+import { Id } from "../_generated/dataModel";
 import { NewsThreadFactoryGraph } from "../lib/agents/graph.js";
 import { ThreadsAPI } from "../lib/threads/api.js";
+import { generationPool, publicationPool } from "../lib/workpool/index.js";
 
-export const generateNewsThread = action({
+export const enqueueNewsThreadGeneration = action({
   args: {
-    url: v.string(),
-    guidance: v.optional(v.string()),
+    requests: v.array(v.object({
+      url: v.string(),
+      guidance: v.optional(v.string()),
+    }))
   },
-  handler: async (ctx, args): Promise<Id<"threadDrafts">> => {
+  handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) {
       throw new Error("Unauthorized");
     }
 
+    const payload = args.requests.map(req => ({
+      url: req.url,
+      guidance: req.guidance,
+      userId,
+    }));
+
+    await generationPool.enqueueActionBatch(ctx, internal.actions.threadsActions.generateNewsThread, payload);
+  },
+});
+
+export const generateNewsThread = internalAction({
+  args: {
+    url: v.string(),
+    guidance: v.optional(v.string()),
+    userId: v.id("users"),
+  },
+  handler: async (ctx, args): Promise<{ recordId: Id<"threadDrafts"> }> => {
     console.log(`[generateNewsThread] Started for URL: ${args.url}`);
+
     const recordId = await ctx.runMutation(
       internal.mutations.threadsMutations.initializeThreadDraft,
       {
         url: args.url,
-        userId: userId,
+        userId: args.userId,
         guidance: args.guidance,
       }
     );
@@ -42,68 +63,72 @@ export const generateNewsThread = action({
       is_approved: false,
     };
 
+    console.log("[generateNewsThread] Invoking NewsThreadFactoryGraph...");
+
+    const finalState = await NewsThreadFactoryGraph.invoke(initialState);
+
+    console.log(`[generateNewsThread] NewsThreadFactoryGraph finished. Iterations: ${finalState.iterations}, Approved: ${finalState.is_approved}`);
+
+    console.log("[generateNewsThread] Saving final state to database...");
+    const { url, guidance, parse_success, retries, is_character_valid, character_critique, ...stateToSave } = finalState;
+    
     try {
-      console.log("[generateNewsThread] Invoking NewsThreadFactoryGraph...");
-      
-      // Set a timeout to ensure we can gracefully fail and update the database 
-      // before the Convex action hard limit (usually 5 mins) kills the execution.
-      const timeoutMs = 4.5 * 60 * 1000; // 4.5 minutes
-      let timeoutId: NodeJS.Timeout;
-      const timeoutPromise = new Promise<never>((_, reject) => {
-        timeoutId = setTimeout(() => reject(new Error("Thread generation timed out")), timeoutMs);
-      });
-
-      const finalState = await Promise.race([
-        NewsThreadFactoryGraph.invoke(initialState),
-        timeoutPromise
-      ]);
-      clearTimeout(timeoutId!);
-
-      console.log(`[generateNewsThread] NewsThreadFactoryGraph finished. Iterations: ${finalState.iterations}, Approved: ${finalState.is_approved}`);
-
-      console.log("[generateNewsThread] Saving final state to database...");
-      const { url, guidance, parse_success, retries, is_character_valid, character_critique, ...stateToSave } = finalState;
       await ctx.runMutation(
         internal.mutations.threadsMutations.updateThreadDraftStatus,
         {
           id: recordId,
-          generation_status: "success",
           ...stateToSave,
+          generation_status: "success",
         }
       );
       console.log(`[generateNewsThread] Final state saved with ID: ${recordId}`);
-      await awaitAllCallbacks();
-    } catch (err) {
-      console.error(`[generateNewsThread] NewsThreadFactoryGraph failed:`, err);
-      await ctx.runMutation(
-        internal.mutations.threadsMutations.updateThreadDraftStatus,
-        {
-          id: recordId,
-          generation_status: "failed",
-        }
-      );
-      try { await awaitAllCallbacks(); } catch (e) {}
-      throw err;
+    } catch (e) {
+      await ctx.runMutation(internal.mutations.threadsMutations.updateThreadDraftStatus, {
+        id: recordId,
+        generation_status: "failed",
+      });
+      throw e;
     }
-
-    return recordId;
+    
+    await awaitAllCallbacks();
+    return { recordId };
   },
 });
 
-export const publishThread = action({
+export const enqueueThreadPublication = action({
   args: {
-    id: v.id("threadDrafts"),
+    ids: v.array(v.id("threadDrafts")),
   },
-  handler: async (ctx, args): Promise<{ postIds: string[] }> => {
+  handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) {
       throw new Error("Unauthorized");
     }
 
+    const payload = args.ids.map(id => ({ id, userId }));
+
+    await publicationPool.enqueueActionBatch(ctx, internal.actions.threadsActions.publishThread, payload);
+  },
+});
+
+export const publishThread = internalAction({
+  args: {
+    id: v.id("threadDrafts"),
+    userId: v.id("users"),
+  },
+  handler: async (ctx, args): Promise<{ postIds: string[] }> => {
+    const userId = args.userId;
+
     console.log(`[publishThread] Action started for state ID: ${args.id}`);
 
-    console.log("[publishThread] Refreshing Threads token if necessary...");
-    await ctx.runAction(internal.actions.tokensActions.refreshThreadsToken, { userId: userId });
+    try {
+      await ctx.runMutation(internal.mutations.threadsMutations.updateThreadDraftStatus, {
+        id: args.id,
+        publication_status: "publishing",
+      });
+
+      console.log("[publishThread] Refreshing Threads token if necessary...");
+      await ctx.runAction(internal.actions.tokensActions.refreshThreadsToken, { userId: userId });
 
     // 1. Retrieve the latest threads long-lived token
     console.log("[publishThread] Retrieving the latest Threads access token...");
@@ -120,8 +145,8 @@ export const publishThread = action({
     // 2. Retrieve the corresponding threads factory state
     console.log(`[publishThread] Retrieving thread factory state for ID: ${args.id}`);
     const state = await ctx.runQuery(
-      api.queries.threadsQueries.getThreadDraft,
-      { id: args.id }
+      internal.queries.threadsQueries.getThreadDraftInternal,
+      { id: args.id, userId: args.userId }
     );
     if (!state) {
       console.error(`[publishThread] Thread factory state not found for ID: ${args.id}`);
@@ -151,19 +176,32 @@ export const publishThread = action({
       const snippet = postText.length > 60 ? postText.substring(0, 60) + "..." : postText;
 
       console.log(`[publishThread] [Post ${i + 1}/${postsToPublish.length}] Publishing... Type: ${isFirst ? 'Root Post' : `Reply to ${replyToId}`}. Content preview: "${snippet}"`);
-      
+
       if (isFirst) {
         replyToId = await threadsApi.createPost({ text: postText });
       } else {
         replyToId = await threadsApi.createReply(replyToId!, { text: postText });
       }
-      
+
+      console.log(`[publishThread] [Post ${i + 1}/${postsToPublish.length}] Successfully published! Post ID: ${replyToId}`);
       console.log(`[publishThread] [Post ${i + 1}/${postsToPublish.length}] Successfully published! Post ID: ${replyToId}`);
       postIds.push(replyToId);
     }
 
+    await ctx.runMutation(internal.mutations.threadsMutations.updateThreadDraftStatus, {
+      id: args.id,
+      publication_status: "success",
+      is_published: true,
+    });
+
     console.log("[publishThread] All posts published successfully. Post IDs:", postIds);
-    await ctx.runMutation(internal.mutations.threadsMutations.markAsPublished, { id: args.id, userId: userId });
     return { postIds };
+    } catch (e) {
+      await ctx.runMutation(internal.mutations.threadsMutations.updateThreadDraftStatus, {
+        id: args.id,
+        publication_status: "failed",
+      });
+      throw e;
+    }
   },
 });

@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Plus, Trash2, Loader2, Sparkles, Link as LinkIcon, HelpCircle } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -16,85 +17,197 @@ import {
 } from "@/components/ui/card";
 
 export default function CreateThreadPage() {
-  const [url, setUrl] = useState("");
-  const [guidance, setGuidance] = useState("");
+  const [entries, setEntries] = useState([{ url: "", guidance: "" }]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
-  const generateNewsThread = useAction(api.actions.threadsActions.generateNewsThread);
+  const enqueueNewsThreadGeneration = useAction(api.actions.threadsActions.enqueueNewsThreadGeneration);
   const router = useRouter();
+
+  const handleAddEntry = () => {
+    setEntries([...entries, { url: "", guidance: "" }]);
+  };
+
+  const handleRemoveEntry = (index: number) => {
+    setEntries(entries.filter((_, i) => i !== index));
+  };
+
+  const handleChange = (index: number, field: "url" | "guidance", value: string) => {
+    const newEntries = [...entries];
+    newEntries[index] = { ...newEntries[index], [field]: value };
+    setEntries(newEntries);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!url) return;
+    const validEntries = entries.filter((entry) => entry.url.trim() !== "");
+    if (validEntries.length === 0) return;
 
     setIsLoading(true);
     setError(null);
 
-    // Trigger thread generation in the background
-    generateNewsThread({ url, guidance: guidance || undefined }).catch((err) => {
-      console.error("Failed to generate thread:", err);
-    });
-
-    // Redirect to drafts list page immediately
-    router.push("/threads/drafts");
+    try {
+      // Trigger thread generation enqueuing
+      await enqueueNewsThreadGeneration({ 
+        requests: validEntries.map(entry => ({ 
+          url: entry.url, 
+          guidance: entry.guidance || undefined 
+        })) 
+      });
+      // Redirect to drafts list page
+      router.push("/threads/drafts");
+    } catch (err: any) {
+      console.error("Failed to enqueue thread generation:", err);
+      setError(err.message || "Failed to start thread generation. Please try again.");
+      setIsLoading(false);
+    }
   };
 
   return (
-    <div className="flex-1 flex items-center justify-center p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader>
-          <CardTitle className="text-2xl text-center">Create a New Thread</CardTitle>
-          <CardDescription className="text-center">
-            Enter a URL (e.g., an article, blog post, or video) to generate a viral thread.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="url">Content URL</Label>
-              <Input
-                id="url"
-                type="url"
-                placeholder="https://example.com/my-awesome-post"
-                value={url}
-                onChange={(e) => setUrl(e.target.value)}
-                disabled={isLoading}
-                required
-              />
-            </div>
+    <div className="flex-1 w-full bg-gradient-to-b from-background via-background/95 to-background/50 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-3xl mx-auto space-y-10">
+        
+        {/* Header Section */}
+        <div className="text-center space-y-4">
+          <div className="inline-flex items-center justify-center p-2.5 bg-violet-500/10 rounded-2xl text-violet-600 dark:text-violet-400 mb-2 animate-pulse">
+            <Sparkles className="w-6 h-6" />
+          </div>
+          <h1 className="text-4xl font-extrabold tracking-tight sm:text-5xl">
+            <span className="bg-gradient-to-r from-violet-600 via-indigo-600 to-cyan-500 bg-clip-text text-transparent dark:from-violet-400 dark:via-indigo-400 dark:to-cyan-400">
+              Create Viral Threads
+            </span>
+          </h1>
+          <p className="text-muted-foreground max-w-lg mx-auto text-base sm:text-lg">
+            Batch generate high-performance Threads sequences from articles, blog posts, or videos.
+          </p>
+        </div>
 
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="guidance">Guidance / Instructions (Optional)</Label>
-              <textarea
-                id="guidance"
-                placeholder="e.g., Focus on the technical specifications, use a professional tone, or emphasize key metrics."
-                value={guidance}
-                onChange={(e) => setGuidance(e.target.value)}
-                disabled={isLoading}
-                className="flex min-h-[80px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 resize-none"
-              />
-            </div>
-            
-            {error && (
-              <div className="text-sm text-destructive text-center p-2 border border-destructive/20 rounded bg-destructive/10">
-                {error}
+        <form onSubmit={handleSubmit} className="space-y-8">
+          
+          {/* Entries Container */}
+          <div className="space-y-6">
+            {entries.map((entry, index) => (
+              <Card 
+                key={index} 
+                className="group relative overflow-hidden bg-card/40 backdrop-blur-xs border-border/80 hover:border-violet-500/30 hover:shadow-lg transition-all duration-300"
+              >
+                {/* Accent Highlight Line on Card Hover */}
+                <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-violet-600 to-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4 border-b border-border/30 bg-muted/20 px-6 py-4">
+                  <div className="flex items-center gap-3">
+                    <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-violet-100 text-xs font-bold text-violet-800 dark:bg-violet-950 dark:text-violet-300">
+                      {String(index + 1).padStart(2, '0')}
+                    </span>
+                    <CardTitle className="text-base font-bold text-foreground">
+                      Thread Source Entry
+                    </CardTitle>
+                  </div>
+                  {entries.length > 1 && (
+                    <Button 
+                      type="button" 
+                      variant="ghost" 
+                      size="icon" 
+                      onClick={() => handleRemoveEntry(index)}
+                      disabled={isLoading}
+                      className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors cursor-pointer"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  )}
+                </CardHeader>
+                
+                <CardContent className="p-6 space-y-6">
+                  {/* Content URL Input */}
+                  <div className="space-y-2">
+                    <Label 
+                      htmlFor={`url-${index}`} 
+                      className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5"
+                    >
+                      <LinkIcon className="w-3.5 h-3.5 text-indigo-500" /> Content URL
+                    </Label>
+                    <Input
+                      id={`url-${index}`}
+                      type="url"
+                      placeholder="https://example.com/my-awesome-post"
+                      value={entry.url}
+                      onChange={(e) => handleChange(index, "url", e.target.value)}
+                      disabled={isLoading}
+                      required
+                      className="w-full bg-background/50 border-border/80 focus-visible:ring-violet-500/30 focus-visible:border-violet-500 rounded-lg transition-all"
+                    />
+                  </div>
+
+                  {/* AI Guidance Textarea */}
+                  <div className="space-y-2">
+                    <Label 
+                      htmlFor={`guidance-${index}`} 
+                      className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5"
+                    >
+                      <Sparkles className="w-3.5 h-3.5 text-violet-500" /> AI Guidance / Instructions (Optional)
+                    </Label>
+                    <textarea
+                      id={`guidance-${index}`}
+                      placeholder="e.g., Focus on technical details, adopt an enthusiastic tone, or structure with numbered steps."
+                      value={entry.guidance}
+                      onChange={(e) => handleChange(index, "guidance", e.target.value)}
+                      disabled={isLoading}
+                      className="flex min-h-[100px] w-full rounded-lg border border-border/80 bg-background/50 px-3 py-2 text-sm shadow-xs placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-violet-500 focus-visible:border-violet-500 disabled:cursor-not-allowed disabled:opacity-50 resize-none transition-all"
+                    />
+                    <p className="text-[11px] text-muted-foreground flex items-center gap-1">
+                      <HelpCircle className="w-3.5 h-3.5 text-muted-foreground/75" /> Set tone instructions, specific callouts, or layout requirements for the generator.
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          {/* Add Another Link Card Button */}
+          <div className="flex justify-center">
+            <button
+              type="button"
+              onClick={handleAddEntry}
+              disabled={isLoading}
+              className="w-full flex flex-col items-center justify-center py-6 px-4 border-2 border-dashed border-border/80 hover:border-violet-500/40 rounded-xl bg-muted/5 hover:bg-violet-500/5 text-muted-foreground hover:text-violet-600 dark:hover:text-violet-400 font-medium transition-all duration-300 group focus:outline-none cursor-pointer"
+            >
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-background border border-border/80 group-hover:scale-105 transition-transform duration-300">
+                <Plus className="h-5 w-5" />
               </div>
-            )}
+              <span className="mt-2 text-sm font-semibold tracking-wide">Add another content link</span>
+            </button>
+          </div>
 
-            <Button type="submit" className="w-full" disabled={isLoading || !url}>
+          {/* Error Message Box */}
+          {error && (
+            <div className="text-sm text-destructive text-center p-3.5 border border-destructive/20 rounded-xl bg-destructive/10 max-w-sm mx-auto w-full">
+              {error}
+            </div>
+          )}
+
+          {/* Form Actions / Submit */}
+          <div className="flex flex-col sm:flex-row gap-4 items-center justify-center pt-6 border-t border-border/40">
+            <Button 
+              type="submit" 
+              size="lg"
+              className="w-full sm:w-auto sm:min-w-[240px] rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white font-semibold py-6 shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 cursor-pointer"
+              disabled={isLoading || entries.every(e => !e.url.trim())}
+            >
               {isLoading ? (
-                <span className="flex items-center gap-2">
-                  <span className="h-4 w-4 border-2 border-current border-t-transparent animate-spin rounded-full" />
-                  Generating thread... (this may take a minute)
+                <span className="flex items-center justify-center gap-2">
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                  Generating Threads...
                 </span>
               ) : (
-                "Create thread"
+                <span className="flex items-center justify-center gap-2">
+                  <Sparkles className="h-4 w-4" />
+                  Generate {entries.length === 1 ? "1 Thread" : `${entries.length} Threads`}
+                </span>
               )}
             </Button>
-          </form>
-        </CardContent>
-      </Card>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }

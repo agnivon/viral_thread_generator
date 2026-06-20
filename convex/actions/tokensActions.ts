@@ -3,7 +3,7 @@
 import { internalAction } from "../_generated/server";
 import { internal } from "../_generated/api";
 import { Doc, Id } from "../_generated/dataModel";
-import { ThreadsAuthAPI } from "../lib/ThreadsAPI";
+import { ThreadsAuthAPI } from "../lib/threads/api";
 import { v } from "convex/values";
 
 /**

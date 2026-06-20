@@ -6,10 +6,10 @@ import { internal, api } from "../_generated/api";
 import { Id } from "../_generated/dataModel";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { awaitAllCallbacks } from "@langchain/core/callbacks/promises";
-import { ThreadFactoryGraph } from "../lib/agents/graph.js";
-import { ThreadsAPI } from "../lib/ThreadsAPI.js";
+import { NewsThreadFactoryGraph } from "../lib/agents/graph.js";
+import { ThreadsAPI } from "../lib/threads/api.js";
 
-export const generateThread = action({
+export const generateNewsThread = action({
   args: {
     url: v.string(),
     guidance: v.optional(v.string()),
@@ -20,7 +20,7 @@ export const generateThread = action({
       throw new Error("Unauthorized");
     }
 
-    console.log(`[generateThread] Started for URL: ${args.url}`);
+    console.log(`[generateNewsThread] Started for URL: ${args.url}`);
     const recordId = await ctx.runMutation(
       internal.mutations.threadsMutations.initializeThreadDraft,
       {
@@ -43,7 +43,7 @@ export const generateThread = action({
     };
 
     try {
-      console.log("[generateThread] Invoking ThreadFactoryGraph...");
+      console.log("[generateNewsThread] Invoking NewsThreadFactoryGraph...");
       
       // Set a timeout to ensure we can gracefully fail and update the database 
       // before the Convex action hard limit (usually 5 mins) kills the execution.
@@ -54,14 +54,14 @@ export const generateThread = action({
       });
 
       const finalState = await Promise.race([
-        ThreadFactoryGraph.invoke(initialState),
+        NewsThreadFactoryGraph.invoke(initialState),
         timeoutPromise
       ]);
       clearTimeout(timeoutId!);
 
-      console.log(`[generateThread] ThreadFactoryGraph finished. Iterations: ${finalState.iterations}, Approved: ${finalState.is_approved}`);
+      console.log(`[generateNewsThread] NewsThreadFactoryGraph finished. Iterations: ${finalState.iterations}, Approved: ${finalState.is_approved}`);
 
-      console.log("[generateThread] Saving final state to database...");
+      console.log("[generateNewsThread] Saving final state to database...");
       const { url, guidance, parse_success, retries, is_character_valid, character_critique, ...stateToSave } = finalState;
       await ctx.runMutation(
         internal.mutations.threadsMutations.updateThreadDraftStatus,
@@ -71,10 +71,10 @@ export const generateThread = action({
           ...stateToSave,
         }
       );
-      console.log(`[generateThread] Final state saved with ID: ${recordId}`);
+      console.log(`[generateNewsThread] Final state saved with ID: ${recordId}`);
       await awaitAllCallbacks();
     } catch (err) {
-      console.error(`[generateThread] ThreadFactoryGraph failed:`, err);
+      console.error(`[generateNewsThread] NewsThreadFactoryGraph failed:`, err);
       await ctx.runMutation(
         internal.mutations.threadsMutations.updateThreadDraftStatus,
         {

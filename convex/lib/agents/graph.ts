@@ -54,7 +54,7 @@ const route_after_critic = (state: ThreadFactoryStateType) => {
   return "ThreadWriterNode";
 };
 
-export const ThreadFactoryGraph = new StateGraph(ThreadFactoryState)
+export const NewsThreadFactoryGraph = new StateGraph(ThreadFactoryState)
   .addNode("ScraperNode", ScraperNode)
   .addNode("HookStrategistNode", HookStrategistNode)
   .addNode("ThreadWriterNode", ThreadWriterNode)

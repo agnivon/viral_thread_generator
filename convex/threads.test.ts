@@ -3,8 +3,8 @@ import { convexTest } from "convex-test";
 import { expect, test, vi, afterEach } from "vitest";
 import { api, internal } from "./_generated/api";
 import schema from "./schema";
-import { ThreadFactoryGraph } from "./lib/agents/graph.js";
-import { ThreadsAPI } from "./lib/ThreadsAPI.js";
+import { NewsThreadFactoryGraph } from "./lib/agents/graph.js";
+import { ThreadsAPI } from "./lib/threads/api.js";
 
 const modules = import.meta.glob("./**/*.ts");
 
@@ -57,7 +57,7 @@ test("saveThreadDraft mutation saves state correctly", async () => {
   });
 });
 
-test("generateThread action runs graph and saves result", async () => {
+test("generateNewsThread action runs graph and saves result", async () => {
   const t = convexTest(schema, modules);
   const userId = await t.mutation(async (ctx) => {
     return await ctx.db.insert("users", {});
@@ -81,10 +81,10 @@ test("generateThread action runs graph and saves result", async () => {
     retries: { scraper: 0, hook: 0, writer: 0, critic: 0, validator: 0 },
   };
 
-  const invokeSpy = vi.spyOn(ThreadFactoryGraph, "invoke").mockResolvedValue(mockGraphOutput);
+  const invokeSpy = vi.spyOn(NewsThreadFactoryGraph, "invoke").mockResolvedValue(mockGraphOutput);
 
   const tAuth = t.withIdentity({ subject: userId });
-  const recordId = await tAuth.action(api.actions.threadsActions.generateThread, {
+  const recordId = await tAuth.action(api.actions.threadsActions.generateNewsThread, {
     url: "https://example.com/target-url",
   });
 

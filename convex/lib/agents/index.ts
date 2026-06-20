@@ -1,6 +1,6 @@
 "use node";
 
-import { ThreadFactoryGraph } from "./graph.js";
+import { NewsThreadFactoryGraph } from "./graph.js";
 
 async function main() {
   const url = process.argv[2] || "https://example.com";
@@ -18,7 +18,7 @@ async function main() {
   };
 
   try {
-    const finalState = await ThreadFactoryGraph.invoke(initialState);
+    const finalState = await NewsThreadFactoryGraph.invoke(initialState);
     console.log("======================================");
     console.log("FINAL STATE:");
     console.log("======================================");

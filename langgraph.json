@@ -1,7 +1,7 @@
 {
   "dependencies": ["."],
   "graphs": {
-    "agent": "./convex/lib/agents/graph.ts:ThreadFactoryGraph"
+    "agent": "./convex/lib/agents/graph.ts:NewsThreadFactoryGraph"
   },
   "env": "./.env.local"
 }

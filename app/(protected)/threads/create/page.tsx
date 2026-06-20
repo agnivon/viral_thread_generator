@@ -21,7 +21,7 @@ export default function CreateThreadPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
-  const generateThread = useAction(api.actions.threadsActions.generateThread);
+  const generateNewsThread = useAction(api.actions.threadsActions.generateNewsThread);
   const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -32,7 +32,7 @@ export default function CreateThreadPage() {
     setError(null);
 
     // Trigger thread generation in the background
-    generateThread({ url, guidance: guidance || undefined }).catch((err) => {
+    generateNewsThread({ url, guidance: guidance || undefined }).catch((err) => {
       console.error("Failed to generate thread:", err);
     });
 

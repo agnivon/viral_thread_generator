@@ -4,13 +4,13 @@ import { providerStrategy } from "langchain";
 import { z } from "zod";
 import { RunnableConfig } from "@langchain/core/runnables";
 import {
-  criticFallbackLlm,
   criticPrimaryLlm, criticPrimaryLlmBackup,
+  criticFallbackLlm1, criticFallbackLlm2, criticFallbackLlm2Backup, criticFallbackLlm3, criticFallbackLlm3Backup,
   hookFallbackLlm1, hookFallbackLlm2,
   hookPrimaryLlm, hookPrimaryLlmBackup,
   scraperFallbackLlm,
   scraperPrimaryLlm, scraperPrimaryLlmBackup,
-  writerFallbackLlm1, writerFallbackLlm2, writerFallbackLlm2Backup,
+  writerFallbackLlm1, writerFallbackLlm2, writerFallbackLlm2Backup, writerFallbackLlm3, writerFallbackLlm3Backup,
   writerPrimaryLlm, writerPrimaryLlmBackup
 } from "./models.js";
 import {
@@ -104,7 +104,9 @@ export const ThreadWriterNode = async (state: ThreadFactoryStateType, config?: R
       writerPrimaryLlmBackup.withStructuredOutput(schema, { name: "thread_writer", method: "jsonSchema" }),
       writerFallbackLlm1.withStructuredOutput(schema, { name: "thread_writer", method: "jsonSchema" }),
       writerFallbackLlm2.withStructuredOutput(schema, { name: "thread_writer", method: "jsonSchema" }),
-      writerFallbackLlm2Backup.withStructuredOutput(schema, { name: "thread_writer", method: "jsonSchema" })
+      writerFallbackLlm2Backup.withStructuredOutput(schema, { name: "thread_writer", method: "jsonSchema" }),
+      writerFallbackLlm3.withStructuredOutput(schema, { name: "thread_writer", method: "jsonSchema" }),
+      writerFallbackLlm3Backup.withStructuredOutput(schema, { name: "thread_writer", method: "jsonSchema" })
     ]
   });
 
@@ -168,7 +170,12 @@ export const ViralityCriticNode = async (state: ThreadFactoryStateType, config?:
   });
 
   const agents = buildAgents(
-    [criticPrimaryLlm, criticPrimaryLlmBackup, criticFallbackLlm],
+    [
+      criticPrimaryLlm, criticPrimaryLlmBackup,
+      criticFallbackLlm1,
+      criticFallbackLlm2, criticFallbackLlm2Backup,
+      criticFallbackLlm3, criticFallbackLlm3Backup
+    ],
     {
       tools: [ContentAuthenticityCheckerTool],
       systemPrompt: VIRALITY_CRITIC_NODE_PROMPT,

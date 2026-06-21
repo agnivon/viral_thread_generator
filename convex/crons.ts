@@ -11,5 +11,20 @@ crons.interval(
   {}
 );
 
+crons.interval(
+  "fetch-currents-latest-news-hourly",
+  { hours: 1 },
+  internal.actions.currentsNewsActions.fetchAndStoreLatestNews,
+  {}
+);
+
+crons.interval(
+  "delete-old-news-articles-daily",
+  { hours: 24 },
+  internal.actions.currentsNewsActions.deleteOldNewsArticles,
+  {}
+);
+
 export default crons;
+
 

@@ -101,7 +101,7 @@ export const NewsArticleSchema = z.object({
   sentiment: z.string().optional().nullable(),
   sentiment_stats: z.string().optional().nullable(),
   ai_region: z.string().optional().nullable(),
-}).passthrough();
+}).loose();
 export type NewsArticle = z.infer<typeof NewsArticleSchema>;
 
 export const NewsDataResponseSchema = z.object({
@@ -109,7 +109,7 @@ export const NewsDataResponseSchema = z.object({
   totalResults: z.number(),
   results: z.array(NewsArticleSchema),
   nextPage: z.string().optional().nullable(),
-}).passthrough();
+}).loose();
 export type NewsDataResponse = z.infer<typeof NewsDataResponseSchema>;
 
 export class NewsDataAPI {
@@ -139,7 +139,7 @@ export class NewsDataAPI {
     if (validatedParams.q) url.searchParams.append('q', validatedParams.q);
     if (validatedParams.qInTitle) url.searchParams.append('qInTitle', validatedParams.qInTitle);
     if (validatedParams.qInMeta) url.searchParams.append('qInMeta', validatedParams.qInMeta);
-    
+
     if (validatedParams.country) {
       url.searchParams.append('country', Array.isArray(validatedParams.country) ? validatedParams.country.join(',') : validatedParams.country);
     }
@@ -149,7 +149,7 @@ export class NewsDataAPI {
     if (validatedParams.language) {
       url.searchParams.append('language', Array.isArray(validatedParams.language) ? validatedParams.language.join(',') : validatedParams.language);
     }
-    
+
     if (validatedParams.domainurl) url.searchParams.append('domainurl', validatedParams.domainurl);
     if (validatedParams.excludedomain) url.searchParams.append('excludedomain', validatedParams.excludedomain);
     if (validatedParams.prioritydomain) url.searchParams.append('prioritydomain', validatedParams.prioritydomain);
@@ -175,7 +175,7 @@ export class NewsDataAPI {
     }
 
     const data = await response.json();
-    
+
     // Validate outputs
     return NewsDataResponseSchema.parse(data);
   }

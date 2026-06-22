@@ -25,6 +25,13 @@ import { useAction } from "convex/react";
 import { AlertCircle, Calendar, ExternalLink, Globe, RefreshCw, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+const DOMAINS = [
+  { id: "reuters.com", name: "Reuters", short: "RT", desc: "Global news agency based in London", color: "from-orange-500 to-amber-500" },
+  { id: "apnews.com", name: "AP News", short: "AP", desc: "Not-for-profit news agency based in NYC", color: "from-blue-500 to-indigo-500" },
+  { id: "bbc.com", name: "BBC News", short: "BC", desc: "British public broadcaster news service", color: "from-red-600 to-rose-500" },
+  { id: "thewire.in", name: "The Wire", short: "TW", desc: "Independent Indian current affairs portal", color: "from-teal-500 to-emerald-500" },
+  { id: "thehindu.com", name: "The Hindu", short: "TH", desc: "English-language Indian daily newspaper", color: "from-violet-500 to-purple-500" }
+];
 
 interface Article {
   id: string;
@@ -44,14 +51,31 @@ export default function SourcesPage() {
   const getLatestNews = useAction(api.actions.currentsNewsActions.getLatestNewsFromFirestore);
   const evaluateArticle = useAction(api.actions.currentsNewsActions.evaluateNewsArticle);
   const [selectedArticle, setSelectedArticle] = useState<Article | null>(null);
+  const [scoringIds, setScoringIds] = useState<Record<string, boolean>>({});
+  const [selectedDomain, setSelectedDomain] = useState<string>(DOMAINS[0].id);
+
+  const handleScoreArticle = async (articleId: string) => {
+    setScoringIds((prev) => ({ ...prev, [articleId]: true }));
+    try {
+      await evaluateMutation.mutateAsync(articleId);
+    } catch (err) {
+      // Handled in mutate callbacks
+    } finally {
+      setScoringIds((prev) => {
+        const next = { ...prev };
+        delete next[articleId];
+        return next;
+      });
+    }
+  };
 
   const evaluateMutation = useMutation({
     mutationFn: async (articleId: string) => {
-      return await evaluateArticle({ id: articleId });
+      return await evaluateArticle({ domain: selectedDomain, id: articleId });
     },
     onSuccess: (updatedArticle) => {
       // Update infinite query cache with the newly scored article
-      queryClient.setQueryData(["currents-news"], (oldData: any) => {
+      queryClient.setQueryData(["currents-news", selectedDomain], (oldData: any) => {
         if (!oldData) return oldData;
         return {
           ...oldData,
@@ -84,9 +108,9 @@ export default function SourcesPage() {
     refetch,
     isFetchingNextPage,
   } = useInfiniteQuery({
-    queryKey: ["currents-news"],
+    queryKey: ["currents-news", selectedDomain],
     queryFn: async ({ pageParam }) => {
-      return await getLatestNews({ cursor: pageParam, numItems: 30 });
+      return await getLatestNews({ domain: selectedDomain, cursor: pageParam, numItems: 30 });
     },
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => {
@@ -155,22 +179,48 @@ export default function SourcesPage() {
           </div>
         </div>
 
-        {/* Tabs Container (Commented out until there is more than one source tab)
-        <Tabs defaultValue="currents-news" className="w-full">
-          <TabsList variant="line" className="border-b border-border/30 w-full justify-start rounded-none h-auto p-0 gap-6">
-            <TabsTrigger 
-              value="currents-news" 
-              className="px-4 py-3 border-b-2 data-active:border-violet-600 rounded-none bg-transparent dark:bg-transparent text-sm font-semibold tracking-wide flex items-center gap-2 cursor-pointer"
-            >
-              <Globe className="w-4 h-4 text-violet-500" />
-              Currents News
-            </TabsTrigger>
-          </TabsList>
-          
-          <TabsContent value="currents-news" className="mt-8">
-        */}
+        {/* Domain Selection Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+          {DOMAINS.map((domain) => {
+            const isSelected = selectedDomain === domain.id;
+            return (
+              <button
+                key={domain.id}
+                onClick={() => setSelectedDomain(domain.id)}
+                className={`relative group overflow-hidden p-5 rounded-2xl border text-left flex flex-col justify-between h-[130px] transition-all duration-300 cursor-pointer ${
+                  isSelected
+                    ? "bg-card border-violet-500/40 shadow-md ring-1 ring-violet-500/20"
+                    : "bg-card/45 backdrop-blur-xs border-border/80 hover:border-violet-500/20 hover:bg-card/60 hover:shadow-xs"
+                }`}
+              >
+                {/* Visual Accent Top Bar */}
+                <div className={`absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r ${domain.color} ${
+                  isSelected ? "opacity-100" : "opacity-0 group-hover:opacity-60"
+                } transition-opacity duration-300`} />
+                
+                <div className="flex items-center justify-between w-full">
+                  <div className={`flex items-center justify-center h-9 w-9 rounded-xl font-black text-sm text-white bg-gradient-to-br ${domain.color} shadow-sm group-hover:scale-105 transition-transform duration-300`}>
+                    {domain.short}
+                  </div>
+                  <div className={`h-2.5 w-2.5 rounded-full ${
+                    isSelected ? "bg-violet-600 dark:bg-violet-400 animate-pulse" : "bg-transparent"
+                  }`} />
+                </div>
 
-        <Card className="group relative overflow-hidden bg-card/45 backdrop-blur-xs border-border/80 hover:border-violet-500/10 hover:shadow-lg transition-all duration-300 mt-6">
+                <div className="space-y-1 mt-3">
+                  <h3 className="font-bold text-sm text-foreground group-hover:text-violet-600 dark:group-hover:text-violet-400 transition-colors leading-tight">
+                    {domain.name}
+                  </h3>
+                  <p className="text-[10px] text-muted-foreground leading-snug line-clamp-2">
+                    {domain.desc}
+                  </p>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+
+        <Card className="group relative overflow-hidden bg-card/45 backdrop-blur-xs border-border/80 hover:border-violet-500/10 hover:shadow-lg transition-all duration-300">
           {/* Accent Highlight Line on Card Hover */}
           <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-violet-600 to-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
@@ -319,11 +369,11 @@ export default function SourcesPage() {
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                onClick={() => evaluateMutation.mutate(article.id)}
-                                disabled={evaluateMutation.isPending}
+                                onClick={() => handleScoreArticle(article.id)}
+                                disabled={!!scoringIds[article.id]}
                                 className="rounded-lg text-xs py-1 h-7 border border-border/80 hover:bg-violet-500/5 hover:text-violet-600 dark:hover:text-violet-400 hover:border-violet-500/20 cursor-pointer flex items-center gap-1.5 w-full justify-center transition-all"
                               >
-                                {evaluateMutation.isPending && evaluateMutation.variables === article.id ? (
+                                {scoringIds[article.id] ? (
                                   <>
                                     <RefreshCw className="w-3 h-3 animate-spin" />
                                     Scoring...
@@ -381,10 +431,6 @@ export default function SourcesPage() {
           </CardContent>
         </Card>
 
-        {/*
-          </TabsContent>
-        </Tabs>
-        */}
       </div>
 
       <Sheet open={!!selectedArticle} onOpenChange={(open) => !open && setSelectedArticle(null)}>
@@ -499,11 +545,11 @@ export default function SourcesPage() {
                 Close
               </Button>
               <Button
-                onClick={() => evaluateMutation.mutate(activeArticle.id)}
-                disabled={evaluateMutation.isPending}
+                onClick={() => handleScoreArticle(activeArticle.id)}
+                disabled={!!scoringIds[activeArticle.id]}
                 className="rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white font-semibold text-xs cursor-pointer flex items-center gap-1.5"
               >
-                {evaluateMutation.isPending && evaluateMutation.variables === activeArticle.id ? (
+                {scoringIds[activeArticle.id] ? (
                   <>
                     <RefreshCw className="w-3.5 h-3.5 animate-spin" />
                     Scoring...

@@ -9,6 +9,9 @@ import { SystemMessage, HumanMessage } from "@langchain/core/messages";
 import { criticFallbackLlm2, criticFallbackLlm2Backup } from "../lib/agents/models";
 import { VIRALITY_SCORER_NODE_PROMPT } from "../lib/agents/prompts";
 import { z } from "zod";
+import { v } from "convex/values";
+
+const DOMAINS = ["reuters.com", "apnews.com", "bbc.com", "thewire.in", "thehindu.com"];
 
 export const fetchAndStoreLatestNews = internalAction({
   args: {},
@@ -20,74 +23,83 @@ export const fetchAndStoreLatestNews = internalAction({
 
     const currentsApi = new CurrentsAPI({ apiKey });
     
-    // Fetch latest news
-    const response = await currentsApi.latestNews({
-      language: "en",
-      page_size: 30,
-    });
-    console.log("Currents API response status:", response.data.status);
+    let totalStored = 0;
 
-    const articles = response.data.news;
-    if (!articles || articles.length === 0) {
-      console.log("No news articles fetched.");
-      return;
-    }
+    for (const domain of DOMAINS) {
+      console.log(`Fetching latest news for domain: ${domain}`);
+      // Fetch latest news
+      const response = await currentsApi.latestNews({
+        language: "en",
+        page_size: 30,
+        domain: domain,
+      });
+      console.log(`Currents API response status for ${domain}:`, response.data.status);
 
-    const collectionRef = db.collection("currents_latest_news");
-    console.log("Mapping articles to docRefs...");
-    const docRefs = articles.map(article => {
-      // Ensure article.id is a string without slashes
-      const safeId = String(article.id).replace(/\//g, '_');
-      return collectionRef.doc(safeId);
-    });
-    
-    let existingDocs;
-    try {
-      console.log(`Calling db.getAll for ${docRefs.length} docs...`);
-      existingDocs = await db.getAll(...docRefs);
-      console.log("Successfully fetched existing docs from Firestore.");
-    } catch (error: any) {
-      console.error("Firestore db.getAll Error details:", error.message, error.code, error.details);
-      throw error;
-    }
-    
-    const newArticles = articles.filter((_, index) => !existingDocs[index].exists);
-
-    if (newArticles.length === 0) {
-      console.log("No new articles to store.");
-      return;
-    }
-
-    const batch = db.batch();
-
-    for (const article of newArticles) {
-      const safeId = String(article.id).replace(/\//g, '_');
-      const docRef = collectionRef.doc(safeId);
-      
-      let publishedTimestamp: FieldValue | Timestamp = FieldValue.serverTimestamp();
-      if (article.published) {
-        try {
-          const date = new Date(article.published);
-          if (!isNaN(date.getTime())) {
-            publishedTimestamp = Timestamp.fromDate(date);
-          }
-        } catch (e) {
-          // fallback
-        }
+      const articles = response.data.news;
+      if (!articles || articles.length === 0) {
+        console.log(`No news articles fetched for ${domain}.`);
+        continue;
       }
 
-      const data = {
-        ...article,
-        published_at: publishedTimestamp,
-        created_at: FieldValue.serverTimestamp(),
-        updated_at: FieldValue.serverTimestamp(),
-      };
+      const collectionRef = db.collection("currents_latest_news").doc(domain).collection("articles");
+      console.log(`Mapping articles to docRefs for ${domain}...`);
+      const docRefs = articles.map(article => {
+        // Ensure article.id is a string without slashes
+        const safeId = String(article.id).replace(/\//g, '_');
+        return collectionRef.doc(safeId);
+      });
+      
+      let existingDocs;
+      try {
+        console.log(`Calling db.getAll for ${docRefs.length} docs in ${domain}...`);
+        existingDocs = await db.getAll(...docRefs);
+        console.log(`Successfully fetched existing docs from Firestore for ${domain}.`);
+      } catch (error: any) {
+        console.error(`Firestore db.getAll Error details for ${domain}:`, error.message, error.code, error.details);
+        throw error;
+      }
+      
+      const newArticles = articles.filter((_, index) => !existingDocs[index].exists);
 
-      batch.set(docRef, data);
+      if (newArticles.length === 0) {
+        console.log(`No new articles to store for ${domain}.`);
+        continue;
+      }
+
+      const batch = db.batch();
+
+      for (const article of newArticles) {
+        const safeId = String(article.id).replace(/\//g, '_');
+        const docRef = collectionRef.doc(safeId);
+        
+        let publishedTimestamp: FieldValue | Timestamp = FieldValue.serverTimestamp();
+        if (article.published) {
+          try {
+            const date = new Date(article.published);
+            if (!isNaN(date.getTime())) {
+              publishedTimestamp = Timestamp.fromDate(date);
+            }
+          } catch (_e) {
+            // fallback
+          }
+        }
+
+        const data = {
+          ...article,
+          published_at: publishedTimestamp,
+          created_at: FieldValue.serverTimestamp(),
+          updated_at: FieldValue.serverTimestamp(),
+        };
+
+        batch.set(docRef, data);
+      }
+
+      await batch.commit();
+      console.log(`Successfully stored ${newArticles.length} new news articles in Firestore for ${domain}.`);
+      totalStored += newArticles.length;
     }
-
-    await batch.commit();
-    console.log(`Successfully stored ${newArticles.length} new news articles in Firestore.`);
+    
+    console.log(`Successfully stored a total of ${totalStored} new news articles across all domains.`);
   },
 });
 
@@ -97,45 +109,52 @@ export const deleteOldNewsArticles = internalAction({
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - 5);
 
-    const collectionRef = db.collection("currents_latest_news");
-    const snapshot = await collectionRef.where("published_at", "<", cutoffDate).get();
+    let totalDeleted = 0;
 
-    if (snapshot.empty) {
-      console.log("No old news articles found to delete.");
-      return;
-    }
+    for (const domain of DOMAINS) {
+      console.log(`Deleting old news articles for domain: ${domain}`);
+      const collectionRef = db.collection("currents_latest_news").doc(domain).collection("articles");
+      const snapshot = await collectionRef.where("published_at", "<", cutoffDate).get();
 
-    let deletedCount = 0;
-    const batches = [];
-    let currentBatch = db.batch();
-    let currentBatchSize = 0;
-
-    for (const doc of snapshot.docs) {
-      currentBatch.delete(doc.ref);
-      currentBatchSize++;
-
-      if (currentBatchSize === 500) {
-        batches.push(currentBatch.commit());
-        currentBatch = db.batch();
-        currentBatchSize = 0;
+      if (snapshot.empty) {
+        console.log(`No old news articles found to delete for ${domain}.`);
+        continue;
       }
-      
-      deletedCount++;
-    }
 
-    if (currentBatchSize > 0) {
-      batches.push(currentBatch.commit());
-    }
+      let deletedCount = 0;
+      const batches = [];
+      let currentBatch = db.batch();
+      let currentBatchSize = 0;
 
-    await Promise.all(batches);
-    console.log(`Successfully deleted ${deletedCount} old news articles from Firestore.`);
+      for (const doc of snapshot.docs) {
+        currentBatch.delete(doc.ref);
+        currentBatchSize++;
+
+        if (currentBatchSize === 500) {
+          batches.push(currentBatch.commit());
+          currentBatch = db.batch();
+          currentBatchSize = 0;
+        }
+        
+        deletedCount++;
+      }
+
+      if (currentBatchSize > 0) {
+        batches.push(currentBatch.commit());
+      }
+
+      await Promise.all(batches);
+      console.log(`Successfully deleted ${deletedCount} old news articles from Firestore for ${domain}.`);
+      totalDeleted += deletedCount;
+    }
+    
+    console.log(`Successfully deleted a total of ${totalDeleted} old news articles across all domains.`);
   },
 });
 
-import { v } from "convex/values";
-
 export const getLatestNewsFromFirestore = action({
   args: {
+    domain: v.string(),
     cursor: v.optional(v.string()),
     numItems: v.optional(v.number()),
   },
@@ -146,7 +165,7 @@ export const getLatestNewsFromFirestore = action({
     }
 
     const limitNum = args.numItems ?? 50;
-    const collectionRef = db.collection("currents_latest_news");
+    const collectionRef = db.collection("currents_latest_news").doc(args.domain).collection("articles");
     
     let firestoreQuery = collectionRef.orderBy("published_at", "desc").limit(limitNum);
     
@@ -162,7 +181,7 @@ export const getLatestNewsFromFirestore = action({
       const snapshot = await firestoreQuery.get();
       docs = snapshot.docs;
     } catch (e) {
-      console.warn("Failed to sort by published_at from Firestore, falling back to unsorted fetch and in-memory sort", e);
+      console.warn(`Failed to sort by published_at from Firestore for ${args.domain}, falling back to unsorted fetch and in-memory sort`, e);
       let fallbackQuery = collectionRef.limit(limitNum);
       if (args.cursor) {
         const cursorDoc = await collectionRef.doc(args.cursor).get();
@@ -203,6 +222,7 @@ export const getLatestNewsFromFirestore = action({
 
 export const updateNewsArticle = action({
   args: {
+    domain: v.string(),
     id: v.string(),
     title: v.optional(v.string()),
     description: v.optional(v.string()),
@@ -215,13 +235,13 @@ export const updateNewsArticle = action({
       throw new Error("Unauthorized");
     }
 
-    const { id, ...updates } = args;
+    const { domain, id, ...updates } = args;
 
     if (Object.keys(updates).length === 0) {
       return { success: false, message: "No fields provided to update" };
     }
 
-    const docRef = db.collection("currents_latest_news").doc(id);
+    const docRef = db.collection("currents_latest_news").doc(domain).collection("articles").doc(id);
     
     try {
       await docRef.update({
@@ -231,7 +251,7 @@ export const updateNewsArticle = action({
       return { success: true };
     } catch (error: any) {
       if (error.code === 5) { // 5 corresponds to NOT_FOUND in gRPC/Firestore
-        throw new Error(`Article with id ${id} not found in Firestore`);
+        throw new Error(`Article with id ${id} not found in Firestore for domain ${domain}`);
       }
       throw error;
     }
@@ -239,18 +259,18 @@ export const updateNewsArticle = action({
 });
 
 export const evaluateNewsArticle = action({
-  args: { id: v.string() },
+  args: { domain: v.string(), id: v.string() },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) {
       throw new Error("Unauthorized");
     }
 
-    const docRef = db.collection("currents_latest_news").doc(args.id);
+    const docRef = db.collection("currents_latest_news").doc(args.domain).collection("articles").doc(args.id);
     const snapshot = await docRef.get();
     
     if (!snapshot.exists) {
-      throw new Error(`Article with id ${args.id} not found in Firestore`);
+      throw new Error(`Article with id ${args.id} not found in Firestore for domain ${args.domain}`);
     }
 
     const article = snapshot.data();

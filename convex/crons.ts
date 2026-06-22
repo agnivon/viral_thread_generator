@@ -27,6 +27,20 @@ if (!isDev) {
     internal.actions.currentsNewsActions.deleteOldNewsArticles,
     {}
   );
+
+  crons.interval(
+    "fetch-newsdata-latest-news-3-hourly",
+    { hours: 3 },
+    internal.actions.newsdataActions.fetchAndStoreLatestNews,
+    {}
+  );
+
+  crons.interval(
+    "delete-old-newsdata-articles-daily",
+    { hours: 24 },
+    internal.actions.newsdataActions.deleteOldNewsArticles,
+    {}
+  );
 }
 
 export default crons;

@@ -9,6 +9,7 @@
  */
 
 import type * as actions_currentsNewsActions from "../actions/currentsNewsActions.js";
+import type * as actions_newsdataActions from "../actions/newsdataActions.js";
 import type * as actions_threadsActions from "../actions/threadsActions.js";
 import type * as actions_tokensActions from "../actions/tokensActions.js";
 import type * as auth from "../auth.js";
@@ -41,6 +42,7 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   "actions/currentsNewsActions": typeof actions_currentsNewsActions;
+  "actions/newsdataActions": typeof actions_newsdataActions;
   "actions/threadsActions": typeof actions_threadsActions;
   "actions/tokensActions": typeof actions_tokensActions;
   auth: typeof auth;

@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table,
   TableBody,
@@ -25,6 +26,7 @@ import { useAction } from "convex/react";
 import { AlertCircle, Calendar, ExternalLink, Globe, RefreshCw, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+
 const DOMAINS = [
   { id: "reuters.com", name: "Reuters", short: "RT", desc: "Global news agency based in London", color: "from-orange-500 to-amber-500" },
   { id: "apnews.com", name: "AP News", short: "AP", desc: "Not-for-profit news agency based in NYC", color: "from-blue-500 to-indigo-500" },
@@ -46,12 +48,18 @@ interface Article {
   hook_potential_analysis?: string;
 }
 
-export default function SourcesPage() {
+function SourceDataGrid({
+  sourceId,
+  getLatestNewsAction,
+  evaluateArticleAction
+}: {
+  sourceId: string;
+  getLatestNewsAction: any;
+  evaluateArticleAction: any;
+}) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
   const queryClient = useQueryClient();
-  const getLatestNews = useAction(api.actions.currentsNewsActions.getLatestNewsFromFirestore);
-  const evaluateArticle = useAction(api.actions.currentsNewsActions.evaluateNewsArticle);
   const [selectedArticle, setSelectedArticle] = useState<Article | null>(null);
   const [scoringIds, setScoringIds] = useState<Record<string, boolean>>({});
   const [selectedDomain, setSelectedDomain] = useState<string>(DOMAINS[0].id);
@@ -73,11 +81,11 @@ export default function SourcesPage() {
 
   const evaluateMutation = useMutation({
     mutationFn: async (articleId: string) => {
-      return await evaluateArticle({ domain: selectedDomain, id: articleId });
+      return await evaluateArticleAction({ domain: selectedDomain, id: articleId });
     },
-    onSuccess: (updatedArticle) => {
+    onSuccess: (updatedArticle: any) => {
       // Update infinite query cache with the newly scored article
-      queryClient.setQueryData(["currents-news", selectedDomain], (oldData: any) => {
+      queryClient.setQueryData(["news", sourceId, selectedDomain], (oldData: any) => {
         if (!oldData) return oldData;
         return {
           ...oldData,
@@ -110,12 +118,12 @@ export default function SourcesPage() {
     refetch,
     isFetchingNextPage,
   } = useInfiniteQuery({
-    queryKey: ["currents-news", selectedDomain],
+    queryKey: ["news", sourceId, selectedDomain],
     queryFn: async ({ pageParam }) => {
-      return await getLatestNews({ domain: selectedDomain, cursor: pageParam, numItems: 30 });
+      return await getLatestNewsAction({ domain: selectedDomain, cursor: pageParam, numItems: 30 });
     },
     initialPageParam: undefined as string | undefined,
-    getNextPageParam: (lastPage) => {
+    getNextPageParam: (lastPage: any) => {
       return lastPage.isDone ? undefined : (lastPage.continueCursor || undefined);
     },
   });
@@ -123,9 +131,9 @@ export default function SourcesPage() {
   const handleSync = async () => {
     try {
       await refetch();
-      toast.success("Currents news refreshed successfully!");
+      toast.success("News refreshed successfully!");
     } catch (err) {
-      console.error("Error refreshing Currents news:", err);
+      console.error("Error refreshing news:", err);
       toast.error("Failed to refresh news.");
     }
   };
@@ -148,40 +156,26 @@ export default function SourcesPage() {
   };
 
   const articles = data?.pages.flatMap((page) => page.page) ?? [];
-  const activeArticle = articles.find((a) => a.id === selectedArticle?.id) || selectedArticle;
+  const activeArticle = articles.find((a: any) => a.id === selectedArticle?.id) || selectedArticle;
   const isRefreshing = isFetching && !isFetchingNextPage;
 
   return (
-    <div className="flex-1 w-full bg-gradient-to-b from-background via-background/95 to-background/50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-7xl mx-auto space-y-10">
-
-        {/* Header Section */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-border/30 pb-6">
-          <div className="space-y-2">
-            <h1 className="text-4xl font-extrabold tracking-tight">
-              <span className="bg-gradient-to-r from-violet-600 via-indigo-600 to-cyan-500 bg-clip-text text-transparent dark:from-violet-400 dark:via-indigo-400 dark:to-cyan-400">
-                Sources
-              </span>
-            </h1>
-            <p className="text-muted-foreground text-sm sm:text-base">
-              Manage and view news content sources synced to your workspace.
-            </p>
-          </div>
-          <div className="flex items-center gap-3">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleSync}
-              disabled={mounted ? (isLoading || isRefreshing) : false}
-              className="rounded-xl border-border/80 hover:bg-muted/50 cursor-pointer flex items-center gap-2"
-            >
-              <RefreshCw className={`w-4 h-4 ${mounted && isRefreshing ? "animate-spin" : ""}`} />
-              Sync Now
-            </Button>
-          </div>
+    <div className="space-y-6 mt-6">
+      {/* Domain Selection Grid and Sync Now */}
+      <div className="flex flex-col gap-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-bold text-foreground">Select Domain</h2>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleSync}
+            disabled={mounted ? (isLoading || isRefreshing) : false}
+            className="rounded-xl border-border/80 hover:bg-muted/50 cursor-pointer flex items-center gap-2"
+          >
+            <RefreshCw className={`w-4 h-4 ${mounted && isRefreshing ? "animate-spin" : ""}`} />
+            Sync Now
+          </Button>
         </div>
-
-        {/* Domain Selection Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
           {DOMAINS.map((domain) => {
             const isSelected = selectedDomain === domain.id;
@@ -218,218 +212,205 @@ export default function SourcesPage() {
             );
           })}
         </div>
+      </div>
 
-        <Card className="group relative overflow-hidden bg-card/45 backdrop-blur-xs border-border/80 hover:border-violet-500/10 hover:shadow-lg transition-all duration-300">
-          {/* Accent Highlight Line on Card Hover */}
-          <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-violet-600 to-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+      <Card className="group relative overflow-hidden bg-card/45 backdrop-blur-xs border-border/80 hover:border-violet-500/10 hover:shadow-lg transition-all duration-300">
+        {/* Accent Highlight Line on Card Hover */}
+        <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-violet-600 to-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
-          <CardHeader className="px-6 py-5 border-b border-border/30 bg-muted/10">
-            <CardTitle className="text-xl font-bold tracking-tight text-foreground flex items-center gap-2">
-              Latest Synced Articles
-            </CardTitle>
-            <CardDescription className="text-xs sm:text-sm text-muted-foreground">
-              The latest news articles fetched and stored from Currents API.
-            </CardDescription>
-          </CardHeader>
+        <CardHeader className="px-6 py-5 border-b border-border/30 bg-muted/10">
+          <CardTitle className="text-xl font-bold tracking-tight text-foreground flex items-center gap-2">
+            Latest Synced Articles
+          </CardTitle>
+          <CardDescription className="text-xs sm:text-sm text-muted-foreground">
+            The latest news articles fetched and stored from {sourceId === "currents" ? "Currents API" : "NewsData API"}.
+          </CardDescription>
+        </CardHeader>
 
-          <CardContent className="p-0">
-            {isLoading ? (
-              <div className="p-6 space-y-4">
-                {[1, 2, 3, 4, 5].map((i) => (
-                  <div key={i} className="flex gap-4 items-center">
-                    <Skeleton className="h-6 w-1/4 rounded-md" />
-                    <Skeleton className="h-6 w-1/2 rounded-md" />
-                    <Skeleton className="h-6 w-1/12 rounded-md" />
-                    <Skeleton className="h-6 w-1/12 rounded-md" />
-                  </div>
-                ))}
-              </div>
-            ) : error ? (
-              <div className="flex flex-col items-center justify-center p-12 text-center space-y-4">
-                <div className="p-3 bg-destructive/10 rounded-full text-destructive">
-                  <AlertCircle className="w-6 h-6" />
+        <CardContent className="p-0">
+          {isLoading ? (
+            <div className="p-6 space-y-4">
+              {[1, 2, 3, 4, 5].map((i) => (
+                <div key={i} className="flex gap-4 items-center">
+                  <Skeleton className="h-6 w-1/4 rounded-md" />
+                  <Skeleton className="h-6 w-1/2 rounded-md" />
+                  <Skeleton className="h-6 w-1/12 rounded-md" />
+                  <Skeleton className="h-6 w-1/12 rounded-md" />
                 </div>
-                <p className="text-sm font-medium text-foreground">Failed to fetch news from Firestore.</p>
-                <Button
-                  variant="outline"
-                  onClick={() => refetch()}
-                  className="rounded-xl border-border/80 hover:bg-muted/50 cursor-pointer"
-                >
-                  Try Again
-                </Button>
+              ))}
+            </div>
+          ) : error ? (
+            <div className="flex flex-col items-center justify-center p-12 text-center space-y-4">
+              <div className="p-3 bg-destructive/10 rounded-full text-destructive">
+                <AlertCircle className="w-6 h-6" />
               </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader className="bg-muted/20 border-b border-border/30">
-                    <TableRow className="hover:bg-transparent">
-                      <TableHead className="p-3 font-bold text-xs uppercase tracking-wider text-muted-foreground/80 w-[20%]">Title</TableHead>
-                      <TableHead className="p-3 font-bold text-xs uppercase tracking-wider text-muted-foreground/80 w-[35%]">Description</TableHead>
-                      <TableHead className="p-3 font-bold text-xs uppercase tracking-wider text-muted-foreground/80 w-[10%]">Category</TableHead>
-                      <TableHead className="p-3 font-bold text-xs uppercase tracking-wider text-muted-foreground/80 w-[15%]">Published</TableHead>
-                      <TableHead className="p-3 font-bold text-xs uppercase tracking-wider text-muted-foreground/80 w-[15%]">Score</TableHead>
-                      <TableHead className="p-3 font-bold text-xs uppercase tracking-wider text-muted-foreground/80 w-[5%] text-right">Link</TableHead>
+              <p className="text-sm font-medium text-foreground">Failed to fetch news from Firestore.</p>
+              <Button
+                variant="outline"
+                onClick={() => refetch()}
+                className="rounded-xl border-border/80 hover:bg-muted/50 cursor-pointer"
+              >
+                Try Again
+              </Button>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader className="bg-muted/20 border-b border-border/30">
+                  <TableRow className="hover:bg-transparent">
+                    <TableHead className="p-3 font-bold text-xs uppercase tracking-wider text-muted-foreground/80 w-[20%]">Title</TableHead>
+                    <TableHead className="p-3 font-bold text-xs uppercase tracking-wider text-muted-foreground/80 w-[35%]">Description</TableHead>
+                    <TableHead className="p-3 font-bold text-xs uppercase tracking-wider text-muted-foreground/80 w-[10%]">Category</TableHead>
+                    <TableHead className="p-3 font-bold text-xs uppercase tracking-wider text-muted-foreground/80 w-[15%]">Published</TableHead>
+                    <TableHead className="p-3 font-bold text-xs uppercase tracking-wider text-muted-foreground/80 w-[15%]">Score</TableHead>
+                    <TableHead className="p-3 font-bold text-xs uppercase tracking-wider text-muted-foreground/80 w-[5%] text-right">Link</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {articles.length === 0 ? (
+                    <TableRow className="hover:bg-transparent border-0">
+                      <TableCell colSpan={6} className="p-16 text-center">
+                        <div className="flex flex-col items-center justify-center space-y-4">
+                          <div className="p-4 bg-muted rounded-full text-muted-foreground/60">
+                            <Globe className="w-8 h-8" />
+                          </div>
+                          <h3 className="text-lg font-semibold text-foreground">No Articles Found</h3>
+                          <p className="text-xs sm:text-sm text-muted-foreground max-w-sm mx-auto leading-relaxed text-center">
+                            We couldn&apos;t find any articles synced to Firestore. Run the sync command or configure the hourly cron task.
+                          </p>
+                          <Button
+                            onClick={handleSync}
+                            className="rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 text-white font-semibold cursor-pointer"
+                          >
+                            <RefreshCw className="w-4 h-4 mr-2" /> Sync Now
+                          </Button>
+                        </div>
+                      </TableCell>
                     </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {articles.length === 0 ? (
-                      <TableRow className="hover:bg-transparent border-0">
-                        <TableCell colSpan={6} className="p-16 text-center">
-                          <div className="flex flex-col items-center justify-center space-y-4">
-                            <div className="p-4 bg-muted rounded-full text-muted-foreground/60">
-                              <Globe className="w-8 h-8" />
-                            </div>
-                            <h3 className="text-lg font-semibold text-foreground">No Articles Found</h3>
-                            <p className="text-xs sm:text-sm text-muted-foreground mx-auto leading-relaxed text-center">
-                              We couldn&apos;t find any articles synced to Firestore. Run the sync command or configure the hourly cron task.
-                            </p>
+                  ) : (
+                    articles.map((article: any) => (
+                      <TableRow
+                        key={article.id}
+                        className="border-b border-border/30 hover:bg-muted/25 transition-colors duration-150"
+                      >
+                        <TableCell className="p-3 align-top whitespace-normal min-w-[200px] font-semibold text-foreground leading-snug">
+                          {article.title}
+                        </TableCell>
+                        <TableCell className="p-3 align-top whitespace-normal min-w-[280px] text-muted-foreground text-xs leading-relaxed">
+                          {article.description || <span className="italic text-muted-foreground/50">No description provided.</span>}
+                        </TableCell>
+                        <TableCell className="p-3 align-top whitespace-normal min-w-[100px]">
+                          <div className="flex flex-wrap gap-1">
+                            {article.category && article.category.length > 0 ? (
+                              article.category.map((cat: string, idx: number) => (
+                                <span
+                                  key={idx}
+                                  className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold bg-violet-500/10 text-violet-600 dark:text-violet-400 border border-violet-500/20 shadow-xs"
+                                >
+                                  {cat}
+                                </span>
+                              ))
+                            ) : (
+                              <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold bg-muted text-muted-foreground border border-border">
+                                general
+                              </span>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell className="p-3 align-top whitespace-nowrap text-xs text-muted-foreground">
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            <Calendar className="w-3.5 h-3.5 text-muted-foreground/60" />
+                            <span>{formatDate(article.published)}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="p-3 align-top whitespace-normal min-w-[140px]">
+                          <div className="flex flex-col gap-2">
+                            {article.virality_score !== undefined && article.virality_score !== null ? (
+                              <div className="flex flex-col gap-1">
+                                <button
+                                  onClick={() => setSelectedArticle(article)}
+                                  className={`inline-flex items-center justify-center rounded-full px-2.5 py-0.5 text-[11px] font-bold w-fit shadow-xs hover:scale-105 active:scale-95 transition-all cursor-pointer ${article.virality_score >= 85
+                                      ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400"
+                                      : article.virality_score >= 70
+                                        ? "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400"
+                                        : "bg-rose-100 text-rose-800 dark:bg-rose-900/30 dark:text-rose-400"
+                                    }`}
+                                  title="Click to view overall critique"
+                                >
+                                  {article.virality_score} / 100
+                                </button>
+                                <button
+                                  onClick={() => setSelectedArticle(article)}
+                                  className="text-[10px] text-violet-600 dark:text-violet-400 hover:underline text-left font-medium flex items-center gap-0.5 mt-0.5 cursor-pointer"
+                                >
+                                  Read Critique &rarr;
+                                </button>
+                              </div>
+                            ) : (
+                              <span className="text-xs text-muted-foreground/50 italic">Not evaluated</span>
+                            )}
+
                             <Button
-                              onClick={handleSync}
-                              className="rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 text-white font-semibold cursor-pointer"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleScoreArticle(article.id)}
+                              disabled={!!scoringIds[article.id]}
+                              className="rounded-lg text-xs py-1 h-7 border border-border/80 hover:bg-violet-500/5 hover:text-violet-600 dark:hover:text-violet-400 hover:border-violet-500/20 cursor-pointer flex items-center gap-1.5 w-full justify-center transition-all"
                             >
-                              <RefreshCw className="w-4 h-4 mr-2" /> Sync Now
+                              {scoringIds[article.id] ? (
+                                <>
+                                  <RefreshCw className="w-3 h-3 animate-spin" />
+                                  Scoring...
+                                </>
+                              ) : (
+                                <>
+                                  <Sparkles className="w-3 h-3" />
+                                  {article.virality_score !== undefined && article.virality_score !== null ? "Re-Score" : "Score"}
+                                </>
+                              )}
                             </Button>
                           </div>
                         </TableCell>
+                        <TableCell className="p-3 align-top text-right">
+                          <a
+                            href={article.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center justify-center p-2 rounded-xl bg-violet-500/5 hover:bg-violet-500/10 text-violet-600 dark:text-violet-400 hover:text-violet-700 transition-all border border-violet-500/10 hover:border-violet-500/30"
+                            title="Open original article"
+                          >
+                            <ExternalLink className="w-4 h-4" />
+                          </a>
+                        </TableCell>
                       </TableRow>
-                    ) : (
-                      articles.map((article) => (
-                        <TableRow
-                          key={article.id}
-                          className="border-b border-border/30 hover:bg-muted/25 transition-colors duration-150"
-                        >
-                          {/* Title (Wrapped & bold, compressed padding) */}
-                          <TableCell className="p-3 align-top whitespace-normal min-w-[200px] font-semibold text-foreground leading-snug">
-                            {article.title}
-                          </TableCell>
-
-                          {/* Description (Wrapped, smaller, muted description text) */}
-                          <TableCell className="p-3 align-top whitespace-normal min-w-[280px] text-muted-foreground text-xs leading-relaxed">
-                            {article.description || <span className="italic text-muted-foreground/50">No description provided.</span>}
-                          </TableCell>
-
-                          {/* Category (Pill badge tags) */}
-                          <TableCell className="p-3 align-top whitespace-normal min-w-[100px]">
-                            <div className="flex flex-wrap gap-1">
-                              {article.category && article.category.length > 0 ? (
-                                article.category.map((cat, idx) => (
-                                  <span
-                                    key={idx}
-                                    className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold bg-violet-500/10 text-violet-600 dark:text-violet-400 border border-violet-500/20 shadow-xs"
-                                  >
-                                    {cat}
-                                  </span>
-                                ))
-                              ) : (
-                                <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold bg-muted text-muted-foreground border border-border">
-                                  general
-                                </span>
-                              )}
-                            </div>
-                          </TableCell>
-
-                          {/* Published (Formatted Date with Calendar icon) */}
-                          <TableCell className="p-3 align-top whitespace-nowrap text-xs text-muted-foreground">
-                            <div className="flex items-center gap-1.5 mt-0.5">
-                              <Calendar className="w-3.5 h-3.5 text-muted-foreground/60" />
-                              <span>{formatDate(article.published)}</span>
-                            </div>
-                          </TableCell>
-
-                          {/* Score Cell */}
-                          <TableCell className="p-3 align-top whitespace-normal min-w-[140px]">
-                            <div className="flex flex-col gap-2">
-                              {article.virality_score !== undefined && article.virality_score !== null ? (
-                                <div className="flex flex-col gap-1">
-                                  <button
-                                    onClick={() => setSelectedArticle(article)}
-                                    className={`inline-flex items-center justify-center rounded-full px-2.5 py-0.5 text-[11px] font-bold w-fit shadow-xs hover:scale-105 active:scale-95 transition-all cursor-pointer ${article.virality_score >= 85
-                                        ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400"
-                                        : article.virality_score >= 70
-                                          ? "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400"
-                                          : "bg-rose-100 text-rose-800 dark:bg-rose-900/30 dark:text-rose-400"
-                                      }`}
-                                    title="Click to view overall critique"
-                                  >
-                                    {article.virality_score} / 100
-                                  </button>
-                                  <button
-                                    onClick={() => setSelectedArticle(article)}
-                                    className="text-[10px] text-violet-600 dark:text-violet-400 hover:underline text-left font-medium flex items-center gap-0.5 mt-0.5 cursor-pointer"
-                                  >
-                                    Read Critique &rarr;
-                                  </button>
-                                </div>
-                              ) : (
-                                <span className="text-xs text-muted-foreground/50 italic">Not evaluated</span>
-                              )}
-
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleScoreArticle(article.id)}
-                                disabled={!!scoringIds[article.id]}
-                                className="rounded-lg text-xs py-1 h-7 border border-border/80 hover:bg-violet-500/5 hover:text-violet-600 dark:hover:text-violet-400 hover:border-violet-500/20 cursor-pointer flex items-center gap-1.5 w-full justify-center transition-all"
-                              >
-                                {scoringIds[article.id] ? (
-                                  <>
-                                    <RefreshCw className="w-3 h-3 animate-spin" />
-                                    Scoring...
-                                  </>
-                                ) : (
-                                  <>
-                                    <Sparkles className="w-3 h-3" />
-                                    {article.virality_score !== undefined && article.virality_score !== null ? "Re-Score" : "Score"}
-                                  </>
-                                )}
-                              </Button>
-                            </div>
-                          </TableCell>
-
-                          {/* URL Link */}
-                          <TableCell className="p-3 align-top text-right">
-                            <a
-                              href={article.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center justify-center p-2 rounded-xl bg-violet-500/5 hover:bg-violet-500/10 text-violet-600 dark:text-violet-400 hover:text-violet-700 transition-all border border-violet-500/10 hover:border-violet-500/30"
-                              title="Open original article"
-                            >
-                              <ExternalLink className="w-4 h-4" />
-                            </a>
-                          </TableCell>
-                        </TableRow>
-
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-
-            {hasNextPage && !isLoading && !error && articles.length > 0 && (
-              <div className="flex justify-center p-6 border-t border-border/30 bg-muted/5">
-                <Button
-                  variant="outline"
-                  onClick={() => fetchNextPage()}
-                  disabled={isFetchingNextPage}
-                  className="rounded-xl border-border/80 hover:bg-muted/50 cursor-pointer flex items-center gap-2"
-                >
-                  {isFetchingNextPage ? (
-                    <>
-                      <RefreshCw className="w-4 h-4 animate-spin" />
-                      Loading...
-                    </>
-                  ) : (
-                    "Load More Articles"
+                    ))
                   )}
-                </Button>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                </TableBody>
+              </Table>
+            </div>
+          )}
 
-      </div>
+          {hasNextPage && !isLoading && !error && articles.length > 0 && (
+            <div className="flex justify-center p-6 border-t border-border/30 bg-muted/5">
+              <Button
+                variant="outline"
+                onClick={() => fetchNextPage()}
+                disabled={isFetchingNextPage}
+                className="rounded-xl border-border/80 hover:bg-muted/50 cursor-pointer flex items-center gap-2"
+              >
+                {isFetchingNextPage ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    Loading...
+                  </>
+                ) : (
+                  "Load More Articles"
+                )}
+              </Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <Sheet open={!!selectedArticle} onOpenChange={(open) => !open && setSelectedArticle(null)}>
         {activeArticle && (
@@ -437,7 +418,7 @@ export default function SourcesPage() {
             <SheetHeader className="p-0 pb-5 border-b border-border/30">
               <div className="flex items-center gap-2 mb-2">
                 {activeArticle.category && activeArticle.category.length > 0 ? (
-                  activeArticle.category.map((cat, idx) => (
+                  activeArticle.category.map((cat: string, idx: number) => (
                     <span
                       key={idx}
                       className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-semibold bg-violet-500/10 text-violet-600 dark:text-violet-400 border border-violet-500/20"
@@ -461,7 +442,6 @@ export default function SourcesPage() {
             </SheetHeader>
 
             <div className="mt-6 space-y-6">
-              {/* Score section */}
               {activeArticle.virality_score !== undefined && activeArticle.virality_score !== null && (
                 <div className="space-y-3">
                   <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider select-none">Virality Rating</h4>
@@ -498,7 +478,6 @@ export default function SourcesPage() {
                 </div>
               )}
 
-              {/* Overall critique */}
               {activeArticle.overall_critique && (
                 <div className="space-y-2">
                   <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider select-none">AI Critique</h4>
@@ -508,7 +487,6 @@ export default function SourcesPage() {
                 </div>
               )}
 
-              {/* Hook potential analysis */}
               {activeArticle.hook_potential_analysis && (
                 <div className="space-y-2">
                   <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider select-none">Hook Potential Analysis</h4>
@@ -518,7 +496,6 @@ export default function SourcesPage() {
                 </div>
               )}
 
-              {/* Original Article Link */}
               <div className="pt-2">
                 <a
                   href={activeArticle.url}
@@ -561,6 +538,57 @@ export default function SourcesPage() {
           </SheetContent>
         )}
       </Sheet>
+    </div>
+  );
+}
+
+export default function SourcesPage() {
+  const getLatestCurrents = useAction(api.actions.currentsNewsActions.getLatestNewsFromFirestore);
+  const evaluateCurrents = useAction(api.actions.currentsNewsActions.evaluateNewsArticle);
+
+  const getLatestNewsdata = useAction(api.actions.newsdataActions.getLatestNewsFromFirestore);
+  const evaluateNewsdata = useAction(api.actions.newsdataActions.evaluateNewsArticle);
+
+  return (
+    <div className="flex-1 w-full bg-gradient-to-b from-background via-background/95 to-background/50 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-7xl mx-auto space-y-8">
+        {/* Header Section */}
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-border/30 pb-6">
+          <div className="space-y-2">
+            <h1 className="text-4xl font-extrabold tracking-tight">
+              <span className="bg-gradient-to-r from-violet-600 via-indigo-600 to-cyan-500 bg-clip-text text-transparent dark:from-violet-400 dark:via-indigo-400 dark:to-cyan-400">
+                Sources
+              </span>
+            </h1>
+            <p className="text-muted-foreground text-sm sm:text-base">
+              Manage and view news content sources synced to your workspace.
+            </p>
+          </div>
+        </div>
+
+        <Tabs defaultValue="currents" className="w-full">
+          <TabsList className="grid w-full grid-cols-2 max-w-[400px]">
+            <TabsTrigger value="currents">Currents API</TabsTrigger>
+            <TabsTrigger value="newsdata">NewsData API</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="currents" className="mt-4 focus-visible:outline-none focus-visible:ring-0">
+            <SourceDataGrid
+              sourceId="currents"
+              getLatestNewsAction={getLatestCurrents}
+              evaluateArticleAction={evaluateCurrents}
+            />
+          </TabsContent>
+          
+          <TabsContent value="newsdata" className="mt-4 focus-visible:outline-none focus-visible:ring-0">
+            <SourceDataGrid
+              sourceId="newsdata"
+              getLatestNewsAction={getLatestNewsdata}
+              evaluateArticleAction={evaluateNewsdata}
+            />
+          </TabsContent>
+        </Tabs>
+      </div>
     </div>
   );
 }

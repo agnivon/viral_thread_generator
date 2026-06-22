@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { usePaginatedQuery, useAction } from "convex/react";
+import { usePaginatedQuery, useAction, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -10,12 +10,13 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { Button, buttonVariants } from "@/components/ui/button";
 import Link from "next/link";
 import { Loader2 } from "lucide-react";
-import { 
-  UpdateIcon, 
-  CheckCircledIcon, 
-  CrossCircledIcon, 
-  FileTextIcon, 
-  ExternalLinkIcon 
+import {
+  UpdateIcon,
+  CheckCircledIcon,
+  CrossCircledIcon,
+  FileTextIcon,
+  ExternalLinkIcon,
+  TrashIcon
 } from "@radix-ui/react-icons";
 
 export default function DraftsPage() {
@@ -24,10 +25,13 @@ export default function DraftsPage() {
     {},
     { initialNumItems: 10 }
   );
-  
+
   const enqueuePublication = useAction(api.actions.threadsActions.enqueueThreadPublication);
+  const deleteDraft = useMutation(api.mutations.threadsMutations.deleteThreadDraft);
+
   const [selectedDrafts, setSelectedDrafts] = useState<Set<Id<"threadDrafts">>>(new Set());
   const [isPublishing, setIsPublishing] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const toggleSelection = (id: Id<"threadDrafts">) => {
     const newSelection = new Set(selectedDrafts);
@@ -39,17 +43,16 @@ export default function DraftsPage() {
     setSelectedDrafts(newSelection);
   };
 
-  const publishableDrafts = drafts.filter(d => 
-    !d.is_published && 
-    d.publication_status !== "publishing" && 
-    (d.generation_status ?? "success") === "success"
-  );
+  const publishableDraftsCount = Array.from(selectedDrafts).filter(id => {
+    const d = drafts.find(draft => draft._id === id);
+    return d && !d.is_published && d.publication_status !== "publishing" && (d.generation_status ?? "success") === "success";
+  }).length;
 
   const toggleAll = () => {
-    if (selectedDrafts.size === publishableDrafts.length && publishableDrafts.length > 0) {
+    if (selectedDrafts.size === drafts.length && drafts.length > 0) {
       setSelectedDrafts(new Set());
     } else {
-      setSelectedDrafts(new Set(publishableDrafts.map(d => d._id)));
+      setSelectedDrafts(new Set(drafts.map(d => d._id)));
     }
   };
 
@@ -59,7 +62,10 @@ export default function DraftsPage() {
       return draft && !draft.is_published && draft.publication_status !== "publishing" && (draft.generation_status ?? "success") === "success";
     });
 
-    if (validIds.length === 0) return;
+    if (validIds.length === 0) {
+      toast.error("None of the selected drafts are eligible for publishing.");
+      return;
+    }
 
     try {
       setIsPublishing(true);
@@ -71,6 +77,32 @@ export default function DraftsPage() {
       toast.error(`Failed to publish: ${err.message || "Unknown error"}`);
     } finally {
       setIsPublishing(false);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedDrafts.size === 0) return;
+
+    const confirmDelete = window.confirm(
+      `Are you sure you want to delete the ${selectedDrafts.size} selected thread draft(s)?`
+    );
+    if (!confirmDelete) return;
+
+    try {
+      setIsDeleting(true);
+      const idsToDelete = Array.from(selectedDrafts);
+
+      await Promise.all(
+        idsToDelete.map((id) => deleteDraft({ id }))
+      );
+
+      toast.success(`Successfully deleted ${idsToDelete.length} thread draft(s).`);
+      setSelectedDrafts(new Set());
+    } catch (err: any) {
+      console.error(err);
+      toast.error(`Failed to delete: ${err.message || "Unknown error"}`);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -101,14 +133,25 @@ export default function DraftsPage() {
           </p>
         </div>
         {selectedDrafts.size > 0 && (
-          <Button 
-            onClick={handleBulkPublish} 
-            disabled={isPublishing}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white font-semibold shadow-md hover:shadow-lg transition-all duration-300 cursor-pointer"
-          >
-            {isPublishing ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-            Bulk Publish ({selectedDrafts.size})
-          </Button>
+          <div className="flex items-center gap-3">
+            <Button
+              onClick={handleBulkPublish}
+              disabled={isPublishing || isDeleting || publishableDraftsCount === 0}
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white font-semibold shadow-md hover:shadow-lg transition-all duration-300 cursor-pointer disabled:opacity-50"
+            >
+              {isPublishing ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+              Publish ({publishableDraftsCount})
+            </Button>
+            <Button
+              onClick={handleBulkDelete}
+              disabled={isPublishing || isDeleting}
+              variant="destructive"
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-700 hover:to-red-700 text-white font-semibold shadow-md hover:shadow-lg transition-all duration-300 cursor-pointer disabled:opacity-50"
+            >
+              {isDeleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <TrashIcon className="w-4 h-4" />}
+              Delete ({selectedDrafts.size})
+            </Button>
+          </div>
         )}
       </div>
 
@@ -120,8 +163,8 @@ export default function DraftsPage() {
       ) : drafts.length === 0 ? (
         <div className="text-center py-16 border border-dashed rounded-2xl bg-muted/5 max-w-md mx-auto w-full p-8 space-y-4">
           <p className="text-muted-foreground font-semibold">You don't have any thread drafts yet.</p>
-          <Link 
-            href="/threads/create" 
+          <Link
+            href="/threads/create"
             className={`${buttonVariants()} rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white font-semibold shadow-md hover:shadow-lg transition-all duration-300`}
           >
             Create your first thread
@@ -134,10 +177,10 @@ export default function DraftsPage() {
               <thead className="bg-muted/30 text-muted-foreground/80 text-xs font-bold uppercase border-b border-border/50">
                 <tr>
                   <th className="px-4 py-4 font-semibold w-10 text-center">
-                    <Checkbox 
-                      checked={publishableDrafts.length > 0 && selectedDrafts.size === publishableDrafts.length}
+                    <Checkbox
+                      checked={drafts.length > 0 && selectedDrafts.size === drafts.length}
                       onCheckedChange={toggleAll}
-                      disabled={publishableDrafts.length === 0 || isPublishing}
+                      disabled={drafts.length === 0 || isPublishing || isDeleting}
                       aria-label="Select all"
                       className="border-muted-foreground/45 data-[state=checked]:bg-violet-600 data-[state=checked]:border-violet-600"
                     />
@@ -157,19 +200,19 @@ export default function DraftsPage() {
                   return (
                     <tr key={draft._id} className="hover:bg-muted/20 transition-colors duration-150">
                       <td className="px-4 py-4.5 text-center">
-                        <Checkbox 
+                        <Checkbox
                           checked={selectedDrafts.has(draft._id)}
                           onCheckedChange={() => toggleSelection(draft._id)}
-                          disabled={!isPublishable || isPublishing}
+                          disabled={isPublishing || isDeleting}
                           aria-label={`Select ${draft.url}`}
                           className="border-muted-foreground/45 data-[state=checked]:bg-violet-600 data-[state=checked]:border-violet-600"
                         />
                       </td>
                       <td className="px-4 py-4.5">
-                        <a 
-                          href={externalUrl} 
-                          target="_blank" 
-                          rel="noreferrer" 
+                        <a
+                          href={externalUrl}
+                          target="_blank"
+                          rel="noreferrer"
                           className="hover:text-violet-600 dark:hover:text-violet-400 hover:underline flex items-center gap-1.5 font-semibold text-foreground max-w-[180px] sm:max-w-xs md:max-w-md transition-colors"
                           title={draft.url}
                         >
@@ -206,13 +249,12 @@ export default function DraftsPage() {
                       </td>
                       <td className="px-4 py-4.5 text-center">
                         {genStatus === "success" && draft.virality_score !== undefined ? (
-                          <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
-                            draft.virality_score >= 85 
-                              ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400' 
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${draft.virality_score >= 85
+                              ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400'
                               : draft.virality_score >= 70
                                 ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400'
                                 : 'bg-rose-100 text-rose-800 dark:bg-rose-900/30 dark:text-rose-400'
-                          }`}>
+                            }`}>
                             {draft.virality_score}
                           </span>
                         ) : (
@@ -248,23 +290,23 @@ export default function DraftsPage() {
               </tbody>
             </table>
           </div>
-        
-        {/* Pagination controls */}
-        {status === "CanLoadMore" && (
-          <div className="flex justify-center mt-6">
-            <Button onClick={() => loadMore(10)} variant="outline">
-              Load More
-            </Button>
-          </div>
-        )}
-        {status === "LoadingMore" && (
-          <div className="flex justify-center mt-6">
-            <Button disabled variant="outline">
-              <Loader2 className="w-4 h-4 animate-spin mr-2" />
-              Loading...
-            </Button>
-          </div>
-        )}
+
+          {/* Pagination controls */}
+          {status === "CanLoadMore" && (
+            <div className="flex justify-center mt-6">
+              <Button onClick={() => loadMore(10)} variant="outline">
+                Load More
+              </Button>
+            </div>
+          )}
+          {status === "LoadingMore" && (
+            <div className="flex justify-center mt-6">
+              <Button disabled variant="outline">
+                <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                Loading...
+              </Button>
+            </div>
+          )}
         </>
       )}
     </div>

@@ -1,5 +1,6 @@
 import { v } from "convex/values";
-import { internalMutation } from "../_generated/server";
+import { internalMutation, mutation } from "../_generated/server";
+import { getAuthUserId } from "@convex-dev/auth/server";
 import { vOnCompleteArgs } from "@convex-dev/workpool";
 import { Id } from "../_generated/dataModel";
 
@@ -51,7 +52,7 @@ export const initializeThreadDraft = internalMutation({
 export const updateThreadDraftStatus = internalMutation({
   args: {
     id: v.id("threadDrafts"),
-    generation_status: v.optional(v.union(v.literal("success"), v.literal("failed"))),
+    generation_status: v.optional(v.union(v.literal("success"), v.literal("failed"), v.literal("processing"))),
     publication_status: v.optional(v.union(v.literal("not_published"), v.literal("publishing"), v.literal("success"), v.literal("failed"))),
     raw_markdown: v.optional(v.string()),
     core_hooks: v.optional(v.array(v.string())),
@@ -66,6 +67,7 @@ export const updateThreadDraftStatus = internalMutation({
     iterations: v.optional(v.number()),
     is_approved: v.optional(v.boolean()),
     is_published: v.optional(v.boolean()),
+    guidance: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const { id, ...updates } = args;
@@ -80,4 +82,21 @@ export const markAsPublished = internalMutation({
   },
 });
 
-
+export const deleteThreadDraft = mutation({
+  args: {
+    id: v.id("threadDrafts"),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      throw new Error("Unauthorized");
+    }
+    const draft = await ctx.db.get(args.id);
+    if (draft && draft.userId !== userId) {
+      throw new Error("Unauthorized");
+    }
+    if (draft) {
+      await ctx.db.delete(args.id);
+    }
+  },
+});

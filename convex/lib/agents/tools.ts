@@ -72,6 +72,13 @@ export const CharacterValidatorTool = tool(
       if (foundFormatting) {
         errors.push(`Post ${index + 1} (${position}) contains invalid markdown formatting characters (${foundFormatting.join(", ")}). Remove all markdown formatting (bold, italic, headers, code blocks, etc).`);
       }
+
+      // Check for raw hyperlinks (URLs)
+      const urlRegex = /(https?:\/\/[^\s]+|www\.[^\s]+)/g;
+      const foundUrls = post.match(urlRegex);
+      if (foundUrls && position !== "CTA") {
+        errors.push(`Post ${index + 1} (${position}) contains a hyperlink (${foundUrls.join(", ")}). Hyperlinks are strictly forbidden in the Hook and Body posts. Remove all URLs.`);
+      }
     });
 
     return JSON.stringify({

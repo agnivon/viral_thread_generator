@@ -38,18 +38,34 @@ export const generateNewsThread = internalAction({
     url: v.string(),
     guidance: v.optional(v.string()),
     userId: v.id("users"),
+    recordId: v.optional(v.id("threadDrafts")),
   },
   handler: async (ctx, args): Promise<{ recordId: Id<"threadDrafts"> }> => {
     console.log(`[generateNewsThread] Started for URL: ${args.url}`);
 
-    const recordId = await ctx.runMutation(
-      internal.mutations.threadsMutations.initializeThreadDraft,
-      {
-        url: args.url,
-        userId: args.userId,
-        guidance: args.guidance,
-      }
-    );
+    let recordId = args.recordId;
+    if (!recordId) {
+      recordId = await ctx.runMutation(
+        internal.mutations.threadsMutations.initializeThreadDraft,
+        {
+          url: args.url,
+          userId: args.userId,
+          guidance: args.guidance,
+        }
+      );
+    } else {
+      await ctx.runMutation(
+        internal.mutations.threadsMutations.updateThreadDraftStatus,
+        {
+          id: recordId,
+          generation_status: "processing",
+          is_approved: false,
+          iterations: 0,
+          guidance: args.guidance,
+        }
+      );
+    }
+
 
     const initialState = {
       url: args.url,
@@ -92,6 +108,36 @@ export const generateNewsThread = internalAction({
     
     await awaitAllCallbacks();
     return { recordId };
+  },
+});
+
+export const enqueueThreadRegeneration = action({
+  args: {
+    ids: v.array(v.id("threadDrafts")),
+    guidance: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      throw new Error("Unauthorized");
+    }
+
+    const payload = [];
+    for (const id of args.ids) {
+      const draft = await ctx.runQuery(internal.queries.threadsQueries.getThreadDraftInternal, { id, userId });
+      if (!draft) {
+        throw new Error(`Draft ${id} not found or unauthorized`);
+      }
+      const guidance = args.guidance !== undefined ? args.guidance : draft.guidance;
+      payload.push({
+        url: draft.url,
+        guidance: guidance,
+        userId,
+        recordId: id,
+      });
+    }
+
+    await generationPool.enqueueActionBatch(ctx, internal.actions.threadsActions.generateNewsThread, payload);
   },
 });
 

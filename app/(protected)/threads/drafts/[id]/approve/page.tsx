@@ -24,7 +24,11 @@ export default function ApproveDraftPage() {
 
   const state = useQuery(api.queries.threadsQueries.getThreadDraft, { id });
   const enqueuePublication = useAction(api.actions.threadsActions.enqueueThreadPublication);
+  const enqueueRegeneration = useAction(api.actions.threadsActions.enqueueThreadRegeneration);
   const [isPublishing, setIsPublishing] = useState(false);
+  const [isRegenerating, setIsRegenerating] = useState(false);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [newGuidance, setNewGuidance] = useState("");
 
   const handlePublish = async () => {
     try {
@@ -36,6 +40,24 @@ export default function ApproveDraftPage() {
       toast.error(`Failed to publish: ${e.message || "Unknown error"}`);
     } finally {
       setIsPublishing(false);
+    }
+  };
+
+  const handleRegenerate = async () => {
+    try {
+      setIsRegenerating(true);
+      setIsDialogOpen(false);
+      await enqueueRegeneration({ 
+        ids: [id], 
+        guidance: newGuidance.trim() || undefined 
+      });
+      toast.success("Regeneration queued! The thread is being regenerated.");
+      router.push("/threads/drafts");
+    } catch (e: any) {
+      console.error(e);
+      toast.error(`Failed to regenerate: ${e.message || "Unknown error"}`);
+    } finally {
+      setIsRegenerating(false);
     }
   };
 
@@ -272,7 +294,7 @@ export default function ApproveDraftPage() {
               <Button
                 className="w-full rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white font-bold py-6 shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 cursor-pointer"
                 size="lg"
-                disabled={isPublishing || state.is_published || state.publication_status === "publishing"}
+                disabled={isPublishing || isRegenerating || state.is_published || state.publication_status === "publishing"}
                 onClick={handlePublish}
               >
                 {isPublishing || state.publication_status === "publishing" ? (
@@ -283,6 +305,26 @@ export default function ApproveDraftPage() {
                   "Published"
                 ) : (
                   "Publish Thread"
+                )}
+              </Button>
+              <Button
+                variant="outline"
+                className="w-full rounded-xl border-border/80 text-foreground font-bold py-6 hover:bg-violet-600/5 hover:text-violet-600 dark:hover:bg-violet-500/5 dark:hover:text-violet-400 hover:border-violet-500/30 transition-all duration-300 cursor-pointer"
+                size="lg"
+                disabled={isPublishing || isRegenerating || state.is_published || state.publication_status === "publishing"}
+                onClick={() => {
+                  setNewGuidance(state.guidance || "");
+                  setIsDialogOpen(true);
+                }}
+              >
+                {isRegenerating ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin mr-2" /> Regenerating...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="mr-2 h-4 w-4 text-violet-500" /> Regenerate
+                  </>
                 )}
               </Button>
             </div>
@@ -361,6 +403,63 @@ export default function ApproveDraftPage() {
           </div>
         </div>
       </div>
+
+      {/* Custom Dialog Modal */}
+      {isDialogOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="relative w-full max-w-lg overflow-hidden border border-border/80 bg-card/90 backdrop-blur-lg rounded-2xl shadow-xl p-6 space-y-6">
+            <div className="space-y-2">
+              <h2 className="text-xl font-bold flex items-center gap-2 text-foreground">
+                <Sparkles className="w-5 h-5 text-violet-500" />
+                Regenerate Thread
+              </h2>
+              <p className="text-xs text-muted-foreground">
+                Input or modify the existing guidance to direct the AI thread generator.
+              </p>
+            </div>
+
+            <div className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                  Generation Guidance
+                </label>
+                <textarea
+                  value={newGuidance}
+                  onChange={(e) => setNewGuidance(e.target.value)}
+                  placeholder="e.g. Focus on hooks, explain the technical strategy step-by-step, use bullet points..."
+                  rows={4}
+                  className="w-full text-sm bg-muted/40 text-foreground p-3.5 rounded-xl border border-border focus:border-violet-500/50 focus:ring-1 focus:ring-violet-500/50 focus:outline-none resize-none"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <Button
+                variant="outline"
+                onClick={() => setIsDialogOpen(false)}
+                disabled={isRegenerating}
+                className="rounded-xl border-border px-5"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleRegenerate}
+                disabled={isRegenerating}
+                className="rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white font-semibold px-6 shadow-md hover:shadow-lg transition-all duration-300"
+              >
+                {isRegenerating ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                    Regenerating...
+                  </>
+                ) : (
+                  "Submit & Regenerate"
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

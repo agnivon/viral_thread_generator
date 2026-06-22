@@ -11,19 +11,23 @@ crons.interval(
   {}
 );
 
-crons.interval(
-  "fetch-currents-latest-news-hourly",
-  { hours: 1 },
-  internal.actions.currentsNewsActions.fetchAndStoreLatestNews,
-  {}
-);
+const isDev = process.env.SITE_URL?.includes("localhost") || process.env.NODE_ENV === "development";
 
-crons.interval(
-  "delete-old-news-articles-daily",
-  { hours: 24 },
-  internal.actions.currentsNewsActions.deleteOldNewsArticles,
-  {}
-);
+if (!isDev) {
+  crons.interval(
+    "fetch-currents-latest-news-hourly",
+    { hours: 1 },
+    internal.actions.currentsNewsActions.fetchAndStoreLatestNews,
+    {}
+  );
+
+  crons.interval(
+    "delete-old-news-articles-daily",
+    { hours: 24 },
+    internal.actions.currentsNewsActions.deleteOldNewsArticles,
+    {}
+  );
+}
 
 export default crons;
 

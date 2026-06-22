@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -47,6 +47,8 @@ interface Article {
 }
 
 export default function SourcesPage() {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
   const queryClient = useQueryClient();
   const getLatestNews = useAction(api.actions.currentsNewsActions.getLatestNewsFromFirestore);
   const evaluateArticle = useAction(api.actions.currentsNewsActions.evaluateNewsArticle);
@@ -170,10 +172,10 @@ export default function SourcesPage() {
               variant="outline"
               size="sm"
               onClick={handleSync}
-              disabled={isLoading || isRefreshing}
+              disabled={mounted ? (isLoading || isRefreshing) : false}
               className="rounded-xl border-border/80 hover:bg-muted/50 cursor-pointer flex items-center gap-2"
             >
-              <RefreshCw className={`w-4 h-4 ${isRefreshing ? "animate-spin" : ""}`} />
+              <RefreshCw className={`w-4 h-4 ${mounted && isRefreshing ? "animate-spin" : ""}`} />
               Sync Now
             </Button>
           </div>
@@ -187,24 +189,21 @@ export default function SourcesPage() {
               <button
                 key={domain.id}
                 onClick={() => setSelectedDomain(domain.id)}
-                className={`relative group overflow-hidden p-5 rounded-2xl border text-left flex flex-col justify-between h-[130px] transition-all duration-300 cursor-pointer ${
-                  isSelected
+                className={`relative group overflow-hidden p-5 rounded-2xl border text-left flex flex-col justify-between h-[130px] transition-all duration-300 cursor-pointer ${isSelected
                     ? "bg-card border-violet-500/40 shadow-md ring-1 ring-violet-500/20"
                     : "bg-card/45 backdrop-blur-xs border-border/80 hover:border-violet-500/20 hover:bg-card/60 hover:shadow-xs"
-                }`}
+                  }`}
               >
                 {/* Visual Accent Top Bar */}
-                <div className={`absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r ${domain.color} ${
-                  isSelected ? "opacity-100" : "opacity-0 group-hover:opacity-60"
-                } transition-opacity duration-300`} />
-                
+                <div className={`absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r ${domain.color} ${isSelected ? "opacity-100" : "opacity-0 group-hover:opacity-60"
+                  } transition-opacity duration-300`} />
+
                 <div className="flex items-center justify-between w-full">
                   <div className={`flex items-center justify-center h-9 w-9 rounded-xl font-black text-sm text-white bg-gradient-to-br ${domain.color} shadow-sm group-hover:scale-105 transition-transform duration-300`}>
                     {domain.short}
                   </div>
-                  <div className={`h-2.5 w-2.5 rounded-full ${
-                    isSelected ? "bg-violet-600 dark:bg-violet-400 animate-pulse" : "bg-transparent"
-                  }`} />
+                  <div className={`h-2.5 w-2.5 rounded-full ${isSelected ? "bg-violet-600 dark:bg-violet-400 animate-pulse" : "bg-transparent"
+                    }`} />
                 </div>
 
                 <div className="space-y-1 mt-3">
@@ -281,7 +280,7 @@ export default function SourcesPage() {
                               <Globe className="w-8 h-8" />
                             </div>
                             <h3 className="text-lg font-semibold text-foreground">No Articles Found</h3>
-                            <p className="text-xs sm:text-sm text-muted-foreground max-w-sm mx-auto leading-relaxed">
+                            <p className="text-xs sm:text-sm text-muted-foreground mx-auto leading-relaxed text-center">
                               We couldn&apos;t find any articles synced to Firestore. Run the sync command or configure the hourly cron task.
                             </p>
                             <Button
@@ -344,13 +343,12 @@ export default function SourcesPage() {
                                 <div className="flex flex-col gap-1">
                                   <button
                                     onClick={() => setSelectedArticle(article)}
-                                    className={`inline-flex items-center justify-center rounded-full px-2.5 py-0.5 text-[11px] font-bold w-fit shadow-xs hover:scale-105 active:scale-95 transition-all cursor-pointer ${
-                                      article.virality_score >= 85
+                                    className={`inline-flex items-center justify-center rounded-full px-2.5 py-0.5 text-[11px] font-bold w-fit shadow-xs hover:scale-105 active:scale-95 transition-all cursor-pointer ${article.virality_score >= 85
                                         ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400"
                                         : article.virality_score >= 70
-                                        ? "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400"
-                                        : "bg-rose-100 text-rose-800 dark:bg-rose-900/30 dark:text-rose-400"
-                                    }`}
+                                          ? "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400"
+                                          : "bg-rose-100 text-rose-800 dark:bg-rose-900/30 dark:text-rose-400"
+                                      }`}
                                     title="Click to view overall critique"
                                   >
                                     {article.virality_score} / 100
@@ -440,7 +438,7 @@ export default function SourcesPage() {
               <div className="flex items-center gap-2 mb-2">
                 {activeArticle.category && activeArticle.category.length > 0 ? (
                   activeArticle.category.map((cat, idx) => (
-                    <span 
+                    <span
                       key={idx}
                       className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-semibold bg-violet-500/10 text-violet-600 dark:text-violet-400 border border-violet-500/20"
                     >
@@ -472,29 +470,27 @@ export default function SourcesPage() {
                       <span className="text-3xl font-black text-foreground bg-gradient-to-r from-violet-600 to-indigo-600 bg-clip-text text-transparent dark:from-violet-400 dark:to-indigo-400">
                         {activeArticle.virality_score} <span className="text-sm font-semibold text-muted-foreground">/ 100</span>
                       </span>
-                      <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${
-                        activeArticle.virality_score >= 85
+                      <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${activeArticle.virality_score >= 85
                           ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400"
                           : activeArticle.virality_score >= 70
-                          ? "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400"
-                          : "bg-rose-100 text-rose-800 dark:bg-rose-900/30 dark:text-rose-400"
-                      }`}>
+                            ? "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400"
+                            : "bg-rose-100 text-rose-800 dark:bg-rose-900/30 dark:text-rose-400"
+                        }`}>
                         {activeArticle.virality_score >= 85
                           ? "High Virality"
                           : activeArticle.virality_score >= 70
-                          ? "Moderate"
-                          : "Low Potential"}
+                            ? "Moderate"
+                            : "Low Potential"}
                       </span>
                     </div>
                     <div className="w-full bg-muted/50 rounded-full h-2 overflow-hidden border border-border/40">
                       <div
-                        className={`h-full rounded-full transition-all duration-500 ${
-                          activeArticle.virality_score >= 85
+                        className={`h-full rounded-full transition-all duration-500 ${activeArticle.virality_score >= 85
                             ? "bg-gradient-to-r from-emerald-500 to-teal-500"
                             : activeArticle.virality_score >= 70
-                            ? "bg-gradient-to-r from-amber-500 to-yellow-500"
-                            : "bg-gradient-to-r from-rose-500 to-red-500"
-                        }`}
+                              ? "bg-gradient-to-r from-amber-500 to-yellow-500"
+                              : "bg-gradient-to-r from-rose-500 to-red-500"
+                          }`}
                         style={{ width: `${activeArticle.virality_score}%` }}
                       />
                     </div>

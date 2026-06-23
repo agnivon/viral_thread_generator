@@ -1,7 +1,7 @@
 "use client";
 
 import { useAuthActions } from "@convex-dev/auth/react";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,26 +14,46 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { toast } from "sonner";
+import { useMutation } from "@tanstack/react-query";
+import { Turnstile } from "@marsidev/react-turnstile";
 
 export default function LoginPage() {
   const { signIn } = useAuthActions();
-  const [isLoading, setIsLoading] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const turnstileRef = useRef<any>(null);
 
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setIsLoading(true);
-    setError(null);
-    const formData = new FormData(event.currentTarget);
-    try {
+  const loginMutation = useMutation({
+    mutationFn: async (formData: FormData) => {
       await signIn("password", formData);
-    } catch (err: any) {
+    },
+    onError: (err: any) => {
       const msg = err?.message || "Invalid email or password";
       setError(msg);
       toast.error(msg);
-    } finally {
-      setIsLoading(false);
+      // Reset Turnstile widget on failure
+      turnstileRef.current?.reset();
+      setTurnstileToken(null);
+    },
+  });
+
+  const isLoading = loginMutation.isPending;
+
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setError(null);
+
+    if (!turnstileToken) {
+      const msg = "Please complete the CAPTCHA verification.";
+      setError(msg);
+      toast.error(msg);
+      return;
     }
+
+    const formData = new FormData(event.currentTarget);
+    formData.append("token", turnstileToken);
+    
+    loginMutation.mutate(formData);
   };
 
   return (
@@ -103,6 +123,24 @@ export default function LoginPage() {
             </div>
             
             <input name="flow" type="hidden" value="signIn" />
+            
+            {/* Turnstile CAPTCHA */}
+            <div className="flex justify-center my-1">
+              <Turnstile
+                ref={turnstileRef}
+                siteKey={process.env.NEXT_PUBLIC_CLOUDFLARE_TURNSTILE_SITE_KEY!}
+                onSuccess={(token) => {
+                  setTurnstileToken(token);
+                  setError(null);
+                }}
+                onError={() => {
+                  toast.error("Security verification failed to load.");
+                }}
+                onExpire={() => {
+                  setTurnstileToken(null);
+                }}
+              />
+            </div>
             
             {/* Error Message */}
             {error && (

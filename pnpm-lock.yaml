@@ -38,6 +38,9 @@ importers:
       '@langchain/openrouter':
         specifier: ^0.3.0
         version: 0.3.0(@langchain/core@1.1.48(@opentelemetry/api@1.9.1)(openai@6.42.0(ws@8.20.1)(zod@4.4.3))(ws@8.20.1))(ws@8.20.1)(zod@4.4.3)
+      '@marsidev/react-turnstile':
+        specifier: ^1.5.3
+        version: 1.5.3(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       '@mendable/firecrawl-js':
         specifier: ^4.25.2
         version: 4.25.2
@@ -1156,6 +1159,12 @@ packages:
 
   '@langchain/protocol@0.0.18':
     resolution: {integrity: sha512-XW1egQtPfsGI41w2AMZNFZrUIwFSQHTjVMZs0OaTpCAvht/QLoaPN8FQcsysMVypOhupG28J29yOorrc70otBQ==}
+
+  '@marsidev/react-turnstile@1.5.3':
+    resolution: {integrity: sha512-8Dij2jiNGNczq1U4EKpO4do2XepcTPxSMc2ZzvHndO+gcp68tvMULm27z2P99rGkdB89hc3452NZeu2Rti4g6A==}
+    peerDependencies:
+      react: ^17.0.2 || ^18.0.0 || ^19.0
+      react-dom: ^17.0.2 || ^18.0.0 || ^19.0
 
   '@mendable/firecrawl-js@4.25.2':
     resolution: {integrity: sha512-1dRs5qpfjfievBsUAxAWtnhtNiIVdXshAXdhAUQVmFUFOrOKR4XWs/76CxDIcEPQ44iD8ckInLwyewo6EIs+iQ==}
@@ -5620,6 +5629,11 @@ snapshots:
       - zod
 
   '@langchain/protocol@0.0.18': {}
+
+  '@marsidev/react-turnstile@1.5.3(react-dom@19.2.7(react@19.2.7))(react@19.2.7)':
+    dependencies:
+      react: 19.2.7
+      react-dom: 19.2.7(react@19.2.7)
 
   '@mendable/firecrawl-js@4.25.2':
     dependencies:

@@ -1,8 +1,12 @@
 "use node";
 
 import { StateGraph, START, END } from "@langchain/langgraph";
+import { FirestoreSaver } from "@cassina/langgraphjs-checkpoint-firestore";
+import { db } from "../firebase/index.js";
 import { ThreadFactoryState, ThreadFactoryStateType } from "./state.js";
-import { ScraperNode, HookStrategistNode, ThreadWriterNode, CharacterValidatorNode, ViralityCriticNode } from "./nodes.js";
+import { ScraperNode, HookStrategistNode, ThreadWriterNode, CharacterValidatorNode, ViralityCriticNode, ManualHookSelectionNode } from "./nodes.js";
+
+const checkpointSaver = new FirestoreSaver({ firestore: db });
 
 const route_after_scraper = (state: ThreadFactoryStateType) => {
   if (!state.parse_success) {
@@ -16,6 +20,9 @@ const route_after_hook = (state: ThreadFactoryStateType) => {
   if (!state.parse_success) {
     if ((state.retries?.hook || 0) >= 3) throw new Error("HookStrategistNode failed after 3 retries");
     return "HookStrategistNode";
+  }
+  if (state.manual_hook_selection) {
+    return "ManualHookSelectionNode";
   }
   return "ThreadWriterNode";
 };
@@ -54,16 +61,20 @@ const route_after_critic = (state: ThreadFactoryStateType) => {
   return "ThreadWriterNode";
 };
 
+
 export const NewsThreadFactoryGraph = new StateGraph(ThreadFactoryState)
+  .setNodeDefaults({ timeout: { idleTimeout: 2_00_000 } })
   .addNode("ScraperNode", ScraperNode)
   .addNode("HookStrategistNode", HookStrategistNode)
+  .addNode("ManualHookSelectionNode", ManualHookSelectionNode)
   .addNode("ThreadWriterNode", ThreadWriterNode)
   .addNode("CharacterValidatorNode", CharacterValidatorNode)
   .addNode("ViralityCriticNode", ViralityCriticNode)
   .addEdge(START, "ScraperNode")
   .addConditionalEdges("ScraperNode", route_after_scraper, ["HookStrategistNode", "ScraperNode"])
-  .addConditionalEdges("HookStrategistNode", route_after_hook, ["ThreadWriterNode", "HookStrategistNode"])
+  .addConditionalEdges("HookStrategistNode", route_after_hook, ["ThreadWriterNode", "HookStrategistNode", "ManualHookSelectionNode"])
+  .addEdge("ManualHookSelectionNode", "ThreadWriterNode")
   .addConditionalEdges("ThreadWriterNode", route_after_writer, ["CharacterValidatorNode", "ThreadWriterNode"])
   .addConditionalEdges("CharacterValidatorNode", route_after_validator, [END, "ViralityCriticNode", "ThreadWriterNode"])
   .addConditionalEdges("ViralityCriticNode", route_after_critic, [END, "ThreadWriterNode", "ViralityCriticNode"])
-  .compile();
+  .compile({ checkpointer: checkpointSaver });

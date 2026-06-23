@@ -3,9 +3,10 @@
 import { useQuery, useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useParams, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Id } from "@/convex/_generated/dataModel";
-import { Loader2, Sparkles, Trophy, Compass, ArrowLeft } from "lucide-react";
+import { Loader2, Sparkles, Trophy, Compass, ArrowLeft, CheckCircle2 } from "lucide-react";
+import { useMutation } from "@tanstack/react-query";
 import {
   Card,
   CardContent,
@@ -25,10 +26,56 @@ export default function ApproveDraftPage() {
   const state = useQuery(api.queries.threadsQueries.getThreadDraft, { id });
   const enqueuePublication = useAction(api.actions.threadsActions.enqueueThreadPublication);
   const enqueueRegeneration = useAction(api.actions.threadsActions.enqueueThreadRegeneration);
+  const resumeAction = useAction(api.actions.threadsActions.enqueueNewsThreadResume);
+
   const [isPublishing, setIsPublishing] = useState(false);
   const [isRegenerating, setIsRegenerating] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [newGuidance, setNewGuidance] = useState("");
+
+  const [selectedHookIdx, setSelectedHookIdx] = useState<number | null>(null);
+  const [editedHookText, setEditedHookText] = useState("");
+  const [hasInitializedHook, setHasInitializedHook] = useState(false);
+
+  const genStatus = state?.generation_status ?? "success";
+
+  useEffect(() => {
+    if (state && genStatus === "hook selection" && !hasInitializedHook && state.core_hooks && state.core_hooks.length > 0) {
+      setSelectedHookIdx(0);
+      setEditedHookText(state.core_hooks[0]);
+      setHasInitializedHook(true);
+    }
+  }, [state, genStatus, hasInitializedHook]);
+
+  const handleSelectHook = (index: number, text: string) => {
+    setSelectedHookIdx(index);
+    setEditedHookText(text);
+  };
+
+  const resumeMutation = useMutation({
+    mutationFn: async ({ recordId, selected_hook }: { recordId: Id<"threadDrafts">; selected_hook: string }) => {
+      return await resumeAction({ recordId, selected_hook });
+    },
+    onSuccess: () => {
+      toast.success("Generation resumed! The thread draft is being generated.");
+      router.push("/threads/drafts");
+    },
+    onError: (err: any) => {
+      console.error("Failed to resume generation:", err);
+      toast.error(`Failed to resume: ${err.message || "Unknown error"}`);
+    }
+  });
+
+  const handleConfirmHook = async () => {
+    if (!editedHookText.trim()) {
+      toast.error("Please enter or select a hook");
+      return;
+    }
+    resumeMutation.mutate({
+      recordId: id,
+      selected_hook: editedHookText.trim()
+    });
+  };
 
   const handlePublish = async () => {
     try {
@@ -96,7 +143,163 @@ export default function ApproveDraftPage() {
     );
   }
 
-  const genStatus = state.generation_status ?? "success";
+  if (genStatus === "hook selection") {
+    const hooks = state.core_hooks || [];
+    return (
+      <div className="relative min-h-screen bg-background overflow-hidden">
+        {/* Background Mesh Decorative Gradients */}
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-[450px] bg-gradient-to-b from-violet-500/5 via-transparent to-transparent blur-3xl pointer-events-none -z-10" />
+        <div className="absolute -top-40 -right-40 w-96 h-96 bg-indigo-500/5 rounded-full blur-3xl pointer-events-none -z-10" />
+        <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-cyan-500/5 rounded-full blur-3xl pointer-events-none -z-10" />
+
+        <div className="container max-w-4xl mx-auto py-12 px-4 space-y-8">
+          {/* Navigation Link */}
+          <div className="flex items-center gap-2">
+            <Link 
+              href="/threads/drafts" 
+              className="inline-flex items-center gap-1 text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors group"
+            >
+              <ArrowLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
+              Back to Drafts
+            </Link>
+          </div>
+
+          {/* Header Section */}
+          <div className="space-y-2 border-b border-border/30 pb-6">
+            <h1 className="text-4xl font-extrabold tracking-tight">
+              <span className="bg-gradient-to-r from-violet-600 to-indigo-600 bg-clip-text text-transparent dark:from-violet-400 dark:to-indigo-400">
+                Choose Your Hook
+              </span>
+            </h1>
+            <p className="text-sm text-muted-foreground break-all">
+              Pipeline paused for:{" "}
+              <a 
+                href={state.url} 
+                target="_blank" 
+                rel="noreferrer" 
+                className="underline hover:text-violet-600 dark:hover:text-violet-400 transition-colors break-all font-medium"
+              >
+                {state.url}
+              </a>
+            </p>
+          </div>
+
+          <div className="space-y-8">
+            {/* Candidate Hooks Grid */}
+            <div className="space-y-4">
+              <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
+                <Sparkles className="w-5 h-5 text-violet-500" />
+                Candidate Hooks
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {hooks.map((hook, index) => {
+                  const isSelected = selectedHookIdx === index;
+                  return (
+                    <div
+                      key={index}
+                      onClick={() => handleSelectHook(index, hook)}
+                      className={`group relative overflow-hidden p-5 rounded-xl border transition-all duration-300 cursor-pointer ${
+                        isSelected
+                          ? "border-violet-500 bg-violet-500/5 shadow-md animate-in fade-in duration-200"
+                          : "border-border/80 bg-card/40 backdrop-blur-xs hover:border-violet-500/30 hover:bg-muted/10"
+                      }`}
+                    >
+                      <div className="flex gap-4 items-start">
+                        <span className={`flex-shrink-0 h-6 w-6 rounded-full flex items-center justify-center text-xs font-black shadow-xs select-none transition-colors ${
+                          isSelected
+                            ? "bg-violet-600 text-white"
+                            : "bg-muted text-muted-foreground group-hover:bg-violet-100 group-hover:text-violet-800 dark:group-hover:bg-violet-950 dark:group-hover:text-violet-300"
+                        }`}>
+                          {index + 1}
+                        </span>
+                        <div className="flex-1 space-y-1">
+                          <p className="text-sm leading-relaxed text-foreground font-medium">
+                            {hook}
+                          </p>
+                          <span className={`text-[10px] font-medium block pt-1 select-none ${
+                            hook.length > 500 ? "text-destructive font-semibold" : "text-muted-foreground"
+                          }`}>
+                            {hook.length} character{hook.length !== 1 ? 's' : ''} {hook.length > 500 && "(Exceeds 500 limit)"}
+                          </span>
+                        </div>
+                        {isSelected && (
+                          <CheckCircle2 className="w-5 h-5 text-violet-500 flex-shrink-0" />
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+                {hooks.length === 0 && (
+                  <Card className="col-span-full border-dashed border-border/80 bg-muted/5 p-8 text-center rounded-2xl">
+                    <p className="text-sm text-muted-foreground italic">No candidate hooks found for this source.</p>
+                  </Card>
+                )}
+              </div>
+            </div>
+
+            {/* Customizer & Action Card */}
+            <Card className="border-border/80 bg-card/45 backdrop-blur-xs shadow-xs rounded-2xl overflow-hidden w-full">
+              <CardHeader className="pb-3 border-b border-border/30">
+                <CardTitle className="text-base font-bold flex items-center gap-2 text-foreground/90">
+                  <Compass className="w-5 h-5 text-violet-500" />
+                  Customize and Confirm Hook
+                </CardTitle>
+                <CardDescription>
+                  Refine the selected hook text below to dictate the exact angle for the thread.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6 pt-6">
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                    Hook Text
+                  </label>
+                  <textarea
+                    value={editedHookText}
+                    onChange={(e) => {
+                      setEditedHookText(e.target.value);
+                      setSelectedHookIdx(null); // Deselect cards if user types manually
+                    }}
+                    placeholder="Select a hook card or type a custom one..."
+                    rows={8}
+                    className="w-full text-base bg-muted/40 text-foreground p-5 rounded-xl border border-border focus:border-violet-500/50 focus:ring-1 focus:ring-violet-500/50 focus:outline-none resize-y leading-relaxed"
+                  />
+                  <div className="flex justify-between items-center text-xs text-muted-foreground pt-1">
+                    <span className={editedHookText.length > 500 ? "text-destructive font-bold animate-pulse" : "font-medium"}>
+                      {editedHookText.length} / 500 characters
+                    </span>
+                    {editedHookText.length > 500 ? (
+                      <span className="text-destructive font-bold">Exceeds Threads limit (500)</span>
+                    ) : (
+                      <span>{500 - editedHookText.length} remaining</span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex justify-end pt-2">
+                  <Button
+                    onClick={handleConfirmHook}
+                    disabled={resumeMutation.isPending || !editedHookText.trim()}
+                    className="w-full sm:w-auto sm:min-w-[280px] rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white font-bold py-6 shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 cursor-pointer"
+                    size="lg"
+                  >
+                    {resumeMutation.isPending ? (
+                      <>
+                        <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Drafting Thread...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="mr-2 h-4 w-4 text-white" /> Confirm & Draft Thread
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (genStatus === "processing") {
     return (
@@ -383,15 +586,25 @@ export default function ApproveDraftPage() {
                   <p className="text-xs bg-muted/60 p-3.5 rounded-xl border border-border/60 font-medium text-foreground leading-relaxed">
                     {state.selected_hook || "None selected"}
                   </p>
+                  {state.selected_hook && (
+                    <span className="text-[10px] text-muted-foreground font-medium block pt-1 select-none text-right">
+                      {state.selected_hook.length} characters
+                    </span>
+                  )}
                 </div>
                 {state.core_hooks.length > 0 && (
                   <div>
                     <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2 select-none">Other Hooks Considered</h4>
                     <ul className="space-y-2">
                       {state.core_hooks.map((hook, i) => (
-                        <li key={i} className="text-xs text-muted-foreground bg-muted/30 p-3 rounded-lg border border-border/40 flex items-start gap-2 leading-relaxed">
-                          <span className="inline-block w-1.5 h-1.5 rounded-full bg-violet-400 mt-1.5 flex-shrink-0" />
-                          <span>{hook}</span>
+                        <li key={i} className="text-xs text-muted-foreground bg-muted/30 p-3 rounded-lg border border-border/40 flex flex-col gap-1 leading-relaxed">
+                          <div className="flex items-start gap-2">
+                            <span className="inline-block w-1.5 h-1.5 rounded-full bg-violet-400 mt-1.5 flex-shrink-0" />
+                            <span>{hook}</span>
+                          </div>
+                          <span className="text-[9px] text-muted-foreground/80 font-medium self-end select-none">
+                            {hook.length} characters
+                          </span>
                         </li>
                       ))}
                     </ul>

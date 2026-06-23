@@ -4,6 +4,7 @@ import { z } from "zod";
 export const ThreadFactoryState = new StateSchema({
   url: z.string(),
   guidance: z.string().optional(),
+  manual_hook_selection: z.boolean().default(false),
   raw_markdown: z.string().default(""),
   core_hooks: z.array(z.string()).default(() => []),
   selected_hook: z.string().default(""),

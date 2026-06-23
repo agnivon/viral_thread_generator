@@ -35,12 +35,14 @@ export const initializeThreadDraft = internalMutation({
     url: v.string(),
     userId: v.id("users"),
     guidance: v.optional(v.string()),
+    manual_hook_selection: v.optional(v.boolean()),
   },
   handler: async (ctx, args): Promise<Id<"threadDrafts">> => {
     return await ctx.db.insert("threadDrafts", {
       url: args.url,
       userId: args.userId,
       guidance: args.guidance,
+      manual_hook_selection: args.manual_hook_selection,
       is_approved: false,
       is_published: false,
       generation_status: "processing",
@@ -49,11 +51,12 @@ export const initializeThreadDraft = internalMutation({
   },
 });
 
-export const updateThreadDraftStatus = internalMutation({
+export const updateThreadDraft = internalMutation({
   args: {
     id: v.id("threadDrafts"),
-    generation_status: v.optional(v.union(v.literal("success"), v.literal("failed"), v.literal("processing"))),
+    generation_status: v.optional(v.union(v.literal("success"), v.literal("failed"), v.literal("processing"), v.literal("hook selection"))),
     publication_status: v.optional(v.union(v.literal("not_published"), v.literal("publishing"), v.literal("success"), v.literal("failed"))),
+    manual_hook_selection: v.optional(v.boolean()),
     raw_markdown: v.optional(v.string()),
     core_hooks: v.optional(v.array(v.string())),
     selected_hook: v.optional(v.union(v.string(), v.null())),
@@ -82,7 +85,7 @@ export const markAsPublished = internalMutation({
   },
 });
 
-export const deleteThreadDraft = mutation({
+export const deleteThreadDraftInternal = internalMutation({
   args: {
     id: v.id("threadDrafts"),
   },

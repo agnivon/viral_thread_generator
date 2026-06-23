@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Plus, Trash2, Loader2, Sparkles, Link as LinkIcon, HelpCircle } from "lucide-react";
 import {
   Card,
@@ -17,7 +18,7 @@ import {
 } from "@/components/ui/card";
 
 export default function CreateThreadPage() {
-  const [entries, setEntries] = useState([{ url: "", guidance: "" }]);
+  const [entries, setEntries] = useState([{ url: "", guidance: "", manual_hook_selection: false }]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
@@ -25,16 +26,20 @@ export default function CreateThreadPage() {
   const router = useRouter();
 
   const handleAddEntry = () => {
-    setEntries([...entries, { url: "", guidance: "" }]);
+    setEntries([...entries, { url: "", guidance: "", manual_hook_selection: false }]);
   };
 
   const handleRemoveEntry = (index: number) => {
     setEntries(entries.filter((_, i) => i !== index));
   };
 
-  const handleChange = (index: number, field: "url" | "guidance", value: string) => {
+  const handleChange = (
+    index: number,
+    field: "url" | "guidance" | "manual_hook_selection",
+    value: string | boolean
+  ) => {
     const newEntries = [...entries];
-    newEntries[index] = { ...newEntries[index], [field]: value };
+    newEntries[index] = { ...newEntries[index], [field]: value } as any;
     setEntries(newEntries);
   };
 
@@ -51,7 +56,8 @@ export default function CreateThreadPage() {
       await enqueueNewsThreadGeneration({ 
         requests: validEntries.map(entry => ({ 
           url: entry.url, 
-          guidance: entry.guidance || undefined 
+          guidance: entry.guidance || undefined,
+          manual_hook_selection: entry.manual_hook_selection
         })) 
       });
       // Redirect to drafts list page
@@ -157,6 +163,27 @@ export default function CreateThreadPage() {
                     <p className="text-[11px] text-muted-foreground flex items-center gap-1">
                       <HelpCircle className="w-3.5 h-3.5 text-muted-foreground/75" /> Set tone instructions, specific callouts, or layout requirements for the generator.
                     </p>
+                  </div>
+
+                  {/* Choose Hooks Manually Checkbox */}
+                  <div className="flex items-start space-x-3 pt-2 bg-muted/10 p-3 rounded-lg border border-border/30">
+                    <Checkbox
+                      id={`manual-hook-${index}`}
+                      checked={entry.manual_hook_selection}
+                      onCheckedChange={(checked) => handleChange(index, "manual_hook_selection", !!checked)}
+                      disabled={isLoading}
+                    />
+                    <div className="grid gap-1.5 leading-none">
+                      <Label
+                        htmlFor={`manual-hook-${index}`}
+                        className="text-sm font-semibold leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-75 cursor-pointer text-foreground"
+                      >
+                        Choose hooks manually
+                      </Label>
+                      <p className="text-xs text-muted-foreground">
+                        Pause the generation pipeline to choose and edit your hook before generating the full thread.
+                      </p>
+                    </div>
                   </div>
                 </CardContent>
               </Card>

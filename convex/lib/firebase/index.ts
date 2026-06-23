@@ -1,5 +1,5 @@
 "use node";
-import { initializeApp, getApps, cert, getApp } from 'firebase-admin/app';
+import { initializeApp, getApps, cert, getApp, AppOptions } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 
 if (!getApps().length) {
@@ -17,10 +17,11 @@ if (!getApps().length) {
     }
   }
 
-  initializeApp({
-    credential,
-    projectId: 'gen-lang-client-0518918161',
-  });
+  const config: AppOptions = { projectId: 'gen-lang-client-0518918161' };
+  if (credential) {
+    config.credential = credential;
+  }
+  initializeApp(config);
 }
 
 export const firebaseApp = getApp();

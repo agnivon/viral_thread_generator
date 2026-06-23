@@ -1,5 +1,6 @@
 "use node";
 
+import { interrupt } from "@langchain/langgraph";
 import { providerStrategy } from "langchain";
 import { z } from "zod";
 import { RunnableConfig } from "@langchain/core/runnables";
@@ -228,4 +229,12 @@ export const ViralityCriticNode = async (state: ThreadFactoryStateType, config?:
     retries: { ...(state.retries || {}), critic: (state.retries?.critic || 0) + 1, validator: 0 },
     parse_success: true
   };
+};
+
+export const ManualHookSelectionNode = async (state: ThreadFactoryStateType, config?: RunnableConfig) => {
+  const selected_hook = interrupt({
+    core_hooks: state.core_hooks,
+    action: "Please select a hook to proceed."
+  });
+  return { selected_hook: selected_hook as string };
 };

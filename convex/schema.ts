@@ -49,8 +49,10 @@ export default defineSchema(
       iterations: v.optional(v.number()),
       is_approved: v.optional(v.boolean()),
       is_published: v.optional(v.boolean()),
+      manual_hook_selection: v.optional(v.boolean()),
       generation_status: v.union(
         v.literal("processing"),
+        v.literal("hook selection"),
         v.literal("success"),
         v.literal("failed")
       ),

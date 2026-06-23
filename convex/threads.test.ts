@@ -66,6 +66,7 @@ test("generateNewsThread action runs graph and saves result", async () => {
   const mockGraphOutput = {
     url: "https://example.com/target-url",
     guidance: undefined,
+    manual_hook_selection: true,
     raw_markdown: "Graph markdown result",
     core_hooks: ["g1", "g2"],
     selected_hook: "g2",
@@ -83,8 +84,12 @@ test("generateNewsThread action runs graph and saves result", async () => {
 
   const invokeSpy = vi.spyOn(NewsThreadFactoryGraph, "invoke").mockResolvedValue(mockGraphOutput);
 
+  // Mock getState to return empty next tasks so it thinks it finished without interrupt
+  vi.spyOn(NewsThreadFactoryGraph, "getState").mockResolvedValue({ next: [] } as any);
+
   const { recordId } = await t.action(internal.actions.threadsActions.generateNewsThread, {
     url: "https://example.com/target-url",
+    manual_hook_selection: true,
     userId,
   });
 
@@ -92,6 +97,7 @@ test("generateNewsThread action runs graph and saves result", async () => {
   expect(invokeSpy).toHaveBeenCalledWith({
     url: "https://example.com/target-url",
     guidance: undefined,
+    manual_hook_selection: true,
     raw_markdown: "",
     core_hooks: [],
     selected_hook: "",
@@ -99,7 +105,7 @@ test("generateNewsThread action runs graph and saves result", async () => {
     critique: "",
     iterations: 0,
     is_approved: false,
-  });
+  }, { configurable: { thread_id: recordId } });
 
   // Verify the saved state in the database matches the mocked output
   const saved = await t.query(async (ctx) => {
@@ -119,7 +125,69 @@ test("generateNewsThread action runs graph and saves result", async () => {
     iterations: expectedDbFields.iterations,
     is_approved: expectedDbFields.is_approved,
     generation_status: "success",
+    manual_hook_selection: true,
   });
+});
+
+test("resumeNewsThreadGeneration action resumes graph and saves result", async () => {
+  const t = convexTest(schema, modules);
+  const userId = await t.mutation(async (ctx) => {
+    return await ctx.db.insert("users", {});
+  });
+
+  // 1. Insert thread factory state record in hook selection status
+  const stateId = await t.mutation(internal.mutations.threadsMutations.saveThreadDraft, {
+    url: "https://example.com/source-url",
+    raw_markdown: "Mock raw markdown content",
+    core_hooks: ["Hook 1", "Hook 2"],
+    selected_hook: "",
+    thread_draft: [],
+    critique: "",
+    virality_score: 0,
+    post_critiques: [],
+    iterations: 0,
+    is_approved: false,
+    userId,
+  });
+
+  const mockGraphOutput = {
+    url: "https://example.com/source-url",
+    guidance: undefined,
+    manual_hook_selection: true,
+    raw_markdown: "Mock raw markdown content",
+    core_hooks: ["Hook 1", "Hook 2"],
+    selected_hook: "Hook 2",
+    thread_draft: ["Draft 1"],
+    critique: "Good",
+    virality_score: 95,
+    post_critiques: [],
+    character_critique: "",
+    iterations: 1,
+    is_approved: true,
+    is_character_valid: true,
+    parse_success: true,
+    retries: { scraper: 0, hook: 0, writer: 0, critic: 0, validator: 0 },
+  };
+
+  const invokeSpy = vi.spyOn(NewsThreadFactoryGraph, "invoke").mockResolvedValue(mockGraphOutput);
+  vi.spyOn(NewsThreadFactoryGraph, "getState").mockResolvedValue({ next: [] } as any);
+
+  const { recordId } = await t.action(internal.actions.threadsActions.resumeNewsThreadGeneration, {
+    recordId: stateId,
+    selected_hook: "Hook 2",
+    userId,
+  });
+
+  expect(recordId).toBe(stateId);
+  expect(invokeSpy).toHaveBeenCalled();
+  
+  const saved = await t.query(async (ctx) => {
+    return await ctx.db.get("threadDrafts", recordId);
+  });
+
+  expect(saved?.generation_status).toBe("success");
+  expect(saved?.selected_hook).toBe("Hook 2");
+  expect(saved?.is_approved).toBe(true);
 });
 
 test("publishThread action retrieves state and publishes thread of posts sequentially", async () => {

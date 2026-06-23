@@ -9,7 +9,7 @@ import { toast } from "sonner";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button, buttonVariants } from "@/components/ui/button";
 import Link from "next/link";
-import { Loader2 } from "lucide-react";
+import { Loader2, Sparkles } from "lucide-react";
 import {
   UpdateIcon,
   CheckCircledIcon,
@@ -27,7 +27,7 @@ export default function DraftsPage() {
   );
 
   const enqueuePublication = useAction(api.actions.threadsActions.enqueueThreadPublication);
-  const deleteDraft = useMutation(api.mutations.threadsMutations.deleteThreadDraft);
+  const deleteDraft = useAction(api.actions.threadsActions.deleteThreadDraft);
 
   const [selectedDrafts, setSelectedDrafts] = useState<Set<Id<"threadDrafts">>>(new Set());
   const [isPublishing, setIsPublishing] = useState(false);
@@ -224,6 +224,10 @@ export default function DraftsPage() {
                         {genStatus === "processing" ? (
                           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 animate-pulse">
                             <UpdateIcon className="w-3 h-3 animate-spin" /> Generating
+                          </span>
+                        ) : genStatus === "hook selection" ? (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg bg-indigo-500/10 text-indigo-600 dark:text-indigo-400">
+                            <Sparkles className="w-3 h-3 text-indigo-500" /> Hook Selection
                           </span>
                         ) : genStatus === "failed" ? (
                           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg bg-destructive/10 text-destructive">

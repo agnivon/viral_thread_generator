@@ -40,9 +40,25 @@ export default function ApproveDraftPage() {
   const genStatus = state?.generation_status ?? "success";
 
   useEffect(() => {
-    if (state && genStatus === "hook selection" && !hasInitializedHook && state.core_hooks && state.core_hooks.length > 0) {
-      setSelectedHookIdx(0);
-      setEditedHookText(state.core_hooks[0]);
+    if (state && genStatus === "hook selection" && !hasInitializedHook) {
+      const hooks = state.core_hooks || [];
+      const dbSelectedHook = state.selected_hook;
+      
+      let matchedIdx = -1;
+      if (dbSelectedHook) {
+        matchedIdx = hooks.indexOf(dbSelectedHook);
+      }
+      
+      if (matchedIdx !== -1) {
+        setSelectedHookIdx(matchedIdx);
+        setEditedHookText(dbSelectedHook);
+      } else if (dbSelectedHook) {
+        setSelectedHookIdx(null);
+        setEditedHookText(dbSelectedHook);
+      } else if (hooks.length > 0) {
+        setSelectedHookIdx(0);
+        setEditedHookText(hooks[0]);
+      }
       setHasInitializedHook(true);
     }
   }, [state, genStatus, hasInitializedHook]);
@@ -213,10 +229,17 @@ export default function ApproveDraftPage() {
                           {index + 1}
                         </span>
                         <div className="flex-1 space-y-1">
-                          <p className="text-sm leading-relaxed text-foreground font-medium">
-                            {hook}
-                          </p>
-                          <span className={`text-[10px] font-medium block pt-1 select-none ${
+                          <div className="flex items-start justify-between gap-4">
+                            <p className="text-sm leading-relaxed text-foreground font-medium flex-1">
+                              {hook}
+                            </p>
+                            {state.selected_hook === hook && (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold bg-violet-500/10 text-violet-600 dark:bg-violet-400/10 dark:text-violet-400 border border-violet-500/20 shadow-xs uppercase tracking-wider select-none shrink-0 mt-0.5 animate-pulse">
+                                Selected
+                              </span>
+                            )}
+                          </div>
+                          <span className={`text-[10px] font-medium block pt-2 select-none ${
                             hook.length > 500 ? "text-destructive font-semibold" : "text-muted-foreground"
                           }`}>
                             {hook.length} character{hook.length !== 1 ? 's' : ''} {hook.length > 500 && "(Exceeds 500 limit)"}

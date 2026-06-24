@@ -10,7 +10,6 @@ import { Id } from "../_generated/dataModel";
 import { NewsThreadFactoryGraph } from "../lib/agents/graph.js";
 import { ThreadsAPI } from "../lib/threads/api.js";
 import { generationPool, publicationPool } from "../lib/workpool/index.js";
-import { db } from "../lib/firebase/index.js";
 
 async function requireAuthUserId(ctx: any): Promise<Id<"users">> {
   const userId = await getAuthUserId(ctx);
@@ -48,25 +47,17 @@ async function handleGraphCompletion(ctx: any, recordId: Id<"threadDrafts">, fin
     ...stateToSave
   } = finalState;
 
-  try {
-    const interrupted = isInterrupted(finalState) || (await NewsThreadFactoryGraph.getState({ configurable: { thread_id: recordId } })).next.length > 0;
+  const interrupted = isInterrupted(finalState) || (await NewsThreadFactoryGraph.getState({ configurable: { thread_id: recordId } })).next.length > 0;
 
-    await ctx.runMutation(
-      internal.mutations.threadsMutations.updateThreadDraft,
-      {
-        id: recordId,
-        ...stateToSave,
-        generation_status: interrupted ? "hook selection" : "success",
-      }
-    );
-    console.log(`[handleGraphCompletion] State saved with ID: ${recordId}. Interrupted: ${interrupted}`);
-  } catch (e) {
-    await ctx.runMutation(internal.mutations.threadsMutations.updateThreadDraft, {
+  await ctx.runMutation(
+    internal.mutations.threadsMutations.updateThreadDraft,
+    {
       id: recordId,
-      generation_status: "failed",
-    });
-    throw e;
-  }
+      ...stateToSave,
+      generation_status: interrupted ? "hook selection" : "success",
+    }
+  );
+  console.log(`[handleGraphCompletion] State saved with ID: ${recordId}. Interrupted: ${interrupted}`);
 
   await awaitAllCallbacks();
   return { recordId };
@@ -102,28 +93,39 @@ export const generateNewsThread = internalAction({
     userId: v.id("users"),
   },
   handler: async (ctx, args): Promise<{ recordId: Id<"threadDrafts"> }> => {
-    console.log(`[generateNewsThread] Started for URL: ${args.url}`);
+    let recordId: Id<"threadDrafts"> | undefined;
+    try {
+      console.log(`[generateNewsThread] Started for URL: ${args.url}`);
 
-    const recordId = await ctx.runMutation(
-      internal.mutations.threadsMutations.initializeThreadDraft,
-      {
-        url: args.url,
-        userId: args.userId,
-        guidance: args.guidance,
-        manual_hook_selection: args.manual_hook_selection,
+      recordId = await ctx.runMutation(
+        internal.mutations.threadsMutations.initializeThreadDraft,
+        {
+          url: args.url,
+          userId: args.userId,
+          guidance: args.guidance,
+          manual_hook_selection: args.manual_hook_selection,
+        }
+      );
+
+      const initialState = createInitialState(args);
+
+      console.log("[generateNewsThread] Invoking NewsThreadFactoryGraph from scratch...");
+
+      const finalState = await NewsThreadFactoryGraph.invoke(initialState, {
+        configurable: { thread_id: recordId }
+      });
+
+      console.log(`[generateNewsThread] NewsThreadFactoryGraph finished. Iterations: ${finalState.iterations}, Approved: ${finalState.is_approved}`);
+      return await handleGraphCompletion(ctx, recordId, finalState);
+    } catch (e) {
+      if (recordId) {
+        await ctx.runMutation(internal.mutations.threadsMutations.updateThreadDraft, {
+          id: recordId,
+          generation_status: "failed",
+        });
       }
-    );
-
-    const initialState = createInitialState(args);
-
-    console.log("[generateNewsThread] Invoking NewsThreadFactoryGraph from scratch...");
-
-    const finalState = await NewsThreadFactoryGraph.invoke(initialState, {
-      configurable: { thread_id: recordId }
-    });
-
-    console.log(`[generateNewsThread] NewsThreadFactoryGraph finished. Iterations: ${finalState.iterations}, Approved: ${finalState.is_approved}`);
-    return await handleGraphCompletion(ctx, recordId, finalState);
+      throw e;
+    }
   },
 });
 
@@ -136,48 +138,56 @@ export const regenerateNewsThread = internalAction({
     recordId: v.id("threadDrafts"),
   },
   handler: async (ctx, args): Promise<{ recordId: Id<"threadDrafts"> }> => {
-    console.log(`[regenerateNewsThread] Started for URL: ${args.url}, Record: ${args.recordId}`);
+    try {
+      console.log(`[regenerateNewsThread] Started for URL: ${args.url}, Record: ${args.recordId}`);
 
-    await ctx.runMutation(
-      internal.mutations.threadsMutations.updateThreadDraft,
-      {
+      await ctx.runMutation(
+        internal.mutations.threadsMutations.updateThreadDraft,
+        {
+          id: args.recordId,
+          generation_status: "processing",
+          is_approved: false,
+          iterations: 0,
+          guidance: args.guidance,
+          manual_hook_selection: args.manual_hook_selection,
+        }
+      );
+
+      console.log(`[regenerateNewsThread] Regenerating thread ${args.recordId}. Time traveling to after ScraperNode...`);
+      const config = { configurable: { thread_id: args.recordId } };
+      let pastState = null;
+      for await (const state of NewsThreadFactoryGraph.getStateHistory(config)) {
+        if (state.next && state.next.includes("HookStrategistNode")) {
+          pastState = state;
+          break;
+        }
+      }
+
+      let finalState;
+      if (pastState) {
+        console.log(`[regenerateNewsThread] Found past state before HookStrategistNode. Forking...`);
+        const forkConfig = await NewsThreadFactoryGraph.updateState(pastState.config, {
+           guidance: args.guidance,
+           manual_hook_selection: args.manual_hook_selection ?? false,
+           is_approved: false,
+           iterations: 0,
+        });
+        finalState = await NewsThreadFactoryGraph.invoke(null, forkConfig);
+      } else {
+        console.log(`[regenerateNewsThread] Could not find past state before HookStrategistNode. Restarting from scratch...`);
+        const initialState = createInitialState(args);
+        finalState = await NewsThreadFactoryGraph.invoke(initialState, config);
+      }
+
+      console.log(`[regenerateNewsThread] NewsThreadFactoryGraph finished. Iterations: ${finalState.iterations}, Approved: ${finalState.is_approved}`);
+      return await handleGraphCompletion(ctx, args.recordId, finalState);
+    } catch (e) {
+      await ctx.runMutation(internal.mutations.threadsMutations.updateThreadDraft, {
         id: args.recordId,
-        generation_status: "processing",
-        is_approved: false,
-        iterations: 0,
-        guidance: args.guidance,
-        manual_hook_selection: args.manual_hook_selection,
-      }
-    );
-
-    console.log(`[regenerateNewsThread] Regenerating thread ${args.recordId}. Time traveling to after ScraperNode...`);
-    const config = { configurable: { thread_id: args.recordId } };
-    let pastState = null;
-    for await (const state of NewsThreadFactoryGraph.getStateHistory(config)) {
-      if (state.next && state.next.includes("HookStrategistNode")) {
-        pastState = state;
-        break;
-      }
-    }
-
-    let finalState;
-    if (pastState) {
-      console.log(`[regenerateNewsThread] Found past state before HookStrategistNode. Forking...`);
-      const forkConfig = await NewsThreadFactoryGraph.updateState(pastState.config, {
-         guidance: args.guidance,
-         manual_hook_selection: args.manual_hook_selection ?? false,
-         is_approved: false,
-         iterations: 0,
+        generation_status: "failed",
       });
-      finalState = await NewsThreadFactoryGraph.invoke(null, forkConfig);
-    } else {
-      console.log(`[regenerateNewsThread] Could not find past state before HookStrategistNode. Restarting from scratch...`);
-      const initialState = createInitialState(args);
-      finalState = await NewsThreadFactoryGraph.invoke(initialState, config);
+      throw e;
     }
-
-    console.log(`[regenerateNewsThread] NewsThreadFactoryGraph finished. Iterations: ${finalState.iterations}, Approved: ${finalState.is_approved}`);
-    return await handleGraphCompletion(ctx, args.recordId, finalState);
   },
 });
 
@@ -206,23 +216,31 @@ export const resumeNewsThreadGeneration = internalAction({
     userId: v.id("users"),
   },
   handler: async (ctx, args): Promise<{ recordId: Id<"threadDrafts"> }> => {
-    console.log(`[resumeNewsThreadGeneration] Resuming graph for thread: ${args.recordId} with selected_hook: ${args.selected_hook}`);
+    try {
+      console.log(`[resumeNewsThreadGeneration] Resuming graph for thread: ${args.recordId} with selected_hook: ${args.selected_hook}`);
 
-    await ctx.runMutation(
-      internal.mutations.threadsMutations.updateThreadDraft,
-      {
+      await ctx.runMutation(
+        internal.mutations.threadsMutations.updateThreadDraft,
+        {
+          id: args.recordId,
+          generation_status: "processing",
+          selected_hook: args.selected_hook,
+        }
+      );
+
+      const finalState = await NewsThreadFactoryGraph.invoke(new Command({ resume: args.selected_hook }), {
+        configurable: { thread_id: args.recordId }
+      });
+
+      console.log(`[resumeNewsThreadGeneration] Graph resumed and finished. Iterations: ${finalState.iterations}, Approved: ${finalState.is_approved}`);
+      return await handleGraphCompletion(ctx, args.recordId, finalState);
+    } catch (e) {
+      await ctx.runMutation(internal.mutations.threadsMutations.updateThreadDraft, {
         id: args.recordId,
-        generation_status: "processing",
-        selected_hook: args.selected_hook,
-      }
-    );
-
-    const finalState = await NewsThreadFactoryGraph.invoke(new Command({ resume: args.selected_hook }), {
-      configurable: { thread_id: args.recordId }
-    });
-
-    console.log(`[resumeNewsThreadGeneration] Graph resumed and finished. Iterations: ${finalState.iterations}, Approved: ${finalState.is_approved}`);
-    return await handleGraphCompletion(ctx, args.recordId, finalState);
+        generation_status: "failed",
+      });
+      throw e;
+    }
   },
 });
 
@@ -376,27 +394,15 @@ export const deleteThreadDraft = action({
     }
 
     try {
-      const checkpointsRef = db.collection("checkpoints");
-      const writesRef = db.collection("checkpoint_writes");
+      const { pool } = await import("../lib/agents/graph.js");
 
-      const checkpointQuery = checkpointsRef.where("thread_id", "==", args.id);
-      const writesQuery = writesRef.where("thread_id", "==", args.id);
+      const resWrites = await pool.query("DELETE FROM checkpoint_writes WHERE thread_id = $1", [args.id]);
+      const resBlobs = await pool.query("DELETE FROM checkpoint_blobs WHERE thread_id = $1", [args.id]);
+      const resCheckpoints = await pool.query("DELETE FROM checkpoints WHERE thread_id = $1", [args.id]);
 
-      const [checkpointSnap, writesSnap] = await Promise.all([
-        checkpointQuery.get(),
-        writesQuery.get(),
-      ]);
-
-      const batch = db.batch();
-      checkpointSnap.forEach(doc => batch.delete(doc.ref));
-      writesSnap.forEach(doc => batch.delete(doc.ref));
-
-      if (checkpointSnap.size > 0 || writesSnap.size > 0) {
-        await batch.commit();
-        console.log(`Deleted ${checkpointSnap.size} checkpoints and ${writesSnap.size} checkpoint_writes for thread ${args.id}`);
-      }
+      console.log(`Deleted ${resCheckpoints.rowCount} checkpoints, ${resWrites.rowCount} checkpoint_writes, and ${resBlobs.rowCount} checkpoint_blobs for thread ${args.id}`);
     } catch (e) {
-      console.error("Failed to delete firestore checkpoints:", e);
+      console.error("Failed to delete postgres checkpoints:", e);
       throw e;
     }
 

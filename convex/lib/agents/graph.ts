@@ -1,12 +1,36 @@
 "use node";
 
 import { StateGraph, START, END } from "@langchain/langgraph";
-import { FirestoreSaver } from "@cassina/langgraphjs-checkpoint-firestore";
-import { db } from "../firebase/index.js";
+import { PostgresSaver } from "@langchain/langgraph-checkpoint-postgres";
+import pg from "pg";
 import { ThreadFactoryState, ThreadFactoryStateType } from "./state.js";
 import { ScraperNode, HookStrategistNode, ThreadWriterNode, CharacterValidatorNode, ViralityCriticNode, ManualHookSelectionNode } from "./nodes.js";
 
-const checkpointSaver = new FirestoreSaver({ firestore: db });
+const { Pool } = pg;
+
+// Aiven URLs often contain ?sslmode=require which overrides custom SSL objects in the pg driver.
+// We parse the URL and remove sslmode so our explicit sslConfig takes precedence.
+let connectionString = process.env.POSTGRES_URL;
+if (connectionString) {
+  try {
+    const dbUrl = new URL(connectionString);
+    dbUrl.searchParams.delete("sslmode");
+    connectionString = dbUrl.toString();
+  } catch (e) {
+    // Ignore URL parse error in tests
+  }
+}
+
+const sslConfig = process.env.POSTGRES_CA_CERT 
+  ? { ca: process.env.POSTGRES_CA_CERT.replace(/\\n/g, '\n'), rejectUnauthorized: true }
+  : { rejectUnauthorized: false };
+
+export const pool = new Pool({
+  connectionString,
+  ssl: sslConfig,
+});
+
+export const checkpointSaver = new PostgresSaver(pool);
 
 const route_after_scraper = (state: ThreadFactoryStateType) => {
   if (!state.parse_success) {

@@ -161,7 +161,6 @@ Evaluate the draft deductively. Start at 100 points and apply the following exac
 
 2. READABILITY & STRUCTURAL FRICTION (Max: 25 Points)
    - Deduct 15 Points if there are ANY walls of text containing paragraphs longer than 2 lines. 
-   - Deduct 5 Points if the copy completely lacks "Anchor Word" bolding on critical metrics, key phrases, or core frameworks.
    - Deduct 5 Points if the text fails to utilize a dynamic rhythm switch (e.g., missing a mix of punchy short lines and single-sentence statements).
 
 3. SOCIAL PSYCHOLOGY & SHAREABILITY (Max: 30 Points)

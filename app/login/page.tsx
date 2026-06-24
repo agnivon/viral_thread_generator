@@ -125,13 +125,10 @@ export default function LoginPage() {
             <input name="flow" type="hidden" value="signIn" />
             
             {/* Turnstile CAPTCHA */}
-            <div className="w-full my-1">
+            <div className="flex justify-center my-1">
               <Turnstile
                 ref={turnstileRef}
                 siteKey={process.env.NEXT_PUBLIC_CLOUDFLARE_TURNSTILE_SITE_KEY!}
-                options={{
-                  size: "flexible",
-                }}
                 onSuccess={(token) => {
                   setTurnstileToken(token);
                   setError(null);

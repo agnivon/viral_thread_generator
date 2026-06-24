@@ -276,12 +276,19 @@ export const enqueueThreadRegeneration = action({
 
 export const enqueueThreadPublication = action({
   args: {
-    ids: v.array(v.id("threadDrafts")),
+    requests: v.array(v.object({
+      id: v.id("threadDrafts"),
+      modified_thread: v.optional(v.array(v.string())),
+    })),
   },
   handler: async (ctx, args) => {
     const userId = await requireAuthUserId(ctx);
 
-    const payload = args.ids.map(id => ({ id, userId }));
+    const payload = args.requests.map(req => ({
+      id: req.id,
+      userId,
+      modified_thread: req.modified_thread,
+    }));
 
     await publicationPool.enqueueActionBatch(ctx, internal.actions.threadsActions.publishThread, payload);
   },
@@ -291,6 +298,7 @@ export const publishThread = internalAction({
   args: {
     id: v.id("threadDrafts"),
     userId: v.id("users"),
+    modified_thread: v.optional(v.array(v.string())),
   },
   handler: async (ctx, args): Promise<{ postIds: string[] }> => {
     const userId = args.userId;
@@ -301,6 +309,7 @@ export const publishThread = internalAction({
       await ctx.runMutation(internal.mutations.threadsMutations.updateThreadDraft, {
         id: args.id,
         publication_status: "publishing",
+        ...(args.modified_thread ? { thread_draft: args.modified_thread } : {}),
       });
 
       console.log("[publishThread] Refreshing Threads token if necessary...");
@@ -341,7 +350,8 @@ export const publishThread = internalAction({
 
       // 4. Publish the posts in sequence
       // A post containing the url should be appended to the end
-      const postsToPublish = [...state.thread_draft, state.url];
+      const threadToPublish = args.modified_thread || state.thread_draft;
+      const postsToPublish = [...threadToPublish, state.url];
       const postIds: string[] = [];
       let replyToId: string | undefined = undefined;
 

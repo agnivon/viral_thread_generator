@@ -7,6 +7,7 @@ import { useState, useEffect } from "react";
 import { Id } from "@/convex/_generated/dataModel";
 import { Loader2, Sparkles, Trophy, Compass, ArrowLeft, CheckCircle2 } from "lucide-react";
 import { useMutation } from "@tanstack/react-query";
+import { useForm } from "react-hook-form";
 import {
   Card,
   CardContent,
@@ -36,6 +37,27 @@ export default function ApproveDraftPage() {
   const [selectedHookIdx, setSelectedHookIdx] = useState<number | null>(null);
   const [editedHookText, setEditedHookText] = useState("");
   const [hasInitializedHook, setHasInitializedHook] = useState(false);
+
+  const [isEditingPosts, setIsEditingPosts] = useState(false);
+
+  const { register, reset, watch, getValues } = useForm<{ posts: string[] }>({
+    defaultValues: {
+      posts: [],
+    }
+  });
+
+  useEffect(() => {
+    if (state?.thread_draft) {
+      reset({ posts: state.thread_draft });
+    }
+  }, [state, reset]);
+
+  const handleCancelEditing = () => {
+    if (state?.thread_draft) {
+      reset({ posts: state.thread_draft });
+    }
+    setIsEditingPosts(false);
+  };
 
   const genStatus = state?.generation_status ?? "success";
 
@@ -96,8 +118,44 @@ export default function ApproveDraftPage() {
   const handlePublish = async () => {
     try {
       setIsPublishing(true);
-      await enqueuePublication({ ids: [id] });
+
+      const formValues = getValues();
+      const currentPosts = formValues.posts || [];
+
+      // Validate 500-character limit
+      const tooLongIndex = currentPosts.findIndex(p => p.length > 500);
+      if (tooLongIndex !== -1) {
+        toast.error(`Post ${tooLongIndex + 1} exceeds the 500 character limit! Please shorten it.`);
+        setIsPublishing(false);
+        return;
+      }
+
+      // Determine if modified
+      let isModified = false;
+      if (state && state.thread_draft) {
+        if (currentPosts.length !== state.thread_draft.length) {
+          isModified = true;
+        } else {
+          for (let i = 0; i < currentPosts.length; i++) {
+            if (currentPosts[i] !== state.thread_draft[i]) {
+              isModified = true;
+              break;
+            }
+          }
+        }
+      }
+
+      await enqueuePublication({
+        requests: [
+          {
+            id,
+            modified_thread: isModified ? currentPosts : undefined,
+          }
+        ]
+      });
+
       toast.success("Publication queued! The thread is being published to Threads.");
+      setIsEditingPosts(false);
     } catch (e: any) {
       console.error(e);
       toast.error(`Failed to publish: ${e.message || "Unknown error"}`);
@@ -465,28 +523,79 @@ export default function ApproveDraftPage() {
           {/* Main Draft Content */}
           <div className="md:col-span-2 space-y-6">
             <Card className="border-border/80 bg-card/45 backdrop-blur-xs shadow-xs rounded-2xl overflow-hidden">
-              <CardHeader className="border-b border-border/30 pb-4">
-                <CardTitle className="text-xl font-bold">Draft Posts</CardTitle>
-                <CardDescription>Review the generated thread sequence.</CardDescription>
+              <CardHeader className="border-b border-border/30 pb-4 flex flex-row items-center justify-between space-y-0">
+                <div>
+                  <CardTitle className="text-xl font-bold">Draft Posts</CardTitle>
+                  <CardDescription>Review the generated thread sequence.</CardDescription>
+                </div>
+                {state.thread_draft && state.thread_draft.length > 0 && (
+                  <div className="flex items-center gap-2">
+                    {isEditingPosts && (
+                      <Button
+                        variant="default"
+                        size="sm"
+                        onClick={() => setIsEditingPosts(false)}
+                        className="rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white font-semibold py-4 shadow-sm cursor-pointer"
+                      >
+                        Keep Edits
+                      </Button>
+                    )}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        if (isEditingPosts) {
+                          handleCancelEditing();
+                        } else {
+                          setIsEditingPosts(true);
+                        }
+                      }}
+                      className="rounded-xl border-border hover:bg-violet-600/5 hover:text-violet-600 dark:hover:bg-violet-500/5 dark:hover:text-violet-400 hover:border-violet-500/30 transition-all duration-200 cursor-pointer"
+                    >
+                      {isEditingPosts ? "Discard" : "Edit Posts"}
+                    </Button>
+                  </div>
+                )}
               </CardHeader>
               <CardContent className="space-y-6 pt-6">
                 {state.thread_draft.map((post, index) => {
                   const postCritique = state.post_critiques?.find((pc) => pc.post_index === index + 1);
+                  
+                  // react-hook-form watch values for live character count
+                  const postName = `posts.${index}` as const;
+                  const watchedValue = watch(postName) ?? post;
+                  const charCount = watchedValue.length;
+
                   return (
                     <div 
                       key={index} 
-                      className="group relative overflow-hidden p-6 rounded-xl border border-border/80 bg-card/40 backdrop-blur-xs hover:border-violet-500/30 hover:shadow-md transition-all duration-300 flex flex-col justify-between min-h-[120px]"
+                      className={`group relative overflow-hidden p-6 rounded-xl border transition-all duration-300 flex flex-col justify-between min-h-[120px] ${
+                        isEditingPosts 
+                          ? "border-violet-500 bg-violet-500/5 shadow-md animate-in fade-in duration-200" 
+                          : "border-border/80 bg-card/40 backdrop-blur-xs hover:border-violet-500/30 hover:shadow-md"
+                      }`}
                     >
                       <div className="absolute top-0 left-0 w-[4px] h-full bg-gradient-to-b from-violet-600 to-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                       
-                      <div className="flex gap-4 items-start">
-                        <span className="flex-shrink-0 bg-gradient-to-r from-violet-600 to-indigo-600 text-white h-7 w-7 rounded-full flex items-center justify-center text-xs font-black shadow-md select-none">
+                      <div className="flex gap-4 items-start w-full">
+                        <span className="flex-shrink-0 bg-gradient-to-r from-violet-600 to-indigo-600 text-white h-7 w-7 rounded-full flex items-center justify-center text-xs font-black shadow-md select-none mt-0.5">
                           {index + 1}
                         </span>
-                        <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground flex-1 pt-0.5">{post}</p>
+                        
+                        {isEditingPosts ? (
+                          <div className="flex-1 space-y-2">
+                            <textarea
+                              {...register(`posts.${index}` as any)}
+                              rows={4}
+                              className="w-full text-sm bg-background border border-border focus:border-violet-500 focus:ring-1 focus:ring-violet-500 focus:outline-none rounded-lg p-3.5 resize-y leading-relaxed"
+                            />
+                          </div>
+                        ) : (
+                          <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground flex-1 pt-0.5">{watchedValue}</p>
+                        )}
                       </div>
                       
-                      {postCritique?.critique?.trim() && (
+                      {postCritique?.critique?.trim() && !isEditingPosts && (
                         <div className="mt-4 p-4.5 rounded-xl bg-amber-500/5 border border-amber-500/20 text-amber-800 dark:text-amber-300 text-xs">
                           <span className="font-bold flex items-center gap-1.5 mb-1.5 text-amber-900 dark:text-amber-400">
                             <Sparkles className="w-3.5 h-3.5 text-amber-500" />
@@ -497,11 +606,13 @@ export default function ApproveDraftPage() {
                       )}
                       
                       <div className="mt-5 pt-3 border-t border-border/40 flex justify-between items-center text-xs text-muted-foreground select-none">
-                        <span className="font-medium">{post.length} character{post.length !== 1 ? 's' : ''}</span>
-                        {post.length > 500 ? (
+                        <span className={`font-medium ${charCount > 500 ? "text-destructive font-bold" : ""}`}>
+                          {charCount} character{charCount !== 1 ? 's' : ''}
+                        </span>
+                        {charCount > 500 ? (
                           <span className="text-destructive font-semibold">Exceeds Threads limit (500)</span>
                         ) : (
-                          <span className="font-medium">{500 - post.length} remaining</span>
+                          <span className="font-medium">{500 - charCount} remaining</span>
                         )}
                       </div>
                     </div>

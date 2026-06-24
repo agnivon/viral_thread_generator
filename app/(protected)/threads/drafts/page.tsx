@@ -69,7 +69,7 @@ export default function DraftsPage() {
 
     try {
       setIsPublishing(true);
-      await enqueuePublication({ ids: validIds });
+      await enqueuePublication({ requests: validIds.map(id => ({ id })) });
       toast.success(`Publication queued for ${validIds.length} threads!`);
       setSelectedDrafts(new Set());
     } catch (err: any) {

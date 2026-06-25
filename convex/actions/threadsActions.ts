@@ -244,6 +244,52 @@ export const resumeNewsThreadGeneration = internalAction({
   },
 });
 
+export const enqueueThreadRetry = action({
+  args: {
+    ids: v.array(v.id("threadDrafts")),
+  },
+  handler: async (ctx, args) => {
+    const userId = await requireAuthUserId(ctx);
+
+    const payload = args.ids.map(id => ({ recordId: id, userId }));
+
+    await generationPool.enqueueActionBatch(ctx, internal.actions.threadsActions.retryGeneration, payload);
+  },
+});
+
+export const retryGeneration = internalAction({
+  args: {
+    recordId: v.id("threadDrafts"),
+    userId: v.id("users"),
+  },
+  handler: async (ctx, args): Promise<{ recordId: Id<"threadDrafts"> }> => {
+    try {
+      console.log(`[retryGeneration] Retrying graph for thread: ${args.recordId}`);
+
+      await ctx.runMutation(
+        internal.mutations.threadsMutations.updateThreadDraft,
+        {
+          id: args.recordId,
+          generation_status: "processing",
+        }
+      );
+
+      const finalState = await NewsThreadFactoryGraph.invoke(null, {
+        configurable: { thread_id: args.recordId }
+      });
+
+      console.log(`[retryGeneration] Graph retried and finished. Iterations: ${finalState.iterations}, Approved: ${finalState.is_approved}`);
+      return await handleGraphCompletion(ctx, args.recordId, finalState);
+    } catch (e) {
+      await ctx.runMutation(internal.mutations.threadsMutations.updateThreadDraft, {
+        id: args.recordId,
+        generation_status: "failed",
+      });
+      throw e;
+    }
+  },
+});
+
 export const enqueueThreadRegeneration = action({
   args: {
     ids: v.array(v.id("threadDrafts")),

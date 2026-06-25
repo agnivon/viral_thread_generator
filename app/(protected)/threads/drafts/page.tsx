@@ -28,10 +28,29 @@ export default function DraftsPage() {
 
   const enqueuePublication = useAction(api.actions.threadsActions.enqueueThreadPublication);
   const deleteDraft = useAction(api.actions.threadsActions.deleteThreadDraft);
+  const retryGeneration = useAction(api.actions.threadsActions.enqueueThreadRetry);
 
   const [selectedDrafts, setSelectedDrafts] = useState<Set<Id<"threadDrafts">>>(new Set());
   const [isPublishing, setIsPublishing] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [retryingIds, setRetryingIds] = useState<Set<Id<"threadDrafts">>>(new Set());
+
+  const handleRetry = async (id: Id<"threadDrafts">) => {
+    try {
+      setRetryingIds(prev => new Set(prev).add(id));
+      await retryGeneration({ ids: [id] });
+      toast.success("Generation retry enqueued!");
+    } catch (err: any) {
+      console.error(err);
+      toast.error(`Failed to retry generation: ${err.message || "Unknown error"}`);
+    } finally {
+      setRetryingIds(prev => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+    }
+  };
 
   const toggleSelection = (id: Id<"threadDrafts">) => {
     const newSelection = new Set(selectedDrafts);
@@ -276,8 +295,20 @@ export default function DraftsPage() {
                             Review
                           </Button>
                         ) : genStatus === "failed" ? (
-                          <Button disabled size="sm" variant="destructive" className="rounded-lg">
-                            Failed
+                          <Button 
+                            size="sm" 
+                            variant="destructive" 
+                            className="rounded-lg bg-rose-500 hover:bg-rose-600 text-white cursor-pointer"
+                            onClick={() => handleRetry(draft._id)}
+                            disabled={retryingIds.has(draft._id)}
+                          >
+                            {retryingIds.has(draft._id) ? (
+                              <>
+                                <Loader2 className="w-3.5 h-3.5 animate-spin mr-1 inline" /> Retrying
+                              </>
+                            ) : (
+                              "Retry"
+                            )}
                           </Button>
                         ) : (
                           <Link

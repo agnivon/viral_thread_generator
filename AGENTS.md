@@ -13,4 +13,5 @@ Convex agent skills for common tasks can be installed by running
 <!-- convex-ai-end -->
 
 Always use `pnpm` for this project.
+Do not run builds to test minor UI changes.
 

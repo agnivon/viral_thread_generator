@@ -291,14 +291,14 @@ export default function DraftsPage() {
                       </td>
                       <td className="px-4 py-4.5 text-right">
                         {genStatus === "processing" ? (
-                          <Button disabled size="sm" variant="secondary" className="rounded-lg">
+                          <Button disabled size="sm" variant="secondary" className="rounded-lg w-24 justify-center">
                             Review
                           </Button>
                         ) : genStatus === "failed" ? (
                           <Button 
                             size="sm" 
                             variant="destructive" 
-                            className="rounded-lg bg-rose-500 hover:bg-rose-600 text-white cursor-pointer"
+                            className="rounded-lg bg-rose-500 hover:bg-rose-600 text-white cursor-pointer w-24 justify-center"
                             onClick={() => handleRetry(draft._id)}
                             disabled={retryingIds.has(draft._id)}
                           >
@@ -313,7 +313,7 @@ export default function DraftsPage() {
                         ) : (
                           <Link
                             href={`/threads/drafts/${draft._id}/approve`}
-                            className={`${buttonVariants({ variant: "outline", size: "sm" })} rounded-lg hover:bg-violet-600/5 hover:text-violet-600 dark:hover:bg-violet-500/5 dark:hover:text-violet-400 border-border/80 hover:border-violet-500/30 transition-all duration-200 cursor-pointer`}
+                            className={`${buttonVariants({ variant: "outline", size: "sm" })} rounded-lg hover:bg-violet-600/5 hover:text-violet-600 dark:hover:bg-violet-500/5 dark:hover:text-violet-400 border-border/80 hover:border-violet-500/30 transition-all duration-200 cursor-pointer w-24 justify-center`}
                           >
                             Review
                           </Link>

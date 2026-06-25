@@ -21,13 +21,15 @@ if (connectionString) {
   }
 }
 
-const sslConfig = process.env.POSTGRES_CA_CERT 
+const sslConfig = process.env.POSTGRES_CA_CERT
   ? { ca: process.env.POSTGRES_CA_CERT.replace(/\\n/g, '\n'), rejectUnauthorized: true }
   : { rejectUnauthorized: false };
 
 export const pool = new Pool({
   connectionString,
   ssl: sslConfig,
+  max: 1, // Limit connections per isolate to prevent exhaustion in serverless environments
+  idleTimeoutMillis: 10000,
 });
 
 export const checkpointSaver = new PostgresSaver(pool);
@@ -87,7 +89,7 @@ const route_after_critic = (state: ThreadFactoryStateType) => {
 
 
 export const NewsThreadFactoryGraph = new StateGraph(ThreadFactoryState)
-  .setNodeDefaults({ timeout: { idleTimeout: 2_00_000 } })
+  .setNodeDefaults({ timeout: { runTimeout: 6_00_000, idleTimeout: 2_00_000 } })
   .addNode("ScraperNode", ScraperNode)
   .addNode("HookStrategistNode", HookStrategistNode)
   .addNode("ManualHookSelectionNode", ManualHookSelectionNode)

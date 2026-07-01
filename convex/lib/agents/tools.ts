@@ -11,13 +11,11 @@ export const WebScraperTool = tool(
   async ({ url }) => {
     try {
       const app = new FirecrawlApp({ apiKey: process.env.FIRECRAWL_API_KEY });
-      const scrapeResult = await app.scrapeUrl(url, { formats: ["markdown"] }) as any;
-  
-      if (!scrapeResult.success && scrapeResult.error) {
-        throw new Error(`Failed to scrape: ${scrapeResult.error}`);
-      }
-  
-      return scrapeResult.markdown || "No content found.";
+      const scrapeResult = await app.scrape(url, { onlyMainContent: true, maxAge: 172800000, formats: ["markdown", "images"] });
+
+      const markdown = scrapeResult.markdown || "No content found.";
+      const images = scrapeResult.images || [];
+      return JSON.stringify({ markdown, images });
     } catch (_e) {
       console.warn(`[WebScraperTool] Firecrawl failed for ${url}, falling back to Jina Reader...`);
       try {
@@ -27,10 +25,12 @@ export const WebScraperTool = tool(
           }
         });
         if (!jinaResponse.ok) {
-           throw new Error(`Jina Reader failed with status: ${jinaResponse.status}`);
+          throw new Error(`Jina Reader failed with status: ${jinaResponse.status}`);
         }
         const text = await jinaResponse.text();
-        return text || "No content found.";
+        const markdown = text || "No content found.";
+        const images = Array.from(markdown.matchAll(/!\\[.*?\\]\\((.*?)\\)/g)).map((m: any) => m[1]);
+        return JSON.stringify({ markdown, images });
       } catch (fallbackErr) {
         console.error(`[WebScraperTool] Jina Reader fallback failed for ${url}`, fallbackErr);
         throw fallbackErr;
@@ -58,11 +58,11 @@ export const CharacterValidatorTool = tool(
       if (post.length > 280) {
         errors.push(`Post ${index + 1} (${position}) is ${post.length} characters long. Maximum allowed is 280 characters.`);
       }
-      
+
       if (check_line_breaks !== false) {
         const lineBreaks = (post.match(/\n/g) || []).length;
         if (lineBreaks > 4) {
-           errors.push(`Post ${index + 1} (${position}) has ${lineBreaks} line breaks. Maximum allowed is 4 line breaks.`);
+          errors.push(`Post ${index + 1} (${position}) has ${lineBreaks} line breaks. Maximum allowed is 4 line breaks.`);
         }
       }
 

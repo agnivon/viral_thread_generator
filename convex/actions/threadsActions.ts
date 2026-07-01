@@ -325,6 +325,7 @@ export const enqueueThreadPublication = action({
     requests: v.array(v.object({
       id: v.id("threadDrafts"),
       modified_thread: v.optional(v.array(v.string())),
+      images: v.optional(v.record(v.string(), v.string())),
     })),
   },
   handler: async (ctx, args) => {
@@ -334,6 +335,7 @@ export const enqueueThreadPublication = action({
       id: req.id,
       userId,
       modified_thread: req.modified_thread,
+      images: req.images,
     }));
 
     await publicationPool.enqueueActionBatch(ctx, internal.actions.threadsActions.publishThread, payload);
@@ -345,6 +347,7 @@ export const publishThread = internalAction({
     id: v.id("threadDrafts"),
     userId: v.id("users"),
     modified_thread: v.optional(v.array(v.string())),
+    images: v.optional(v.record(v.string(), v.string())),
   },
   handler: async (ctx, args): Promise<{ postIds: string[] }> => {
     const userId = args.userId;
@@ -407,12 +410,19 @@ export const publishThread = internalAction({
         const isFirst = !replyToId;
         const snippet = postText.length > 60 ? postText.substring(0, 60) + "..." : postText;
 
+        const imageUrl = args.images?.[i.toString()];
+
         console.log(`[publishThread] [Post ${i + 1}/${postsToPublish.length}] Publishing... Type: ${isFirst ? 'Root Post' : `Reply to ${replyToId}`}. Content preview: "${snippet}"`);
 
+        const postArgs: any = { text: postText };
+        if (imageUrl) {
+          postArgs.imageUrl = imageUrl;
+        }
+
         if (isFirst) {
-          replyToId = await threadsApi.createPost({ text: postText });
+          replyToId = await threadsApi.createPost(postArgs);
         } else {
-          replyToId = await threadsApi.createReply(replyToId!, { text: postText });
+          replyToId = await threadsApi.createReply(replyToId!, postArgs);
         }
 
         console.log(`[publishThread] [Post ${i + 1}/${postsToPublish.length}] Successfully published! Post ID: ${replyToId}`);

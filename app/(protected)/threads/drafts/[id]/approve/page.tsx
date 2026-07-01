@@ -5,7 +5,7 @@ import { api } from "@/convex/_generated/api";
 import { useParams, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import { Id } from "@/convex/_generated/dataModel";
-import { Loader2, Sparkles, Trophy, Compass, ArrowLeft, CheckCircle2 } from "lucide-react";
+import { Loader2, Sparkles, Trophy, Compass, ArrowLeft, CheckCircle2, Image as ImageIcon, X } from "lucide-react";
 import { useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import {
@@ -18,6 +18,75 @@ import {
 import { Button, buttonVariants } from "@/components/ui/button";
 import Link from "next/link";
 import { toast } from "sonner";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+
+function getImageQualityInfo(url: string) {
+  try {
+    const parsedUrl = new URL(url);
+    const pathname = parsedUrl.pathname.toLowerCase();
+    const search = parsedUrl.search.toLowerCase();
+    
+    // File type detection
+    let type = "Image";
+    if (pathname.endsWith(".png")) type = "PNG";
+    else if (pathname.endsWith(".jpg") || pathname.endsWith(".jpeg")) type = "JPEG";
+    else if (pathname.endsWith(".gif")) type = "GIF";
+    else if (pathname.endsWith(".webp")) type = "WebP";
+    else if (pathname.endsWith(".svg")) type = "SVG Vector";
+    
+    // Quality estimation heuristic
+    let resolution = "Standard";
+    let score: "High" | "Medium" | "Low" = "Medium";
+    
+    if (type === "SVG Vector") {
+      resolution = "Scalable Vector Graphics (Lossless)";
+      score = "High";
+    } else if (
+      pathname.includes("thumb") ||
+      pathname.includes("preview") ||
+      search.includes("thumb") ||
+      /icon|avatar/i.test(pathname) ||
+      /\b(w|h|width|height)[=_-]([1-9]\d|[1-2]\d\d)\b/i.test(url)
+    ) {
+      resolution = "Low Resolution (Thumbnail/Preview)";
+      score = "Low";
+    } else if (
+      pathname.includes("large") ||
+      pathname.includes("full") ||
+      pathname.includes("original") ||
+      search.includes("large") ||
+      search.includes("full") ||
+      search.includes("original") ||
+      /\b(w|h|width|height)[=_-]([8-9]\d\d|1\d\d\d|2\d\d\d)\b/i.test(url) ||
+      pathname.includes("1080") ||
+      pathname.includes("2048") ||
+      pathname.includes("4k")
+    ) {
+      resolution = "High Resolution (HD/Large)";
+      score = "High";
+    } else {
+      resolution = "Standard Resolution";
+      score = "Medium";
+    }
+    
+    const host = parsedUrl.hostname;
+    
+    return {
+      type,
+      resolution,
+      score,
+      host
+    };
+  } catch (e) {
+    return {
+      type: "Image",
+      resolution: "Unknown Resolution",
+      score: "Unknown" as const,
+      host: "External Domain"
+    };
+  }
+}
 
 export default function ApproveDraftPage() {
   const params = useParams();
@@ -33,12 +102,15 @@ export default function ApproveDraftPage() {
   const [isRegenerating, setIsRegenerating] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [newGuidance, setNewGuidance] = useState("");
+  const [manualHookSelection, setManualHookSelection] = useState(false);
 
   const [selectedHookIdx, setSelectedHookIdx] = useState<number | null>(null);
   const [editedHookText, setEditedHookText] = useState("");
   const [hasInitializedHook, setHasInitializedHook] = useState(false);
 
   const [isEditingPosts, setIsEditingPosts] = useState(false);
+  const [selectedImages, setSelectedImages] = useState<Record<string, string>>({});
+  const [activeImagePickerIdx, setActiveImagePickerIdx] = useState<number | null>(null);
 
   const { register, reset, watch, getValues } = useForm<{ posts: string[] }>({
     defaultValues: {
@@ -56,6 +128,7 @@ export default function ApproveDraftPage() {
     if (state?.thread_draft) {
       reset({ posts: state.thread_draft });
     }
+    setSelectedImages({});
     setIsEditingPosts(false);
   };
 
@@ -150,6 +223,7 @@ export default function ApproveDraftPage() {
           {
             id,
             modified_thread: isModified ? currentPosts : undefined,
+            images: Object.keys(selectedImages).length > 0 ? selectedImages : undefined,
           }
         ]
       });
@@ -170,7 +244,8 @@ export default function ApproveDraftPage() {
       setIsDialogOpen(false);
       await enqueueRegeneration({ 
         ids: [id], 
-        guidance: newGuidance.trim() || undefined 
+        guidance: newGuidance.trim() || undefined,
+        manual_hook_selection: manualHookSelection,
       });
       toast.success("Regeneration queued! The thread is being regenerated.");
       router.push("/threads/drafts");
@@ -589,9 +664,73 @@ export default function ApproveDraftPage() {
                               rows={4}
                               className="w-full text-sm bg-background border border-border focus:border-violet-500 focus:ring-1 focus:ring-violet-500 focus:outline-none rounded-lg p-3.5 resize-y leading-relaxed"
                             />
+                            {/* Selected image or Add Image button in edit mode */}
+                            {selectedImages[index.toString()] ? (
+                              <div className="relative mt-3 rounded-xl overflow-hidden border border-border/80 group/image max-w-md bg-muted/20 animate-in fade-in duration-200">
+                                <img 
+                                  src={selectedImages[index.toString()]} 
+                                  alt={`Post ${index + 1} image`} 
+                                  className="w-full h-auto max-h-60 object-cover" 
+                                />
+                                <div className="absolute top-2 right-2 flex gap-2">
+                                  <Button
+                                    type="button"
+                                    variant="secondary"
+                                    size="sm"
+                                    onClick={() => setActiveImagePickerIdx(index)}
+                                    className="rounded-lg h-8 px-2.5 bg-background/80 hover:bg-background backdrop-blur-xs text-xs font-semibold shadow-xs"
+                                  >
+                                    <ImageIcon className="w-3.5 h-3.5 mr-1" />
+                                    Change
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    variant="destructive"
+                                    size="sm"
+                                    onClick={() => {
+                                      setSelectedImages(prev => {
+                                        const updated = { ...prev };
+                                        delete updated[index.toString()];
+                                        return updated;
+                                      });
+                                    }}
+                                    className="rounded-lg h-8 w-8 p-0 bg-red-600/90 hover:bg-red-600 backdrop-blur-xs shadow-xs"
+                                  >
+                                    <X className="w-4 h-4" />
+                                  </Button>
+                                </div>
+                              </div>
+                            ) : (
+                              (state?.images && state.images.length > 0) && (
+                                <div className="mt-3">
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setActiveImagePickerIdx(index)}
+                                    className="rounded-lg border-dashed border-border hover:border-violet-500 hover:text-violet-600 dark:hover:text-violet-400 hover:bg-violet-500/5 transition-all duration-200"
+                                  >
+                                    <ImageIcon className="w-4 h-4 mr-1.5 text-violet-500" />
+                                    Attach Image
+                                  </Button>
+                                </div>
+                              )
+                            )}
                           </div>
                         ) : (
-                          <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground flex-1 pt-0.5">{watchedValue}</p>
+                          <div className="flex-1 space-y-2">
+                            <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground flex-1 pt-0.5">{watchedValue}</p>
+                            {/* Selected image preview in non-edit mode */}
+                            {selectedImages[index.toString()] && (
+                              <div className="relative mt-3 rounded-xl overflow-hidden border border-border/80 max-w-md bg-muted/20">
+                                <img 
+                                  src={selectedImages[index.toString()]} 
+                                  alt={`Post ${index + 1} image`} 
+                                  className="w-full h-auto max-h-60 object-cover" 
+                                />
+                              </div>
+                            )}
+                          </div>
                         )}
                       </div>
                       
@@ -650,7 +789,8 @@ export default function ApproveDraftPage() {
                 size="lg"
                 disabled={isPublishing || isRegenerating || state.is_published || state.publication_status === "publishing"}
                 onClick={() => {
-                  setNewGuidance(state.guidance || "");
+                  setNewGuidance(state?.guidance || "");
+                  setManualHookSelection(state?.manual_hook_selection || false);
                   setIsDialogOpen(true);
                 }}
               >
@@ -778,6 +918,27 @@ export default function ApproveDraftPage() {
                   className="w-full text-sm bg-muted/40 text-foreground p-3.5 rounded-xl border border-border focus:border-violet-500/50 focus:ring-1 focus:ring-violet-500/50 focus:outline-none resize-none"
                 />
               </div>
+
+              {/* Choose Hooks Manually Checkbox */}
+              <div className="flex items-start space-x-3 pt-2 bg-muted/10 p-3.5 rounded-xl border border-border/30">
+                <Checkbox
+                  id="manual-hook-regenerate"
+                  checked={manualHookSelection}
+                  onCheckedChange={(checked) => setManualHookSelection(!!checked)}
+                  disabled={isRegenerating}
+                />
+                <div className="grid gap-1.5 leading-none">
+                  <Label
+                    htmlFor="manual-hook-regenerate"
+                    className="text-sm font-semibold leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-75 cursor-pointer text-foreground"
+                  >
+                    Choose hooks manually
+                  </Label>
+                  <p className="text-xs text-muted-foreground">
+                    Pause the generation pipeline to choose and edit your hook before generating the full thread.
+                  </p>
+                </div>
+              </div>
             </div>
 
             <div className="flex items-center justify-end gap-3 pt-2">
@@ -802,6 +963,121 @@ export default function ApproveDraftPage() {
                 ) : (
                   "Submit & Regenerate"
                 )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Select Post Image Dialog Modal */}
+      {activeImagePickerIdx !== null && state?.images && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="relative w-full max-w-2xl overflow-hidden border border-border/80 bg-card/90 backdrop-blur-lg rounded-2xl shadow-xl p-6 space-y-6 flex flex-col max-h-[85vh]">
+            <div className="space-y-2 flex-shrink-0">
+              <h2 className="text-xl font-bold flex items-center gap-2 text-foreground">
+                <ImageIcon className="w-5 h-5 text-violet-500" />
+                Select Image for Post {activeImagePickerIdx + 1}
+              </h2>
+              <p className="text-xs text-muted-foreground">
+                Choose an image extracted from the source URL. Quality metrics and source domain details are listed below.
+              </p>
+            </div>
+
+            <div className="overflow-y-auto pr-1 space-y-4 flex-1">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {state.images.map((url, idx) => {
+                  const quality = getImageQualityInfo(url);
+                  const isSelected = selectedImages[activeImagePickerIdx.toString()] === url;
+                  return (
+                    <div 
+                      key={idx} 
+                      onClick={() => {
+                        setSelectedImages(prev => ({
+                          ...prev,
+                          [activeImagePickerIdx.toString()]: url
+                        }));
+                        setActiveImagePickerIdx(null);
+                      }}
+                      className={`group relative overflow-hidden rounded-xl border p-3 flex flex-col justify-between gap-3 cursor-pointer transition-all duration-300 hover:shadow-md ${
+                        isSelected 
+                          ? "border-violet-500 bg-violet-500/5 ring-1 ring-violet-500/50" 
+                          : "border-border/60 bg-muted/20 hover:border-violet-500/30 hover:bg-muted/40"
+                      }`}
+                    >
+                      <div className="aspect-video w-full rounded-lg overflow-hidden border border-border/40 bg-black/5 dark:bg-white/5 flex items-center justify-center relative">
+                        <img 
+                          src={url} 
+                          alt={`scraped image ${idx + 1}`} 
+                          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                        />
+                        {isSelected && (
+                          <div className="absolute inset-0 bg-violet-600/10 backdrop-blur-xs flex items-center justify-center">
+                            <span className="bg-violet-600 text-white text-[10px] font-black px-2.5 py-1 rounded-full shadow-md uppercase tracking-wider animate-in zoom-in duration-200">
+                              Selected
+                            </span>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="space-y-2 text-xs flex-1 flex flex-col justify-between">
+                        <div className="space-y-1">
+                          <div className="flex justify-between items-center">
+                            <span className="font-semibold text-foreground/90">{quality.type} format</span>
+                            <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-sm uppercase tracking-wider ${
+                              quality.score === "High" 
+                                ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" 
+                                : quality.score === "Medium"
+                                  ? "bg-amber-500/10 text-amber-600 dark:text-amber-400"
+                                  : "bg-rose-500/10 text-rose-600 dark:text-rose-400"
+                            }`}>
+                              {quality.score} Quality
+                            </span>
+                          </div>
+                          <p className="text-muted-foreground font-medium truncate">{quality.resolution}</p>
+                        </div>
+
+                        <div className="pt-2 border-t border-border/40 flex justify-between items-center text-[10px] text-muted-foreground">
+                          <span className="truncate max-w-[120px] font-mono">{quality.host}</span>
+                          <Button
+                            type="button"
+                            variant={isSelected ? "secondary" : "default"}
+                            size="xs"
+                            className="h-7 rounded-lg text-[11px] px-3 font-semibold pointer-events-none"
+                          >
+                            {isSelected ? "Active" : "Choose"}
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-2 border-t border-border/30 flex-shrink-0">
+              {selectedImages[activeImagePickerIdx.toString()] && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setSelectedImages(prev => {
+                      const updated = { ...prev };
+                      delete updated[activeImagePickerIdx.toString()];
+                      return updated;
+                    });
+                    setActiveImagePickerIdx(null);
+                  }}
+                  className="rounded-xl border-red-500/30 text-red-600 hover:bg-red-500/5 hover:border-red-500/50 px-5 mr-auto font-semibold"
+                >
+                  Deselect Image
+                </Button>
+              )}
+              <Button
+                variant="outline"
+                onClick={() => setActiveImagePickerIdx(null)}
+                className="rounded-xl border-border px-5"
+              >
+                Close
               </Button>
             </div>
           </div>

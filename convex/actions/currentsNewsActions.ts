@@ -30,7 +30,7 @@ export const fetchAndStoreLatestNews = internalAction({
       // Fetch latest news
       const response = await currentsApi.latestNews({
         language: "en",
-        page_size: 30,
+        page_size: 20,
         domain: domain,
       });
       console.log(`Currents API response status for ${domain}:`, response.data.status);

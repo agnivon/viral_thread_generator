@@ -89,7 +89,7 @@ const route_after_critic = (state: ThreadFactoryStateType) => {
 
 
 export const NewsThreadFactoryGraph = new StateGraph(ThreadFactoryState)
-  .setNodeDefaults({ timeout: { runTimeout: 6_00_000, idleTimeout: 2_00_000 } })
+  .setNodeDefaults({ timeout: { runTimeout: 3_00_000 } })
   .addNode("ScraperNode", ScraperNode)
   .addNode("HookStrategistNode", HookStrategistNode)
   .addNode("ManualHookSelectionNode", ManualHookSelectionNode)

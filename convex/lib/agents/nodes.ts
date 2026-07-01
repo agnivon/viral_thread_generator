@@ -26,7 +26,16 @@ import { buildAgents, invokeWithFallbacks } from "./utils.js";
 
 
 export const ScraperNode = async (state: ThreadFactoryStateType, config?: RunnableConfig) => {
-  const markdown = await WebScraperTool.invoke({ url: state.url }, config);
+  const scraperResultStr = await WebScraperTool.invoke({ url: state.url }, config);
+  let markdown = scraperResultStr as string;
+  let images: string[] = [];
+  try {
+    const parsed = JSON.parse(scraperResultStr as string);
+    markdown = parsed.markdown;
+    images = parsed.images || [];
+  } catch (e) {
+    // Fallback if the tool returned raw string
+  }
 
   const llm = scraperPrimaryLlm.withFallbacks({ fallbacks: [scraperPrimaryLlmBackup, scraperFallbackLlm] });
 
@@ -37,6 +46,7 @@ export const ScraperNode = async (state: ThreadFactoryStateType, config?: Runnab
     ], config);
     return {
       raw_markdown: summary.content as string,
+      images,
       parse_success: true,
       retries: { ...(state.retries || {}), scraper: (state.retries?.scraper || 0) + 1 }
     };

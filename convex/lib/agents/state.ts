@@ -9,6 +9,7 @@ export const ThreadFactoryState = new StateSchema({
   core_hooks: z.array(z.string()).default(() => []),
   selected_hook: z.string().default(""),
   thread_draft: z.array(z.string()).default(() => []),
+  images: z.array(z.string()).optional(),
   critique: z.string().default(""),
   virality_score: z.number().optional(),
   post_critiques: z.array(z.object({ post_index: z.number(), critique: z.string() })).default(() => []),

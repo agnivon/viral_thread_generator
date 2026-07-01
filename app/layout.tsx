@@ -10,8 +10,43 @@ import { Toaster } from "@/components/ui/sonner";
 const geist = Geist({subsets:['latin'],variable:'--font-sans'});
 
 export const metadata: Metadata = {
-  title: "Viral Thread Generator",
-  description: "Generate viral threads seamlessly",
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_APP_URL || "https://viral-thread-generator.vercel.app"
+  ),
+  title: {
+    default: "Viral Thread Generator - Next-Gen AI Creator Studio",
+    template: "%s | Viral Thread Generator",
+  },
+  description: "Create high-performing, engaging Threads sequences from any source link in seconds. Connect your audience and skyrocket your reach.",
+  keywords: [
+    "viral threads",
+    "threads generator",
+    "twitter threads",
+    "social media growth",
+    "AI creator studio",
+    "threads app",
+    "engagement booster",
+    "content creator tools",
+  ],
+  authors: [{ name: "Viral Thread Generator Team" }],
+  openGraph: {
+    title: "Viral Thread Generator - Next-Gen AI Creator Studio",
+    description: "Create high-performing, engaging Threads sequences from any source link in seconds. Connect your audience and skyrocket your reach.",
+    url: "https://viral-thread-generator.vercel.app",
+    siteName: "Viral Thread Generator",
+    locale: "en_US",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Viral Thread Generator - Next-Gen AI Creator Studio",
+    description: "Create high-performing, engaging Threads sequences from any source link in seconds. Connect your audience and skyrocket your reach.",
+    creator: "@viral_threads",
+  },
+  icons: {
+    icon: "/icon.svg",
+    apple: "/apple-icon",
+  },
 };
 
 export default function RootLayout({

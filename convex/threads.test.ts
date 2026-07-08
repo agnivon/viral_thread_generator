@@ -3,7 +3,7 @@ import { convexTest } from "convex-test";
 import { expect, test, vi, afterEach } from "vitest";
 import { api, internal } from "./_generated/api";
 import schema from "./schema";
-import { NewsThreadFactoryGraph } from "./lib/agents/graph.js";
+import { NewsThreadFactoryGraph } from "./lib/agents/news/graph.js";
 import { ThreadsAPI } from "./lib/threads/api.js";
 
 const modules = import.meta.glob("./**/*.ts");

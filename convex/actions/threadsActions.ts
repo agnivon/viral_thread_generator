@@ -7,7 +7,7 @@ import { v } from "convex/values";
 import { internal } from "../_generated/api";
 import { action, internalAction } from "../_generated/server";
 import { Id } from "../_generated/dataModel";
-import { NewsThreadFactoryGraph } from "../lib/agents/graph.js";
+import { NewsThreadFactoryGraph } from "../lib/agents/news/graph.js";
 import { ThreadsAPI } from "../lib/threads/api.js";
 import { generationPool, publicationPool } from "../lib/workpool/index.js";
 
@@ -460,7 +460,7 @@ export const deleteThreadDraft = action({
     }
 
     try {
-      const { pool } = await import("../lib/agents/graph.js");
+      const { pool } = await import("../lib/agents/news/graph.js");
 
       const resWrites = await pool.query("DELETE FROM checkpoint_writes WHERE thread_id = $1", [args.id]);
       const resBlobs = await pool.query("DELETE FROM checkpoint_blobs WHERE thread_id = $1", [args.id]);

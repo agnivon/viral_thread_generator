@@ -1,7 +1,7 @@
 "use node";
 
 import { internalAction } from "../_generated/server";
-import { checkpointSaver } from "../lib/agents/graph.js";
+import { checkpointSaver } from "../lib/agents/news/graph.js";
 
 export const setupCheckpointer = internalAction({
   args: {},

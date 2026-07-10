@@ -15,8 +15,10 @@ export const saveThreadDraft = internalMutation({
     virality_score: v.optional(v.number()),
     post_critiques: v.optional(v.array(v.object({
       post_index: v.number(),
-      critique: v.string()
+      critique: v.string(),
+      fix_directive: v.optional(v.string())
     }))),
+    research_context: v.optional(v.string()),
     iterations: v.number(),
     is_approved: v.boolean(),
     userId: v.id("users"),
@@ -36,6 +38,7 @@ export const initializeThreadDraft = internalMutation({
     userId: v.id("users"),
     guidance: v.optional(v.string()),
     manual_hook_selection: v.optional(v.boolean()),
+    agent: v.optional(v.string()),
   },
   handler: async (ctx, args): Promise<Id<"threadDrafts">> => {
     return await ctx.db.insert("threadDrafts", {
@@ -43,6 +46,7 @@ export const initializeThreadDraft = internalMutation({
       userId: args.userId,
       guidance: args.guidance,
       manual_hook_selection: args.manual_hook_selection,
+      agent: args.agent || "news",
       is_approved: false,
       is_published: false,
       generation_status: "processing",
@@ -66,8 +70,10 @@ export const updateThreadDraft = internalMutation({
     virality_score: v.optional(v.number()),
     post_critiques: v.optional(v.array(v.object({
       post_index: v.number(),
-      critique: v.string()
+      critique: v.string(),
+      fix_directive: v.optional(v.string())
     }))),
+    research_context: v.optional(v.string()),
     iterations: v.optional(v.number()),
     is_approved: v.optional(v.boolean()),
     is_published: v.optional(v.boolean()),

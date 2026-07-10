@@ -28,10 +28,10 @@ export const hookFallbackLlm2 = new ChatOpenRouter({
 export const writerPrimaryLlm = createGoogleModel("gemini-3.5-flash", 0.8, "GOOGLE_API_KEY");
 export const writerPrimaryLlmBackup = createGoogleModel("gemini-3.5-flash", 0.8, "GOOGLE_API_KEY2");
 export const writerFallbackLlm1 = createOpenAIModel("gpt-5.4", 0.8, { presencePenalty: 0.4, timeout: 30000 });
-export const writerFallbackLlm2 = createGoogleModel("gemma-4-26b-it", 0.8, "GOOGLE_API_KEY");
-export const writerFallbackLlm2Backup = createGoogleModel("gemma-4-26b-it", 0.8, "GOOGLE_API_KEY2");
-export const writerFallbackLlm3 = createGoogleModel("gemini-3.0-flash", 0.8, "GOOGLE_API_KEY");
-export const writerFallbackLlm3Backup = createGoogleModel("gemini-3.0-flash", 0.8, "GOOGLE_API_KEY2");
+export const writerFallbackLlm2 = createGoogleModel("gemma-4-26b-a4b-it", 0.8, "GOOGLE_API_KEY");
+export const writerFallbackLlm2Backup = createGoogleModel("gemma-4-26b-a4b-it", 0.8, "GOOGLE_API_KEY2");
+export const writerFallbackLlm3 = createGoogleModel("gemini-3-flash-preview", 0.8, "GOOGLE_API_KEY");
+export const writerFallbackLlm3Backup = createGoogleModel("gemini-3-flash-preview", 0.8, "GOOGLE_API_KEY2");
 
 // ViralityCriticNode Models
 export const criticPrimaryLlm = createGoogleModel("gemini-3.5-flash", 0.0, "GOOGLE_API_KEY");
@@ -39,6 +39,10 @@ export const criticPrimaryLlmBackup = createGoogleModel("gemini-3.5-flash", 0.0,
 export const criticFallbackLlm1 = createOpenAIModel("gpt-5.4-mini", 0.0, { timeout: 25000 });
 export const criticFallbackLlm2 = createGoogleModel("gemma-4-31b-it", 0.0, "GOOGLE_API_KEY");
 export const criticFallbackLlm2Backup = createGoogleModel("gemma-4-31b-it", 0.0, "GOOGLE_API_KEY2");
-export const criticFallbackLlm3 = createGoogleModel("gemini-3.0-flash", 0.0, "GOOGLE_API_KEY");
-export const criticFallbackLlm3Backup = createGoogleModel("gemini-3.0-flash", 0.0, "GOOGLE_API_KEY2");
+export const criticFallbackLlm3 = createGoogleModel("gemini-3-flash-preview", 0.0, "GOOGLE_API_KEY");
+export const criticFallbackLlm3Backup = createGoogleModel("gemini-3-flash-preview", 0.0, "GOOGLE_API_KEY2");
 
+// ContextResearcherNode Models
+export const researcherPrimaryLlm = createGoogleModel("gemini-3.1-flash-lite", 0.2, "GOOGLE_API_KEY", { maxOutputTokens: 2000 });
+export const researcherPrimaryLlmBackup = createGoogleModel("gemini-3.1-flash-lite", 0.2, "GOOGLE_API_KEY2", { maxOutputTokens: 2000 });
+export const researcherFallbackLlm = createOpenAIModel("gpt-5.4-mini", 0.2, { maxTokens: 2000, timeout: 45000 });

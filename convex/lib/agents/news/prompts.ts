@@ -95,6 +95,7 @@ THREAD FORMATTING ARCHITECTURE & CHARACTER COUNT BLUEPRINT:
 3. Leave a 40-Character Buffer on the Hook.
 
 GENERAL FORMATTING:
+- **Hard Length Ceiling:** Your final 'thread_draft' array MUST contain no more than 9 total posts (Post 0 is the Hook, Posts 1-7 are the Body, Post 8 is the CTA). Do not generate exhaustive summaries; compress the tension into exactly this footprint.
 - Threads does not support markdown formatting. Do not use invalid characters that don't apply formatting (like **, _, or *).
 - Use simple markers (like numbers or clean hyphens) for lists. Do not use generic corporate emojis (🚀, 🎯, 💡) as bullets.
 - Ensure every single tweet can stand alone as a valuable insight if screenshotted out of context.

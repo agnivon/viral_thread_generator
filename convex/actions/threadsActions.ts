@@ -8,6 +8,7 @@ import { internal } from "../_generated/api";
 import { action, internalAction } from "../_generated/server";
 import { Id } from "../_generated/dataModel";
 import { NewsThreadFactoryGraph } from "../lib/agents/news/graph.js";
+import { SocialMediaThreadFactoryGraph } from "../lib/agents/social_media/graph.js";
 import { ThreadsAPI } from "../lib/threads/api.js";
 import { generationPool, publicationPool } from "../lib/workpool/index.js";
 
@@ -34,7 +35,14 @@ function createInitialState(args: { url: string; guidance?: string; manual_hook_
   };
 }
 
-async function handleGraphCompletion(ctx: any, recordId: Id<"threadDrafts">, finalState: any) {
+function getGraph(agent?: string) {
+  if (agent === "social_media") {
+    return SocialMediaThreadFactoryGraph;
+  }
+  return NewsThreadFactoryGraph;
+}
+
+async function handleGraphCompletion(ctx: any, recordId: Id<"threadDrafts">, finalState: any, agent?: string) {
   const {
     url,
     guidance,
@@ -47,7 +55,12 @@ async function handleGraphCompletion(ctx: any, recordId: Id<"threadDrafts">, fin
     ...stateToSave
   } = finalState;
 
-  const interrupted = isInterrupted(finalState) || (await NewsThreadFactoryGraph.getState({ configurable: { thread_id: recordId } })).next.length > 0;
+  const graph = getGraph(agent);
+  const interrupted = isInterrupted(finalState) || (await graph.getState({ configurable: { thread_id: recordId } })).next.length > 0;
+
+  if (!interrupted && agent !== "social_media" && stateToSave.thread_draft) {
+    stateToSave.thread_draft = [...stateToSave.thread_draft, url];
+  }
 
   await ctx.runMutation(
     internal.mutations.threadsMutations.updateThreadDraft,
@@ -79,18 +92,67 @@ export const enqueueNewsThreadGeneration = action({
       guidance: req.guidance,
       manual_hook_selection: req.manual_hook_selection,
       userId,
+      agent: "news",
     }));
 
-    await generationPool.enqueueActionBatch(ctx, internal.actions.threadsActions.generateNewsThread, payload);
+    await generationPool.enqueueActionBatch(ctx, internal.actions.threadsActions.generateThreadInternal, payload);
   },
 });
 
-export const generateNewsThread = internalAction({
+export const enqueueSocialMediaThreadGeneration = action({
+  args: {
+    requests: v.array(v.object({
+      url: v.string(),
+      guidance: v.optional(v.string()),
+      manual_hook_selection: v.optional(v.boolean()),
+    }))
+  },
+  handler: async (ctx, args) => {
+    const userId = await requireAuthUserId(ctx);
+
+    const payload = args.requests.map(req => ({
+      url: req.url,
+      guidance: req.guidance,
+      manual_hook_selection: req.manual_hook_selection,
+      userId,
+      agent: "social_media",
+    }));
+
+    await generationPool.enqueueActionBatch(ctx, internal.actions.threadsActions.generateThreadInternal, payload);
+  },
+});
+
+export const enqueueThreadGeneration = action({
+  args: {
+    requests: v.array(v.object({
+      url: v.string(),
+      guidance: v.optional(v.string()),
+      manual_hook_selection: v.optional(v.boolean()),
+      agent: v.optional(v.string()),
+    }))
+  },
+  handler: async (ctx, args) => {
+    const userId = await requireAuthUserId(ctx);
+
+    const payload = args.requests.map(req => ({
+      url: req.url,
+      guidance: req.guidance,
+      manual_hook_selection: req.manual_hook_selection,
+      userId,
+      agent: req.agent || "news",
+    }));
+
+    await generationPool.enqueueActionBatch(ctx, internal.actions.threadsActions.generateThreadInternal, payload);
+  },
+});
+
+export const generateThreadInternal = internalAction({
   args: {
     url: v.string(),
     guidance: v.optional(v.string()),
     manual_hook_selection: v.optional(v.boolean()),
     userId: v.id("users"),
+    agent: v.optional(v.string()),
   },
   handler: async (ctx, args): Promise<{ recordId: Id<"threadDrafts"> }> => {
     let recordId: Id<"threadDrafts"> | undefined;
@@ -104,19 +166,21 @@ export const generateNewsThread = internalAction({
           userId: args.userId,
           guidance: args.guidance,
           manual_hook_selection: args.manual_hook_selection,
+          agent: args.agent,
         }
       );
 
       const initialState = createInitialState(args);
+      const graph = getGraph(args.agent);
 
-      console.log("[generateNewsThread] Invoking NewsThreadFactoryGraph from scratch...");
+      console.log(`[generateThreadInternal] Invoking ${args.agent || 'news'} graph from scratch...`);
 
-      const finalState = await NewsThreadFactoryGraph.invoke(initialState, {
+      const finalState = await (graph as any).invoke(initialState, {
         configurable: { thread_id: recordId }
       });
 
-      console.log(`[generateNewsThread] NewsThreadFactoryGraph finished. Iterations: ${finalState.iterations}, Approved: ${finalState.is_approved}`);
-      return await handleGraphCompletion(ctx, recordId, finalState);
+      console.log(`[generateThreadInternal] Graph finished. Iterations: ${finalState.iterations}, Approved: ${finalState.is_approved}`);
+      return await handleGraphCompletion(ctx, recordId, finalState, args.agent);
     } catch (e) {
       if (recordId) {
         await ctx.runMutation(internal.mutations.threadsMutations.updateThreadDraft, {
@@ -129,17 +193,18 @@ export const generateNewsThread = internalAction({
   },
 });
 
-export const regenerateNewsThread = internalAction({
+export const regenerateThreadInternal = internalAction({
   args: {
     url: v.string(),
     guidance: v.optional(v.string()),
     manual_hook_selection: v.optional(v.boolean()),
     userId: v.id("users"),
     recordId: v.id("threadDrafts"),
+    agent: v.optional(v.string()),
   },
   handler: async (ctx, args): Promise<{ recordId: Id<"threadDrafts"> }> => {
     try {
-      console.log(`[regenerateNewsThread] Started for URL: ${args.url}, Record: ${args.recordId}`);
+      console.log(`[regenerateThreadInternal] Started for URL: ${args.url}, Record: ${args.recordId}, Agent: ${args.agent}`);
 
       await ctx.runMutation(
         internal.mutations.threadsMutations.updateThreadDraft,
@@ -153,10 +218,12 @@ export const regenerateNewsThread = internalAction({
         }
       );
 
-      console.log(`[regenerateNewsThread] Regenerating thread ${args.recordId}. Time traveling to after ScraperNode...`);
+      console.log(`[regenerateThreadInternal] Regenerating thread ${args.recordId}. Time traveling to after ScraperNode...`);
       const config = { configurable: { thread_id: args.recordId } };
+      const graph = getGraph(args.agent);
+      
       let pastState = null;
-      for await (const state of NewsThreadFactoryGraph.getStateHistory(config)) {
+      for await (const state of graph.getStateHistory(config)) {
         if (state.next && state.next.includes("HookStrategistNode")) {
           pastState = state;
           break;
@@ -165,22 +232,22 @@ export const regenerateNewsThread = internalAction({
 
       let finalState;
       if (pastState) {
-        console.log(`[regenerateNewsThread] Found past state before HookStrategistNode. Forking...`);
-        const forkConfig = await NewsThreadFactoryGraph.updateState(pastState.config, {
+        console.log(`[regenerateThreadInternal] Found past state before HookStrategistNode. Forking...`);
+        const forkConfig = await graph.updateState(pastState.config, {
            guidance: args.guidance,
            manual_hook_selection: args.manual_hook_selection ?? false,
            is_approved: false,
            iterations: 0,
         });
-        finalState = await NewsThreadFactoryGraph.invoke(null, forkConfig);
+        finalState = await (graph as any).invoke(null, forkConfig);
       } else {
-        console.log(`[regenerateNewsThread] Could not find past state before HookStrategistNode. Restarting from scratch...`);
+        console.log(`[regenerateThreadInternal] Could not find past state before HookStrategistNode. Restarting from scratch...`);
         const initialState = createInitialState(args);
-        finalState = await NewsThreadFactoryGraph.invoke(initialState, config);
+        finalState = await (graph as any).invoke(initialState, config);
       }
 
-      console.log(`[regenerateNewsThread] NewsThreadFactoryGraph finished. Iterations: ${finalState.iterations}, Approved: ${finalState.is_approved}`);
-      return await handleGraphCompletion(ctx, args.recordId, finalState);
+      console.log(`[regenerateThreadInternal] Graph finished. Iterations: ${finalState.iterations}, Approved: ${finalState.is_approved}`);
+      return await handleGraphCompletion(ctx, args.recordId, finalState, args.agent);
     } catch (e) {
       await ctx.runMutation(internal.mutations.threadsMutations.updateThreadDraft, {
         id: args.recordId,
@@ -191,7 +258,7 @@ export const regenerateNewsThread = internalAction({
   },
 });
 
-export const enqueueNewsThreadResume = action({
+export const enqueueThreadResume = action({
   args: {
     recordId: v.id("threadDrafts"),
     selected_hook: v.string(),
@@ -199,25 +266,32 @@ export const enqueueNewsThreadResume = action({
   handler: async (ctx, args) => {
     const userId = await requireAuthUserId(ctx);
 
+    const draft = await ctx.runQuery(internal.queries.threadsQueries.getThreadDraftInternal, { id: args.recordId, userId });
+    if (!draft) {
+      throw new Error(`Draft ${args.recordId} not found or unauthorized`);
+    }
+
     const payload = [{
       recordId: args.recordId,
       selected_hook: args.selected_hook,
       userId,
+      agent: draft.agent,
     }];
 
-    await generationPool.enqueueActionBatch(ctx, internal.actions.threadsActions.resumeNewsThreadGeneration, payload);
+    await generationPool.enqueueActionBatch(ctx, internal.actions.threadsActions.resumeThreadInternal, payload);
   },
 });
 
-export const resumeNewsThreadGeneration = internalAction({
+export const resumeThreadInternal = internalAction({
   args: {
     recordId: v.id("threadDrafts"),
     selected_hook: v.string(),
     userId: v.id("users"),
+    agent: v.optional(v.string()),
   },
   handler: async (ctx, args): Promise<{ recordId: Id<"threadDrafts"> }> => {
     try {
-      console.log(`[resumeNewsThreadGeneration] Resuming graph for thread: ${args.recordId} with selected_hook: ${args.selected_hook}`);
+      console.log(`[resumeThreadInternal] Resuming graph for thread: ${args.recordId} with selected_hook: ${args.selected_hook}`);
 
       await ctx.runMutation(
         internal.mutations.threadsMutations.updateThreadDraft,
@@ -228,12 +302,13 @@ export const resumeNewsThreadGeneration = internalAction({
         }
       );
 
-      const finalState = await NewsThreadFactoryGraph.invoke(new Command({ resume: args.selected_hook }), {
+      const graph = getGraph(args.agent);
+      const finalState = await (graph as any).invoke(new Command({ resume: args.selected_hook }), {
         configurable: { thread_id: args.recordId }
       });
 
-      console.log(`[resumeNewsThreadGeneration] Graph resumed and finished. Iterations: ${finalState.iterations}, Approved: ${finalState.is_approved}`);
-      return await handleGraphCompletion(ctx, args.recordId, finalState);
+      console.log(`[resumeThreadInternal] Graph resumed and finished. Iterations: ${finalState.iterations}, Approved: ${finalState.is_approved}`);
+      return await handleGraphCompletion(ctx, args.recordId, finalState, args.agent);
     } catch (e) {
       await ctx.runMutation(internal.mutations.threadsMutations.updateThreadDraft, {
         id: args.recordId,
@@ -251,20 +326,28 @@ export const enqueueThreadRetry = action({
   handler: async (ctx, args) => {
     const userId = await requireAuthUserId(ctx);
 
-    const payload = args.ids.map(id => ({ recordId: id, userId }));
+    const payload = [];
+    for (const id of args.ids) {
+      const draft = await ctx.runQuery(internal.queries.threadsQueries.getThreadDraftInternal, { id, userId });
+      if (!draft) {
+        throw new Error(`Draft ${id} not found or unauthorized`);
+      }
+      payload.push({ recordId: id, userId, agent: draft.agent });
+    }
 
-    await generationPool.enqueueActionBatch(ctx, internal.actions.threadsActions.retryGeneration, payload);
+    await generationPool.enqueueActionBatch(ctx, internal.actions.threadsActions.retryThreadInternal, payload);
   },
 });
 
-export const retryGeneration = internalAction({
+export const retryThreadInternal = internalAction({
   args: {
     recordId: v.id("threadDrafts"),
     userId: v.id("users"),
+    agent: v.optional(v.string()),
   },
   handler: async (ctx, args): Promise<{ recordId: Id<"threadDrafts"> }> => {
     try {
-      console.log(`[retryGeneration] Retrying graph for thread: ${args.recordId}`);
+      console.log(`[retryThreadInternal] Retrying graph for thread: ${args.recordId}`);
 
       await ctx.runMutation(
         internal.mutations.threadsMutations.updateThreadDraft,
@@ -274,12 +357,13 @@ export const retryGeneration = internalAction({
         }
       );
 
-      const finalState = await NewsThreadFactoryGraph.invoke(null, {
+      const graph = getGraph(args.agent);
+      const finalState = await (graph as any).invoke(null, {
         configurable: { thread_id: args.recordId }
       });
 
-      console.log(`[retryGeneration] Graph retried and finished. Iterations: ${finalState.iterations}, Approved: ${finalState.is_approved}`);
-      return await handleGraphCompletion(ctx, args.recordId, finalState);
+      console.log(`[retryThreadInternal] Graph retried and finished. Iterations: ${finalState.iterations}, Approved: ${finalState.is_approved}`);
+      return await handleGraphCompletion(ctx, args.recordId, finalState, args.agent);
     } catch (e) {
       await ctx.runMutation(internal.mutations.threadsMutations.updateThreadDraft, {
         id: args.recordId,
@@ -313,10 +397,11 @@ export const enqueueThreadRegeneration = action({
         manual_hook_selection: manual_hook_selection,
         userId,
         recordId: id,
+        agent: draft.agent,
       });
     }
 
-    await generationPool.enqueueActionBatch(ctx, internal.actions.threadsActions.regenerateNewsThread, payload);
+    await generationPool.enqueueActionBatch(ctx, internal.actions.threadsActions.regenerateThreadInternal, payload);
   },
 });
 
@@ -398,9 +483,7 @@ export const publishThread = internalAction({
       const threadsApi = new ThreadsAPI(tokenDoc.token, "me");
 
       // 4. Publish the posts in sequence
-      // A post containing the url should be appended to the end
-      const threadToPublish = args.modified_thread || state.thread_draft;
-      const postsToPublish = [...threadToPublish, state.url];
+      const postsToPublish = args.modified_thread || state.thread_draft;
       const postIds: string[] = [];
       let replyToId: string | undefined = undefined;
 
@@ -474,4 +557,38 @@ export const deleteThreadDraft = action({
 
     await ctx.runMutation(internal.mutations.threadsMutations.deleteThreadDraftInternal, { id: args.id });
   }
+});
+
+export const getUrlMetadata = action({
+  args: { url: v.string() },
+  handler: async (ctx, args) => {
+    try {
+      const response = await fetch(args.url, {
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        },
+      });
+      const html = await response.text();
+
+      // Helper to extract content from meta tags
+      const getMetaTag = (property: string) => {
+        const regex = new RegExp(`<meta[^>]+(?:property|name)=["']${property}["'][^>]+content=["']([^"']+)["']`, "i");
+        const match = html.match(regex);
+        if (match) return match[1];
+
+        const reverseRegex = new RegExp(`<meta[^>]+content=["']([^"']+)["'][^>]+(?:property|name)=["']${property}["']`, "i");
+        const reverseMatch = html.match(reverseRegex);
+        return reverseMatch ? reverseMatch[1] : null;
+      };
+
+      const title = getMetaTag("og:title") || getMetaTag("twitter:title") || "";
+      const description = getMetaTag("og:description") || getMetaTag("twitter:description") || getMetaTag("description") || "";
+      const image = getMetaTag("og:image") || getMetaTag("twitter:image") || "";
+
+      return { title, description, image };
+    } catch (e) {
+      console.error("Failed to fetch URL metadata:", e);
+      return { title: "", description: "", image: "" };
+    }
+  },
 });

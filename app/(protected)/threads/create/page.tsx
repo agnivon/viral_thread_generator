@@ -18,15 +18,15 @@ import {
 } from "@/components/ui/card";
 
 export default function CreateThreadPage() {
-  const [entries, setEntries] = useState([{ url: "", guidance: "", manual_hook_selection: false }]);
+  const [entries, setEntries] = useState([{ url: "", guidance: "", manual_hook_selection: false, agent: "news" }]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
-  const enqueueNewsThreadGeneration = useAction(api.actions.threadsActions.enqueueNewsThreadGeneration);
+  const enqueueThreadGeneration = useAction(api.actions.threadsActions.enqueueThreadGeneration);
   const router = useRouter();
 
   const handleAddEntry = () => {
-    setEntries([...entries, { url: "", guidance: "", manual_hook_selection: false }]);
+    setEntries([...entries, { url: "", guidance: "", manual_hook_selection: false, agent: "news" }]);
   };
 
   const handleRemoveEntry = (index: number) => {
@@ -35,7 +35,7 @@ export default function CreateThreadPage() {
 
   const handleChange = (
     index: number,
-    field: "url" | "guidance" | "manual_hook_selection",
+    field: "url" | "guidance" | "manual_hook_selection" | "agent",
     value: string | boolean
   ) => {
     const newEntries = [...entries];
@@ -53,11 +53,12 @@ export default function CreateThreadPage() {
 
     try {
       // Trigger thread generation enqueuing
-      await enqueueNewsThreadGeneration({ 
+      await enqueueThreadGeneration({ 
         requests: validEntries.map(entry => ({ 
           url: entry.url, 
           guidance: entry.guidance || undefined,
-          manual_hook_selection: entry.manual_hook_selection
+          manual_hook_selection: entry.manual_hook_selection,
+          agent: (entry as any).agent || "news"
         })) 
       });
       // Redirect to drafts list page
@@ -142,6 +143,41 @@ export default function CreateThreadPage() {
                       required
                       className="w-full bg-background/50 border-border/80 focus-visible:ring-violet-500/30 focus-visible:border-violet-500 rounded-lg transition-all"
                     />
+                  </div>
+
+                  {/* Agent Selection */}
+                  <div className="space-y-2.5">
+                    <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5 text-indigo-500" /> Choose Agent Role
+                    </Label>
+                    <div className="grid grid-cols-2 gap-3">
+                      <button
+                        type="button"
+                        onClick={() => handleChange(index, "agent", "news")}
+                        disabled={isLoading}
+                        className={`flex flex-col items-center justify-center p-3.5 rounded-xl border transition-all duration-300 text-center cursor-pointer ${
+                          (entry as any).agent === "news" || !(entry as any).agent
+                            ? "border-violet-500 bg-violet-500/5 ring-1 ring-violet-500/50"
+                            : "border-border/80 bg-background/40 hover:border-violet-500/30 hover:bg-muted/10"
+                        }`}
+                      >
+                        <span className="text-xs font-bold text-foreground">News Editor</span>
+                        <span className="text-[10px] text-muted-foreground mt-1">Factual, journalistic layout</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleChange(index, "agent", "social_media")}
+                        disabled={isLoading}
+                        className={`flex flex-col items-center justify-center p-3.5 rounded-xl border transition-all duration-300 text-center cursor-pointer ${
+                          (entry as any).agent === "social_media"
+                            ? "border-violet-500 bg-violet-500/5 ring-1 ring-violet-500/50"
+                            : "border-border/80 bg-background/40 hover:border-violet-500/30 hover:bg-muted/10"
+                        }`}
+                      >
+                        <span className="text-xs font-bold text-foreground">Social Specialist</span>
+                        <span className="text-[10px] text-muted-foreground mt-1">Punchy, hook-focused copy</span>
+                      </button>
+                    </div>
                   </div>
 
                   {/* AI Guidance Textarea */}

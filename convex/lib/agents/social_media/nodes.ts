@@ -12,20 +12,28 @@ import {
   scraperFallbackLlm,
   scraperPrimaryLlm, scraperPrimaryLlmBackup,
   writerFallbackLlm1, writerFallbackLlm3, writerFallbackLlm3Backup,
-  writerPrimaryLlm, writerPrimaryLlmBackup
+  writerPrimaryLlm, writerPrimaryLlmBackup,
+  researcherPrimaryLlm, researcherPrimaryLlmBackup, researcherFallbackLlm
 } from "../models.js";
 import {
-  HOOK_STRATEGIST_NODE_PROMPT,
-  SCRAPER_NODE_PROMPT,
-  THREAD_WRITER_NODE_PROMPT,
-  VIRALITY_CRITIC_NODE_PROMPT
+  SOCIAL_MEDIA_HOOK_PROMPT,
+  SOCIAL_MEDIA_SCRAPER_PROMPT,
+  SOCIAL_MEDIA_WRITER_PROMPT,
+  SOCIAL_MEDIA_CRITIC_PROMPT,
+  SOCIAL_MEDIA_RESEARCHER_PROMPT
 } from "./prompts.js";
-import { NewsThreadFactoryStateType } from "./state.js";
-import { CharacterValidatorTool, ContentAuthenticityCheckerTool, TopicContextExpanderTool, WebScraperTool } from "./tools.js";
+import { SocialMediaThreadFactoryStateType } from "./state.js";
+import { 
+  CharacterValidatorTool, 
+  ContentAuthenticityCheckerTool, 
+  TopicContextExpanderTool, 
+  WebScraperTool,
+  BackgroundDossierTool
+} from "./tools.js";
 import { buildAgents, invokeWithFallbacks } from "../utils.js";
 
 
-export const ScraperNode = async (state: NewsThreadFactoryStateType, config?: RunnableConfig) => {
+export const PostScraperNode = async (state: SocialMediaThreadFactoryStateType, config?: RunnableConfig) => {
   const scraperResultStr = await WebScraperTool.invoke({ url: state.url }, config);
   let markdown = scraperResultStr as string;
   let images: string[] = [];
@@ -41,7 +49,7 @@ export const ScraperNode = async (state: NewsThreadFactoryStateType, config?: Ru
 
   try {
     const summary = await llm.invoke([
-      { role: "system", content: SCRAPER_NODE_PROMPT },
+      { role: "system", content: SOCIAL_MEDIA_SCRAPER_PROMPT },
       { role: "user", content: markdown as string }
     ], config);
     return {
@@ -51,7 +59,7 @@ export const ScraperNode = async (state: NewsThreadFactoryStateType, config?: Ru
       retries: { ...(state.retries || {}), scraper: (state.retries?.scraper || 0) + 1 }
     };
   } catch (_e) {
-    console.warn("ScraperNode output failed");
+    console.warn("PostScraperNode output failed");
     return {
       parse_success: false,
       retries: { ...(state.retries || {}), scraper: (state.retries?.scraper || 0) + 1 }
@@ -59,7 +67,48 @@ export const ScraperNode = async (state: NewsThreadFactoryStateType, config?: Ru
   }
 };
 
-export const HookStrategistNode = async (state: NewsThreadFactoryStateType, config?: RunnableConfig) => {
+export const ContextResearcherNode = async (state: SocialMediaThreadFactoryStateType, config?: RunnableConfig) => {
+  const schema = z.object({
+    research_context: z.string().min(1, "Must generate research context")
+  });
+
+  const agents = buildAgents(
+    [researcherPrimaryLlm, researcherPrimaryLlmBackup, researcherFallbackLlm],
+    {
+      tools: [BackgroundDossierTool],
+      systemPrompt: SOCIAL_MEDIA_RESEARCHER_PROMPT,
+      responseFormat: providerStrategy(schema)
+    }
+  );
+
+  let result;
+  let parse_success = false;
+
+  try {
+    result = await invokeWithFallbacks(agents, {
+      messages: [{ role: "user", content: state.raw_markdown }]
+    }, config);
+    parse_success = true;
+  } catch (_e) {
+    parse_success = false;
+  }
+
+  let research_context = "";
+
+  if (parse_success && result?.structuredResponse) {
+    research_context = result.structuredResponse.research_context || "";
+  } else {
+    parse_success = false;
+  }
+
+  return {
+    research_context,
+    parse_success,
+    retries: { ...(state.retries || {}), researcher: (state.retries?.researcher || 0) + 1 }
+  };
+};
+
+export const HookStrategistNode = async (state: SocialMediaThreadFactoryStateType, config?: RunnableConfig) => {
   const schema = z.object({
     core_hooks: z.array(z.string()).min(1, "Must generate at least one hook"),
     selected_hook: z.string().min(1, "Must select a hook")
@@ -69,7 +118,7 @@ export const HookStrategistNode = async (state: NewsThreadFactoryStateType, conf
     [hookPrimaryLlm, hookPrimaryLlmBackup, hookFallbackLlm1, hookFallbackLlm2],
     {
       tools: [TopicContextExpanderTool],
-      systemPrompt: HOOK_STRATEGIST_NODE_PROMPT,
+      systemPrompt: SOCIAL_MEDIA_HOOK_PROMPT,
       responseFormat: providerStrategy(schema)
     }
   );
@@ -79,8 +128,9 @@ export const HookStrategistNode = async (state: NewsThreadFactoryStateType, conf
 
   try {
     const guidanceContext = state.guidance ? `\n\nADDITIONAL GUIDANCE:\n${state.guidance}` : "";
+    const researchContextStr = state.research_context ? `\n\nRESEARCH CONTEXT:\n${state.research_context}` : "";
     result = await invokeWithFallbacks(agents, {
-      messages: [{ role: "user", content: `${state.raw_markdown}${guidanceContext}` }]
+      messages: [{ role: "user", content: `${state.raw_markdown}${researchContextStr}${guidanceContext}` }]
     }, config);
     parse_success = true;
   } catch (_e) {
@@ -105,7 +155,7 @@ export const HookStrategistNode = async (state: NewsThreadFactoryStateType, conf
   };
 };
 
-export const ThreadWriterNode = async (state: NewsThreadFactoryStateType, config?: RunnableConfig) => {
+export const ThreadWriterNode = async (state: SocialMediaThreadFactoryStateType, config?: RunnableConfig) => {
   const schema = z.object({
     thread_draft: z.array(z.string()).min(1, "Must generate at least one post for the thread draft")
   });
@@ -126,17 +176,18 @@ export const ThreadWriterNode = async (state: NewsThreadFactoryStateType, config
   let postCritiquesContext = "";
   if (state.post_critiques && state.post_critiques.length > 0) {
     postCritiquesContext = "\n\nPOST-SPECIFIC CRITIQUES:\n" +
-      state.post_critiques.map(pc => `Post ${pc.post_index}: ${pc.critique}`).join("\n");
+      state.post_critiques.map(pc => `Post ${pc.post_index}: ${pc.critique}${pc.fix_directive ? `\nFix Directive: ${pc.fix_directive}` : ''}`).join("\n\n");
   }
   const charCritiqueContext = state.character_critique ? `\n\nCHARACTER & FORMATTING CONSTRAINTS FAILED:\n${state.character_critique}\nFix the previous draft to respect these exact formatting constraints.` : "";
   const guidanceContext = state.guidance ? `\n\nADDITIONAL GUIDANCE:\n${state.guidance}` : "";
+  const researchContextStr = state.research_context ? `\n\nRESEARCH CONTEXT:\n${state.research_context}` : "";
 
   let draft;
   let parse_success = true;
   try {
     draft = await structuredLlm.invoke([
-      { role: "system", content: THREAD_WRITER_NODE_PROMPT },
-      { role: "user", content: `HOOK:\n${state.selected_hook}\n\nSOURCE:\n${state.raw_markdown}${previousDraftContext}${critiqueContext}${postCritiquesContext}${charCritiqueContext}${guidanceContext}` }
+      { role: "system", content: SOCIAL_MEDIA_WRITER_PROMPT },
+      { role: "user", content: `HOOK:\n${state.selected_hook}\n\nSOURCE:\n${state.raw_markdown}${researchContextStr}${previousDraftContext}${critiqueContext}${postCritiquesContext}${charCritiqueContext}${guidanceContext}` }
     ], { ...config, timeout: 300000 });
     if (!draft || !draft.thread_draft) parse_success = false;
   } catch (_e) {
@@ -150,7 +201,7 @@ export const ThreadWriterNode = async (state: NewsThreadFactoryStateType, config
   };
 };
 
-export const CharacterValidatorNode = async (state: NewsThreadFactoryStateType, config?: RunnableConfig) => {
+export const CharacterValidatorNode = async (state: SocialMediaThreadFactoryStateType, config?: RunnableConfig) => {
   const validationStr = await CharacterValidatorTool.invoke({ thread_draft: state.thread_draft }, config);
   const validation = JSON.parse(validationStr);
 
@@ -168,13 +219,14 @@ export const CharacterValidatorNode = async (state: NewsThreadFactoryStateType, 
   };
 };
 
-export const ViralityCriticNode = async (state: NewsThreadFactoryStateType, config?: RunnableConfig) => {
+export const ViralityCriticNode = async (state: SocialMediaThreadFactoryStateType, config?: RunnableConfig) => {
   const schema = z.object({
     virality_score: z.number(),
     overall_critique: z.string(),
     post_critiques: z.array(z.object({
       post_index: z.number(),
-      critique: z.string()
+      critique: z.string(),
+      fix_directive: z.string()
     }))
   });
 
@@ -186,7 +238,7 @@ export const ViralityCriticNode = async (state: NewsThreadFactoryStateType, conf
     ],
     {
       tools: [ContentAuthenticityCheckerTool],
-      systemPrompt: VIRALITY_CRITIC_NODE_PROMPT,
+      systemPrompt: SOCIAL_MEDIA_CRITIC_PROMPT,
       responseFormat: providerStrategy(schema)
     }
   );
@@ -196,9 +248,10 @@ export const ViralityCriticNode = async (state: NewsThreadFactoryStateType, conf
 
   try {
     const guidanceContext = state.guidance ? `\n\nADDITIONAL GUIDANCE:\n${state.guidance}` : "";
+    const researchContextStr = state.research_context ? `\n\nRESEARCH CONTEXT:\n${state.research_context}` : "";
     result = await invokeWithFallbacks(agents, {
       messages: [
-        { role: "user", content: `CURRENT ITERATION ATTEMPT: ${state.iterations + 1}\n\nSOURCE MATERIAL:\n${state.raw_markdown}\n\nTHREAD:\n${JSON.stringify(state.thread_draft, null, 2)}${guidanceContext}` }
+        { role: "user", content: `CURRENT ITERATION ATTEMPT: ${state.iterations + 1}\n\nSOURCE MATERIAL:\n${state.raw_markdown}\n\nRESEARCH CONTEXT:\n${researchContextStr}\n\nTHREAD:\n${JSON.stringify(state.thread_draft, null, 2)}${guidanceContext}` }
       ]
     }, { ...config, timeout: 300000 });
     parse_success = true;
@@ -209,10 +262,10 @@ export const ViralityCriticNode = async (state: NewsThreadFactoryStateType, conf
   let finalCritique = "";
   let finalApproval = false;
   let virality_score;
-  let post_critiques: { post_index: number; critique: string }[] = [];
+  let post_critiques: { post_index: number; critique: string; fix_directive?: string }[] = [];
 
   if (parse_success && result?.structuredResponse) {
-    finalCritique = result.structuredResponse.overall_critique || "";
+    finalCritique = result.structuredResponse.overall_critique || ""; 
     virality_score = result.structuredResponse.virality_score;
     finalApproval = typeof virality_score === 'number' && virality_score >= 85;
     post_critiques = result.structuredResponse.post_critiques || [];
@@ -238,7 +291,7 @@ export const ViralityCriticNode = async (state: NewsThreadFactoryStateType, conf
   };
 };
 
-export const ManualHookSelectionNode = async (state: NewsThreadFactoryStateType, config?: RunnableConfig) => {
+export const ManualHookSelectionNode = async (state: SocialMediaThreadFactoryStateType, config?: RunnableConfig) => {
   const selected_hook = interrupt({
     core_hooks: state.core_hooks,
     action: "Please select a hook to proceed."

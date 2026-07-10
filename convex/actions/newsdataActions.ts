@@ -6,8 +6,8 @@ import { db } from "../lib/firebase";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { SystemMessage, HumanMessage } from "@langchain/core/messages";
-import { criticFallbackLlm2, criticFallbackLlm2Backup } from "../lib/agents/models";
-import { VIRALITY_SCORER_NODE_PROMPT } from "../lib/agents/prompts";
+import { criticFallbackLlm3, criticFallbackLlm3Backup } from "../lib/agents/models";
+import { VIRALITY_SCORER_NODE_PROMPT } from "../lib/agents/news/prompts";
 import { z } from "zod";
 import { v } from "convex/values";
 
@@ -314,8 +314,8 @@ export const evaluateNewsArticle = action({
       hook_potential_analysis: z.string(),
     });
 
-    const primaryStructured = criticFallbackLlm2.withStructuredOutput(viralityScoreSchema);
-    const backupStructured = criticFallbackLlm2Backup.withStructuredOutput(viralityScoreSchema);
+    const primaryStructured = criticFallbackLlm3.withStructuredOutput(viralityScoreSchema);
+    const backupStructured = criticFallbackLlm3Backup.withStructuredOutput(viralityScoreSchema);
     const structuredLlm = primaryStructured.withFallbacks({ fallbacks: [backupStructured] });
     
     const parsedResult = await structuredLlm.invoke([

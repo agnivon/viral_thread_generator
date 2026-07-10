@@ -1,48 +1,35 @@
 "use node";
 
 import { StateGraph, START, END } from "@langchain/langgraph";
-import { PostgresSaver } from "@langchain/langgraph-checkpoint-postgres";
-import pg from "pg";
-import { NewsThreadFactoryState, NewsThreadFactoryStateType } from "./state.js";
-import { ScraperNode, HookStrategistNode, ThreadWriterNode, CharacterValidatorNode, ViralityCriticNode, ManualHookSelectionNode } from "./nodes.js";
+import { checkpointSaver } from "../news/graph.js"; // Reuse the postgres saver
+import { SocialMediaThreadFactoryState, SocialMediaThreadFactoryStateType } from "./state.js";
+import { 
+  PostScraperNode, 
+  ContextResearcherNode,
+  HookStrategistNode, 
+  ThreadWriterNode, 
+  CharacterValidatorNode, 
+  ViralityCriticNode, 
+  ManualHookSelectionNode 
+} from "./nodes.js";
 
-const { Pool } = pg;
-
-// Aiven URLs often contain ?sslmode=require which overrides custom SSL objects in the pg driver.
-// We parse the URL and remove sslmode so our explicit sslConfig takes precedence.
-let connectionString = process.env.POSTGRES_URL;
-if (connectionString) {
-  try {
-    const dbUrl = new URL(connectionString);
-    dbUrl.searchParams.delete("sslmode");
-    connectionString = dbUrl.toString();
-  } catch (e) {
-    // Ignore URL parse error in tests
-  }
-}
-
-const sslConfig = process.env.POSTGRES_CA_CERT
-  ? { ca: process.env.POSTGRES_CA_CERT.replace(/\\n/g, '\n'), rejectUnauthorized: true }
-  : { rejectUnauthorized: false };
-
-export const pool = new Pool({
-  connectionString,
-  ssl: sslConfig,
-  max: 1, // Limit connections per isolate to prevent exhaustion in serverless environments
-  idleTimeoutMillis: 10000,
-});
-
-export const checkpointSaver = new PostgresSaver(pool);
-
-const route_after_scraper = (state: NewsThreadFactoryStateType) => {
+const route_after_scraper = (state: SocialMediaThreadFactoryStateType) => {
   if (!state.parse_success) {
-    if ((state.retries?.scraper || 0) >= 3) throw new Error("ScraperNode failed after 3 retries");
-    return "ScraperNode";
+    if ((state.retries?.scraper || 0) >= 3) throw new Error("PostScraperNode failed after 3 retries");
+    return "PostScraperNode";
+  }
+  return "ContextResearcherNode";
+};
+
+const route_after_researcher = (state: SocialMediaThreadFactoryStateType) => {
+  if (!state.parse_success) {
+    if ((state.retries?.researcher || 0) >= 3) throw new Error("ContextResearcherNode failed after 3 retries");
+    return "ContextResearcherNode";
   }
   return "HookStrategistNode";
 };
 
-const route_after_hook = (state: NewsThreadFactoryStateType) => {
+const route_after_hook = (state: SocialMediaThreadFactoryStateType) => {
   if (!state.parse_success) {
     if ((state.retries?.hook || 0) >= 3) throw new Error("HookStrategistNode failed after 3 retries");
     return "HookStrategistNode";
@@ -53,7 +40,7 @@ const route_after_hook = (state: NewsThreadFactoryStateType) => {
   return "ThreadWriterNode";
 };
 
-const route_after_writer = (state: NewsThreadFactoryStateType) => {
+const route_after_writer = (state: SocialMediaThreadFactoryStateType) => {
   if (!state.parse_success) {
     if ((state.retries?.writer || 0) >= 3) throw new Error("ThreadWriterNode failed after 3 retries");
     return "ThreadWriterNode";
@@ -61,7 +48,7 @@ const route_after_writer = (state: NewsThreadFactoryStateType) => {
   return "CharacterValidatorNode";
 };
 
-const route_after_validator = (state: NewsThreadFactoryStateType) => {
+const route_after_validator = (state: SocialMediaThreadFactoryStateType) => {
   if (!state.is_character_valid) {
     if ((state.retries?.validator || 0) >= 3) {
       if (!state.character_critique.includes("characters long")) {
@@ -76,7 +63,7 @@ const route_after_validator = (state: NewsThreadFactoryStateType) => {
   return "ViralityCriticNode";
 };
 
-const route_after_critic = (state: NewsThreadFactoryStateType) => {
+const route_after_critic = (state: SocialMediaThreadFactoryStateType) => {
   if (!state.parse_success) {
     if ((state.retries?.critic || 0) >= 3) throw new Error("ViralityCriticNode failed after 3 retries");
     return "ViralityCriticNode";
@@ -87,17 +74,18 @@ const route_after_critic = (state: NewsThreadFactoryStateType) => {
   return "ThreadWriterNode";
 };
 
-
-export const NewsThreadFactoryGraph = new StateGraph(NewsThreadFactoryState)
+export const SocialMediaThreadFactoryGraph = new StateGraph(SocialMediaThreadFactoryState)
   .setNodeDefaults({ timeout: { runTimeout: 3_00_000, idleTimeout: 2_00_000 } })
-  .addNode("ScraperNode", ScraperNode)
+  .addNode("PostScraperNode", PostScraperNode)
+  .addNode("ContextResearcherNode", ContextResearcherNode)
   .addNode("HookStrategistNode", HookStrategistNode)
   .addNode("ManualHookSelectionNode", ManualHookSelectionNode)
   .addNode("ThreadWriterNode", ThreadWriterNode)
   .addNode("CharacterValidatorNode", CharacterValidatorNode)
   .addNode("ViralityCriticNode", ViralityCriticNode)
-  .addEdge(START, "ScraperNode")
-  .addConditionalEdges("ScraperNode", route_after_scraper, ["HookStrategistNode", "ScraperNode"])
+  .addEdge(START, "PostScraperNode")
+  .addConditionalEdges("PostScraperNode", route_after_scraper, ["ContextResearcherNode", "PostScraperNode"])
+  .addConditionalEdges("ContextResearcherNode", route_after_researcher, ["HookStrategistNode", "ContextResearcherNode"])
   .addConditionalEdges("HookStrategistNode", route_after_hook, ["ThreadWriterNode", "HookStrategistNode", "ManualHookSelectionNode"])
   .addEdge("ManualHookSelectionNode", "ThreadWriterNode")
   .addConditionalEdges("ThreadWriterNode", route_after_writer, ["CharacterValidatorNode", "ThreadWriterNode"])

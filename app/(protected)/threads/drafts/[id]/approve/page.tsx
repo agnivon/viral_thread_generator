@@ -34,7 +34,7 @@ export default function ApproveDraftPage() {
   const state = useQuery(api.queries.threadsQueries.getThreadDraft, { id });
   const enqueuePublication = useAction(api.actions.threadsActions.enqueueThreadPublication);
   const enqueueRegeneration = useAction(api.actions.threadsActions.enqueueThreadRegeneration);
-  const resumeAction = useAction(api.actions.threadsActions.enqueueNewsThreadResume);
+  const resumeAction = useAction(api.actions.threadsActions.enqueueThreadResume);
 
   const [isPublishing, setIsPublishing] = useState(false);
   const [isRegenerating, setIsRegenerating] = useState(false);

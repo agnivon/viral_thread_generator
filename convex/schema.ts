@@ -34,8 +34,10 @@ export default defineSchema(
       .index("by_userId_platform_active", ["userId", "platform", "active"]),
     threadDrafts: defineTable({
       url: v.string(),
+      agent: v.optional(v.string()),
       userId: v.id("users"),
       raw_markdown: v.optional(v.string()),
+      research_context: v.optional(v.string()),
       guidance: v.optional(v.string()),
       core_hooks: v.optional(v.array(v.string())),
       selected_hook: v.optional(v.union(v.string(), v.null())),
@@ -45,7 +47,8 @@ export default defineSchema(
       virality_score: v.optional(v.number()),
       post_critiques: v.optional(v.array(v.object({
         post_index: v.number(),
-        critique: v.string()
+        critique: v.string(),
+        fix_directive: v.optional(v.string())
       }))),
       iterations: v.optional(v.number()),
       is_approved: v.optional(v.boolean()),

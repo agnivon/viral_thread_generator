@@ -5,6 +5,7 @@ import { z } from "zod";
 import FirecrawlApp from "@mendable/firecrawl-js";
 import { tavily } from "@tavily/core";
 import "dotenv/config";
+import { JinaClient } from "../../jina/api";
 
 // 1. WebScraperTool (Firecrawl API)
 export const WebScraperTool = tool(
@@ -16,19 +17,21 @@ export const WebScraperTool = tool(
       const markdown = scrapeResult.markdown || "No content found.";
       const images = scrapeResult.images || [];
       return JSON.stringify({ markdown, images });
-    } catch (_e) {
+      } catch (_e) {
       console.warn(`[WebScraperTool] Firecrawl failed for ${url}, falling back to Jina Reader...`);
       try {
-        const jinaResponse = await fetch(`https://r.jina.ai/${url}`, {
-          headers: {
-            "Authorization": `Bearer ${process.env.JINA_API_KEY}`
-          }
-        });
-        if (!jinaResponse.ok) {
-          throw new Error(`Jina Reader failed with status: ${jinaResponse.status}`);
+        const jina = new JinaClient();
+        const jinaResult = await jina.read(url, { respondWith: 'markdown' });
+        
+        let markdown = "No content found.";
+        if (typeof jinaResult === 'string') {
+          markdown = jinaResult;
+        } else if (jinaResult?.data?.content) {
+          markdown = jinaResult.data.content;
+        } else if (jinaResult?.data?.text) {
+          markdown = jinaResult.data.text;
         }
-        const text = await jinaResponse.text();
-        const markdown = text || "No content found.";
+        
         const images = Array.from(markdown.matchAll(/!\\[.*?\\]\\((.*?)\\)/g)).map((m: any) => m[1]);
         return JSON.stringify({ markdown, images });
       } catch (fallbackErr) {
@@ -50,13 +53,34 @@ export const WebScraperTool = tool(
 export const CharacterValidatorTool = tool(
   async ({ thread_draft, check_line_breaks }) => {
     const errors: string[] = [];
+    let over200Count = 0;
+
+    const banned_phrases = [
+      "a thread 🧵", "read below", "let's dive in", "here is why",
+      "save this tweet", "what do you think?", "let's discuss"
+    ];
+
+    // 5. Thread Length Validation (The 9-Post Rule)
+    if (thread_draft.length > 9) {
+      errors.push("Thread exceeds the 9-post maximum limit. Condense the body.");
+    }
+
     thread_draft.forEach((post, index) => {
       let position = "Body";
       if (index === 0) position = "Hook";
       else if (index === thread_draft.length - 1) position = "CTA";
 
-      if (post.length > 280) {
-        errors.push(`Post ${index + 1} (${position}) is ${post.length} characters long. Maximum allowed is 280 characters.`);
+      // 1. Hook length validation removed per user request.
+      // 2. Body Post Length & Relief Valve Validation
+      if (index !== 0) {
+        if (post.length > 200) {
+          over200Count++;
+        }
+      }
+
+      // Hard ceiling breached
+      if (post.length > 500) {
+        errors.push(`Post ${index + 1} (${position}) is ${post.length} characters long. Hard ceiling of 500 characters breached.`);
       }
 
       if (check_line_breaks !== false) {
@@ -66,11 +90,19 @@ export const CharacterValidatorTool = tool(
         }
       }
 
-      // Check for common LLM markdown formatting
-      const formattingRegex = /(\*\*|__|~~|`|#\s+|>+\s+|\[.*\]\(.*\))/g;
+      // Complex markdown check for formatting (including any use of asterisks)
+      const formattingRegex = /(\*|__|~~|`|#\s+|>+\s+|\[.*\]\(.*\))/g;
       const foundFormatting = post.match(formattingRegex);
       if (foundFormatting) {
         errors.push(`Post ${index + 1} (${position}) contains invalid markdown formatting characters (${foundFormatting.join(", ")}). Remove all markdown formatting (bold, italic, headers, code blocks, etc).`);
+      }
+
+      // 4. Exact-Match Banned Phrase Validation
+      const postLower = post.toLowerCase();
+      for (const phrase of banned_phrases) {
+        if (postLower.includes(phrase)) {
+          errors.push(`Post ${index + 1} (${position}) contains banned engagement phrase: "${phrase}".`);
+        }
       }
 
       // Check for raw hyperlinks (URLs)
@@ -80,6 +112,10 @@ export const CharacterValidatorTool = tool(
         errors.push(`Post ${index + 1} (${position}) contains a hyperlink (${foundUrls.join(", ")}). Hyperlinks are strictly forbidden in the Hook and Body posts. Remove all URLs.`);
       }
     });
+
+    if (over200Count > 3) {
+      errors.push(`Thread contains ${over200Count} posts over 200 characters (excluding the hook). Only 3 relief valve posts > 200 characters are allowed.`);
+    }
 
     return JSON.stringify({
       isValid: errors.length === 0,

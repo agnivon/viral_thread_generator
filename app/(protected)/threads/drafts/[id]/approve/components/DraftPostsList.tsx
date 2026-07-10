@@ -1,6 +1,7 @@
 import { Sparkles, Image as ImageIcon, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CardContent } from "@/components/ui/card";
+import { LinkPreviewCard } from "./LinkPreviewCard";
 
 interface DraftPostsListProps {
   posts: string[];
@@ -12,6 +13,12 @@ interface DraftPostsListProps {
   onAttachImage: (index: number) => void;
   onRemoveImage: (index: number) => void;
 }
+
+const getFirstUrl = (text: string): string | null => {
+  const urlRegex = /(https?:\/\/[^\s]+)/g;
+  const match = text.match(urlRegex);
+  return match ? match[0] : null;
+};
 
 export function DraftPostsList({
   posts,
@@ -32,6 +39,7 @@ export function DraftPostsList({
         const postName = `posts.${index}` as const;
         const watchedValue = watch(postName) ?? post;
         const charCount = watchedValue.length;
+        const detectedUrl = getFirstUrl(watchedValue);
 
         return (
           <div 
@@ -56,6 +64,12 @@ export function DraftPostsList({
                     rows={4}
                     className="w-full text-sm bg-background border border-border focus:border-violet-500 focus:ring-1 focus:ring-violet-500 focus:outline-none rounded-lg p-3.5 resize-y leading-relaxed"
                   />
+                  
+                  {/* URL Link Preview */}
+                  {detectedUrl && (
+                    <LinkPreviewCard url={detectedUrl} />
+                  )}
+
                   {/* Selected image or Add Image button in edit mode */}
                   {selectedImages[index.toString()] ? (
                     <div className="relative mt-3 rounded-xl overflow-hidden border border-border/80 group/image max-w-md bg-muted/20 animate-in fade-in duration-200">
@@ -104,6 +118,12 @@ export function DraftPostsList({
               ) : (
                 <div className="flex-1 space-y-2">
                   <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground flex-1 pt-0.5">{watchedValue}</p>
+                  
+                  {/* URL Link Preview */}
+                  {detectedUrl && (
+                    <LinkPreviewCard url={detectedUrl} />
+                  )}
+
                   {/* Selected image preview in non-edit mode */}
                   {selectedImages[index.toString()] && (
                     <div className="relative mt-3 rounded-xl overflow-hidden border border-border/80 max-w-md bg-muted/20">

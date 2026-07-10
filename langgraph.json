@@ -1,7 +1,10 @@
 {
-  "dependencies": ["."],
+  "dependencies": [
+    "."
+  ],
   "graphs": {
-    "agent": "./convex/lib/agents/graph.ts:NewsThreadFactoryGraph"
+    "news": "./convex/lib/agents/news/graph.ts:NewsThreadFactoryGraph",
+    "social_media": "./convex/lib/agents/social_media/graph.ts:SocialMediaThreadFactoryGraph"
   },
   "env": "./.env.local"
 }

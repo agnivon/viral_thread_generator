@@ -88,7 +88,8 @@ test("generateNewsThread action runs graph and saves result", async () => {
   // Mock getState to return empty next tasks so it thinks it finished without interrupt
   vi.spyOn(NewsThreadFactoryGraph, "getState").mockResolvedValue({ next: [] } as any);
 
-  const { recordId } = await t.action(internal.actions.threadsActions.generateNewsThread, {
+  // 4. Trigger generation internal action
+  const { recordId } = await t.action(internal.actions.threadsActions.generateThreadInternal, {
     url: "https://example.com/target-url",
     manual_hook_selection: true,
     userId,
@@ -119,7 +120,7 @@ test("generateNewsThread action runs graph and saves result", async () => {
     raw_markdown: expectedDbFields.raw_markdown,
     core_hooks: expectedDbFields.core_hooks,
     selected_hook: expectedDbFields.selected_hook,
-    thread_draft: expectedDbFields.thread_draft,
+    thread_draft: [...expectedDbFields.thread_draft, "https://example.com/target-url"],
     critique: expectedDbFields.critique,
     virality_score: expectedDbFields.virality_score,
     post_critiques: expectedDbFields.post_critiques,
@@ -174,7 +175,8 @@ test("resumeNewsThreadGeneration action resumes graph and saves result", async (
   const invokeSpy = vi.spyOn(NewsThreadFactoryGraph, "invoke").mockResolvedValue(mockGraphOutput);
   vi.spyOn(NewsThreadFactoryGraph, "getState").mockResolvedValue({ next: [] } as any);
 
-  const { recordId } = await t.action(internal.actions.threadsActions.resumeNewsThreadGeneration, {
+  // 5. Resume the internal action
+  const { recordId } = await t.action(internal.actions.threadsActions.resumeThreadInternal, {
     recordId: stateId,
     selected_hook: "Hook 2",
     userId,
@@ -227,8 +229,7 @@ test("publishThread action retrieves state and publishes thread of posts sequent
   // 3. Spy/Mock ThreadsAPI calls
   const createPostSpy = vi.spyOn(ThreadsAPI.prototype, "createPost").mockResolvedValue("post-id-1");
   const createReplySpy = vi.spyOn(ThreadsAPI.prototype, "createReply")
-    .mockResolvedValueOnce("post-id-2")
-    .mockResolvedValueOnce("post-id-3");
+    .mockResolvedValueOnce("post-id-2");
 
   // 4. Run the publishThread action
   const result = await t.action(internal.actions.threadsActions.publishThread, {
@@ -237,14 +238,13 @@ test("publishThread action retrieves state and publishes thread of posts sequent
   });
 
   // 5. Verify results
-  expect(result.postIds).toEqual(["post-id-1", "post-id-2", "post-id-3"]);
+  expect(result.postIds).toEqual(["post-id-1", "post-id-2"]);
 
   expect(createPostSpy).toHaveBeenCalledTimes(1);
   expect(createPostSpy).toHaveBeenCalledWith({ text: "Draft 1" });
 
-  expect(createReplySpy).toHaveBeenCalledTimes(2);
+  expect(createReplySpy).toHaveBeenCalledTimes(1);
   expect(createReplySpy).toHaveBeenNthCalledWith(1, "post-id-1", { text: "Draft 2" });
-  expect(createReplySpy).toHaveBeenNthCalledWith(2, "post-id-2", { text: "https://example.com/source-url" });
 });
 
 test("ThreadsAPI createContainer retries on propagation error (auto-publish)", async () => {

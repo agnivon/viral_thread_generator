@@ -127,10 +127,10 @@ export const HookStrategistNode = async (state: SocialMediaThreadFactoryStateTyp
   let parse_success = false;
 
   try {
-    const guidanceContext = state.guidance ? `\n\nADDITIONAL GUIDANCE:\n${state.guidance}` : "";
-    const researchContextStr = state.research_context ? `\n\nRESEARCH CONTEXT:\n${state.research_context}` : "";
+    const guidanceContext = state.guidance ? `\n\n<ADDITIONAL_GUIDANCE>\n${state.guidance}\n</ADDITIONAL_GUIDANCE>` : "";
+    const researchContextStr = state.research_context ? `\n\n<RESEARCH_CONTEXT>\n${state.research_context}\n</RESEARCH_CONTEXT>` : "";
     result = await invokeWithFallbacks(agents, {
-      messages: [{ role: "user", content: `${state.raw_markdown}${researchContextStr}${guidanceContext}` }]
+      messages: [{ role: "user", content: `<SOURCE>\n${state.raw_markdown}\n</SOURCE>${researchContextStr}${guidanceContext}` }]
     }, config);
     parse_success = true;
   } catch (_e) {
@@ -170,24 +170,25 @@ export const ThreadWriterNode = async (state: SocialMediaThreadFactoryStateType,
   });
 
   const previousDraftContext = state.thread_draft && state.thread_draft.length > 0
-    ? `\n\nPREVIOUS THREAD DRAFT:\n${JSON.stringify(state.thread_draft, null, 2)}`
+    ? `\n\n<PREVIOUS_THREAD_DRAFT>\n${JSON.stringify(state.thread_draft, null, 2)}\n</PREVIOUS_THREAD_DRAFT>`
     : "";
-  const critiqueContext = state.critique ? `\n\nCRITIQUE TO ADDRESS:\n${state.critique}` : "";
+  const critiqueContext = state.critique ? `\n\n<CRITIQUE_TO_ADDRESS>\n${state.critique}\n</CRITIQUE_TO_ADDRESS>` : "";
   let postCritiquesContext = "";
   if (state.post_critiques && state.post_critiques.length > 0) {
-    postCritiquesContext = "\n\nPOST-SPECIFIC CRITIQUES:\n" +
-      state.post_critiques.map(pc => `Post ${pc.post_index}: ${pc.critique}${pc.fix_directive ? `\nFix Directive: ${pc.fix_directive}` : ''}`).join("\n\n");
+    postCritiquesContext = "\n\n<POST_SPECIFIC_CRITIQUES>\n" +
+      state.post_critiques.map(pc => `Post ${pc.post_index}: ${pc.critique}${pc.fix_directive ? `\nFix Directive: ${pc.fix_directive}` : ''}`).join("\n\n") +
+      "\n</POST_SPECIFIC_CRITIQUES>";
   }
-  const charCritiqueContext = state.character_critique ? `\n\nCHARACTER & FORMATTING CONSTRAINTS FAILED:\n${state.character_critique}\nFix the previous draft to respect these exact formatting constraints.` : "";
-  const guidanceContext = state.guidance ? `\n\nADDITIONAL GUIDANCE:\n${state.guidance}` : "";
-  const researchContextStr = state.research_context ? `\n\nRESEARCH CONTEXT:\n${state.research_context}` : "";
+  const charCritiqueContext = state.character_critique ? `\n\n<CHARACTER_AND_FORMATTING_CONSTRAINTS_FAILED>\n${state.character_critique}\nFix the previous draft to respect these exact formatting constraints.\n</CHARACTER_AND_FORMATTING_CONSTRAINTS_FAILED>` : "";
+  const guidanceContext = state.guidance ? `\n\n<ADDITIONAL_GUIDANCE>\n${state.guidance}\n</ADDITIONAL_GUIDANCE>` : "";
+  const researchContextStr = state.research_context ? `\n\n<RESEARCH_CONTEXT>\n${state.research_context}\n</RESEARCH_CONTEXT>` : "";
 
   let draft;
   let parse_success = true;
   try {
     draft = await structuredLlm.invoke([
       { role: "system", content: SOCIAL_MEDIA_WRITER_PROMPT },
-      { role: "user", content: `HOOK:\n${state.selected_hook}\n\nSOURCE:\n${state.raw_markdown}${researchContextStr}${previousDraftContext}${critiqueContext}${postCritiquesContext}${charCritiqueContext}${guidanceContext}` }
+      { role: "user", content: `<HOOK>\n${state.selected_hook}\n</HOOK>\n\n<SOURCE>\n${state.raw_markdown}\n</SOURCE>${researchContextStr}${previousDraftContext}${critiqueContext}${postCritiquesContext}${charCritiqueContext}${guidanceContext}` }
     ], { ...config, timeout: 300000 });
     if (!draft || !draft.thread_draft) parse_success = false;
   } catch (_e) {
@@ -247,11 +248,11 @@ export const ViralityCriticNode = async (state: SocialMediaThreadFactoryStateTyp
   let parse_success = false;
 
   try {
-    const guidanceContext = state.guidance ? `\n\nADDITIONAL GUIDANCE:\n${state.guidance}` : "";
-    const researchContextStr = state.research_context ? `\n\nRESEARCH CONTEXT:\n${state.research_context}` : "";
+    const guidanceContext = state.guidance ? `\n\n<ADDITIONAL_GUIDANCE>\n${state.guidance}\n</ADDITIONAL_GUIDANCE>` : "";
+    const researchContextStr = state.research_context ? `\n\n<RESEARCH_CONTEXT>\n${state.research_context}\n</RESEARCH_CONTEXT>` : "";
     result = await invokeWithFallbacks(agents, {
       messages: [
-        { role: "user", content: `CURRENT ITERATION ATTEMPT: ${state.iterations + 1}\n\nSOURCE MATERIAL:\n${state.raw_markdown}\n\nRESEARCH CONTEXT:\n${researchContextStr}\n\nTHREAD:\n${JSON.stringify(state.thread_draft, null, 2)}${guidanceContext}` }
+        { role: "user", content: `<CURRENT_ITERATION_ATTEMPT>\n${state.iterations + 1}\n</CURRENT_ITERATION_ATTEMPT>\n\n<SOURCE_MATERIAL>\n${state.raw_markdown}\n</SOURCE_MATERIAL>${researchContextStr}\n\n<THREAD>\n${JSON.stringify(state.thread_draft, null, 2)}\n</THREAD>${guidanceContext}` }
       ]
     }, { ...config, timeout: 300000 });
     parse_success = true;

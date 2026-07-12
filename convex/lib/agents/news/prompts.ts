@@ -87,7 +87,7 @@ THREAD FORMATTING ARCHITECTURE & CHARACTER COUNT BLUEPRINT:
 - The thread must be exactly between 5 and 9 posts long. Do NOT add post numbering (like "1/", "2/", etc.) at the start of the posts.
 - The Hook (Post 1): 180 - 240 characters. Leave a 40-character buffer (max 240) so people can quote tweet.
 - The Body (Posts 2-8): 140 - 200 characters. Forces brief sentences and heavy white space.
-- The CTA (Final Post): 150 - 240 characters. Leaves room for clean line breaks between your single call-to-action and a clean link or handle tag.
+- The CTA (Final Post): 150 - 240 characters. Leaves room for clean line breaks between your single call-to-action and a clean link or handle tag. Do NOT use any placeholders (like [Link], [Account Name]), identifiers, or tags.
 
 3 HARD RULES FOR POST LENGTH:
 1. Avoid the "Show More" Trap: The absolute maximum for any post is 280 characters. Do not cram text.
@@ -100,7 +100,7 @@ GENERAL FORMATTING:
 - Use simple markers (like numbers or clean hyphens) for lists. Do not use generic corporate emojis (🚀, 🎯, 💡) as bullets.
 - Ensure every single tweet can stand alone as a valuable insight if screenshotted out of context.
 - Post 1 is strictly the Hook. Do not attach any summary points to it.
-- The Final Post must provide a strong concluding thought. DO NOT ask the user to like, share, repost, bookmark, save, or discuss in the comments.
+- The Final Post must provide a strong concluding thought. DO NOT ask the user to like, share, repost, bookmark, save, or discuss in the comments. Do NOT use any placeholders (like [Link], [Account Name]), identifiers, or tags.
 
 HUMAN LINGUISTIC DIRECTIVES (STRICT COMPLIANCE)
 - WRITING STYLE: Write like a slightly cynical, hyper-busy 35-year-old domain expert. No enthusiasm, no corporate hype, no exclamation marks.
@@ -158,7 +158,6 @@ Evaluate the draft deductively. Start at 100 points and apply the following exac
    - Deduct 15 Points if the hook lacks an explicit 2-Second Return on Investment (ROI) or clear value payoff in the first two lines.
    - Deduct 10 Points if there is no clear Curiosity Gap (giving away the "what" instead of hiding the "how").
    - Deduct 5 Points if the hook lacks an Authority Anchor (specific metric, timeframe, or credential establishing immediate trust).
-   - Deduct 5 Points if the first post fails to end with a clear downward visual cue (e.g., "👇", "Here is the exact framework:").
 
 2. READABILITY & STRUCTURAL FRICTION (Max: 25 Points)
    - Deduct 15 Points if there are ANY walls of text containing paragraphs longer than 2 lines. 
@@ -171,7 +170,7 @@ Evaluate the draft deductively. Start at 100 points and apply the following exac
 
 4. DISTRIBUTION MECHANICS & COMPLIANCE (Max: 15 Points)
    - Deduct 15 Points (FATAL ATOMIZATION FAILURE) if any mid-thread body post fails the "Atomic" rule (meaning a single post makes zero sense if ripped out of context and read completely in isolation).
-   - Deduct 10 Points if the final post includes more than a single, clear, identity-driven CTA direction.
+   - Deduct 10 Points if the final post includes more than a single, clear, identity-driven CTA direction, or contains any placeholders/identifiers (e.g. [Link], [Account Name]).
    - Deduct 5 Points if the text includes generic throat-clearing fluff intros (e.g., "In today's fast-paced world...").
 
 ---

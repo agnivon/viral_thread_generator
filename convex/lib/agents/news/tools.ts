@@ -111,6 +111,15 @@ export const CharacterValidatorTool = tool(
       if (foundUrls && position !== "CTA") {
         errors.push(`Post ${index + 1} (${position}) contains a hyperlink (${foundUrls.join(", ")}). Hyperlinks are strictly forbidden in the Hook and Body posts. Remove all URLs.`);
       }
+
+      // Check for placeholders, account names, identifiers, or tags in the CTA
+      if (position === "CTA") {
+        const placeholderRegex = /(\[.*?\]|<.*?>|@[a-zA-Z0-9_]+)/g;
+        const foundPlaceholders = post.match(placeholderRegex);
+        if (foundPlaceholders) {
+          errors.push(`Post ${index + 1} (CTA) contains forbidden placeholders, tags, or account identifiers (${foundPlaceholders.join(", ")}). Remove all placeholders like [Link] or @account from the CTA.`);
+        }
+      }
     });
 
     if (over200Count > 3) {

@@ -99,7 +99,7 @@ Your objective is to consume the 'selected_hook', 'research_context', and option
 3. **Surgical Rewrites:** If you receive 'post_critiques' from the ViralityCriticNode in your input, you are in a rewrite loop. Do not rewrite the entire thread from scratch. Surgically repair ONLY the specific posts flagged in the critique array while maintaining the rest of the draft.
 
 ### VARIABLE CHARACTER THRESHOLDS (CRITICAL):
-- **Hard Length Ceiling:** Your final 'thread_draft' array MUST contain no more than 9 total posts (Post 0 is the Hook, Posts 1-7 are the Body, Post 8 is the CTA). Do not generate exhaustive summaries; compress the tension into exactly this footprint.
+- **Hard Length Ceiling:** Your final 'thread_draft' array MUST contain no more than 9 total posts (e.g., Post 1 is the Hook, Posts 2-8 are the Body, Post 9 is the CTA). Do not generate exhaustive summaries; compress the tension into exactly this footprint.
 - **Post 1 (The Hook):** 180-240 characters (provided).
 - **Posts 2+ (Standard Body):** Maintain a strict soft limit of 140–200 characters per post. Force atomic, punchy rhythms. 
 - **The Relief Valve (Data-Heavy Posts):** You are permitted to use up to the absolute 500-character platform maximum on ONE mid-thread post ONLY if you need to render a high-density comparative data block or list from the research context.
@@ -134,7 +134,7 @@ You must deeply audit every string in the 'thread_draft' array against the follo
    - Identify Semantic Engagement Bait: Flag posts that rely on cheap, explicit pleas for engagement rather than building genuine curiosity gaps and information asymmetry.
 
 3. **Narrative & Structural Integrity:**
-   - The Hook (Post 0): Verify the first post creates a strong curiosity gap, establishes high stakes, or attacks a contrarian truth without giving away the entire payoff immediately.
+   - The Hook (Post 1): Verify the first post creates a strong curiosity gap, establishes high stakes, or attacks a contrarian truth without giving away the entire payoff immediately.
    - Mid-Thread Momentum: Ensure the body posts deliver concrete value and progression, maintaining momentum without meandering or repeating facts.
    - The CTA (Final Post): Must deliver a compelling, identity-driven call to action that aligns with the reader's self-image. It MUST NOT be a generic plea like "retweet this thread" or "follow me." Do NOT use any placeholders (like [Link], [Account Name]), identifiers, or tags.
 
@@ -144,7 +144,7 @@ You must evaluate using a strict deduction-based system. The thread begins with 
 **BASE SCORE: 100**
 
 **CRITICAL FAILURES (Severe Deductions):**
-- Weak Hook (Post 0): Deduct 20 points if the hook lacks a curiosity gap, lacks stakes, or gives away the entire payoff.
+- Weak Hook (Post 1): Deduct 20 points if the hook lacks a curiosity gap, lacks stakes, or gives away the entire payoff.
 - AI Clichés & Tone: Deduct 20 points for EACH post containing robotic setups ("In this thread...", "Let's dive in", "Here is a look at").
 - Engagement Bait: Deduct 20 points for EACH post containing generic pleas ("A thread 🧵", "Retweet this").
 - Weak CTA (Final Post): Deduct 20 points if the call-to-action is not identity-driven, relies on generic follow/share requests, or contains any placeholders/identifiers (e.g. [Link], [Account Name]).

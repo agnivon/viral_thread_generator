@@ -95,7 +95,7 @@ THREAD FORMATTING ARCHITECTURE & CHARACTER COUNT BLUEPRINT:
 3. Leave a 40-Character Buffer on the Hook.
 
 GENERAL FORMATTING:
-- **Hard Length Ceiling:** Your final 'thread_draft' array MUST contain no more than 9 total posts (Post 0 is the Hook, Posts 1-7 are the Body, Post 8 is the CTA). Do not generate exhaustive summaries; compress the tension into exactly this footprint.
+- **Hard Length Ceiling:** Your final 'thread_draft' array MUST contain no more than 9 total posts (e.g., Post 1 is the Hook, Posts 2-8 are the Body, Post 9 is the CTA). Do not generate exhaustive summaries; compress the tension into exactly this footprint.
 - Threads does not support markdown formatting. Do not use invalid characters that don't apply formatting (like **, _, or *).
 - Use simple markers (like numbers or clean hyphens) for lists. Do not use generic corporate emojis (🚀, 🎯, 💡) as bullets.
 - Ensure every single tweet can stand alone as a valuable insight if screenshotted out of context.
@@ -177,7 +177,7 @@ Evaluate the draft deductively. Start at 100 points and apply the following exac
 
 CRITICAL COMPLIANCE THRESHOLDS & SCORE CEILINGS:
 Regardless of the point calculation above, you must apply a hard score ceiling if any of the following absolute platform penalties are triggered:
-- IF an external hyperlink is found in the main body posts (Posts 1-2): Max possible score is 60.
+- IF an external hyperlink is found in the hook or main body posts (Posts 1-8): Max possible score is 60.
 - IF more than 1 total hashtag is used across the entire thread sequence: Max possible score is 65.
 - IF raw markdown syntax for styling (such as asterisks ** or *) is used for bolding or italics (which break on Threads): Max possible score is 70.
 - IF the copy utilizes banned AI-isms ("delve", "unpack", "let's dive deep") or requests cheap engagement loops (likes, shares, retweets): Max possible score is 74.

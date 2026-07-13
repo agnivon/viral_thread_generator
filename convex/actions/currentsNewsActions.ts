@@ -7,7 +7,7 @@ import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { SystemMessage, HumanMessage } from "@langchain/core/messages";
 import { criticFallbackLlm3, criticFallbackLlm3Backup } from "../lib/agents/models";
-import { VIRALITY_SCORER_NODE_PROMPT } from "../lib/agents/news/prompts";
+import { NEWS_SCORER_PROMPT } from "../lib/agents/news/prompts";
 import { z } from "zod";
 import { v } from "convex/values";
 
@@ -291,7 +291,7 @@ export const evaluateNewsArticle = action({
     const structuredLlm = primaryStructured.withFallbacks({ fallbacks: [backupStructured] });
     
     const parsedResult = await structuredLlm.invoke([
-      new SystemMessage(VIRALITY_SCORER_NODE_PROMPT),
+      new SystemMessage(NEWS_SCORER_PROMPT),
       new HumanMessage(humanPrompt)
     ]);
 

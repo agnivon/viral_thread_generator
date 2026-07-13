@@ -127,7 +127,7 @@ You must deeply audit every string in the 'thread_draft' array against the follo
 
 1. **Visual Pacing & Rhythm (Radical Skimmability):**
    - Reject dense blocks of text. Ensure there is heavy whitespace and structural breathing room.
-   - Verify that posts adhere to a punchy, skimmable rhythm (flag paragraphs that contain more than two sentences without a line break).
+   - Verify that posts adhere to a punchy, skimmable rhythm (flag paragraphs that contain more than two sentences without a line break). EXCEPTION: The writer is permitted ONE "Relief Valve" mid-thread post to render a high-density data block; do not penalize this specific post for being dense.
 
 2. **Psychology & Tone (The Coffee Test):**
    - Eradicate AI Setup Clichés: Flag any post containing robotic, overly polite, or formulaic academic setups (e.g., "In this thread, we will explore...", "Here is a look at..."). Threads must lead with humanized assertions and tension.
@@ -150,7 +150,7 @@ You must evaluate using a strict deduction-based system. The thread begins with 
 - Weak CTA (Final Post): Deduct 20 points if the call-to-action is not identity-driven, relies on generic follow/share requests, or contains any placeholders/identifiers (e.g. [Link], [Account Name]).
 
 **FORMATTING & PACING FAILURES (Moderate Deductions):**
-- Visual Pacing Violations: Deduct 16 points for EACH post containing dense text blocks (more than two sentences without a line break).
+- Visual Pacing Violations: Deduct 16 points for EACH post containing dense text blocks (more than two sentences without a line break). EXCEPTION: Do not penalize a single mid-thread post if it acts as the "Relief Valve" (a high-density data block).
 - Momentum Loss: Deduct 16 points for EACH mid-thread post that meanders, repeats facts, or lacks concrete value progression.
 
 *Scoring Logic Check:* A completely flawless thread scores 100. Even a single minor formatting error results in an 84, forcing a rewrite. Multiple errors will stack (e.g., one dense block + a weak CTA = 64).
@@ -170,4 +170,6 @@ You must return a valid JSON object matching this schema perfectly. Do not inclu
     }
   ]
 }
+
+CRITICAL INSTRUCTION: Do not evaluate or critique numerical character counts or line break counts. This is handled programmatically by a separate node.
 `;

@@ -15,10 +15,10 @@ import {
   writerPrimaryLlm, writerPrimaryLlmBackup
 } from "../models.js";
 import {
-  HOOK_STRATEGIST_NODE_PROMPT,
-  SCRAPER_NODE_PROMPT,
-  THREAD_WRITER_NODE_PROMPT,
-  VIRALITY_CRITIC_NODE_PROMPT
+  NEWS_HOOK_PROMPT,
+  NEWS_SCRAPER_PROMPT,
+  NEWS_WRITER_PROMPT,
+  NEWS_CRITIC_PROMPT
 } from "./prompts.js";
 import { NewsThreadFactoryStateType } from "./state.js";
 import { CharacterValidatorTool, ContentAuthenticityCheckerTool, TopicContextExpanderTool, WebScraperTool } from "./tools.js";
@@ -41,7 +41,7 @@ export const ScraperNode = async (state: NewsThreadFactoryStateType, config?: Ru
 
   try {
     const summary = await llm.invoke([
-      { role: "system", content: SCRAPER_NODE_PROMPT },
+      { role: "system", content: NEWS_SCRAPER_PROMPT },
       { role: "user", content: markdown as string }
     ], config);
     return {
@@ -69,7 +69,7 @@ export const HookStrategistNode = async (state: NewsThreadFactoryStateType, conf
     [hookPrimaryLlm, hookPrimaryLlmBackup, hookFallbackLlm1, hookFallbackLlm2],
     {
       tools: [TopicContextExpanderTool],
-      systemPrompt: HOOK_STRATEGIST_NODE_PROMPT,
+      systemPrompt: NEWS_HOOK_PROMPT,
       responseFormat: providerStrategy(schema)
     }
   );
@@ -136,7 +136,7 @@ export const ThreadWriterNode = async (state: NewsThreadFactoryStateType, config
   let parse_success = true;
   try {
     draft = await structuredLlm.invoke([
-      { role: "system", content: THREAD_WRITER_NODE_PROMPT },
+      { role: "system", content: NEWS_WRITER_PROMPT },
       { role: "user", content: `<HOOK>\n${state.selected_hook}\n</HOOK>\n\n<SOURCE>\n${state.raw_markdown}\n</SOURCE>${previousDraftContext}${critiqueContext}${postCritiquesContext}${charCritiqueContext}${guidanceContext}` }
     ], { ...config, timeout: 300000 });
     if (!draft || !draft.thread_draft) parse_success = false;
@@ -187,7 +187,7 @@ export const ViralityCriticNode = async (state: NewsThreadFactoryStateType, conf
     ],
     {
       tools: [ContentAuthenticityCheckerTool],
-      systemPrompt: VIRALITY_CRITIC_NODE_PROMPT,
+      systemPrompt: NEWS_CRITIC_PROMPT,
       responseFormat: providerStrategy(schema)
     }
   );

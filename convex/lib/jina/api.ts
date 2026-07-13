@@ -81,10 +81,33 @@ export interface JinaSearchOptions extends JinaBaseOptions {
   type?: 'web' | 'images' | 'news';
 }
 
-export interface JinaResponse {
+export interface FormattedPageDto {
+  title?: string;
+  description?: string;
+  url: string;
+  content?: string;
+  chunks?: string[];
+  publishedTime?: string;
+  html?: string;
+  text?: string;
+  screenshotUrl?: string;
+  pageshotUrl?: string;
+  numPages?: number;
+  links?: Record<string, string> | string[] | any;
+  images?: Record<string, string> | string[] | any;
+  warning?: string;
+  metadata?: Record<string, string> | any;
+  external?: any;
+  httpStatus?: number;
+  httpStatusText?: string;
+  storageState?: any;
+}
+
+export interface JinaResponse<T = any> {
   code: number;
   status: number;
-  data?: any;
+  data?: T;
+  meta?: any;
   error?: string;
 }
 
@@ -100,12 +123,12 @@ export class JinaClient {
   /**
    * Helper to perform requests against the Jina API
    */
-  private async request(
+  private async request<T = any>(
     baseUrl: string,
     endpoint: string,
     payload: object,
     method: 'GET' | 'POST' = 'POST'
-  ): Promise<any> {
+  ): Promise<T> {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       Accept: 'application/json',
@@ -138,27 +161,27 @@ export class JinaClient {
     }
     
     // Fallback if not JSON
-    return await response.text();
+    return (await response.text()) as unknown as T;
   }
 
   /**
    * Read, extract and crawl content from a URL or raw HTML/PDF
    */
-  async read(url: string, options?: Omit<JinaReaderOptions, 'url'>): Promise<any> {
-    return this.request(this.readerBaseUrl, '', { url, ...options }, 'POST');
+  async read(url: string, options?: Omit<JinaReaderOptions, 'url'>): Promise<JinaResponse<FormattedPageDto | string> | string> {
+    return this.request<JinaResponse<FormattedPageDto | string> | string>(this.readerBaseUrl, '', { url, ...options }, 'POST');
   }
 
   /**
    * Read raw HTML
    */
-  async readHtml(html: string, options?: Omit<JinaReaderOptions, 'html'>): Promise<any> {
-    return this.request(this.readerBaseUrl, '', { html, ...options }, 'POST');
+  async readHtml(html: string, options?: Omit<JinaReaderOptions, 'html'>): Promise<JinaResponse<FormattedPageDto | string> | string> {
+    return this.request<JinaResponse<FormattedPageDto | string> | string>(this.readerBaseUrl, '', { html, ...options }, 'POST');
   }
 
   /**
    * Search the web for a given query
    */
-  async search(query: string, options?: Omit<JinaSearchOptions, 'q'>): Promise<any> {
-    return this.request(this.searchBaseUrl, '', { q: query, ...options }, 'POST');
+  async search(query: string, options?: Omit<JinaSearchOptions, 'q'>): Promise<JinaResponse<FormattedPageDto[]> | string> {
+    return this.request<JinaResponse<FormattedPageDto[]> | string>(this.searchBaseUrl, '', { q: query, ...options }, 'POST');
   }
 }

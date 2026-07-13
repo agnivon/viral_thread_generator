@@ -1,6 +1,18 @@
 {
   "version": 1,
   "skills": {
+    "answers": {
+      "source": "brave/brave-search-skills",
+      "sourceType": "github",
+      "skillPath": "skills/answers/SKILL.md",
+      "computedHash": "3cf1ef1b735566503eb2693aaadd50f2e163f79e14ebe5bb65e9ddaccb7a74b7"
+    },
+    "bx": {
+      "source": "brave/brave-search-skills",
+      "sourceType": "github",
+      "skillPath": "skills/bx/SKILL.md",
+      "computedHash": "b846bd21e3476a10f262d40a765e65149e339e85b37d7dfa8f128317e7cbf090"
+    },
     "convex": {
       "source": "get-convex/agent-skills",
       "sourceType": "github",
@@ -67,6 +79,12 @@
       "skillPath": "config/skills/framework-selection/SKILL.md",
       "computedHash": "4077205bed91c048ba47f0db1bd66930bdbdd04e5195dc3d5b265272c5059cd1"
     },
+    "images-search": {
+      "source": "brave/brave-search-skills",
+      "sourceType": "github",
+      "skillPath": "skills/images-search/SKILL.md",
+      "computedHash": "e3beb91731658260cb49da1a7e0bc3f79aedae72a45c9ac5a99c327ecb062f5e"
+    },
     "langchain-dependencies": {
       "source": "langchain-ai/langchain-skills",
       "sourceType": "github",
@@ -115,11 +133,23 @@
       "skillPath": "config/skills/langgraph-persistence/SKILL.md",
       "computedHash": "0e14611b0310a7a30e9977ba99b00a11b7ea63ebdd7b0c490d03040349ead0ed"
     },
+    "llm-context": {
+      "source": "brave/brave-search-skills",
+      "sourceType": "github",
+      "skillPath": "skills/llm-context/SKILL.md",
+      "computedHash": "0b7616f5be0e4f59ddec4102e4068e3bdeb83c43df3df6ffe32b059cdcd7c683"
+    },
     "managed-deep-agents": {
       "source": "langchain-ai/langchain-skills",
       "sourceType": "github",
       "skillPath": "config/skills/managed-deep-agents/SKILL.md",
       "computedHash": "e034c44bf34dd2cef494fb223a18ff0d65836ea98e61a8d6b16d1a1306535ad6"
+    },
+    "news-search": {
+      "source": "brave/brave-search-skills",
+      "sourceType": "github",
+      "skillPath": "skills/news-search/SKILL.md",
+      "computedHash": "38ed8fa771c2958f56b4c7dbffdf9ab0808036a173ad2c6949d668ecdb0dcaf8"
     },
     "next-best-practices": {
       "source": "vercel-labs/next-skills",
@@ -234,6 +264,12 @@
       "sourceType": "github",
       "skillPath": "skills/web-design-guidelines/SKILL.md",
       "computedHash": "f3bc47f890f42a44db1007ab390709ec368e4b8c089baee6b0007182236ac474"
+    },
+    "web-search": {
+      "source": "brave/brave-search-skills",
+      "sourceType": "github",
+      "skillPath": "skills/web-search/SKILL.md",
+      "computedHash": "3bd3c40e767bbba3cfc4fd466dbe22aab5d0cb8476633d472655e20fa560ba92"
     },
     "writing-guidelines": {
       "source": "vercel-labs/agent-skills",

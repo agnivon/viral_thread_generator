@@ -43,3 +43,10 @@ Convex agent skills for common tasks can be installed by running
 - **Robust Type Safety**:
   - Ensure all files, components, and helper utilities are fully type-safe in TypeScript.
   - Avoid `any` types; define explicit interfaces, generic parameters, or union types to guarantee compilation-level safety and clear API contracts.
+
+## Workspace Cleanliness & Temporary Files
+- **Delete Temporary and Scratch Files**: Always clean up any temporary scripts (e.g., test Python scripts, scratch Javascript/Typescript files, shell scripts), temporary log files, local JSON/CSV data dumps, or unused lockfiles created during the execution of a task.
+- **Maintain Pristine Repository State**: Ensure no trailing uncommitted, unused, or test-related files remain in the workspace root or source directories prior to completing a task. Avoid polluting the repository workspace.
+- **Use Dedicated Scratch Folders**: For any temporary testing/investigation files that must persist across steps but are not part of the project itself, use the designated artifacts scratch directory (`<appDataDir>/brain/<conversation-id>/scratch/`) rather than the workspace root.
+- **Keep Production Configs**: Never delete workspace configuration files (like `.gitignore`, `tsconfig.json`, `package.json`, `.agents/`, `AGENTS.md`) unless explicitly requested.
+

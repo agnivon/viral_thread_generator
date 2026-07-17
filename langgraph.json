@@ -4,7 +4,8 @@
   ],
   "graphs": {
     "news": "./convex/lib/agents/news/graph.ts:NewsThreadFactoryGraph",
-    "social_media": "./convex/lib/agents/social_media/graph.ts:SocialMediaThreadFactoryGraph"
+    "social_media": "./convex/lib/agents/social_media/graph.ts:SocialMediaThreadFactoryGraph",
+    "topic": "./convex/lib/agents/topic/graph.ts:TopicThreadFactoryGraph"
   },
   "env": "./.env.local"
 }

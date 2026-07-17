@@ -1,3 +1,4 @@
+"use node";
 import { ChatGoogle } from "@langchain/google";
 import { ChatOpenRouter } from "@langchain/openrouter";
 import { ChatOpenAI } from "@langchain/openai";

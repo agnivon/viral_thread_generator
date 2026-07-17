@@ -1,3 +1,4 @@
+"use node";
 import { StateSchema } from "@langchain/langgraph";
 import { z } from "zod";
 

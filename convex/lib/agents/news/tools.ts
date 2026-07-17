@@ -5,7 +5,7 @@ import { z } from "zod";
 import FirecrawlApp from "@mendable/firecrawl-js";
 import { tavily } from "@tavily/core";
 import "dotenv/config";
-import { JinaClient } from "../../jina/api";
+import { JinaClient, JinaResponse, FormattedPageDto } from "../../jina/api";
 
 // 1. WebScraperTool (Firecrawl API)
 export const WebScraperTool = tool(
@@ -26,13 +26,18 @@ export const WebScraperTool = tool(
         let markdown = "No content found.";
         if (typeof jinaResult === 'string') {
           markdown = jinaResult;
-        } else if (jinaResult?.data?.content) {
-          markdown = jinaResult.data.content;
-        } else if (jinaResult?.data?.text) {
-          markdown = jinaResult.data.text;
+        } else if (jinaResult && typeof jinaResult === 'object' && jinaResult !== null) {
+          const typedResponse = jinaResult as JinaResponse<FormattedPageDto | string>;
+          if (typedResponse.data) {
+            if (typeof typedResponse.data === 'string') {
+              markdown = typedResponse.data;
+            } else {
+              markdown = typedResponse.data.content || typedResponse.data.text || markdown;
+            }
+          }
         }
         
-        const images = Array.from(markdown.matchAll(/!\\[.*?\\]\\((.*?)\\)/g)).map((m: any) => m[1]);
+        const images = Array.from(markdown.matchAll(/!\[.*?\]\((.*?)\)/g)).map((m) => m[1]);
         return JSON.stringify({ markdown, images });
       } catch (fallbackErr) {
         console.error(`[WebScraperTool] Jina Reader fallback failed for ${url}`, fallbackErr);

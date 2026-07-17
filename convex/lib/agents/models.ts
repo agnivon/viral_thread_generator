@@ -27,7 +27,7 @@ export const hookFallbackLlm2 = new ChatOpenRouter({
 
 // ThreadWriterNode Models
 export const writerPrimaryLlm = createGoogleModel("gemini-3.5-flash", 0.8, "GOOGLE_API_KEY");
-export const writerPrimaryLlmBackup = createGoogleModel("gemini-3.5-flash", 0.8, "GOOGLE_API_KEY2");
+export const writerPrimaryLlmBackup = createGoogleModel("gemini-3.5-flash", 0.8, "GOOGLE_API_KEY_PAID");
 export const writerFallbackLlm1 = createOpenAIModel("gpt-5.4", 0.8, { presencePenalty: 0.4, timeout: 30000 });
 export const writerFallbackLlm2 = createGoogleModel("gemma-4-26b-a4b-it", 0.8, "GOOGLE_API_KEY");
 export const writerFallbackLlm2Backup = createGoogleModel("gemma-4-26b-a4b-it", 0.8, "GOOGLE_API_KEY2");
@@ -36,7 +36,7 @@ export const writerFallbackLlm3Backup = createGoogleModel("gemini-3-flash-previe
 
 // ViralityCriticNode Models
 export const criticPrimaryLlm = createGoogleModel("gemini-3.5-flash", 0.0, "GOOGLE_API_KEY");
-export const criticPrimaryLlmBackup = createGoogleModel("gemini-3.5-flash", 0.0, "GOOGLE_API_KEY2");
+export const criticPrimaryLlmBackup = createGoogleModel("gemini-3.5-flash", 0.0, "GOOGLE_API_KEY_PAID");
 export const criticFallbackLlm1 = createOpenAIModel("gpt-5.4-mini", 0.0, { timeout: 25000 });
 export const criticFallbackLlm2 = createGoogleModel("gemma-4-31b-it", 0.0, "GOOGLE_API_KEY");
 export const criticFallbackLlm2Backup = createGoogleModel("gemma-4-31b-it", 0.0, "GOOGLE_API_KEY2");

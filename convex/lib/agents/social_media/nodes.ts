@@ -5,15 +5,15 @@ import { providerStrategy } from "langchain";
 import { z } from "zod";
 import { RunnableConfig } from "@langchain/core/runnables";
 import {
-  criticPrimaryLlm, criticPrimaryLlmBackup,
-  criticFallbackLlm1, criticFallbackLlm3, criticFallbackLlm3Backup,
-  hookFallbackLlm1, hookFallbackLlm2,
-  hookPrimaryLlm, hookPrimaryLlmBackup,
-  scraperFallbackLlm,
-  scraperPrimaryLlm, scraperPrimaryLlmBackup,
-  writerFallbackLlm1, writerFallbackLlm3, writerFallbackLlm3Backup,
-  writerPrimaryLlm, writerPrimaryLlmBackup,
-  researcherPrimaryLlm, researcherPrimaryLlmBackup, researcherFallbackLlm
+  googleGemini35FlashT00Key1,
+  openAiGpt54MiniT00Timeout25k, googleGemini3FlashPreviewT00Key1, googleGemini3FlashPreviewT00Key2,
+  openAiGpt54MiniT08Timeout20k, openRouterFreeT08,
+  googleGemini31FlashLiteT08Key1, googleGemini31FlashLiteT08Key2,
+  openAiGpt54MiniT01Max2kTimeout45k,
+  googleGemini31FlashLiteT01Key1Max2k, googleGemini31FlashLiteT01Key2Max2k,
+  openAiGpt54T08Penalty04Timeout30k, googleGemini3FlashPreviewT08Key1, googleGemini3FlashPreviewT08Key2,
+  googleGemini35FlashT08Key1, deepSeekV4ProT085ReasoningNone, deepSeekV4ProT00ReasoningHigh,
+  googleGemini31FlashLiteT02Key1Max2k, googleGemini31FlashLiteT02Key2Max2k, openAiGpt54MiniT02Max2kTimeout45k
 } from "../models.js";
 import {
   SOCIAL_MEDIA_HOOK_PROMPT,
@@ -23,10 +23,10 @@ import {
   SOCIAL_MEDIA_RESEARCHER_PROMPT
 } from "./prompts.js";
 import { SocialMediaThreadFactoryStateType } from "./state.js";
-import { 
-  CharacterValidatorTool, 
-  ContentAuthenticityCheckerTool, 
-  TopicContextExpanderTool, 
+import {
+  CharacterValidatorTool,
+  ContentAuthenticityCheckerTool,
+  TopicContextExpanderTool,
   WebScraperTool,
   BackgroundDossierTool
 } from "./tools.js";
@@ -45,7 +45,7 @@ export const PostScraperNode = async (state: SocialMediaThreadFactoryStateType, 
     // Fallback if the tool returned raw string
   }
 
-  const llm = scraperPrimaryLlm.withFallbacks({ fallbacks: [scraperPrimaryLlmBackup, scraperFallbackLlm] });
+  const llm = googleGemini31FlashLiteT01Key1Max2k.withFallbacks({ fallbacks: [googleGemini31FlashLiteT01Key2Max2k, openAiGpt54MiniT01Max2kTimeout45k] });
 
   try {
     const summary = await llm.invoke([
@@ -73,7 +73,7 @@ export const ContextResearcherNode = async (state: SocialMediaThreadFactoryState
   });
 
   const agents = buildAgents(
-    [researcherPrimaryLlm, researcherPrimaryLlmBackup, researcherFallbackLlm],
+    [googleGemini31FlashLiteT02Key1Max2k, googleGemini31FlashLiteT02Key2Max2k, openAiGpt54MiniT02Max2kTimeout45k],
     {
       tools: [BackgroundDossierTool],
       systemPrompt: SOCIAL_MEDIA_RESEARCHER_PROMPT,
@@ -115,7 +115,7 @@ export const HookStrategistNode = async (state: SocialMediaThreadFactoryStateTyp
   });
 
   const agents = buildAgents(
-    [hookPrimaryLlm, hookPrimaryLlmBackup, hookFallbackLlm1, hookFallbackLlm2],
+    [googleGemini31FlashLiteT08Key1, googleGemini31FlashLiteT08Key2, openAiGpt54MiniT08Timeout20k, openRouterFreeT08],
     {
       tools: [TopicContextExpanderTool],
       systemPrompt: SOCIAL_MEDIA_HOOK_PROMPT,
@@ -160,12 +160,12 @@ export const ThreadWriterNode = async (state: SocialMediaThreadFactoryStateType,
     thread_draft: z.array(z.string()).min(1, "Must generate at least one post for the thread draft")
   });
 
-  const structuredLlm = writerPrimaryLlm.withStructuredOutput(schema, { name: "thread_writer", method: "jsonSchema" }).withFallbacks({
+  const structuredLlm = googleGemini35FlashT08Key1.withStructuredOutput(schema, { name: "thread_writer", method: "jsonSchema" }).withFallbacks({
     fallbacks: [
-      writerPrimaryLlmBackup.withStructuredOutput(schema, { name: "thread_writer", method: "jsonSchema" }),
-      writerFallbackLlm1.withStructuredOutput(schema, { name: "thread_writer", method: "jsonSchema" }),
-      writerFallbackLlm3.withStructuredOutput(schema, { name: "thread_writer", method: "jsonSchema" }),
-      writerFallbackLlm3Backup.withStructuredOutput(schema, { name: "thread_writer", method: "jsonSchema" })
+      deepSeekV4ProT085ReasoningNone.withStructuredOutput(schema, { name: "thread_writer", method: "jsonMode" }),
+      openAiGpt54T08Penalty04Timeout30k.withStructuredOutput(schema, { name: "thread_writer", method: "jsonSchema" }),
+      googleGemini3FlashPreviewT08Key1.withStructuredOutput(schema, { name: "thread_writer", method: "jsonSchema" }),
+      googleGemini3FlashPreviewT08Key2.withStructuredOutput(schema, { name: "thread_writer", method: "jsonSchema" })
     ]
   });
 
@@ -233,9 +233,10 @@ export const ViralityCriticNode = async (state: SocialMediaThreadFactoryStateTyp
 
   const agents = buildAgents(
     [
-      criticPrimaryLlm, criticPrimaryLlmBackup,
-      criticFallbackLlm1,
-      criticFallbackLlm3, criticFallbackLlm3Backup
+      googleGemini35FlashT00Key1,
+      deepSeekV4ProT00ReasoningHigh,
+      openAiGpt54MiniT00Timeout25k,
+      googleGemini3FlashPreviewT00Key1, googleGemini3FlashPreviewT00Key2
     ],
     {
       tools: [ContentAuthenticityCheckerTool],
@@ -266,7 +267,7 @@ export const ViralityCriticNode = async (state: SocialMediaThreadFactoryStateTyp
   let post_critiques: { post_index: number; critique: string; fix_directive?: string }[] = [];
 
   if (parse_success && result?.structuredResponse) {
-    finalCritique = result.structuredResponse.overall_critique || ""; 
+    finalCritique = result.structuredResponse.overall_critique || "";
     virality_score = result.structuredResponse.virality_score;
     finalApproval = typeof virality_score === 'number' && virality_score >= 85;
     post_critiques = result.structuredResponse.post_critiques || [];

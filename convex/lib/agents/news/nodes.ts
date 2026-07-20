@@ -5,14 +5,14 @@ import { providerStrategy } from "langchain";
 import { z } from "zod";
 import { RunnableConfig } from "@langchain/core/runnables";
 import {
-  criticPrimaryLlm, criticPrimaryLlmBackup,
-  criticFallbackLlm1, criticFallbackLlm3, criticFallbackLlm3Backup,
-  hookFallbackLlm1, hookFallbackLlm2,
-  hookPrimaryLlm, hookPrimaryLlmBackup,
-  scraperFallbackLlm,
-  scraperPrimaryLlm, scraperPrimaryLlmBackup,
-  writerFallbackLlm1, writerFallbackLlm3, writerFallbackLlm3Backup,
-  writerPrimaryLlm, writerPrimaryLlmBackup
+  googleGemini35FlashT00Key1,
+  openAiGpt54MiniT00Timeout25k, googleGemini3FlashPreviewT00Key1, googleGemini3FlashPreviewT00Key2,
+  openAiGpt54MiniT08Timeout20k, openRouterFreeT08,
+  googleGemini31FlashLiteT08Key1, googleGemini31FlashLiteT08Key2,
+  openAiGpt54MiniT01Max2kTimeout45k,
+  googleGemini31FlashLiteT01Key1Max2k, googleGemini31FlashLiteT01Key2Max2k,
+  openAiGpt54T08Penalty04Timeout30k, googleGemini3FlashPreviewT08Key1, googleGemini3FlashPreviewT08Key2,
+  googleGemini35FlashT08Key1, deepSeekV4ProT085ReasoningNone, deepSeekV4ProT00ReasoningHigh,
 } from "../models.js";
 import {
   NEWS_HOOK_PROMPT,
@@ -37,7 +37,7 @@ export const ScraperNode = async (state: NewsThreadFactoryStateType, config?: Ru
     // Fallback if the tool returned raw string
   }
 
-  const llm = scraperPrimaryLlm.withFallbacks({ fallbacks: [scraperPrimaryLlmBackup, scraperFallbackLlm] });
+  const llm = googleGemini31FlashLiteT01Key1Max2k.withFallbacks({ fallbacks: [googleGemini31FlashLiteT01Key2Max2k, openAiGpt54MiniT01Max2kTimeout45k] });
 
   try {
     const summary = await llm.invoke([
@@ -66,7 +66,7 @@ export const HookStrategistNode = async (state: NewsThreadFactoryStateType, conf
   });
 
   const agents = buildAgents(
-    [hookPrimaryLlm, hookPrimaryLlmBackup, hookFallbackLlm1, hookFallbackLlm2],
+    [googleGemini31FlashLiteT08Key1, googleGemini31FlashLiteT08Key2, openAiGpt54MiniT08Timeout20k, openRouterFreeT08],
     {
       tools: [TopicContextExpanderTool],
       systemPrompt: NEWS_HOOK_PROMPT,
@@ -110,12 +110,12 @@ export const ThreadWriterNode = async (state: NewsThreadFactoryStateType, config
     thread_draft: z.array(z.string()).min(1, "Must generate at least one post for the thread draft")
   });
 
-  const structuredLlm = writerPrimaryLlm.withStructuredOutput(schema, { name: "thread_writer", method: "jsonSchema" }).withFallbacks({
+  const structuredLlm = googleGemini35FlashT08Key1.withStructuredOutput(schema, { name: "thread_writer", method: "jsonSchema" }).withFallbacks({
     fallbacks: [
-      writerPrimaryLlmBackup.withStructuredOutput(schema, { name: "thread_writer", method: "jsonSchema" }),
-      writerFallbackLlm1.withStructuredOutput(schema, { name: "thread_writer", method: "jsonSchema" }),
-      writerFallbackLlm3.withStructuredOutput(schema, { name: "thread_writer", method: "jsonSchema" }),
-      writerFallbackLlm3Backup.withStructuredOutput(schema, { name: "thread_writer", method: "jsonSchema" })
+      deepSeekV4ProT085ReasoningNone.withStructuredOutput(schema, { name: "thread_writer", method: "jsonMode" }),
+      openAiGpt54T08Penalty04Timeout30k.withStructuredOutput(schema, { name: "thread_writer", method: "jsonSchema" }),
+      googleGemini3FlashPreviewT08Key1.withStructuredOutput(schema, { name: "thread_writer", method: "jsonSchema" }),
+      googleGemini3FlashPreviewT08Key2.withStructuredOutput(schema, { name: "thread_writer", method: "jsonSchema" })
     ]
   });
 
@@ -181,9 +181,10 @@ export const ViralityCriticNode = async (state: NewsThreadFactoryStateType, conf
 
   const agents = buildAgents(
     [
-      criticPrimaryLlm, criticPrimaryLlmBackup,
-      criticFallbackLlm1,
-      criticFallbackLlm3, criticFallbackLlm3Backup
+      googleGemini35FlashT00Key1,
+      deepSeekV4ProT00ReasoningHigh,
+      openAiGpt54MiniT00Timeout25k,
+      googleGemini3FlashPreviewT00Key1, googleGemini3FlashPreviewT00Key2
     ],
     {
       tools: [ContentAuthenticityCheckerTool],

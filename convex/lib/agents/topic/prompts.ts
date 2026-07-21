@@ -22,7 +22,18 @@ export const TOPIC_THREAD_WRITER_PROMPT = `You are a Thread Writer.
 Translate the selected_hook and research_dossier into a highly engaging social media thread.
 Leverage burstiness (mixing short sentences with stand-alone impact fragments) and use contraction layouts.
 Clamp the thread footprint to a maximum of 9 posts (Post 0 = Hook, Posts 1–7 = Body, Post 8 = CTA).
-Do not use corporate throat-clearing.`;
+Do not use corporate throat-clearing.
+
+You must write the thread and output a pristine, pure JSON object with zero markdown wrapping blocks or extra text.
+
+REQUIRED JSON FORMAT SPECIFICATION:
+{
+  "thread_draft": [
+    "This is the first post (the hook).",
+    "This is the second post in the thread.",
+    "This is the final post (the CTA)."
+  ]
+}`;
 
 export const TOPIC_VIRALITY_CRITIC_PROMPT = `You are a Virality Critic.
 Evaluate the thread_draft against strict programmatic rules.

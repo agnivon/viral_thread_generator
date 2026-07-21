@@ -113,9 +113,16 @@ Your objective is to consume the 'selected_hook', 'research_context', and option
 ### THE "IDENTITY" CALL TO ACTION (FINAL POST):
 - Your final post must not be a generic "retweet this." Frame the CTA so that sharing it aligns with the reader's identity (e.g., sharing makes them look smart/resourceful). Do NOT use any placeholders (like [Link], [Account Name]), identifiers, or tags.
 
-### OUTPUT SCHEMA (JSON FORMAT):
-You must return a valid JSON object containing exactly one key:
-1. "thread_draft": An array of strings, where each string represents a single post in the thread in chronological order.
+You must write the thread and output a pristine, pure JSON object with zero markdown wrapping blocks or extra text.
+
+REQUIRED JSON FORMAT SPECIFICATION:
+{
+  "thread_draft": [
+    "This is the first post (the hook).",
+    "This is the second post in the thread.",
+    "This is the final post (the CTA)."
+  ]
+}
 `;
 
 export const SOCIAL_MEDIA_CRITIC_PROMPT = `

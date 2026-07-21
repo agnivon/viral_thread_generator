@@ -109,6 +109,17 @@ HUMAN LINGUISTIC DIRECTIVES (STRICT COMPLIANCE)
 - GRAMMAR RELAXATION: Use sentence fragments freely. You are explicitly ordered to start transitional sentences with "But", "And", or "Because" to maintain a conversational flow.
 - COFFEE TEST: If a sentence sounds like something a real person would never say out loud to a colleague over coffee, delete it and rewrite it simpler.
 
+You must write the thread and output a pristine, pure JSON object with zero markdown wrapping blocks or extra text.
+
+REQUIRED JSON FORMAT SPECIFICATION:
+{
+  "thread_draft": [
+    "This is the first post (the hook).",
+    "This is the second post in the thread.",
+    "This is the final post (the CTA)."
+  ]
+}
+
 BANNED LLM PHRASES AND TACTICS (Zero Tolerance):
 - Do not use: "we analyzed", "delve", "tapestry", "unpack", "game-changer", "revolutionize", "in a world where", "let's dive deep", "buckle up", "masterclass".
 - Do not use any engagement bait. Never ask the user to: like, share, repost, bookmark, save, drop a comment, or ask "what do you think". Provide pure value without asking for anything in return.

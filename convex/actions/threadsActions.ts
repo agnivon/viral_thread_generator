@@ -411,6 +411,7 @@ export const enqueueThreadPublication = action({
       id: v.id("threadDrafts"),
       modified_thread: v.optional(v.array(v.string())),
       images: v.optional(v.record(v.string(), v.string())),
+      videos: v.optional(v.record(v.string(), v.string())),
     })),
   },
   handler: async (ctx, args) => {
@@ -421,6 +422,7 @@ export const enqueueThreadPublication = action({
       userId,
       modified_thread: req.modified_thread,
       images: req.images,
+      videos: req.videos,
     }));
 
     await publicationPool.enqueueActionBatch(ctx, internal.actions.threadsActions.publishThread, payload);
@@ -433,6 +435,7 @@ export const publishThread = internalAction({
     userId: v.id("users"),
     modified_thread: v.optional(v.array(v.string())),
     images: v.optional(v.record(v.string(), v.string())),
+    videos: v.optional(v.record(v.string(), v.string())),
   },
   handler: async (ctx, args): Promise<{ postIds: string[] }> => {
     const userId = args.userId;
@@ -494,12 +497,16 @@ export const publishThread = internalAction({
         const snippet = postText.length > 60 ? postText.substring(0, 60) + "..." : postText;
 
         const imageUrl = args.images?.[i.toString()];
+        const videoUrl = args.videos?.[i.toString()];
 
         console.log(`[publishThread] [Post ${i + 1}/${postsToPublish.length}] Publishing... Type: ${isFirst ? 'Root Post' : `Reply to ${replyToId}`}. Content preview: "${snippet}"`);
 
         const postArgs: any = { text: postText };
         if (imageUrl) {
           postArgs.imageUrl = imageUrl;
+        }
+        if (videoUrl) {
+          postArgs.videoUrl = videoUrl;
         }
 
         if (isFirst) {

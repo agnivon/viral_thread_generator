@@ -1,4 +1,4 @@
-import { Sparkles, Image as ImageIcon, X } from "lucide-react";
+import { Sparkles, Image as ImageIcon, X, Video as VideoIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CardContent } from "@/components/ui/card";
 import { LinkPreviewCard } from "./LinkPreviewCard";
@@ -9,9 +9,12 @@ interface DraftPostsListProps {
   register: any;
   watch: any;
   selectedImages: Record<string, string>;
+  selectedVideos: Record<string, string>;
   postCritiques?: Array<{ post_index: number; critique?: string }>;
   onAttachImage: (index: number) => void;
   onRemoveImage: (index: number) => void;
+  onAttachVideo: (index: number) => void;
+  onRemoveVideo: (index: number) => void;
 }
 
 const getFirstUrl = (text: string): string | null => {
@@ -26,9 +29,12 @@ export function DraftPostsList({
   register,
   watch,
   selectedImages,
+  selectedVideos,
   postCritiques,
   onAttachImage,
   onRemoveImage,
+  onAttachVideo,
+  onRemoveVideo,
 }: DraftPostsListProps) {
   return (
     <CardContent className="space-y-6 pt-6">
@@ -70,8 +76,8 @@ export function DraftPostsList({
                     <LinkPreviewCard url={detectedUrl} />
                   )}
 
-                  {/* Selected image or Add Image button in edit mode */}
-                  {selectedImages[index.toString()] ? (
+                  {/* Attached Image Preview */}
+                  {selectedImages[index.toString()] && (
                     <div className="relative mt-3 rounded-xl overflow-hidden border border-border/80 group/image max-w-md bg-muted/20 animate-in fade-in duration-200">
                       <img 
                         src={selectedImages[index.toString()]} 
@@ -100,8 +106,46 @@ export function DraftPostsList({
                         </Button>
                       </div>
                     </div>
-                  ) : (
-                    <div className="mt-3">
+                  )}
+
+                  {/* Attached Video Preview */}
+                  {selectedVideos[index.toString()] && (
+                    <div className="relative mt-3 rounded-xl overflow-hidden border border-border/80 group/video max-w-md bg-muted/20 animate-in fade-in duration-200">
+                      <div className="aspect-video w-full bg-black flex items-center justify-center">
+                        <video 
+                          src={selectedVideos[index.toString()]} 
+                          className="w-full h-full object-contain"
+                          preload="metadata"
+                          controls
+                        />
+                      </div>
+                      <div className="absolute top-2 right-2 flex gap-2">
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => onAttachVideo(index)}
+                          className="rounded-lg h-8 px-2.5 bg-background/80 hover:bg-background backdrop-blur-xs text-xs font-semibold shadow-xs"
+                        >
+                          <VideoIcon className="w-3.5 h-3.5 mr-1" />
+                          Change
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => onRemoveVideo(index)}
+                          className="rounded-lg h-8 w-8 p-0 bg-red-600/90 hover:bg-red-600 backdrop-blur-xs shadow-xs"
+                        >
+                          <X className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Media Attachment Action Buttons (Only visible if neither image nor video is attached) */}
+                  {!selectedImages[index.toString()] && !selectedVideos[index.toString()] && (
+                    <div className="flex gap-2 mt-3 flex-wrap">
                       <Button
                         type="button"
                         variant="outline"
@@ -111,6 +155,16 @@ export function DraftPostsList({
                       >
                         <ImageIcon className="w-4 h-4 mr-1.5 text-violet-500" />
                         Attach Image
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => onAttachVideo(index)}
+                        className="rounded-lg border-dashed border-border hover:border-violet-500 hover:text-violet-600 dark:hover:text-violet-400 hover:bg-violet-500/5 transition-all duration-200"
+                      >
+                        <VideoIcon className="w-4 h-4 mr-1.5 text-violet-500" />
+                        Attach Video
                       </Button>
                     </div>
                   )}
@@ -132,6 +186,20 @@ export function DraftPostsList({
                         alt={`Post ${index + 1} image`} 
                         className="w-full h-auto max-h-60 object-cover" 
                       />
+                    </div>
+                  )}
+
+                  {/* Selected video preview in non-edit mode */}
+                  {selectedVideos[index.toString()] && (
+                    <div className="relative mt-3 rounded-xl overflow-hidden border border-border/80 max-w-md bg-muted/20">
+                      <div className="aspect-video w-full bg-black flex items-center justify-center">
+                        <video 
+                          src={selectedVideos[index.toString()]} 
+                          className="w-full h-full object-contain"
+                          preload="metadata"
+                          controls
+                        />
+                      </div>
                     </div>
                   )}
                 </div>

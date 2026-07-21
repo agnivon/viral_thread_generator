@@ -22,6 +22,7 @@ import { toast } from "sonner";
 import { DraftPostsList } from "./components/DraftPostsList";
 import { HookSelectionScreen } from "./components/HookSelectionScreen";
 import { ImagePickerDialog } from "./components/ImagePickerDialog";
+import { VideoPickerDialog } from "./components/VideoPickerDialog";
 import { RegenerateDialog } from "./components/RegenerateDialog";
 import { SidebarHookCard } from "./components/SidebarHookCard";
 import { ViralityCard } from "./components/ViralityCard";
@@ -47,6 +48,8 @@ export default function ApproveDraftPage() {
   const [isEditingPosts, setIsEditingPosts] = useState(false);
   const [selectedImages, setSelectedImages] = useState<Record<string, string>>({});
   const [activeImagePickerIdx, setActiveImagePickerIdx] = useState<number | null>(null);
+  const [selectedVideos, setSelectedVideos] = useState<Record<string, string>>({});
+  const [activeVideoPickerIdx, setActiveVideoPickerIdx] = useState<number | null>(null);
 
 
   const { register, reset, watch, getValues } = useForm<{ posts: string[] }>({
@@ -66,6 +69,7 @@ export default function ApproveDraftPage() {
       reset({ posts: state.thread_draft });
     }
     setSelectedImages({});
+    setSelectedVideos({});
     setIsEditingPosts(false);
   };
 
@@ -161,6 +165,7 @@ export default function ApproveDraftPage() {
             id,
             modified_thread: isModified ? currentPosts : undefined,
             images: Object.keys(selectedImages).length > 0 ? selectedImages : undefined,
+            videos: Object.keys(selectedVideos).length > 0 ? selectedVideos : undefined,
           }
         ]
       });
@@ -412,10 +417,19 @@ export default function ApproveDraftPage() {
                 register={register}
                 watch={watch}
                 selectedImages={selectedImages}
+                selectedVideos={selectedVideos}
                 postCritiques={state.post_critiques}
                 onAttachImage={(index) => setActiveImagePickerIdx(index)}
                 onRemoveImage={(index) => {
                   setSelectedImages(prev => {
+                    const updated = { ...prev };
+                    delete updated[index.toString()];
+                    return updated;
+                  });
+                }}
+                onAttachVideo={(index) => setActiveVideoPickerIdx(index)}
+                onRemoveVideo={(index) => {
+                  setSelectedVideos(prev => {
                     const updated = { ...prev };
                     delete updated[index.toString()];
                     return updated;
@@ -526,6 +540,26 @@ export default function ApproveDraftPage() {
           });
         }}
         onClose={() => setActiveImagePickerIdx(null)}
+      />
+
+      {/* Select Post Video Dialog Modal */}
+      <VideoPickerDialog
+        activeVideoPickerIdx={activeVideoPickerIdx}
+        selectedVideos={selectedVideos}
+        onSelectVideo={(index, url) => {
+          setSelectedVideos(prev => ({
+            ...prev,
+            [index.toString()]: url
+          }));
+        }}
+        onDeselectVideo={(index) => {
+          setSelectedVideos(prev => {
+            const updated = { ...prev };
+            delete updated[index.toString()];
+            return updated;
+          });
+        }}
+        onClose={() => setActiveVideoPickerIdx(null)}
       />
     </div>
   );

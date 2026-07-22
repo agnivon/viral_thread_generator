@@ -1,12 +1,13 @@
 import { v } from "convex/values";
 import { internalMutation, mutation } from "../_generated/server";
+import { threadDraftInputValidator } from "../schema";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { vOnCompleteArgs } from "@convex-dev/workpool";
 import { Id } from "../_generated/dataModel";
 
 export const saveThreadDraft = internalMutation({
   args: {
-    url: v.string(),
+    input_field: v.optional(threadDraftInputValidator),
     raw_markdown: v.string(),
     core_hooks: v.array(v.string()),
     selected_hook: v.string(),
@@ -27,37 +28,39 @@ export const saveThreadDraft = internalMutation({
     return await ctx.db.insert("threadDrafts", {
       ...args,
       is_published: false,
-      generation_status: "success",
+      generation_status: "success" as const,
     });
   },
 });
 
 export const initializeThreadDraft = internalMutation({
   args: {
-    url: v.string(),
     userId: v.id("users"),
     guidance: v.optional(v.string()),
     manual_hook_selection: v.optional(v.boolean()),
     agent: v.optional(v.string()),
+    input_field: v.optional(threadDraftInputValidator),
   },
   handler: async (ctx, args): Promise<Id<"threadDrafts">> => {
-    return await ctx.db.insert("threadDrafts", {
-      url: args.url,
+    const insertFields = {
+      input_field: args.input_field,
       userId: args.userId,
       guidance: args.guidance,
       manual_hook_selection: args.manual_hook_selection,
       agent: args.agent || "news",
       is_approved: false,
       is_published: false,
-      generation_status: "processing",
-      publication_status: "not_published",
-    });
+      generation_status: "processing" as const,
+      publication_status: "not_published" as const,
+    };
+    return await ctx.db.insert("threadDrafts", insertFields);
   },
 });
 
 export const updateThreadDraft = internalMutation({
   args: {
     id: v.id("threadDrafts"),
+    input_field: v.optional(threadDraftInputValidator),
     generation_status: v.optional(v.union(v.literal("success"), v.literal("failed"), v.literal("processing"), v.literal("hook selection"))),
     publication_status: v.optional(v.union(v.literal("not_published"), v.literal("publishing"), v.literal("success"), v.literal("failed"))),
     manual_hook_selection: v.optional(v.boolean()),

@@ -66,7 +66,7 @@ test("generateNewsThread action runs graph and saves result", async () => {
 
   const mockGraphOutput = {
     url: "https://example.com/target-url",
-    guidance: undefined,
+    guidance: "Some test guidance",
     manual_hook_selection: true,
     raw_markdown: "Graph markdown result",
     core_hooks: ["g1", "g2"],
@@ -91,14 +91,14 @@ test("generateNewsThread action runs graph and saves result", async () => {
 
   // 4. Trigger generation internal action
   const { recordId } = await t.action(internal.actions.threadsActions.generateThreadInternal, {
-    url: "https://example.com/target-url",
+    input_field: { agent: "news", url: "https://example.com/target-url" },
     manual_hook_selection: true,
     userId,
   });
 
   expect(recordId).toBeDefined();
   expect(invokeSpy).toHaveBeenCalledWith({
-    url: "https://example.com/target-url",
+    input_field: { agent: "news", url: "https://example.com/target-url" },
     guidance: undefined,
     manual_hook_selection: true,
     raw_markdown: "",
@@ -117,7 +117,7 @@ test("generateNewsThread action runs graph and saves result", async () => {
 
   const { parse_success: _p, retries: _r, ...expectedDbFields } = mockGraphOutput;
   expect(saved).toMatchObject({
-    url: expectedDbFields.url,
+    input_field: { agent: "news", url: expectedDbFields.url },
     raw_markdown: expectedDbFields.raw_markdown,
     core_hooks: expectedDbFields.core_hooks,
     selected_hook: expectedDbFields.selected_hook,
@@ -140,7 +140,7 @@ test("resumeNewsThreadGeneration action resumes graph and saves result", async (
 
   // 1. Insert thread factory state record in hook selection status
   const stateId = await t.mutation(internal.mutations.threadsMutations.saveThreadDraft, {
-    url: "https://example.com/source-url",
+    input_field: { agent: "news", url: "https://example.com/source-url" },
     raw_markdown: "Mock raw markdown content",
     core_hooks: ["Hook 1", "Hook 2"],
     selected_hook: "",
@@ -155,7 +155,7 @@ test("resumeNewsThreadGeneration action resumes graph and saves result", async (
 
   const mockGraphOutput = {
     url: "https://example.com/source-url",
-    guidance: undefined,
+    guidance: "Test hook strategies",
     manual_hook_selection: true,
     raw_markdown: "Mock raw markdown content",
     core_hooks: ["Hook 1", "Hook 2"],
@@ -214,7 +214,7 @@ test("publishThread action retrieves state and publishes thread of posts sequent
 
   // 2. Insert thread factory state record
   const stateId = await t.mutation(internal.mutations.threadsMutations.saveThreadDraft, {
-    url: "https://example.com/source-url",
+    input_field: { agent: "news", url: "https://example.com/source-url" },
     raw_markdown: "Mock raw markdown content",
     core_hooks: [],
     selected_hook: "Hook 1",

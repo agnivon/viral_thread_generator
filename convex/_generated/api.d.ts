@@ -30,6 +30,7 @@ import type * as lib_agents_social_media_nodes from "../lib/agents/social_media/
 import type * as lib_agents_social_media_prompts from "../lib/agents/social_media/prompts.js";
 import type * as lib_agents_social_media_state from "../lib/agents/social_media/state.js";
 import type * as lib_agents_social_media_tools from "../lib/agents/social_media/tools.js";
+import type * as lib_agents_tools from "../lib/agents/tools.js";
 import type * as lib_agents_topic_graph from "../lib/agents/topic/graph.js";
 import type * as lib_agents_topic_index from "../lib/agents/topic/index.js";
 import type * as lib_agents_topic_nodes from "../lib/agents/topic/nodes.js";
@@ -44,6 +45,7 @@ import type * as lib_jina_api from "../lib/jina/api.js";
 import type * as lib_newsdata_api from "../lib/newsdata/api.js";
 import type * as lib_threads_api from "../lib/threads/api.js";
 import type * as lib_workpool_index from "../lib/workpool/index.js";
+import type * as migrations from "../migrations.js";
 import type * as mutations_threadsMutations from "../mutations/threadsMutations.js";
 import type * as mutations_tokensMutations from "../mutations/tokensMutations.js";
 import type * as queries_threadsQueries from "../queries/threadsQueries.js";
@@ -78,6 +80,7 @@ declare const fullApi: ApiFromModules<{
   "lib/agents/social_media/prompts": typeof lib_agents_social_media_prompts;
   "lib/agents/social_media/state": typeof lib_agents_social_media_state;
   "lib/agents/social_media/tools": typeof lib_agents_social_media_tools;
+  "lib/agents/tools": typeof lib_agents_tools;
   "lib/agents/topic/graph": typeof lib_agents_topic_graph;
   "lib/agents/topic/index": typeof lib_agents_topic_index;
   "lib/agents/topic/nodes": typeof lib_agents_topic_nodes;
@@ -92,6 +95,7 @@ declare const fullApi: ApiFromModules<{
   "lib/newsdata/api": typeof lib_newsdata_api;
   "lib/threads/api": typeof lib_threads_api;
   "lib/workpool/index": typeof lib_workpool_index;
+  migrations: typeof migrations;
   "mutations/threadsMutations": typeof mutations_threadsMutations;
   "mutations/tokensMutations": typeof mutations_tokensMutations;
   "queries/threadsQueries": typeof queries_threadsQueries;
@@ -127,4 +131,5 @@ export declare const internal: FilterApi<
 export declare const components: {
   generationPool: import("@convex-dev/workpool/_generated/component.js").ComponentApi<"generationPool">;
   publicationPool: import("@convex-dev/workpool/_generated/component.js").ComponentApi<"publicationPool">;
+  migrations: import("@convex-dev/migrations/_generated/component.js").ComponentApi<"migrations">;
 };

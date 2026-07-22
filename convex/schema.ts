@@ -15,6 +15,24 @@ export const tokenTypeValidator = v.union(
   v.literal("app")
 );
 
+const NewsInput = v.object({
+  agent: v.literal("news"),
+  url: v.string(),
+});
+
+const SocialMediaInput = v.object({
+  agent: v.literal("social_media"),
+  url: v.string(),
+});
+
+const TopicInput = v.object({
+  agent: v.literal("topic"),
+  topic: v.string(),
+  description: v.optional(v.string()),
+});
+
+export const threadDraftInputValidator = v.union(NewsInput, SocialMediaInput, TopicInput);
+
 export default defineSchema(
   {
     ...authTables,
@@ -33,7 +51,7 @@ export default defineSchema(
       .index("by_platform_and_active", ["platform", "active"])
       .index("by_userId_platform_active", ["userId", "platform", "active"]),
     threadDrafts: defineTable({
-      url: v.string(),
+      input_field: v.optional(threadDraftInputValidator),
       agent: v.optional(v.string()),
       userId: v.id("users"),
       raw_markdown: v.optional(v.string()),

@@ -55,10 +55,12 @@ export default function CreateThreadPage() {
       // Trigger thread generation enqueuing
       await enqueueThreadGeneration({ 
         requests: validEntries.map(entry => ({ 
-          url: entry.url, 
+          input_field: {
+            url: entry.url,
+            agent: ((entry as any).agent || "news") as "news" | "social_media"
+          },
           guidance: entry.guidance || undefined,
           manual_hook_selection: entry.manual_hook_selection,
-          agent: (entry as any).agent || "news"
         })) 
       });
       // Redirect to drafts list page

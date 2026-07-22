@@ -220,7 +220,7 @@ export default function ApproveDraftPage() {
   if (genStatus === "hook selection") {
     return (
       <HookSelectionScreen
-        url={state.url}
+        url={state.input_field?.agent === "topic" ? (state.input_field as any).topic : (state.input_field as any)?.url || "Unknown Source"}
         coreHooks={state.core_hooks || []}
         selectedHook={state.selected_hook}
         selectedHookIdx={selectedHookIdx}
@@ -302,14 +302,20 @@ export default function ApproveDraftPage() {
             </h1>
             <p className="text-sm text-muted-foreground break-all">
               Generated from:{" "}
-              <a
-                href={state.url}
-                target="_blank"
-                rel="noreferrer"
-                className="underline hover:text-violet-600 dark:hover:text-violet-400 transition-colors break-all font-medium"
-              >
-                {state.url}
-              </a>
+              {state.input_field?.agent === "topic" ? (
+                <span className="font-medium text-foreground">
+                  {(state.input_field as any).topic}
+                </span>
+              ) : (
+                <a
+                  href={(state.input_field as any)?.url || "#"}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="underline hover:text-violet-600 dark:hover:text-violet-400 transition-colors break-all font-medium"
+                >
+                  {(state.input_field as any)?.url || "Unknown Source"}
+                </a>
+              )}
             </p>
             {state.guidance && (
               <div className="mt-2.5">

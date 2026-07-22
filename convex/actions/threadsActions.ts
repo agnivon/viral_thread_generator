@@ -3,12 +3,14 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { awaitAllCallbacks } from "@langchain/core/callbacks/promises";
 import { isInterrupted, Command } from "@langchain/langgraph";
-import { v } from "convex/values";
-import { internal } from "../_generated/api";
 import { action, internalAction } from "../_generated/server";
+import { v, Infer } from "convex/values";
+import { internal } from "../_generated/api";
+import { threadDraftInputValidator } from "../schema";
 import { Id } from "../_generated/dataModel";
 import { NewsThreadFactoryGraph } from "../lib/agents/news/graph.js";
 import { SocialMediaThreadFactoryGraph } from "../lib/agents/social_media/graph.js";
+import { TopicThreadFactoryGraph } from "../lib/agents/topic/graph.js";
 import { ThreadsAPI } from "../lib/threads/api.js";
 import { generationPool, publicationPool } from "../lib/workpool/index.js";
 
@@ -20,22 +22,24 @@ async function requireAuthUserId(ctx: any): Promise<Id<"users">> {
   return userId;
 }
 
-function createInitialState(args: { url: string; guidance?: string; manual_hook_selection?: boolean }) {
-  return {
-    url: args.url,
+function createInitialState(args: { input_field: Infer<typeof threadDraftInputValidator>; guidance?: string; manual_hook_selection?: boolean; }) {
+  const base = {
     guidance: args.guidance,
     manual_hook_selection: args.manual_hook_selection ?? false,
-    raw_markdown: "",
-    core_hooks: [],
-    selected_hook: "",
-    thread_draft: [],
-    critique: "",
     iterations: 0,
     is_approved: false,
   };
+
+  if (args.input_field.agent === "topic") {
+    return { ...base, topic: args.input_field.topic, description: args.input_field.description };
+  }
+  return { ...base, url: args.input_field.url };
 }
 
 function getGraph(agent?: string) {
+  if (agent === "topic") {
+    return TopicThreadFactoryGraph;
+  }
   if (agent === "social_media") {
     return SocialMediaThreadFactoryGraph;
   }
@@ -45,6 +49,10 @@ function getGraph(agent?: string) {
 async function handleGraphCompletion(ctx: any, recordId: Id<"threadDrafts">, finalState: any, agent?: string) {
   const {
     url,
+    topic,
+    description,
+    research_dossier,
+    urls_to_scrape,
     guidance,
     manual_hook_selection,
     parse_success,
@@ -55,10 +63,15 @@ async function handleGraphCompletion(ctx: any, recordId: Id<"threadDrafts">, fin
     ...stateToSave
   } = finalState;
 
-  const graph = getGraph(agent);
+  if (agent === "topic" && research_dossier) {
+    stateToSave.research_context = research_dossier;
+  }
+
+  const actualAgent = agent || "news";
+  const graph = getGraph(actualAgent);
   const interrupted = isInterrupted(finalState) || (await graph.getState({ configurable: { thread_id: recordId } })).next.length > 0;
 
-  if (!interrupted && agent !== "social_media" && stateToSave.thread_draft) {
+  if (!interrupted && agent === "news" && stateToSave.thread_draft) {
     stateToSave.thread_draft = [...stateToSave.thread_draft, url];
   }
 
@@ -88,7 +101,7 @@ export const enqueueNewsThreadGeneration = action({
     const userId = await requireAuthUserId(ctx);
 
     const payload = args.requests.map(req => ({
-      url: req.url,
+      input_field: { agent: "news" as const, url: req.url },
       guidance: req.guidance,
       manual_hook_selection: req.manual_hook_selection,
       userId,
@@ -111,7 +124,7 @@ export const enqueueSocialMediaThreadGeneration = action({
     const userId = await requireAuthUserId(ctx);
 
     const payload = args.requests.map(req => ({
-      url: req.url,
+      input_field: { agent: "social_media" as const, url: req.url },
       guidance: req.guidance,
       manual_hook_selection: req.manual_hook_selection,
       userId,
@@ -122,25 +135,50 @@ export const enqueueSocialMediaThreadGeneration = action({
   },
 });
 
-export const enqueueThreadGeneration = action({
+export const enqueueTopicThreadGeneration = action({
   args: {
     requests: v.array(v.object({
-      url: v.string(),
+      topic: v.string(),
+      description: v.optional(v.string()),
       guidance: v.optional(v.string()),
       manual_hook_selection: v.optional(v.boolean()),
-      agent: v.optional(v.string()),
     }))
   },
   handler: async (ctx, args) => {
     const userId = await requireAuthUserId(ctx);
 
     const payload = args.requests.map(req => ({
-      url: req.url,
+      input_field: { agent: "topic" as const, topic: req.topic, description: req.description },
       guidance: req.guidance,
       manual_hook_selection: req.manual_hook_selection,
       userId,
-      agent: req.agent || "news",
+      agent: "topic",
     }));
+
+    await generationPool.enqueueActionBatch(ctx, internal.actions.threadsActions.generateThreadInternal, payload);
+  },
+});
+
+export const enqueueThreadGeneration = action({
+  args: {
+    requests: v.array(v.object({
+      input_field: threadDraftInputValidator,
+      guidance: v.optional(v.string()),
+      manual_hook_selection: v.optional(v.boolean()),
+    }))
+  },
+  handler: async (ctx, args) => {
+    const userId = await requireAuthUserId(ctx);
+
+    const payload = args.requests.map(req => {
+      return {
+        input_field: req.input_field,
+        guidance: req.guidance,
+        manual_hook_selection: req.manual_hook_selection,
+        userId,
+        agent: req.input_field.agent,
+      };
+    });
 
     await generationPool.enqueueActionBatch(ctx, internal.actions.threadsActions.generateThreadInternal, payload);
   },
@@ -148,39 +186,43 @@ export const enqueueThreadGeneration = action({
 
 export const generateThreadInternal = internalAction({
   args: {
-    url: v.string(),
+    input_field: threadDraftInputValidator,
     guidance: v.optional(v.string()),
     manual_hook_selection: v.optional(v.boolean()),
     userId: v.id("users"),
     agent: v.optional(v.string()),
   },
   handler: async (ctx, args): Promise<{ recordId: Id<"threadDrafts"> }> => {
-    let recordId: Id<"threadDrafts"> | undefined;
+    let recordId: Id<"threadDrafts"> | undefined = undefined;
     try {
-      console.log(`[generateNewsThread] Started for URL: ${args.url}`);
-
       recordId = await ctx.runMutation(
         internal.mutations.threadsMutations.initializeThreadDraft,
         {
-          url: args.url,
-          userId: args.userId,
+          input_field: args.input_field,
           guidance: args.guidance,
           manual_hook_selection: args.manual_hook_selection,
+          userId: args.userId,
           agent: args.agent,
         }
       );
 
-      const initialState = createInitialState(args);
-      const graph = getGraph(args.agent);
+      if (!recordId) {
+        throw new Error("Failed to initialize thread draft.");
+      }
+      const draft = await ctx.runQuery(internal.queries.threadsQueries.getThreadDraftInternal, { id: recordId, userId: args.userId });
+      const agent = draft?.agent || args.agent || "news";
+      
+      const graph = getGraph(agent);
 
-      console.log(`[generateThreadInternal] Invoking ${args.agent || 'news'} graph from scratch...`);
+      console.log(`[generateThreadInternal] Invoking ${agent} graph from scratch...`);
 
+      const initialState = createInitialState({ input_field: args.input_field, guidance: args.guidance, manual_hook_selection: args.manual_hook_selection });
       const finalState = await (graph as any).invoke(initialState, {
         configurable: { thread_id: recordId }
       });
 
       console.log(`[generateThreadInternal] Graph finished. Iterations: ${finalState.iterations}, Approved: ${finalState.is_approved}`);
-      return await handleGraphCompletion(ctx, recordId, finalState, args.agent);
+      return await handleGraphCompletion(ctx, recordId!, finalState, agent);
     } catch (e) {
       if (recordId) {
         await ctx.runMutation(internal.mutations.threadsMutations.updateThreadDraft, {
@@ -195,59 +237,56 @@ export const generateThreadInternal = internalAction({
 
 export const regenerateThreadInternal = internalAction({
   args: {
-    url: v.string(),
-    guidance: v.optional(v.string()),
-    manual_hook_selection: v.optional(v.boolean()),
     userId: v.id("users"),
     recordId: v.id("threadDrafts"),
+    guidance: v.optional(v.string()),
+    manual_hook_selection: v.optional(v.boolean()),
     agent: v.optional(v.string()),
   },
   handler: async (ctx, args): Promise<{ recordId: Id<"threadDrafts"> }> => {
     try {
-      console.log(`[regenerateThreadInternal] Started for URL: ${args.url}, Record: ${args.recordId}, Agent: ${args.agent}`);
-
-      await ctx.runMutation(
-        internal.mutations.threadsMutations.updateThreadDraft,
-        {
-          id: args.recordId,
-          generation_status: "processing",
-          is_approved: false,
-          iterations: 0,
-          guidance: args.guidance,
-          manual_hook_selection: args.manual_hook_selection,
-        }
-      );
+      const draft = await ctx.runQuery(internal.queries.threadsQueries.getThreadDraftInternal, { id: args.recordId, userId: args.userId });
+      if (!draft || !draft.input_field) throw new Error("Draft not found or missing input_field");
+      
+      const agent = args.agent || draft.agent || "news";
+      console.log(`[regenerateThreadInternal] Started for Record: ${args.recordId}, Agent: ${agent}`);
 
       console.log(`[regenerateThreadInternal] Regenerating thread ${args.recordId}. Time traveling to after ScraperNode...`);
       const config = { configurable: { thread_id: args.recordId } };
-      const graph = getGraph(args.agent);
+      const graph = getGraph(agent);
       
-      let pastState = null;
+      let pastStateBeforeHook = null;
       for await (const state of graph.getStateHistory(config)) {
         if (state.next && state.next.includes("HookStrategistNode")) {
-          pastState = state;
+          pastStateBeforeHook = state;
           break;
         }
       }
 
       let finalState;
-      if (pastState) {
-        console.log(`[regenerateThreadInternal] Found past state before HookStrategistNode. Forking...`);
-        const forkConfig = await graph.updateState(pastState.config, {
-           guidance: args.guidance,
-           manual_hook_selection: args.manual_hook_selection ?? false,
+      if (pastStateBeforeHook) {
+        console.log(`[regenerateThreadInternal] Found past state at iterations=${pastStateBeforeHook.values.iterations}. Forking...`);
+        const forkConfig = {
+          configurable: {
+            thread_id: args.recordId,
+            checkpoint_id: pastStateBeforeHook.config.configurable?.checkpoint_id,
+          }
+        };
+        await ctx.runMutation(internal.mutations.threadsMutations.updateThreadDraft, {
+           id: args.recordId,
+           generation_status: "processing",
            is_approved: false,
            iterations: 0,
         });
         finalState = await (graph as any).invoke(null, forkConfig);
       } else {
         console.log(`[regenerateThreadInternal] Could not find past state before HookStrategistNode. Restarting from scratch...`);
-        const initialState = createInitialState(args);
+        const initialState = createInitialState({ input_field: draft.input_field, guidance: draft.guidance, manual_hook_selection: draft.manual_hook_selection });
         finalState = await (graph as any).invoke(initialState, config);
       }
 
       console.log(`[regenerateThreadInternal] Graph finished. Iterations: ${finalState.iterations}, Approved: ${finalState.is_approved}`);
-      return await handleGraphCompletion(ctx, args.recordId, finalState, args.agent);
+      return await handleGraphCompletion(ctx, args.recordId, finalState, agent);
     } catch (e) {
       await ctx.runMutation(internal.mutations.threadsMutations.updateThreadDraft, {
         id: args.recordId,
@@ -358,9 +397,33 @@ export const retryThreadInternal = internalAction({
       );
 
       const graph = getGraph(args.agent);
-      const finalState = await (graph as any).invoke(null, {
-        configurable: { thread_id: args.recordId }
-      });
+      const config = { configurable: { thread_id: args.recordId } };
+      const state = await graph.getState(config);
+
+      let finalState;
+      if (!state || !state.values || Object.keys(state.values).length === 0) {
+        console.log(`[retryThreadInternal] No prior state found. Restarting from scratch...`);
+        const draft = await ctx.runQuery(internal.queries.threadsQueries.getThreadDraftInternal, { id: args.recordId, userId: args.userId });
+        if (!draft || !draft.input_field) throw new Error("Draft not found or missing input_field");
+        
+        const initialState = createInitialState({ input_field: draft.input_field, guidance: draft.guidance, manual_hook_selection: draft.manual_hook_selection });
+        finalState = await (graph as any).invoke(initialState, config);
+      } else {
+        try {
+          finalState = await (graph as any).invoke(null, config);
+        } catch (e: any) {
+          if (e.name === "EmptyInputError" || e.message?.includes("EmptyInputError") || e.message?.includes('Received no input writes for "__start__"')) {
+            console.log(`[retryThreadInternal] Caught EmptyInputError. Restarting from scratch...`);
+            const draft = await ctx.runQuery(internal.queries.threadsQueries.getThreadDraftInternal, { id: args.recordId, userId: args.userId });
+            if (!draft || !draft.input_field) throw new Error("Draft not found or missing input_field");
+            
+            const initialState = createInitialState({ input_field: draft.input_field, guidance: draft.guidance, manual_hook_selection: draft.manual_hook_selection });
+            finalState = await (graph as any).invoke(initialState, config);
+          } else {
+            throw e;
+          }
+        }
+      }
 
       console.log(`[retryThreadInternal] Graph retried and finished. Iterations: ${finalState.iterations}, Approved: ${finalState.is_approved}`);
       return await handleGraphCompletion(ctx, args.recordId, finalState, args.agent);
@@ -386,13 +449,13 @@ export const enqueueThreadRegeneration = action({
     const payload = [];
     for (const id of args.ids) {
       const draft = await ctx.runQuery(internal.queries.threadsQueries.getThreadDraftInternal, { id, userId });
-      if (!draft) {
-        throw new Error(`Draft ${id} not found or unauthorized`);
+      if (!draft || !draft.input_field) {
+        throw new Error(`Draft ${id} not found, unauthorized, or missing input_field`);
       }
       const guidance = args.guidance !== undefined ? args.guidance : draft.guidance;
       const manual_hook_selection = args.manual_hook_selection !== undefined ? args.manual_hook_selection : draft.manual_hook_selection;
+      
       payload.push({
-        url: draft.url,
         guidance: guidance,
         manual_hook_selection: manual_hook_selection,
         userId,
@@ -479,7 +542,7 @@ export const publishThread = internalAction({
         console.error("[publishThread] Thread factory state has no thread draft content to publish.");
         throw new Error("Thread factory state has no thread draft content to publish.");
       }
-      console.log(`[publishThread] Thread factory state loaded. URL: ${state.url}, draft posts count: ${state.thread_draft.length}`);
+      console.log(`[publishThread] Thread factory state loaded. draft posts count: ${state.thread_draft.length}`);
 
       // 3. Initialize ThreadsAPI
       console.log("[publishThread] Initializing ThreadsAPI with 'me' as userId...");

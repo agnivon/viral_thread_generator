@@ -213,7 +213,10 @@ export default function DraftsPage() {
               </thead>
               <tbody className="divide-y divide-border/40">
                 {drafts.map((draft) => {
-                  const externalUrl = draft.url?.startsWith("http") ? draft.url : `https://${draft.url}`;
+                  const isTopic = draft.input_field?.agent === "topic";
+                  // @ts-ignore - union type narrowing
+                  const title = isTopic ? draft.input_field?.topic : draft.input_field?.url || "Unknown Source";
+                  const externalUrl = !isTopic && title?.startsWith("http") ? title : `https://${title}`;
                   const genStatus = draft.generation_status ?? "success";
                   const isPublishable = !draft.is_published && draft.publication_status !== "publishing" && genStatus === "success";
                   return (
@@ -223,21 +226,27 @@ export default function DraftsPage() {
                           checked={selectedDrafts.has(draft._id)}
                           onCheckedChange={() => toggleSelection(draft._id)}
                           disabled={isPublishing || isDeleting}
-                          aria-label={`Select ${draft.url}`}
+                          aria-label={`Select ${title}`}
                           className="border-muted-foreground/45 data-[state=checked]:bg-violet-600 data-[state=checked]:border-violet-600"
                         />
                       </td>
                       <td className="px-4 py-4.5">
-                        <a
-                          href={externalUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="hover:text-violet-600 dark:hover:text-violet-400 hover:underline flex items-center gap-1.5 font-semibold text-foreground max-w-[180px] sm:max-w-xs md:max-w-md transition-colors"
-                          title={draft.url}
-                        >
-                          <span className="truncate">{draft.url}</span>
-                          <ExternalLinkIcon className="w-3.5 h-3.5 flex-shrink-0 text-muted-foreground" />
-                        </a>
+                        {isTopic ? (
+                          <span className="flex items-center gap-1.5 font-semibold text-foreground max-w-[180px] sm:max-w-xs md:max-w-md" title={title}>
+                            <span className="truncate">{title}</span>
+                          </span>
+                        ) : (
+                          <a
+                            href={externalUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="hover:text-violet-600 dark:hover:text-violet-400 hover:underline flex items-center gap-1.5 font-semibold text-foreground max-w-[180px] sm:max-w-xs md:max-w-md transition-colors"
+                            title={title}
+                          >
+                            <span className="truncate">{title}</span>
+                            <ExternalLinkIcon className="w-3.5 h-3.5 flex-shrink-0 text-muted-foreground" />
+                          </a>
+                        )}
                       </td>
                       <td className="px-4 py-4.5">
                         {genStatus === "processing" ? (

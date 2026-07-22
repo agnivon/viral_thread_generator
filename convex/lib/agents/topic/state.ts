@@ -11,6 +11,7 @@ export const TopicThreadFactoryState = new StateSchema({
   core_hooks: z.array(z.string()).default(() => []),
   thread_draft: z.array(z.string()).default(() => []),
   virality_score: z.number().optional(),
+  critique: z.string().optional(),
   post_critiques: z.array(
     z.object({ 
       post_index: z.number(), 
@@ -19,17 +20,19 @@ export const TopicThreadFactoryState = new StateSchema({
     })
   ).default(() => []),
   iterations: z.number().default(0),
-  needs_deep_scrape: z.boolean().default(false),
   urls_to_scrape: z.array(z.string()).default(() => []),
   parse_success: z.boolean().default(true),
   is_approved: z.boolean().default(false),
+  is_character_valid: z.boolean().default(true),
+  character_critique: z.string().optional(),
   retries: z.object({
     orchestrator: z.number().default(0),
     scraper: z.number().default(0),
     hook: z.number().default(0),
     writer: z.number().default(0),
     critic: z.number().default(0),
-  }).default({ orchestrator: 0, scraper: 0, hook: 0, writer: 0, critic: 0 }),
+    validator: z.number().default(0),
+  }).default({ orchestrator: 0, scraper: 0, hook: 0, writer: 0, critic: 0, validator: 0 }),
 });
 
 export type TopicThreadFactoryStateType = typeof TopicThreadFactoryState.State;

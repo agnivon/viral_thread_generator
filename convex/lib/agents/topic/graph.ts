@@ -8,7 +8,8 @@ import {
   DeepPageScraperNode,
   HookStrategistNode,
   ThreadWriterNode,
-  ViralityCriticNode
+  ViralityCriticNode,
+  TopicCharacterValidatorNode
 } from "./nodes.js";
 
 const route_after_orchestrator = (state: TopicThreadFactoryStateType) => {
@@ -16,7 +17,7 @@ const route_after_orchestrator = (state: TopicThreadFactoryStateType) => {
     if ((state.retries?.orchestrator || 0) >= 3) throw new Error("ResearchOrchestratorNode failed after 3 retries");
     return "ResearchOrchestratorNode";
   }
-  if (state.needs_deep_scrape) {
+  if (state.urls_to_scrape && state.urls_to_scrape.length > 0) {
     return "DeepPageScraperNode";
   }
   return "HookStrategistNode";
@@ -43,6 +44,17 @@ const route_after_writer = (state: TopicThreadFactoryStateType) => {
     if ((state.retries?.writer || 0) >= 3) throw new Error("ThreadWriterNode failed after 3 retries");
     return "ThreadWriterNode";
   }
+  return "TopicCharacterValidatorNode";
+};
+
+const route_after_validator = (state: TopicThreadFactoryStateType) => {
+  if (state.is_character_valid === false) {
+    if ((state.retries?.validator || 0) >= 3) {
+      // If we keep failing validation, just send it to the critic and let it fail or rewrite
+      return "ViralityCriticNode";
+    }
+    return "ThreadWriterNode";
+  }
   return "ViralityCriticNode";
 };
 
@@ -63,11 +75,13 @@ export const TopicThreadFactoryGraph = new StateGraph(TopicThreadFactoryState)
   .addNode("DeepPageScraperNode", DeepPageScraperNode)
   .addNode("HookStrategistNode", HookStrategistNode)
   .addNode("ThreadWriterNode", ThreadWriterNode)
+  .addNode("TopicCharacterValidatorNode", TopicCharacterValidatorNode)
   .addNode("ViralityCriticNode", ViralityCriticNode)
   .addEdge(START, "ResearchOrchestratorNode")
   .addConditionalEdges("ResearchOrchestratorNode", route_after_orchestrator, ["DeepPageScraperNode", "HookStrategistNode", "ResearchOrchestratorNode"])
   .addConditionalEdges("DeepPageScraperNode", route_after_scraper, ["HookStrategistNode", "DeepPageScraperNode"])
   .addConditionalEdges("HookStrategistNode", route_after_hook, ["ThreadWriterNode", "HookStrategistNode"])
-  .addConditionalEdges("ThreadWriterNode", route_after_writer, ["ViralityCriticNode", "ThreadWriterNode"])
+  .addConditionalEdges("ThreadWriterNode", route_after_writer, ["TopicCharacterValidatorNode", "ThreadWriterNode"])
+  .addConditionalEdges("TopicCharacterValidatorNode", route_after_validator, ["ViralityCriticNode", "ThreadWriterNode"])
   .addConditionalEdges("ViralityCriticNode", route_after_critic, [END, "ThreadWriterNode", "ViralityCriticNode"])
   .compile({ checkpointer: checkpointSaver });

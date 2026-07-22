@@ -21,7 +21,8 @@ import {
   NEWS_CRITIC_PROMPT
 } from "./prompts.js";
 import { NewsThreadFactoryStateType } from "./state.js";
-import { CharacterValidatorTool, ContentAuthenticityCheckerTool, TopicContextExpanderTool, WebScraperTool } from "./tools.js";
+import { ContentAuthenticityCheckerTool, TopicContextExpanderTool, WebScraperTool } from "./tools.js";
+import { CharacterValidatorTool } from "../tools.js";
 import { buildAgents, invokeWithFallbacks } from "../utils.js";
 
 

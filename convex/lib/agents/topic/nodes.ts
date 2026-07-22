@@ -22,14 +22,14 @@ import {
   TavilySearchTool,
   DuckDuckGoSearchTool,
   JinaReaderTool,
-  FirecrawlScrapeTool
+  FirecrawlScrapeTool,
+  TopicCharacterValidatorTool
 } from "./tools.js";
 import { buildAgents, invokeWithFallbacks } from "../utils.js";
 
 export const ResearchOrchestratorNode = async (state: TopicThreadFactoryStateType, config?: RunnableConfig) => {
   const schema = z.object({
     research_dossier: z.string().min(1, "Must generate research dossier"),
-    needs_deep_scrape: z.boolean(),
     urls_to_scrape: z.array(z.string()).optional()
   });
 
@@ -58,12 +58,10 @@ export const ResearchOrchestratorNode = async (state: TopicThreadFactoryStateTyp
   }
 
   let research_dossier = "";
-  let needs_deep_scrape = false;
   let urls_to_scrape: string[] = [];
 
   if (parse_success && result?.structuredResponse) {
     research_dossier = result.structuredResponse.research_dossier || "";
-    needs_deep_scrape = result.structuredResponse.needs_deep_scrape || false;
     urls_to_scrape = result.structuredResponse.urls_to_scrape || [];
   } else {
     parse_success = false;
@@ -71,7 +69,6 @@ export const ResearchOrchestratorNode = async (state: TopicThreadFactoryStateTyp
 
   return {
     research_dossier,
-    needs_deep_scrape,
     urls_to_scrape,
     parse_success,
     retries: { ...(state.retries || {}), orchestrator: (state.retries?.orchestrator || 0) + 1 }
@@ -190,9 +187,21 @@ export const ThreadWriterNode = async (state: TopicThreadFactoryStateType, confi
 
   try {
     const guidanceContext = state.guidance ? `\n\n<ADDITIONAL_GUIDANCE>\n${state.guidance}\n</ADDITIONAL_GUIDANCE>` : "";
+    let critiqueContext = "";
+    if ((state.post_critiques && state.post_critiques.length > 0) || state.character_critique) {
+      let critiqueStr = "";
+      if (state.post_critiques && state.post_critiques.length > 0) {
+        critiqueStr += state.post_critiques.map(pc => `Post ${pc.post_index}: ${pc.critique}${pc.fix_directive ? `\nFix Directive: ${pc.fix_directive}` : ''}`).join("\n\n");
+      }
+      if (state.character_critique) {
+        critiqueStr += (critiqueStr ? "\n\n" : "") + state.character_critique;
+      }
+      critiqueContext = `\n\n<CURRENT_DRAFT>\n${JSON.stringify(state.thread_draft, null, 2)}\n</CURRENT_DRAFT>\n\n<CRITIQUES>\n${critiqueStr}\n</CRITIQUES>`;
+    }
+
     result = await structuredLlm.invoke([
       { role: "system", content: TOPIC_THREAD_WRITER_PROMPT },
-      { role: "user", content: `<HOOK>\n${state.selected_hook}\n</HOOK>\n<DOSSIER>\n${state.research_dossier}\n</DOSSIER>${guidanceContext}` }
+      { role: "user", content: `<HOOK>\n${state.selected_hook}\n</HOOK>\n<DOSSIER>\n${state.research_dossier}\n</DOSSIER>${guidanceContext}${critiqueContext}` }
     ], { ...config, timeout: 300000 });
     if (!result) parse_success = false;
   } catch (_e) {
@@ -209,6 +218,7 @@ export const ThreadWriterNode = async (state: TopicThreadFactoryStateType, confi
 export const ViralityCriticNode = async (state: TopicThreadFactoryStateType, config?: RunnableConfig) => {
   const schema = z.object({
     virality_score: z.number(),
+    critique: z.string().optional(),
     post_critiques: z.array(z.object({
       post_index: z.number(),
       critique: z.string(),
@@ -241,10 +251,29 @@ export const ViralityCriticNode = async (state: TopicThreadFactoryStateType, con
 
   return {
     virality_score: parse_success && result ? result.virality_score : 85,
+    critique: parse_success && result ? result.critique : undefined,
     post_critiques: parse_success && result ? result.post_critiques : [],
     is_approved: parse_success && result && result.virality_score >= 85 ? true : false,
     iterations: state.iterations + 1,
     parse_success,
     retries: { ...(state.retries || {}), critic: (state.retries?.critic || 0) + 1 }
+  };
+};
+
+export const TopicCharacterValidatorNode = async (state: TopicThreadFactoryStateType, config?: RunnableConfig) => {
+  const validationStr = await TopicCharacterValidatorTool.invoke({ thread_draft: state.thread_draft }, config);
+  const validation = JSON.parse(validationStr);
+
+  if (!validation.isValid) {
+    return {
+      is_character_valid: false,
+      character_critique: `FORMATTING ERRORS REQUIRED TO FIX:\n${validation.errors.join("\n")}`,
+      retries: { ...(state.retries || {}), validator: (state.retries?.validator || 0) + 1 }
+    };
+  }
+
+  return {
+    is_character_valid: true,
+    character_critique: ""
   };
 };

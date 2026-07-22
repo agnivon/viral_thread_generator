@@ -7,7 +7,6 @@ import "dotenv/config";
 
 export { 
   WebScraperTool, 
-  CharacterValidatorTool, 
   TopicContextExpanderTool, 
   ContentAuthenticityCheckerTool 
 } from "../news/tools.js";

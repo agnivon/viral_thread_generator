@@ -23,8 +23,8 @@ import {
   SOCIAL_MEDIA_RESEARCHER_PROMPT
 } from "./prompts.js";
 import { SocialMediaThreadFactoryStateType } from "./state.js";
+import { CharacterValidatorTool } from "../tools.js";
 import {
-  CharacterValidatorTool,
   ContentAuthenticityCheckerTool,
   TopicContextExpanderTool,
   WebScraperTool,

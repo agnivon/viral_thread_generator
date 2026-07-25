@@ -34,6 +34,7 @@ export const openRouterFreeT08 = new ChatOpenRouter({
 });
 
 // ThreadWriterNode Models
+export const googleGemini36FlashT08Key1 = createGoogleModel("gemini-3.6-flash", 0.8, "GOOGLE_API_KEY");
 export const googleGemini35FlashT08Key1 = createGoogleModel("gemini-3.5-flash", 0.8, "GOOGLE_API_KEY");
 export const deepSeekV4ProT085ReasoningNone = createDeepSeekModel("deepseek-v4-pro", 0.85, { reasoning: { effort: "none" }, modelKwargs: { thinking: { type: "disabled" }, response_format: { type: "json_object" } } });
 export const openAiGpt54T08Penalty04Timeout30k = createOpenAIModel("gpt-5.4", 0.8, { presencePenalty: 0.4, timeout: 30000 });
@@ -43,6 +44,7 @@ export const googleGemini3FlashPreviewT08Key1 = createGoogleModel("gemini-3-flas
 export const googleGemini3FlashPreviewT08Key2 = createGoogleModel("gemini-3-flash-preview", 0.8, "GOOGLE_API_KEY2");
 
 // ViralityCriticNode Models
+export const googleGemini36FlashT00Key1 = createGoogleModel("gemini-3.6-flash", 0.0, "GOOGLE_API_KEY");
 export const googleGemini35FlashT00Key1 = createGoogleModel("gemini-3.5-flash", 0.0, "GOOGLE_API_KEY");
 export const deepSeekV4ProT00ReasoningHigh = createDeepSeekModel("deepseek-v4-pro", 0.0, { reasoning: { effort: "high" }, modelKwargs: { thinking: { type: "enabled" }, response_format: { type: "json_object" } } });
 export const openAiGpt54MiniT00Timeout25k = createOpenAIModel("gpt-5.4-mini", 0.0, { timeout: 25000 });

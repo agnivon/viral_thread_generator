@@ -204,7 +204,7 @@ export default function DraftsPage() {
                       className="border-muted-foreground/45 data-[state=checked]:bg-violet-600 data-[state=checked]:border-violet-600"
                     />
                   </th>
-                  <th className="px-4 py-4 font-semibold">Source URL</th>
+                  <th className="px-4 py-4 font-semibold">Input Source</th>
                   <th className="px-4 py-4 font-semibold">Status</th>
                   <th className="px-4 py-4 font-semibold text-center">Virality</th>
                   <th className="px-4 py-4 font-semibold">Created At</th>

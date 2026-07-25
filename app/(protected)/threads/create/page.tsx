@@ -17,8 +17,17 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 
+type EntryType = {
+  url?: string;
+  topic?: string;
+  description?: string;
+  guidance: string;
+  manual_hook_selection: boolean;
+  agent: "news" | "social_media" | "topic";
+};
+
 export default function CreateThreadPage() {
-  const [entries, setEntries] = useState([{ url: "", guidance: "", manual_hook_selection: false, agent: "news" }]);
+  const [entries, setEntries] = useState<EntryType[]>([{ url: "", topic: "", description: "", guidance: "", manual_hook_selection: false, agent: "news" }]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
@@ -26,7 +35,7 @@ export default function CreateThreadPage() {
   const router = useRouter();
 
   const handleAddEntry = () => {
-    setEntries([...entries, { url: "", guidance: "", manual_hook_selection: false, agent: "news" }]);
+    setEntries([...entries, { url: "", topic: "", description: "", guidance: "", manual_hook_selection: false, agent: "news" }]);
   };
 
   const handleRemoveEntry = (index: number) => {
@@ -35,17 +44,20 @@ export default function CreateThreadPage() {
 
   const handleChange = (
     index: number,
-    field: "url" | "guidance" | "manual_hook_selection" | "agent",
+    field: keyof EntryType,
     value: string | boolean
   ) => {
     const newEntries = [...entries];
-    newEntries[index] = { ...newEntries[index], [field]: value } as any;
+    newEntries[index] = { ...newEntries[index], [field]: value } as EntryType;
     setEntries(newEntries);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const validEntries = entries.filter((entry) => entry.url.trim() !== "");
+    const validEntries = entries.filter((entry) => {
+      if (entry.agent === "topic") return (entry.topic || "").trim() !== "";
+      return (entry.url || "").trim() !== "";
+    });
     if (validEntries.length === 0) return;
 
     setIsLoading(true);
@@ -54,14 +66,29 @@ export default function CreateThreadPage() {
     try {
       // Trigger thread generation enqueuing
       await enqueueThreadGeneration({ 
-        requests: validEntries.map(entry => ({ 
-          input_field: {
-            url: entry.url,
-            agent: ((entry as any).agent || "news") as "news" | "social_media"
-          },
-          guidance: entry.guidance || undefined,
-          manual_hook_selection: entry.manual_hook_selection,
-        })) 
+        requests: validEntries.map(entry => {
+          let input_field: any;
+          if (entry.agent === "topic") {
+            input_field = {
+              agent: "topic",
+              topic: entry.topic || "",
+            };
+            if (entry.description?.trim()) {
+              input_field.description = entry.description.trim();
+            }
+          } else {
+            input_field = {
+              url: entry.url || "",
+              agent: entry.agent as "news" | "social_media"
+            };
+          }
+
+          return {
+            input_field,
+            guidance: entry.guidance || undefined,
+            manual_hook_selection: entry.manual_hook_selection,
+          };
+        }) 
       });
       // Redirect to drafts list page
       router.push("/threads/drafts");
@@ -127,38 +154,77 @@ export default function CreateThreadPage() {
                 </CardHeader>
                 
                 <CardContent className="p-6 space-y-6">
-                  {/* Content URL Input */}
-                  <div className="space-y-2">
-                    <Label 
-                      htmlFor={`url-${index}`} 
-                      className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5"
-                    >
-                      <LinkIcon className="w-3.5 h-3.5 text-indigo-500" /> Content URL
-                    </Label>
-                    <Input
-                      id={`url-${index}`}
-                      type="url"
-                      placeholder="https://example.com/my-awesome-post"
-                      value={entry.url}
-                      onChange={(e) => handleChange(index, "url", e.target.value)}
-                      disabled={isLoading}
-                      required
-                      className="w-full bg-background/50 border-border/80 focus-visible:ring-violet-500/30 focus-visible:border-violet-500 rounded-lg transition-all"
-                    />
-                  </div>
+                  {/* Content URL Input / Topic Input */}
+                  {entry.agent !== "topic" ? (
+                    <div className="space-y-2">
+                      <Label 
+                        htmlFor={`url-${index}`} 
+                        className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5"
+                      >
+                        <LinkIcon className="w-3.5 h-3.5 text-indigo-500" /> Content URL
+                      </Label>
+                      <Input
+                        id={`url-${index}`}
+                        type="url"
+                        placeholder="https://example.com/my-awesome-post"
+                        value={entry.url || ""}
+                        onChange={(e) => handleChange(index, "url", e.target.value)}
+                        disabled={isLoading}
+                        required
+                        className="w-full bg-background/50 border-border/80 focus-visible:ring-violet-500/30 focus-visible:border-violet-500 rounded-lg transition-all"
+                      />
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Label 
+                          htmlFor={`topic-${index}`} 
+                          className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5"
+                        >
+                          <Sparkles className="w-3.5 h-3.5 text-indigo-500" /> Topic
+                        </Label>
+                        <Input
+                          id={`topic-${index}`}
+                          type="text"
+                          placeholder="e.g. The history of artificial intelligence"
+                          value={entry.topic || ""}
+                          onChange={(e) => handleChange(index, "topic", e.target.value)}
+                          disabled={isLoading}
+                          required
+                          className="w-full bg-background/50 border-border/80 focus-visible:ring-violet-500/30 focus-visible:border-violet-500 rounded-lg transition-all"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label 
+                          htmlFor={`description-${index}`} 
+                          className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5"
+                        >
+                          <HelpCircle className="w-3.5 h-3.5 text-indigo-500" /> Topic Description (Optional)
+                        </Label>
+                        <textarea
+                          id={`description-${index}`}
+                          placeholder="Add any specific context or angles you want the agent to focus on when researching this topic..."
+                          value={entry.description || ""}
+                          onChange={(e) => handleChange(index, "description", e.target.value)}
+                          disabled={isLoading}
+                          className="flex min-h-[80px] w-full rounded-lg border border-border/80 bg-background/50 px-3 py-2 text-sm shadow-xs placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-violet-500 focus-visible:border-violet-500 disabled:cursor-not-allowed disabled:opacity-50 resize-none transition-all"
+                        />
+                      </div>
+                    </div>
+                  )}
 
                   {/* Agent Selection */}
                   <div className="space-y-2.5">
                     <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
                       <Sparkles className="w-3.5 h-3.5 text-indigo-500" /> Choose Agent Role
                     </Label>
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                       <button
                         type="button"
                         onClick={() => handleChange(index, "agent", "news")}
                         disabled={isLoading}
                         className={`flex flex-col items-center justify-center p-3.5 rounded-xl border transition-all duration-300 text-center cursor-pointer ${
-                          (entry as any).agent === "news" || !(entry as any).agent
+                          entry.agent === "news" || !entry.agent
                             ? "border-violet-500 bg-violet-500/5 ring-1 ring-violet-500/50"
                             : "border-border/80 bg-background/40 hover:border-violet-500/30 hover:bg-muted/10"
                         }`}
@@ -171,13 +237,26 @@ export default function CreateThreadPage() {
                         onClick={() => handleChange(index, "agent", "social_media")}
                         disabled={isLoading}
                         className={`flex flex-col items-center justify-center p-3.5 rounded-xl border transition-all duration-300 text-center cursor-pointer ${
-                          (entry as any).agent === "social_media"
+                          entry.agent === "social_media"
                             ? "border-violet-500 bg-violet-500/5 ring-1 ring-violet-500/50"
                             : "border-border/80 bg-background/40 hover:border-violet-500/30 hover:bg-muted/10"
                         }`}
                       >
                         <span className="text-xs font-bold text-foreground">Social Specialist</span>
                         <span className="text-[10px] text-muted-foreground mt-1">Punchy, hook-focused copy</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleChange(index, "agent", "topic")}
+                        disabled={isLoading}
+                        className={`flex flex-col items-center justify-center p-3.5 rounded-xl border transition-all duration-300 text-center cursor-pointer ${
+                          entry.agent === "topic"
+                            ? "border-violet-500 bg-violet-500/5 ring-1 ring-violet-500/50"
+                            : "border-border/80 bg-background/40 hover:border-violet-500/30 hover:bg-muted/10"
+                        }`}
+                      >
+                        <span className="text-xs font-bold text-foreground">Topic Expert</span>
+                        <span className="text-[10px] text-muted-foreground mt-1">Deep dives from scratch</span>
                       </button>
                     </div>
                   </div>

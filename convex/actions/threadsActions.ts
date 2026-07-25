@@ -278,10 +278,22 @@ export const regenerateThreadInternal = internalAction({
            is_approved: false,
            iterations: 0,
         });
-        finalState = await (graph as any).invoke(null, forkConfig);
+
+        const stateUpdate: any = {
+           iterations: 0,
+           is_approved: false,
+        };
+        if (args.guidance !== undefined) stateUpdate.guidance = args.guidance;
+        if (args.manual_hook_selection !== undefined) stateUpdate.manual_hook_selection = args.manual_hook_selection;
+        
+        finalState = await (graph as any).invoke(stateUpdate, forkConfig);
       } else {
         console.log(`[regenerateThreadInternal] Could not find past state before HookStrategistNode. Restarting from scratch...`);
-        const initialState = createInitialState({ input_field: draft.input_field, guidance: draft.guidance, manual_hook_selection: draft.manual_hook_selection });
+        const initialState = createInitialState({ 
+          input_field: draft.input_field, 
+          guidance: args.guidance ?? draft.guidance, 
+          manual_hook_selection: args.manual_hook_selection ?? draft.manual_hook_selection 
+        });
         finalState = await (graph as any).invoke(initialState, config);
       }
 

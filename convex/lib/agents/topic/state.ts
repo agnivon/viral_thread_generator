@@ -6,6 +6,7 @@ export const TopicThreadFactoryState = new StateSchema({
   topic: z.string(),
   description: z.string().optional(),
   guidance: z.string().optional(),
+  manual_hook_selection: z.boolean().default(false),
   research_dossier: z.string().default(""),
   selected_hook: z.string().default(""),
   core_hooks: z.array(z.string()).default(() => []),

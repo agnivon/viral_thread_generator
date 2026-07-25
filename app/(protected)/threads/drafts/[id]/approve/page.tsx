@@ -220,6 +220,7 @@ export default function ApproveDraftPage() {
   if (genStatus === "hook selection") {
     return (
       <HookSelectionScreen
+        isTopic={state.input_field?.agent === "topic"}
         url={state.input_field?.agent === "topic" ? (state.input_field as any).topic : (state.input_field as any)?.url || "Unknown Source"}
         coreHooks={state.core_hooks || []}
         selectedHook={state.selected_hook}

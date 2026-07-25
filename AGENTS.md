@@ -40,9 +40,12 @@ Convex agent skills for common tasks can be installed by running
 - **Leverage Native Framework & Library Capabilities**:
   - Fully utilize modern platform features (e.g., React Server Components (RSC) where appropriate, React 19 hooks like `use()`, Tailwind CSS variables, etc.) rather than introducing custom, non-standard solutions.
   - Do not reinvent the wheel: reuse utilities, styles, and patterns already configured within the project.
-- **Robust Type Safety**:
-  - Ensure all files, components, and helper utilities are fully type-safe in TypeScript.
-  - Avoid `any` types; define explicit interfaces, generic parameters, or union types to guarantee compilation-level safety and clear API contracts.
+- **Strict & Comprehensive Type Safety**:
+  - **Zero `any` Policy**: Never use `any`, `as any`, or implicit `any`. If a type is unknown or dynamic, use `unknown` accompanied by type guards, runtime validators (`v` validators / `zod`), or narrow union types.
+  - **Leverage Advanced TypeScript Capabilities**: Use generics, discriminated (tagged) unions, `satisfies` operators, utility types (`Record`, `Omit`, `Pick`, `Extract`), and `readonly` modifiers to model precise domain state and data contracts.
+  - **Exhaustive Handling & Strict Signatures**: Explicitly annotate function parameters, return types, component props, and API payloads. Use `never` pattern checks for exhaustive matching across union variants.
+  - **Avoid Unsafe Type Assertions**: Prefer type narrowing (e.g. `instanceof`, `typeof`, custom type predicates `isType`) over blanket `as` type casts.
+
 
 ## Workspace Cleanliness & Temporary Files
 - **Delete Temporary and Scratch Files**: Always clean up any temporary scripts (e.g., test Python scripts, scratch Javascript/Typescript files, shell scripts), temporary log files, local JSON/CSV data dumps, or unused lockfiles created during the execution of a task.

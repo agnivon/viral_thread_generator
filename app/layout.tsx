@@ -57,7 +57,7 @@ export default function RootLayout({
   return (
     <ConvexAuthNextjsServerProvider>
       <html lang="en" className={cn("font-sans", geist.variable)} suppressHydrationWarning>
-        <body>
+        <body className="min-w-[320px]">
           <ThemeProvider
             attribute="class"
             defaultTheme="system"

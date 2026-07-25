@@ -64,7 +64,7 @@ export function DraftPostsList({
               </span>
               
               {isEditingPosts ? (
-                <div className="flex-1 space-y-2">
+                <div className="flex-1 space-y-2 min-w-0">
                   <textarea
                     {...register(`posts.${index}` as any)}
                     rows={4}
@@ -170,7 +170,7 @@ export function DraftPostsList({
                   )}
                 </div>
               ) : (
-                <div className="flex-1 space-y-2">
+                <div className="flex-1 space-y-2 min-w-0">
                   <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground flex-1 pt-0.5">{watchedValue}</p>
                   
                   {/* URL Link Preview */}

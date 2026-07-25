@@ -5,14 +5,14 @@ import { providerStrategy } from "langchain";
 import { z } from "zod";
 import { RunnableConfig } from "@langchain/core/runnables";
 import {
-  googleGemini35FlashT00Key1,
+  googleGemini36FlashT00Key1, googleGemini35FlashT00Key1,
   openAiGpt54MiniT00Timeout25k, googleGemini3FlashPreviewT00Key1, googleGemini3FlashPreviewT00Key2,
   openAiGpt54MiniT08Timeout20k, openRouterFreeT08,
   googleGemini31FlashLiteT08Key1, googleGemini31FlashLiteT08Key2,
   openAiGpt54MiniT01Max2kTimeout45k,
   googleGemini31FlashLiteT01Key1Max2k, googleGemini31FlashLiteT01Key2Max2k,
   openAiGpt54T08Penalty04Timeout30k, googleGemini3FlashPreviewT08Key1, googleGemini3FlashPreviewT08Key2,
-  googleGemini35FlashT08Key1, deepSeekV4ProT085ReasoningNone, deepSeekV4ProT00ReasoningHigh,
+  googleGemini36FlashT08Key1, googleGemini35FlashT08Key1, deepSeekV4ProT085ReasoningNone, deepSeekV4ProT00ReasoningHigh,
   googleGemini31FlashLiteT02Key1Max2k, googleGemini31FlashLiteT02Key2Max2k, openAiGpt54MiniT02Max2kTimeout45k
 } from "../models.js";
 import {
@@ -160,8 +160,9 @@ export const ThreadWriterNode = async (state: SocialMediaThreadFactoryStateType,
     thread_draft: z.array(z.string()).min(1, "Must generate at least one post for the thread draft")
   });
 
-  const structuredLlm = googleGemini35FlashT08Key1.withStructuredOutput(schema, { name: "thread_writer", method: "jsonSchema" }).withFallbacks({
+  const structuredLlm = googleGemini36FlashT08Key1.withStructuredOutput(schema, { name: "thread_writer", method: "jsonSchema" }).withFallbacks({
     fallbacks: [
+      googleGemini35FlashT08Key1.withStructuredOutput(schema, { name: "thread_writer", method: "jsonSchema" }),
       deepSeekV4ProT085ReasoningNone.withStructuredOutput(schema, { name: "thread_writer", method: "jsonMode" }),
       openAiGpt54T08Penalty04Timeout30k.withStructuredOutput(schema, { name: "thread_writer", method: "jsonSchema" }),
       googleGemini3FlashPreviewT08Key1.withStructuredOutput(schema, { name: "thread_writer", method: "jsonSchema" }),
@@ -233,7 +234,7 @@ export const ViralityCriticNode = async (state: SocialMediaThreadFactoryStateTyp
 
   const agents = buildAgents(
     [
-      googleGemini35FlashT00Key1,
+      googleGemini36FlashT00Key1, googleGemini35FlashT00Key1,
       deepSeekV4ProT00ReasoningHigh,
       openAiGpt54MiniT00Timeout25k,
       googleGemini3FlashPreviewT00Key1, googleGemini3FlashPreviewT00Key2

@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 
 interface HookSelectionScreenProps {
   url: string;
+  isTopic?: boolean;
   coreHooks: string[];
   selectedHook: string | null;
   selectedHookIdx: number | null;
@@ -17,6 +18,7 @@ interface HookSelectionScreenProps {
 
 export function HookSelectionScreen({
   url,
+  isTopic,
   coreHooks,
   selectedHook,
   selectedHookIdx,
@@ -54,14 +56,18 @@ export function HookSelectionScreen({
           </h1>
           <p className="text-sm text-muted-foreground break-all">
             Pipeline paused for:{" "}
-            <a 
-              href={url} 
-              target="_blank" 
-              rel="noreferrer" 
-              className="underline hover:text-violet-600 dark:hover:text-violet-400 transition-colors break-all font-medium"
-            >
-              {url}
-            </a>
+            {isTopic ? (
+              <span className="font-medium text-foreground">{url}</span>
+            ) : (
+              <a 
+                href={url} 
+                target="_blank" 
+                rel="noreferrer" 
+                className="underline hover:text-violet-600 dark:hover:text-violet-400 transition-colors break-all font-medium"
+              >
+                {url}
+              </a>
+            )}
           </p>
         </div>
 

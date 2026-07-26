@@ -26,6 +26,7 @@ import { VideoPickerDialog } from "./components/VideoPickerDialog";
 import { RegenerateDialog } from "./components/RegenerateDialog";
 import { SidebarHookCard } from "./components/SidebarHookCard";
 import { ViralityCard } from "./components/ViralityCard";
+import { ResearchDossierDialog } from "./components/ResearchDossierDialog";
 
 export default function ApproveDraftPage() {
   const params = useParams();
@@ -496,6 +497,11 @@ export default function ApproveDraftPage() {
               selectedHook={state.selected_hook}
               coreHooks={state.core_hooks || []}
             />
+
+            {/* Research Dossier Dialog */}
+            {state.research_context && (
+              <ResearchDossierDialog researchContext={state.research_context} />
+            )}
 
           </div>
         </div>

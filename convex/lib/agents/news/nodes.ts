@@ -21,13 +21,16 @@ import {
   NEWS_CRITIC_PROMPT
 } from "./prompts.js";
 import { NewsThreadFactoryStateType } from "./state.js";
-import { ContentAuthenticityCheckerTool, TopicContextExpanderTool, WebScraperTool } from "./tools.js";
+import { ContentAuthenticityCheckerTool, TopicContextExpanderTool, WebScraperTool, YoutubeScraperTool } from "./tools.js";
 import { CharacterValidatorTool } from "../tools.js";
 import { buildAgents, invokeWithFallbacks } from "../utils.js";
 
 
 export const ScraperNode = async (state: NewsThreadFactoryStateType, config?: RunnableConfig) => {
-  const scraperResultStr = await WebScraperTool.invoke({ url: state.url }, config);
+  const isYoutube = state.url.includes("youtube.com") || state.url.includes("youtu.be");
+  const scraperResultStr = isYoutube 
+    ? await YoutubeScraperTool.invoke({ url: state.url }, config)
+    : await WebScraperTool.invoke({ url: state.url }, config);
   let markdown = scraperResultStr as string;
   let images: string[] = [];
   try {

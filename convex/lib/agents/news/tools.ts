@@ -6,6 +6,7 @@ import FirecrawlApp from "@mendable/firecrawl-js";
 import { tavily } from "@tavily/core";
 import "dotenv/config";
 import { JinaClient, JinaResponse, FormattedPageDto } from "../../jina/api";
+import { YoutubeTranscript } from "youtube-transcript-plus";
 
 // 1. WebScraperTool (Firecrawl API)
 export const WebScraperTool = tool(
@@ -54,7 +55,27 @@ export const WebScraperTool = tool(
   }
 );
 
-
+// 2. YoutubeScraperTool
+export const YoutubeScraperTool = tool(
+  async ({ url }) => {
+    try {
+      const transcript = await YoutubeTranscript.fetchTranscript(url);
+      const markdown = transcript.map(t => t.text).join(' ');
+      const images: string[] = []; // No images for YouTube transcripts yet
+      return JSON.stringify({ markdown, images });
+    } catch (e: any) {
+      console.error(`[YoutubeScraperTool] Failed to fetch transcript for ${url}`, e);
+      throw new Error(`Failed to fetch YouTube transcript: ${e.message}`);
+    }
+  },
+  {
+    name: "youtube_scraper",
+    description: "Scrapes a YouTube URL and returns the video transcript as markdown.",
+    schema: z.object({
+      url: z.string().describe("The YouTube URL to scrape"),
+    }),
+  }
+);
 
 // 3. TopicContextExpanderTool
 export const TopicContextExpanderTool = tool(

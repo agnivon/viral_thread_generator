@@ -335,7 +335,10 @@ export default function CreateThreadPage() {
               type="submit" 
               size="lg"
               className="w-full sm:w-auto sm:min-w-[240px] rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white font-semibold py-6 shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 cursor-pointer"
-              disabled={isLoading || entries.every(e => !e.url.trim())}
+              disabled={isLoading || entries.every(e => {
+                if (e.agent === "topic") return !(e.topic || "").trim();
+                return !(e.url || "").trim();
+              })}
             >
               {isLoading ? (
                 <span className="flex items-center justify-center gap-2">

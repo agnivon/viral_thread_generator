@@ -53,8 +53,6 @@ async function handleGraphCompletion(ctx: any, recordId: Id<"threadDrafts">, fin
     description,
     research_dossier,
     urls_to_scrape,
-    guidance,
-    manual_hook_selection,
     parse_success,
     retries,
     is_character_valid,

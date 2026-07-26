@@ -90,17 +90,18 @@ export const DeepPageScraperNode = async (state: TopicThreadFactoryStateType, co
       if (parsedJina.error || !parsedJina.markdown || parsedJina.markdown.includes("Enable JavaScript")) {
         const firecrawlResultStr = await FirecrawlScrapeTool.invoke({ url }, config);
         const parsedFirecrawl = JSON.parse(firecrawlResultStr as string);
-        return `URL: ${url}\nContent:\n${parsedFirecrawl.markdown || ""}\n\n`;
+        return { text: `URL: ${url}\nContent:\n${parsedFirecrawl.markdown || ""}\n\n`, images: parsedFirecrawl.images || [] };
       } else {
-        return `URL: ${url}\nContent:\n${parsedJina.markdown || ""}\n\n`;
+        return { text: `URL: ${url}\nContent:\n${parsedJina.markdown || ""}\n\n`, images: parsedJina.images || [] };
       }
     } catch (e) {
-      return `URL: ${url}\nContent:\n(Failed to scrape)\n\n`;
+      return { text: `URL: ${url}\nContent:\n(Failed to scrape)\n\n`, images: [] };
     }
   });
 
   const results = await Promise.all(scrapePromises);
-  scrapeResult = results.join("---\n");
+  scrapeResult = results.map(r => r.text).join("---\n");
+  const allImages = results.flatMap(r => r.images).filter(Boolean);
 
   const schema = z.object({
     research_dossier: z.string().min(1, "Must append to dossier")
@@ -128,6 +129,7 @@ export const DeepPageScraperNode = async (state: TopicThreadFactoryStateType, co
 
   return {
     research_dossier: parse_success && result ? result.research_dossier : state.research_dossier,
+    images: [...(state.images || []), ...allImages],
     parse_success,
     retries: { ...(state.retries || {}), scraper: (state.retries?.scraper || 0) + 1 }
   };

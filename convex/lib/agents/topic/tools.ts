@@ -80,9 +80,12 @@ export const JinaReaderTool = tool(
         }
       }
 
+      const images = Array.from(markdown.matchAll(/!\[.*?\]\((.*?)\)/g)).map((m) => m[1]);
+
       return JSON.stringify({
         markdown,
         title,
+        images,
       });
     } catch (e: any) {
       return JSON.stringify({ error: e.message || "Jina Reader extraction failed" });
@@ -101,7 +104,7 @@ export const FirecrawlScrapeTool = tool(
   async ({ url }) => {
     try {
       const app = new FirecrawlApp({ apiKey: process.env.FIRECRAWL_API_KEY });
-      const response = await app.scrape(url, { formats: ["markdown"] });
+      const response = await app.scrape(url, { formats: ["markdown", "images"] });
 
       if (!(response as any).success && (response as any).error) {
         throw new Error((response as any).error || "Firecrawl failed");
@@ -109,7 +112,8 @@ export const FirecrawlScrapeTool = tool(
 
       return JSON.stringify({
         markdown: response.markdown || "",
-        metadata: response.metadata || {}
+        metadata: response.metadata || {},
+        images: response.images || [],
       });
     } catch (e: any) {
       return JSON.stringify({ error: e.message || "Firecrawl extraction failed" });

@@ -26,6 +26,7 @@ export const TopicThreadFactoryState = new StateSchema({
   is_approved: z.boolean().default(false),
   is_character_valid: z.boolean().default(true),
   character_critique: z.string().optional(),
+  images: z.array(z.string()).default(() => []),
   retries: z.object({
     orchestrator: z.number().default(0),
     scraper: z.number().default(0),

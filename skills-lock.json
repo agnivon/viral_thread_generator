@@ -1,18 +1,6 @@
 {
   "version": 1,
   "skills": {
-    "answers": {
-      "source": "brave/brave-search-skills",
-      "sourceType": "github",
-      "skillPath": "skills/answers/SKILL.md",
-      "computedHash": "3cf1ef1b735566503eb2693aaadd50f2e163f79e14ebe5bb65e9ddaccb7a74b7"
-    },
-    "bx": {
-      "source": "brave/brave-search-skills",
-      "sourceType": "github",
-      "skillPath": "skills/bx/SKILL.md",
-      "computedHash": "b846bd21e3476a10f262d40a765e65149e339e85b37d7dfa8f128317e7cbf090"
-    },
     "convex": {
       "source": "get-convex/agent-skills",
       "sourceType": "github",
@@ -79,12 +67,6 @@
       "skillPath": "config/skills/framework-selection/SKILL.md",
       "computedHash": "4077205bed91c048ba47f0db1bd66930bdbdd04e5195dc3d5b265272c5059cd1"
     },
-    "images-search": {
-      "source": "brave/brave-search-skills",
-      "sourceType": "github",
-      "skillPath": "skills/images-search/SKILL.md",
-      "computedHash": "e3beb91731658260cb49da1a7e0bc3f79aedae72a45c9ac5a99c327ecb062f5e"
-    },
     "langchain-dependencies": {
       "source": "langchain-ai/langchain-skills",
       "sourceType": "github",
@@ -133,23 +115,11 @@
       "skillPath": "config/skills/langgraph-persistence/SKILL.md",
       "computedHash": "0e14611b0310a7a30e9977ba99b00a11b7ea63ebdd7b0c490d03040349ead0ed"
     },
-    "llm-context": {
-      "source": "brave/brave-search-skills",
-      "sourceType": "github",
-      "skillPath": "skills/llm-context/SKILL.md",
-      "computedHash": "0b7616f5be0e4f59ddec4102e4068e3bdeb83c43df3df6ffe32b059cdcd7c683"
-    },
     "managed-deep-agents": {
       "source": "langchain-ai/langchain-skills",
       "sourceType": "github",
       "skillPath": "config/skills/managed-deep-agents/SKILL.md",
       "computedHash": "e034c44bf34dd2cef494fb223a18ff0d65836ea98e61a8d6b16d1a1306535ad6"
-    },
-    "news-search": {
-      "source": "brave/brave-search-skills",
-      "sourceType": "github",
-      "skillPath": "skills/news-search/SKILL.md",
-      "computedHash": "38ed8fa771c2958f56b4c7dbffdf9ab0808036a173ad2c6949d668ecdb0dcaf8"
     },
     "next-best-practices": {
       "source": "vercel-labs/next-skills",
@@ -187,48 +157,6 @@
       "skillPath": "skills/tavily-best-practices/SKILL.md",
       "computedHash": "f674b49e68bb5dc55250e4905fae451a7a9a5571cfea8af762da689ccf16bb0a"
     },
-    "tavily-cli": {
-      "source": "tavily-ai/skills",
-      "sourceType": "github",
-      "skillPath": "skills/tavily-cli/SKILL.md",
-      "computedHash": "3e62960686a24b313bf2c03c30168436de5694fad515a349789c38fa72d4f672"
-    },
-    "tavily-crawl": {
-      "source": "tavily-ai/skills",
-      "sourceType": "github",
-      "skillPath": "skills/tavily-crawl/SKILL.md",
-      "computedHash": "4da558ada7a957333cbabafb6fa92b553eb553c12944b65d7cb43b56c550ec8b"
-    },
-    "tavily-dynamic-search": {
-      "source": "tavily-ai/skills",
-      "sourceType": "github",
-      "skillPath": "skills/tavily-dynamic-search/SKILL.md",
-      "computedHash": "6793e9b2f2143a5182ee5e87c67347ce5f70907879b3b60200d528ca7dbcf8b9"
-    },
-    "tavily-extract": {
-      "source": "tavily-ai/skills",
-      "sourceType": "github",
-      "skillPath": "skills/tavily-extract/SKILL.md",
-      "computedHash": "8d52d231d67d398637d06234e09e9207fb7caa692ff1c33c0df43493b7d4ca7e"
-    },
-    "tavily-map": {
-      "source": "tavily-ai/skills",
-      "sourceType": "github",
-      "skillPath": "skills/tavily-map/SKILL.md",
-      "computedHash": "9a4996c7249ff1a1e0757e16c89d1e197ec6ef3b0ced9fe7fc103d4707d8ba27"
-    },
-    "tavily-research": {
-      "source": "tavily-ai/skills",
-      "sourceType": "github",
-      "skillPath": "skills/tavily-research/SKILL.md",
-      "computedHash": "58a32caadb010598a2faad7544dedade288c1e81e72aa550b13d83b003264062"
-    },
-    "tavily-search": {
-      "source": "tavily-ai/skills",
-      "sourceType": "github",
-      "skillPath": "skills/tavily-search/SKILL.md",
-      "computedHash": "bda6e90a41addbe0f8750a38aebdf59c5bdc8514d23aaf2015ffe45de6958b74"
-    },
     "vercel-cli-with-tokens": {
       "source": "vercel-labs/agent-skills",
       "sourceType": "github",
@@ -264,12 +192,6 @@
       "sourceType": "github",
       "skillPath": "skills/web-design-guidelines/SKILL.md",
       "computedHash": "f3bc47f890f42a44db1007ab390709ec368e4b8c089baee6b0007182236ac474"
-    },
-    "web-search": {
-      "source": "brave/brave-search-skills",
-      "sourceType": "github",
-      "skillPath": "skills/web-search/SKILL.md",
-      "computedHash": "3bd3c40e767bbba3cfc4fd466dbe22aab5d0cb8476633d472655e20fa560ba92"
     },
     "writing-guidelines": {
       "source": "vercel-labs/agent-skills",

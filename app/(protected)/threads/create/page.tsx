@@ -23,11 +23,12 @@ type EntryType = {
   description?: string;
   guidance: string;
   manual_hook_selection: boolean;
+  search_query_generation: boolean;
   agent: "news" | "social_media" | "topic";
 };
 
 export default function CreateThreadPage() {
-  const [entries, setEntries] = useState<EntryType[]>([{ url: "", topic: "", description: "", guidance: "", manual_hook_selection: false, agent: "news" }]);
+  const [entries, setEntries] = useState<EntryType[]>([{ url: "", topic: "", description: "", guidance: "", manual_hook_selection: false, search_query_generation: false, agent: "news" }]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
@@ -35,7 +36,7 @@ export default function CreateThreadPage() {
   const router = useRouter();
 
   const handleAddEntry = () => {
-    setEntries([...entries, { url: "", topic: "", description: "", guidance: "", manual_hook_selection: false, agent: "news" }]);
+    setEntries([...entries, { url: "", topic: "", description: "", guidance: "", manual_hook_selection: false, search_query_generation: false, agent: "news" }]);
   };
 
   const handleRemoveEntry = (index: number) => {
@@ -87,6 +88,7 @@ export default function CreateThreadPage() {
             input_field,
             guidance: entry.guidance || undefined,
             manual_hook_selection: entry.manual_hook_selection,
+            search_query_generation: entry.search_query_generation,
           };
         }) 
       });
@@ -153,10 +155,10 @@ export default function CreateThreadPage() {
                   )}
                 </CardHeader>
                 
-                <CardContent className="p-6 space-y-6">
+                <CardContent className="p-5 space-y-5">
                   {/* Content URL Input / Topic Input */}
                   {entry.agent !== "topic" ? (
-                    <div className="space-y-2">
+                    <div className="space-y-1.5">
                       <Label 
                         htmlFor={`url-${index}`} 
                         className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5"
@@ -175,8 +177,8 @@ export default function CreateThreadPage() {
                       />
                     </div>
                   ) : (
-                    <div className="space-y-4">
-                      <div className="space-y-2">
+                    <div className="space-y-3">
+                      <div className="space-y-1.5">
                         <Label 
                           htmlFor={`topic-${index}`} 
                           className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5"
@@ -194,7 +196,7 @@ export default function CreateThreadPage() {
                           className="w-full bg-background/50 border-border/80 focus-visible:ring-violet-500/30 focus-visible:border-violet-500 rounded-lg transition-all"
                         />
                       </div>
-                      <div className="space-y-2">
+                      <div className="space-y-1.5">
                         <Label 
                           htmlFor={`description-${index}`} 
                           className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5"
@@ -207,14 +209,14 @@ export default function CreateThreadPage() {
                           value={entry.description || ""}
                           onChange={(e) => handleChange(index, "description", e.target.value)}
                           disabled={isLoading}
-                          className="flex min-h-[80px] w-full rounded-lg border border-border/80 bg-background/50 px-3 py-2 text-sm shadow-xs placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-violet-500 focus-visible:border-violet-500 disabled:cursor-not-allowed disabled:opacity-50 resize-none transition-all"
+                          className="flex min-h-[60px] w-full rounded-lg border border-border/80 bg-background/50 px-3 py-2 text-sm shadow-xs placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-violet-500 focus-visible:border-violet-500 disabled:cursor-not-allowed disabled:opacity-50 resize-none transition-all"
                         />
                       </div>
                     </div>
                   )}
 
                   {/* Agent Selection */}
-                  <div className="space-y-2.5">
+                  <div className="space-y-2">
                     <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
                       <Sparkles className="w-3.5 h-3.5 text-indigo-500" /> Choose Agent Role
                     </Label>
@@ -262,7 +264,7 @@ export default function CreateThreadPage() {
                   </div>
 
                   {/* AI Guidance Textarea */}
-                  <div className="space-y-2">
+                  <div className="space-y-1.5">
                     <Label 
                       htmlFor={`guidance-${index}`} 
                       className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5"
@@ -275,31 +277,54 @@ export default function CreateThreadPage() {
                       value={entry.guidance}
                       onChange={(e) => handleChange(index, "guidance", e.target.value)}
                       disabled={isLoading}
-                      className="flex min-h-[100px] w-full rounded-lg border border-border/80 bg-background/50 px-3 py-2 text-sm shadow-xs placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-violet-500 focus-visible:border-violet-500 disabled:cursor-not-allowed disabled:opacity-50 resize-none transition-all"
+                      className="flex min-h-[80px] w-full rounded-lg border border-border/80 bg-background/50 px-3 py-2 text-sm shadow-xs placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-violet-500 focus-visible:border-violet-500 disabled:cursor-not-allowed disabled:opacity-50 resize-none transition-all"
                     />
                     <p className="text-[11px] text-muted-foreground flex items-center gap-1">
                       <HelpCircle className="w-3.5 h-3.5 text-muted-foreground/75" /> Set tone instructions, specific callouts, or layout requirements for the generator.
                     </p>
                   </div>
 
-                  {/* Choose Hooks Manually Checkbox */}
-                  <div className="flex items-start space-x-3 pt-2 bg-muted/10 p-3 rounded-lg border border-border/30">
-                    <Checkbox
-                      id={`manual-hook-${index}`}
-                      checked={entry.manual_hook_selection}
-                      onCheckedChange={(checked) => handleChange(index, "manual_hook_selection", !!checked)}
-                      disabled={isLoading}
-                    />
-                    <div className="grid gap-1.5 leading-none">
-                      <Label
-                        htmlFor={`manual-hook-${index}`}
-                        className="text-sm font-semibold leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-75 cursor-pointer text-foreground"
-                      >
-                        Choose hooks manually
-                      </Label>
-                      <p className="text-xs text-muted-foreground">
-                        Pause the generation pipeline to choose and edit your hook before generating the full thread.
-                      </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                    {/* Choose Hooks Manually Checkbox */}
+                    <div className="flex items-start space-x-3 bg-muted/10 p-3 rounded-lg border border-border/30 hover:border-violet-500/30 transition-colors">
+                      <Checkbox
+                        id={`manual-hook-${index}`}
+                        checked={entry.manual_hook_selection}
+                        onCheckedChange={(checked) => handleChange(index, "manual_hook_selection", !!checked)}
+                        disabled={isLoading}
+                      />
+                      <div className="grid gap-1.5 leading-none">
+                        <Label
+                          htmlFor={`manual-hook-${index}`}
+                          className="text-sm font-semibold leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-75 cursor-pointer text-foreground"
+                        >
+                          Choose hooks manually
+                        </Label>
+                        <p className="text-xs text-muted-foreground">
+                          Pause the pipeline to choose and edit your hook.
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Auto-generate Image & Video Search Queries Checkbox */}
+                    <div className="flex items-start space-x-3 bg-muted/10 p-3 rounded-lg border border-border/30 hover:border-violet-500/30 transition-colors">
+                      <Checkbox
+                        id={`search-query-gen-${index}`}
+                        checked={entry.search_query_generation}
+                        onCheckedChange={(checked) => handleChange(index, "search_query_generation", !!checked)}
+                        disabled={isLoading}
+                      />
+                      <div className="grid gap-1.5 leading-none">
+                        <Label
+                          htmlFor={`search-query-gen-${index}`}
+                          className="text-sm font-semibold leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-75 cursor-pointer text-foreground"
+                        >
+                          Auto-generate media queries
+                        </Label>
+                        <p className="text-xs text-muted-foreground">
+                          Generate visual search queries for images and videos based on the thread.
+                        </p>
+                      </div>
                     </div>
                   </div>
                 </CardContent>

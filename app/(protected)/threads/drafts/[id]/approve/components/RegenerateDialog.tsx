@@ -8,33 +8,37 @@ interface RegenerateDialogProps {
   isOpen: boolean;
   initialGuidance: string;
   initialManualHookSelection: boolean;
+  initialSearchQueryGeneration: boolean;
   isRegenerating: boolean;
   onClose: () => void;
-  onRegenerate: (guidance: string, manualHookSelection: boolean) => void;
+  onRegenerate: (guidance: string, manualHookSelection: boolean, searchQueryGeneration: boolean) => void;
 }
 
 export function RegenerateDialog({
   isOpen,
   initialGuidance,
   initialManualHookSelection,
+  initialSearchQueryGeneration,
   isRegenerating,
   onClose,
   onRegenerate,
 }: RegenerateDialogProps) {
   const [guidance, setGuidance] = useState(initialGuidance);
   const [manualHookSelection, setManualHookSelection] = useState(initialManualHookSelection);
+  const [searchQueryGeneration, setSearchQueryGeneration] = useState(initialSearchQueryGeneration);
 
   useEffect(() => {
     if (isOpen) {
       setGuidance(initialGuidance);
       setManualHookSelection(initialManualHookSelection);
+      setSearchQueryGeneration(initialSearchQueryGeneration);
     }
-  }, [isOpen, initialGuidance, initialManualHookSelection]);
+  }, [isOpen, initialGuidance, initialManualHookSelection, initialSearchQueryGeneration]);
 
   if (!isOpen) return null;
 
   const handleSubmit = () => {
-    onRegenerate(guidance, manualHookSelection);
+    onRegenerate(guidance, manualHookSelection, searchQueryGeneration);
   };
 
   return (
@@ -81,6 +85,27 @@ export function RegenerateDialog({
               </Label>
               <p className="text-xs text-muted-foreground">
                 Pause the generation pipeline to choose and edit your hook before generating the full thread.
+              </p>
+            </div>
+          </div>
+
+          {/* Auto-generate Image Search Queries Checkbox */}
+          <div className="flex items-start space-x-3 pt-2 bg-muted/10 p-3.5 rounded-xl border border-border/30">
+            <Checkbox
+              id="search-query-gen-regenerate"
+              checked={searchQueryGeneration}
+              onCheckedChange={(checked) => setSearchQueryGeneration(!!checked)}
+              disabled={isRegenerating}
+            />
+            <div className="grid gap-1.5 leading-none">
+              <Label
+                htmlFor="search-query-gen-regenerate"
+                className="text-sm font-semibold leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-75 cursor-pointer text-foreground"
+              >
+                Auto-generate media queries
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                Automatically generate highly specific visual search queries for images and videos based on the generated thread content.
               </p>
             </div>
           </div>

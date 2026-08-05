@@ -24,6 +24,8 @@ import type * as lib_agents_news_nodes from "../lib/agents/news/nodes.js";
 import type * as lib_agents_news_prompts from "../lib/agents/news/prompts.js";
 import type * as lib_agents_news_state from "../lib/agents/news/state.js";
 import type * as lib_agents_news_tools from "../lib/agents/news/tools.js";
+import type * as lib_agents_nodes from "../lib/agents/nodes.js";
+import type * as lib_agents_prompts from "../lib/agents/prompts.js";
 import type * as lib_agents_social_media_graph from "../lib/agents/social_media/graph.js";
 import type * as lib_agents_social_media_index from "../lib/agents/social_media/index.js";
 import type * as lib_agents_social_media_nodes from "../lib/agents/social_media/nodes.js";
@@ -74,6 +76,8 @@ declare const fullApi: ApiFromModules<{
   "lib/agents/news/prompts": typeof lib_agents_news_prompts;
   "lib/agents/news/state": typeof lib_agents_news_state;
   "lib/agents/news/tools": typeof lib_agents_news_tools;
+  "lib/agents/nodes": typeof lib_agents_nodes;
+  "lib/agents/prompts": typeof lib_agents_prompts;
   "lib/agents/social_media/graph": typeof lib_agents_social_media_graph;
   "lib/agents/social_media/index": typeof lib_agents_social_media_index;
   "lib/agents/social_media/nodes": typeof lib_agents_social_media_nodes;

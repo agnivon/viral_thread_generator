@@ -1,6 +1,7 @@
 "use node";
 
 import { StateGraph, START, END } from "@langchain/langgraph";
+import { VisualKeywordStrategistNode } from "../nodes.js";
 import { checkpointSaver } from "../news/graph.js"; // Reuse the postgres saver
 import { SocialMediaThreadFactoryState, SocialMediaThreadFactoryStateType } from "./state.js";
 import { 
@@ -10,7 +11,7 @@ import {
   ThreadWriterNode, 
   CharacterValidatorNode, 
   ViralityCriticNode, 
-  ManualHookSelectionNode 
+  ManualHookSelectionNode
 } from "./nodes.js";
 
 const route_after_scraper = (state: SocialMediaThreadFactoryStateType) => {
@@ -56,7 +57,7 @@ const route_after_validator = (state: SocialMediaThreadFactoryStateType) => {
         return "ViralityCriticNode";
       }
       console.log("[route_after_validator] Max character validation retries reached, aborting character fixes");
-      return END;
+      return state.search_query_generation ? "VisualKeywordStrategistNode" : END;
     }
     return "ThreadWriterNode";
   }
@@ -69,7 +70,7 @@ const route_after_critic = (state: SocialMediaThreadFactoryStateType) => {
     return "ViralityCriticNode";
   }
   if (state.is_approved === true || state.iterations >= 3) {
-    return END;
+    return state.search_query_generation ? "VisualKeywordStrategistNode" : END;
   }
   return "ThreadWriterNode";
 };
@@ -83,12 +84,14 @@ export const SocialMediaThreadFactoryGraph = new StateGraph(SocialMediaThreadFac
   .addNode("ThreadWriterNode", ThreadWriterNode)
   .addNode("CharacterValidatorNode", CharacterValidatorNode)
   .addNode("ViralityCriticNode", ViralityCriticNode)
+  .addNode("VisualKeywordStrategistNode", VisualKeywordStrategistNode)
   .addEdge(START, "PostScraperNode")
   .addConditionalEdges("PostScraperNode", route_after_scraper, ["ContextResearcherNode", "PostScraperNode"])
   .addConditionalEdges("ContextResearcherNode", route_after_researcher, ["HookStrategistNode", "ContextResearcherNode"])
   .addConditionalEdges("HookStrategistNode", route_after_hook, ["ThreadWriterNode", "HookStrategistNode", "ManualHookSelectionNode"])
   .addEdge("ManualHookSelectionNode", "ThreadWriterNode")
   .addConditionalEdges("ThreadWriterNode", route_after_writer, ["CharacterValidatorNode", "ThreadWriterNode"])
-  .addConditionalEdges("CharacterValidatorNode", route_after_validator, [END, "ViralityCriticNode", "ThreadWriterNode"])
-  .addConditionalEdges("ViralityCriticNode", route_after_critic, [END, "ThreadWriterNode", "ViralityCriticNode"])
+  .addConditionalEdges("CharacterValidatorNode", route_after_validator, [END, "ViralityCriticNode", "ThreadWriterNode", "VisualKeywordStrategistNode"])
+  .addConditionalEdges("ViralityCriticNode", route_after_critic, [END, "ThreadWriterNode", "ViralityCriticNode", "VisualKeywordStrategistNode"])
+  .addEdge("VisualKeywordStrategistNode", END)
   .compile({ checkpointer: checkpointSaver });

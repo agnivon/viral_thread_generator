@@ -27,6 +27,7 @@ import { RegenerateDialog } from "./components/RegenerateDialog";
 import { SidebarHookCard } from "./components/SidebarHookCard";
 import { ViralityCard } from "./components/ViralityCard";
 import { ResearchDossierDialog } from "./components/ResearchDossierDialog";
+import { SearchQueriesDialog } from "./components/SearchQueriesDialog";
 
 export default function ApproveDraftPage() {
   const params = useParams();
@@ -503,6 +504,11 @@ export default function ApproveDraftPage() {
               <ResearchDossierDialog researchContext={state.research_context} />
             )}
 
+            {/* Search Queries Dialog */}
+            {state.search_queries && (
+              <SearchQueriesDialog searchQueries={state.search_queries} />
+            )}
+
           </div>
         </div>
       </div>
@@ -512,9 +518,10 @@ export default function ApproveDraftPage() {
         isOpen={isDialogOpen}
         initialGuidance={state?.guidance || ""}
         initialManualHookSelection={state?.manual_hook_selection || false}
+        initialSearchQueryGeneration={state?.search_query_generation || false}
         isRegenerating={isRegenerating}
         onClose={() => setIsDialogOpen(false)}
-        onRegenerate={async (guidance, manualHook) => {
+        onRegenerate={async (guidance, manualHook, searchQueryGeneration) => {
           try {
             setIsRegenerating(true);
             setIsDialogOpen(false);
@@ -522,6 +529,7 @@ export default function ApproveDraftPage() {
               ids: [id],
               guidance: guidance.trim() || undefined,
               manual_hook_selection: manualHook,
+              search_query_generation: searchQueryGeneration,
             });
             toast.success("Regeneration queued! The thread is being regenerated.");
             router.push("/threads/drafts");

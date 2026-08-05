@@ -1,6 +1,7 @@
 "use node";
 import { StateSchema } from "@langchain/langgraph";
 import { z } from "zod";
+import { SearchQueriesSchema } from "../nodes.js";
 
 export const TopicThreadFactoryState = new StateSchema({
   topic: z.string(),
@@ -35,6 +36,8 @@ export const TopicThreadFactoryState = new StateSchema({
     critic: z.number().default(0),
     validator: z.number().default(0),
   }).default({ orchestrator: 0, scraper: 0, hook: 0, writer: 0, critic: 0, validator: 0 }),
+  search_queries: SearchQueriesSchema.optional(),
+  search_query_generation: z.boolean().default(false),
 });
 
 export type TopicThreadFactoryStateType = typeof TopicThreadFactoryState.State;

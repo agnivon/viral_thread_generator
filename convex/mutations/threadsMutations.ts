@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import { internalMutation, mutation } from "../_generated/server";
-import { threadDraftInputValidator } from "../schema";
+import { threadDraftInputValidator, commonThreadDraftArgs } from "../schema";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { vOnCompleteArgs } from "@convex-dev/workpool";
 import { Id } from "../_generated/dataModel";
@@ -36,8 +36,7 @@ export const saveThreadDraft = internalMutation({
 export const initializeThreadDraft = internalMutation({
   args: {
     userId: v.id("users"),
-    guidance: v.optional(v.string()),
-    manual_hook_selection: v.optional(v.boolean()),
+    ...commonThreadDraftArgs,
     agent: v.optional(v.string()),
     input_field: v.optional(threadDraftInputValidator),
   },
@@ -47,6 +46,7 @@ export const initializeThreadDraft = internalMutation({
       userId: args.userId,
       guidance: args.guidance,
       manual_hook_selection: args.manual_hook_selection,
+      search_query_generation: args.search_query_generation,
       agent: args.agent || "news",
       is_approved: false,
       is_published: false,
@@ -63,7 +63,7 @@ export const updateThreadDraft = internalMutation({
     input_field: v.optional(threadDraftInputValidator),
     generation_status: v.optional(v.union(v.literal("success"), v.literal("failed"), v.literal("processing"), v.literal("hook selection"))),
     publication_status: v.optional(v.union(v.literal("not_published"), v.literal("publishing"), v.literal("success"), v.literal("failed"))),
-    manual_hook_selection: v.optional(v.boolean()),
+    ...commonThreadDraftArgs,
     raw_markdown: v.optional(v.string()),
     core_hooks: v.optional(v.array(v.string())),
     selected_hook: v.optional(v.union(v.string(), v.null())),
@@ -80,7 +80,16 @@ export const updateThreadDraft = internalMutation({
     iterations: v.optional(v.number()),
     is_approved: v.optional(v.boolean()),
     is_published: v.optional(v.boolean()),
-    guidance: v.optional(v.string()),
+    search_queries: v.optional(v.object({
+      hero_visual_query: v.string(),
+      post_visual_queries: v.array(
+        v.object({
+          post_index: v.number(),
+          image_search_query: v.string(),
+          video_search_query: v.string(),
+        })
+      )
+    })),
   },
   handler: async (ctx, args) => {
     const { id, ...updates } = args;

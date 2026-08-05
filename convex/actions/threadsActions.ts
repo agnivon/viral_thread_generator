@@ -6,7 +6,7 @@ import { isInterrupted, Command } from "@langchain/langgraph";
 import { action, internalAction } from "../_generated/server";
 import { v, Infer } from "convex/values";
 import { internal } from "../_generated/api";
-import { threadDraftInputValidator } from "../schema";
+import { threadDraftInputValidator, commonThreadDraftArgs } from "../schema";
 import { Id } from "../_generated/dataModel";
 import { NewsThreadFactoryGraph } from "../lib/agents/news/graph.js";
 import { SocialMediaThreadFactoryGraph } from "../lib/agents/social_media/graph.js";
@@ -22,10 +22,11 @@ async function requireAuthUserId(ctx: any): Promise<Id<"users">> {
   return userId;
 }
 
-function createInitialState(args: { input_field: Infer<typeof threadDraftInputValidator>; guidance?: string; manual_hook_selection?: boolean; }) {
+function createInitialState(args: { input_field: Infer<typeof threadDraftInputValidator>; guidance?: string; manual_hook_selection?: boolean; search_query_generation?: boolean; }) {
   const base = {
     guidance: args.guidance,
     manual_hook_selection: args.manual_hook_selection ?? false,
+    search_query_generation: args.search_query_generation ?? false,
     iterations: 0,
     is_approved: false,
   };
@@ -91,8 +92,7 @@ export const enqueueNewsThreadGeneration = action({
   args: {
     requests: v.array(v.object({
       url: v.string(),
-      guidance: v.optional(v.string()),
-      manual_hook_selection: v.optional(v.boolean()),
+      ...commonThreadDraftArgs,
     }))
   },
   handler: async (ctx, args) => {
@@ -102,6 +102,7 @@ export const enqueueNewsThreadGeneration = action({
       input_field: { agent: "news" as const, url: req.url },
       guidance: req.guidance,
       manual_hook_selection: req.manual_hook_selection,
+      search_query_generation: req.search_query_generation,
       userId,
       agent: "news",
     }));
@@ -114,8 +115,7 @@ export const enqueueSocialMediaThreadGeneration = action({
   args: {
     requests: v.array(v.object({
       url: v.string(),
-      guidance: v.optional(v.string()),
-      manual_hook_selection: v.optional(v.boolean()),
+      ...commonThreadDraftArgs,
     }))
   },
   handler: async (ctx, args) => {
@@ -125,6 +125,7 @@ export const enqueueSocialMediaThreadGeneration = action({
       input_field: { agent: "social_media" as const, url: req.url },
       guidance: req.guidance,
       manual_hook_selection: req.manual_hook_selection,
+      search_query_generation: req.search_query_generation,
       userId,
       agent: "social_media",
     }));
@@ -138,8 +139,7 @@ export const enqueueTopicThreadGeneration = action({
     requests: v.array(v.object({
       topic: v.string(),
       description: v.optional(v.string()),
-      guidance: v.optional(v.string()),
-      manual_hook_selection: v.optional(v.boolean()),
+      ...commonThreadDraftArgs,
     }))
   },
   handler: async (ctx, args) => {
@@ -149,6 +149,7 @@ export const enqueueTopicThreadGeneration = action({
       input_field: { agent: "topic" as const, topic: req.topic, description: req.description },
       guidance: req.guidance,
       manual_hook_selection: req.manual_hook_selection,
+      search_query_generation: req.search_query_generation,
       userId,
       agent: "topic",
     }));
@@ -161,8 +162,7 @@ export const enqueueThreadGeneration = action({
   args: {
     requests: v.array(v.object({
       input_field: threadDraftInputValidator,
-      guidance: v.optional(v.string()),
-      manual_hook_selection: v.optional(v.boolean()),
+      ...commonThreadDraftArgs,
     }))
   },
   handler: async (ctx, args) => {
@@ -173,6 +173,7 @@ export const enqueueThreadGeneration = action({
         input_field: req.input_field,
         guidance: req.guidance,
         manual_hook_selection: req.manual_hook_selection,
+        search_query_generation: req.search_query_generation,
         userId,
         agent: req.input_field.agent,
       };
@@ -185,8 +186,7 @@ export const enqueueThreadGeneration = action({
 export const generateThreadInternal = internalAction({
   args: {
     input_field: threadDraftInputValidator,
-    guidance: v.optional(v.string()),
-    manual_hook_selection: v.optional(v.boolean()),
+    ...commonThreadDraftArgs,
     userId: v.id("users"),
     agent: v.optional(v.string()),
   },
@@ -199,6 +199,7 @@ export const generateThreadInternal = internalAction({
           input_field: args.input_field,
           guidance: args.guidance,
           manual_hook_selection: args.manual_hook_selection,
+          search_query_generation: args.search_query_generation,
           userId: args.userId,
           agent: args.agent,
         }
@@ -209,12 +210,12 @@ export const generateThreadInternal = internalAction({
       }
       const draft = await ctx.runQuery(internal.queries.threadsQueries.getThreadDraftInternal, { id: recordId, userId: args.userId });
       const agent = draft?.agent || args.agent || "news";
-      
+
       const graph = getGraph(agent);
 
       console.log(`[generateThreadInternal] Invoking ${agent} graph from scratch...`);
 
-      const initialState = createInitialState({ input_field: args.input_field, guidance: args.guidance, manual_hook_selection: args.manual_hook_selection });
+      const initialState = createInitialState({ input_field: args.input_field, guidance: args.guidance, manual_hook_selection: args.manual_hook_selection, search_query_generation: args.search_query_generation });
       const finalState = await (graph as any).invoke(initialState, {
         configurable: { thread_id: recordId }
       });
@@ -237,22 +238,21 @@ export const regenerateThreadInternal = internalAction({
   args: {
     userId: v.id("users"),
     recordId: v.id("threadDrafts"),
-    guidance: v.optional(v.string()),
-    manual_hook_selection: v.optional(v.boolean()),
+    ...commonThreadDraftArgs,
     agent: v.optional(v.string()),
   },
   handler: async (ctx, args): Promise<{ recordId: Id<"threadDrafts"> }> => {
     try {
       const draft = await ctx.runQuery(internal.queries.threadsQueries.getThreadDraftInternal, { id: args.recordId, userId: args.userId });
       if (!draft || !draft.input_field) throw new Error("Draft not found or missing input_field");
-      
+
       const agent = args.agent || draft.agent || "news";
       console.log(`[regenerateThreadInternal] Started for Record: ${args.recordId}, Agent: ${agent}`);
 
       console.log(`[regenerateThreadInternal] Regenerating thread ${args.recordId}. Time traveling to after ScraperNode...`);
       const config = { configurable: { thread_id: args.recordId } };
       const graph = getGraph(agent);
-      
+
       let pastStateBeforeHook = null;
       for await (const state of graph.getStateHistory(config)) {
         if (state.next && state.next.includes("HookStrategistNode")) {
@@ -271,26 +271,28 @@ export const regenerateThreadInternal = internalAction({
           }
         };
         await ctx.runMutation(internal.mutations.threadsMutations.updateThreadDraft, {
-           id: args.recordId,
-           generation_status: "processing",
-           is_approved: false,
-           iterations: 0,
+          id: args.recordId,
+          generation_status: "processing",
+          is_approved: false,
+          iterations: 0,
         });
 
         const stateUpdate: any = {
-           iterations: 0,
-           is_approved: false,
+          iterations: 0,
+          is_approved: false,
         };
         if (args.guidance !== undefined) stateUpdate.guidance = args.guidance;
         if (args.manual_hook_selection !== undefined) stateUpdate.manual_hook_selection = args.manual_hook_selection;
-        
+        if (args.search_query_generation !== undefined) stateUpdate.search_query_generation = args.search_query_generation;
+
         finalState = await (graph as any).invoke(stateUpdate, forkConfig);
       } else {
         console.log(`[regenerateThreadInternal] Could not find past state before HookStrategistNode. Restarting from scratch...`);
-        const initialState = createInitialState({ 
-          input_field: draft.input_field, 
-          guidance: args.guidance ?? draft.guidance, 
-          manual_hook_selection: args.manual_hook_selection ?? draft.manual_hook_selection 
+        const initialState = createInitialState({
+          input_field: draft.input_field,
+          guidance: args.guidance ?? draft.guidance,
+          manual_hook_selection: args.manual_hook_selection ?? draft.manual_hook_selection,
+          search_query_generation: args.search_query_generation ?? draft.search_query_generation
         });
         finalState = await (graph as any).invoke(initialState, config);
       }
@@ -415,8 +417,8 @@ export const retryThreadInternal = internalAction({
         console.log(`[retryThreadInternal] No prior state found. Restarting from scratch...`);
         const draft = await ctx.runQuery(internal.queries.threadsQueries.getThreadDraftInternal, { id: args.recordId, userId: args.userId });
         if (!draft || !draft.input_field) throw new Error("Draft not found or missing input_field");
-        
-        const initialState = createInitialState({ input_field: draft.input_field, guidance: draft.guidance, manual_hook_selection: draft.manual_hook_selection });
+
+        const initialState = createInitialState({ input_field: draft.input_field, guidance: draft.guidance, manual_hook_selection: draft.manual_hook_selection, search_query_generation: draft.search_query_generation });
         finalState = await (graph as any).invoke(initialState, config);
       } else {
         try {
@@ -426,8 +428,8 @@ export const retryThreadInternal = internalAction({
             console.log(`[retryThreadInternal] Caught EmptyInputError. Restarting from scratch...`);
             const draft = await ctx.runQuery(internal.queries.threadsQueries.getThreadDraftInternal, { id: args.recordId, userId: args.userId });
             if (!draft || !draft.input_field) throw new Error("Draft not found or missing input_field");
-            
-            const initialState = createInitialState({ input_field: draft.input_field, guidance: draft.guidance, manual_hook_selection: draft.manual_hook_selection });
+
+            const initialState = createInitialState({ input_field: draft.input_field, guidance: draft.guidance, manual_hook_selection: draft.manual_hook_selection, search_query_generation: draft.search_query_generation });
             finalState = await (graph as any).invoke(initialState, config);
           } else {
             throw e;
@@ -450,8 +452,7 @@ export const retryThreadInternal = internalAction({
 export const enqueueThreadRegeneration = action({
   args: {
     ids: v.array(v.id("threadDrafts")),
-    guidance: v.optional(v.string()),
-    manual_hook_selection: v.optional(v.boolean()),
+    ...commonThreadDraftArgs,
   },
   handler: async (ctx, args) => {
     const userId = await requireAuthUserId(ctx);
@@ -464,10 +465,12 @@ export const enqueueThreadRegeneration = action({
       }
       const guidance = args.guidance !== undefined ? args.guidance : draft.guidance;
       const manual_hook_selection = args.manual_hook_selection !== undefined ? args.manual_hook_selection : draft.manual_hook_selection;
-      
+      const search_query_generation = args.search_query_generation !== undefined ? args.search_query_generation : draft.search_query_generation;
+
       payload.push({
         guidance: guidance,
         manual_hook_selection: manual_hook_selection,
+        search_query_generation: search_query_generation,
         userId,
         recordId: id,
         agent: draft.agent,

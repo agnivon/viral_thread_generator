@@ -33,6 +33,12 @@ const TopicInput = v.object({
 
 export const threadDraftInputValidator = v.union(NewsInput, SocialMediaInput, TopicInput);
 
+export const commonThreadDraftArgs = {
+  guidance: v.optional(v.string()),
+  manual_hook_selection: v.optional(v.boolean()),
+  search_query_generation: v.optional(v.boolean()),
+};
+
 export default defineSchema(
   {
     ...authTables,
@@ -56,7 +62,7 @@ export default defineSchema(
       userId: v.id("users"),
       raw_markdown: v.optional(v.string()),
       research_context: v.optional(v.string()),
-      guidance: v.optional(v.string()),
+      ...commonThreadDraftArgs,
       core_hooks: v.optional(v.array(v.string())),
       selected_hook: v.optional(v.union(v.string(), v.null())),
       thread_draft: v.optional(v.array(v.string())),
@@ -71,7 +77,16 @@ export default defineSchema(
       iterations: v.optional(v.number()),
       is_approved: v.optional(v.boolean()),
       is_published: v.optional(v.boolean()),
-      manual_hook_selection: v.optional(v.boolean()),
+      search_queries: v.optional(v.object({
+        hero_visual_query: v.string(),
+        post_visual_queries: v.array(
+          v.object({
+            post_index: v.number(),
+            image_search_query: v.string(),
+            video_search_query: v.string(),
+          })
+        )
+      })),
       generation_status: v.union(
         v.literal("processing"),
         v.literal("hook selection"),

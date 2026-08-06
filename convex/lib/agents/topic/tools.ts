@@ -9,17 +9,22 @@ import { JinaClient, JinaResponse, FormattedPageDto } from "../../jina/api.js";
 import FirecrawlApp from "@mendable/firecrawl-js";
 
 export const TavilySearchTool = tool(
-  async ({ query }) => {
+  async ({ query, topic, days, maxResults, includeDomains, excludeDomains }) => {
     try {
       const client = tavily({ apiKey: process.env.TAVILY_API_KEY });
       const response = await client.search(query, {
         searchDepth: "advanced",
         includeAnswer: true,
+        topic: topic as "general" | "news" | undefined,
+        days: days,
+        maxResults: maxResults,
+        includeDomains: includeDomains,
+        excludeDomains: excludeDomains,
       });
 
       return JSON.stringify({
         answer: response.answer,
-        results: response.results.slice(0, 5)
+        results: response.results
       });
     } catch (e: any) {
       return JSON.stringify({ error: e.message || "Tavily search failed" });
@@ -30,6 +35,11 @@ export const TavilySearchTool = tool(
     description: "Searches the web using Tavily to fetch LLM-optimized summaries and synthesize factual answers.",
     schema: z.object({
       query: z.string().describe("The search query to research"),
+      topic: z.enum(["general", "news"]).optional().default("general").describe("Topic of search, use 'news' for recent events"),
+      days: z.number().optional().describe("Number of days back to search"),
+      maxResults: z.number().optional().default(5).describe("Number of results to return"),
+      includeDomains: z.array(z.string()).optional().describe("List of domains to exclusively search from"),
+      excludeDomains: z.array(z.string()).optional().describe("List of domains to exclude from results")
     }),
   }
 );

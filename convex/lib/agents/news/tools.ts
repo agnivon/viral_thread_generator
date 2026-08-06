@@ -82,11 +82,16 @@ export const YoutubeScraperTool = tool(
 
 // 3. TopicContextExpanderTool
 export const TopicContextExpanderTool = tool(
-  async ({ query }) => {
+  async ({ query, topic, days, maxResults, includeDomains, excludeDomains }) => {
     const client = tavily({ apiKey: process.env.TAVILY_API_KEY });
     const response = await client.search(query, {
       searchDepth: "basic",
       includeAnswer: false,
+      topic: topic as "general" | "news" | undefined,
+      days: days,
+      maxResults: maxResults,
+      includeDomains: includeDomains,
+      excludeDomains: excludeDomains,
     });
 
     return JSON.stringify(response.results);
@@ -96,22 +101,32 @@ export const TopicContextExpanderTool = tool(
     description: "Searches the web for recent context or public sentiment on a topic.",
     schema: z.object({
       query: z.string().describe("The search query"),
+      topic: z.enum(["general", "news"]).optional().default("general").describe("Topic of search, use 'news' for recent events"),
+      days: z.number().optional().describe("Number of days back to search"),
+      maxResults: z.number().optional().default(5).describe("Number of results to return"),
+      includeDomains: z.array(z.string()).optional().describe("List of domains to exclusively search from"),
+      excludeDomains: z.array(z.string()).optional().describe("List of domains to exclude from results")
     }),
   }
 );
 
 // 4. ContentAuthenticityCheckerTool
 export const ContentAuthenticityCheckerTool = tool(
-  async ({ query }) => {
+  async ({ query, topic, days, maxResults, includeDomains, excludeDomains }) => {
     const client = tavily({ apiKey: process.env.TAVILY_API_KEY });
     const response = await client.search(query, {
       searchDepth: "advanced",
       includeAnswer: true,
+      topic: topic as "general" | "news" | undefined,
+      days: days,
+      maxResults: maxResults,
+      includeDomains: includeDomains,
+      excludeDomains: excludeDomains,
     });
 
     return JSON.stringify({
       answer: response.answer,
-      results: response.results.slice(0, 3)
+      results: response.results
     });
   },
   {
@@ -119,6 +134,11 @@ export const ContentAuthenticityCheckerTool = tool(
     description: "Searches the web to verify if a specific claim or data point in a drafted thread is factually accurate and authentic.",
     schema: z.object({
       query: z.string().describe("The factual claim to verify against the web"),
+      topic: z.enum(["general", "news"]).optional().default("general").describe("Topic of search, use 'news' for recent events"),
+      days: z.number().optional().describe("Number of days back to search"),
+      maxResults: z.number().optional().default(3).describe("Number of results to return"),
+      includeDomains: z.array(z.string()).optional().describe("List of reputable domains to exclusively search from"),
+      excludeDomains: z.array(z.string()).optional().describe("List of domains to exclude from results")
     }),
   }
 );

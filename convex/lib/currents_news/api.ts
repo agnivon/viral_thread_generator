@@ -52,7 +52,7 @@ export const currentsApiResponseSchema = z.object({
   status: z.enum(['ok', 'error']),
   news: z.array(articleSchema),
   page: z.number(),
-  next_cursor: z.any(), // v2 only
+  next_cursor: z.union([z.string(), z.number()]).nullable().optional(), // v2 only
 });
 
 export type CurrentsApiResponse = z.infer<typeof currentsApiResponseSchema>;

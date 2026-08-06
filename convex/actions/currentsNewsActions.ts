@@ -1,18 +1,17 @@
 "use node";
 
-import { action, internalAction } from "../_generated/server";
-import { CurrentsAPI } from "../lib/currents_news/api";
-import { db } from "../lib/firebase";
-import { FieldValue, Timestamp } from "firebase-admin/firestore";
+import googleTrends from '@alkalisummer/google-trends-js';
 import { getAuthUserId } from "@convex-dev/auth/server";
-import { SystemMessage, HumanMessage } from "@langchain/core/messages";
+import { HumanMessage, SystemMessage } from "@langchain/core/messages";
+import { v } from "convex/values";
+import { FieldValue, Timestamp } from "firebase-admin/firestore";
+import { z } from "zod";
+import { action, internalAction } from "../_generated/server";
 import { googleGemini3FlashPreviewT00Key1, googleGemini3FlashPreviewT00Key2 } from "../lib/agents/models";
 import { NEWS_SCORER_PROMPT } from "../lib/agents/news/prompts";
-import { z } from "zod";
-import { v } from "convex/values";
-import googleTrends from '@alkalisummer/google-trends-js';
-import type { TrendingKeyword } from '@alkalisummer/google-trends-js/lib/types/index';
 import { SearchQueryOptimizerNode } from "../lib/agents/nodes";
+import { CurrentsAPI } from "../lib/currents_news/api";
+import { db } from "../lib/firebase";
 
 export const fetchAndStoreLatestNews = internalAction({
   args: {},
@@ -24,23 +23,59 @@ export const fetchAndStoreLatestNews = internalAction({
 
     const currentsApi = new CurrentsAPI({ apiKey });
 
-    // 1. Fetch Trending Keywords from Google Trends (US only)
-    let combinedTrends: TrendingKeyword[] = [];
-    
+    // 1. Fetch Trending Keywords from Google Trends
+    // We only fetch from the US region as per the requirements.
+    let allTrends: any[] = [];
+
     try {
+      // Fetch daily trends for the US. The GoogleTrendsApi returns data that includes
+      // crucial metrics like 'traffic' (search volume) and 'activeTime' (started time).
       const usResponse = await googleTrends.dailyTrends({ geo: 'US' });
-      
+
       if (usResponse.data) {
-        // Deduplicate keywords just in case
-        combinedTrends = usResponse.data.reduce((acc, curr) => {
-          if (!acc.some(t => t.keyword === curr.keyword)) acc.push(curr);
-          return acc;
-        }, [] as TrendingKeyword[]).slice(0, 10);
+        allTrends.push(...usResponse.data);
       }
     } catch (error) {
       console.error("Error fetching Google Trends:", error);
     }
-    
+
+    // ==========================================
+    // KEYWORD DEDUPLICATION & SORTING LOGIC
+    // ==========================================
+    // 1. Deduplication: We use a Map to ensure each keyword only appears once.
+    // If we encounter a duplicate keyword, we keep the one with the highest search volume (traffic).
+    const uniqueTrendsMap = new Map();
+    for (const t of allTrends) {
+      const keyword = String(t.keyword).toLowerCase().trim();
+      if (!uniqueTrendsMap.has(keyword)) {
+        uniqueTrendsMap.set(keyword, t);
+      } else {
+        const existing = uniqueTrendsMap.get(keyword);
+        if ((t.traffic || 0) > (existing.traffic || 0)) {
+          uniqueTrendsMap.set(keyword, t);
+        }
+      }
+    }
+
+    // 2. Sorting: We sort the deduplicated keywords to prioritize virality and recency.
+    const combinedTrends = Array.from(uniqueTrendsMap.values()).sort((a, b) => {
+      const aTraffic = a.traffic || 0;
+      const bTraffic = b.traffic || 0;
+
+      // PRIMARY SORT: Search Volume (traffic)
+      // We want the most viral keywords first, so we sort descending by traffic.
+      if (bTraffic !== aTraffic) {
+        return bTraffic - aTraffic;
+      }
+
+      // SECONDARY SORT: Started Time (activeTime)
+      // If two keywords have the exact same search volume, we break the tie 
+      // by placing the most chronologically relevant (recent) keyword first.
+      const aTime = a.activeTime ? new Date(a.activeTime).getTime() : 0;
+      const bTime = b.activeTime ? new Date(b.activeTime).getTime() : 0;
+      return bTime - aTime;
+    }).slice(0, 10); // Limit to the absolute top 10 most viral and recent keywords
+
     if (combinedTrends.length === 0) {
       console.log("No trending keywords found.");
       return;
@@ -53,7 +88,7 @@ export const fetchAndStoreLatestNews = internalAction({
     for (const trend of combinedTrends) {
       const keyword = String(trend.keyword).toLowerCase().trim();
       const slugifiedKeyword = keyword.replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
-      
+
       // Use LLM to optimize the boolean query based on traffic metrics
       console.log(`Generating optimized query for ${keyword}...`);
       const { optimized_query } = await SearchQueryOptimizerNode({
@@ -67,7 +102,7 @@ export const fetchAndStoreLatestNews = internalAction({
       // Currents API accepts space-separated boolean-like strings
       const searchQuery = optimized_query || keyword;
       console.log(`Optimized query for ${keyword}: ${searchQuery}`);
-      
+
       let response;
       try {
         response = await currentsApi.search({
@@ -101,16 +136,16 @@ export const fetchAndStoreLatestNews = internalAction({
       }, { merge: true });
 
       const collectionRef = rootDocRef.collection("articles");
-      
+
       if (articles.length === 0) {
         continue;
       }
-      
+
       const docRefs = articles.map(article => {
         const safeId = String(article.id).replace(/\//g, '_');
         return collectionRef.doc(safeId);
       });
-      
+
       let existingDocs;
       try {
         existingDocs = await db.getAll(...docRefs);
@@ -118,7 +153,7 @@ export const fetchAndStoreLatestNews = internalAction({
         console.error(`Firestore db.getAll Error details for ${keyword}:`, error.message);
         throw error;
       }
-      
+
       const newArticles = articles.filter((_, index) => !existingDocs[index].exists);
 
       if (newArticles.length === 0) {
@@ -131,7 +166,7 @@ export const fetchAndStoreLatestNews = internalAction({
       for (const article of newArticles) {
         const safeId = String(article.id).replace(/\//g, '_');
         const docRef = collectionRef.doc(safeId);
-        
+
         let publishedTimestamp: FieldValue | Timestamp = FieldValue.serverTimestamp();
         if (article.published) {
           try {
@@ -158,7 +193,7 @@ export const fetchAndStoreLatestNews = internalAction({
       console.log(`Successfully stored ${newArticles.length} new news articles in Firestore for ${keyword}.`);
       totalStored += newArticles.length;
     }
-    
+
     console.log(`Successfully stored a total of ${totalStored} new news articles across all trending keywords.`);
   },
 });
@@ -170,13 +205,13 @@ export const deleteOldNewsArticles = internalAction({
     cutoffDate.setDate(cutoffDate.getDate() - 5);
 
     let totalDeleted = 0;
-    
+
     const rootDocs = await db.collection("currents_latest_news").listDocuments();
 
     for (const rootDoc of rootDocs) {
       const keywordSlug = rootDoc.id;
       console.log(`Deleting old news articles for keyword: ${keywordSlug}`);
-      
+
       const collectionRef = rootDoc.collection("articles");
       const snapshot = await collectionRef.where("published_at", "<", cutoffDate).get();
 
@@ -199,7 +234,7 @@ export const deleteOldNewsArticles = internalAction({
           currentBatch = db.batch();
           currentBatchSize = 0;
         }
-        
+
         deletedCount++;
       }
 
@@ -211,21 +246,27 @@ export const deleteOldNewsArticles = internalAction({
       console.log(`Successfully deleted ${deletedCount} old news articles from Firestore for ${keywordSlug}.`);
       totalDeleted += deletedCount;
     }
-    
+
     console.log(`Successfully deleted a total of ${totalDeleted} old news articles across all keywords.`);
   },
 });
 
 export const getAvailableKeywords = action({
-  args: {},
-  handler: async (ctx) => {
+  args: {
+    limitNum: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) {
       throw new Error("Unauthorized");
     }
 
-    const snapshot = await db.collection("currents_latest_news").orderBy("updated_at", "desc").get();
-    
+    const limit = args.limitNum ?? 15;
+    const snapshot = await db.collection("currents_latest_news")
+      .orderBy("updated_at", "desc")
+      .limit(limit)
+      .get();
+
     return snapshot.docs.map(doc => ({
       id: doc.id,
       keyword: doc.data().keyword || doc.id,
@@ -247,9 +288,9 @@ export const getLatestNewsFromFirestore = action({
 
     const limitNum = args.numItems ?? 50;
     const collectionRef = db.collection("currents_latest_news").doc(args.keyword).collection("articles");
-    
+
     let firestoreQuery = collectionRef.orderBy("published_at", "desc").limit(limitNum);
-    
+
     if (args.cursor) {
       const cursorDoc = await collectionRef.doc(args.cursor).get();
       if (cursorDoc.exists) {
@@ -323,7 +364,7 @@ export const updateNewsArticle = action({
     }
 
     const docRef = db.collection("currents_latest_news").doc(keyword).collection("articles").doc(id);
-    
+
     try {
       await docRef.update({
         ...updates,
@@ -349,7 +390,7 @@ export const evaluateNewsArticle = action({
 
     const docRef = db.collection("currents_latest_news").doc(args.keyword).collection("articles").doc(args.id);
     const snapshot = await docRef.get();
-    
+
     if (!snapshot.exists) {
       throw new Error(`Article with id ${args.id} not found in Firestore for keyword ${args.keyword}`);
     }
@@ -370,7 +411,7 @@ export const evaluateNewsArticle = action({
     const primaryStructured = googleGemini3FlashPreviewT00Key1.withStructuredOutput(viralityScoreSchema);
     const backupStructured = googleGemini3FlashPreviewT00Key2.withStructuredOutput(viralityScoreSchema);
     const structuredLlm = primaryStructured.withFallbacks({ fallbacks: [backupStructured] });
-    
+
     const parsedResult = await structuredLlm.invoke([
       new SystemMessage(NEWS_SCORER_PROMPT),
       new HumanMessage(humanPrompt)
@@ -385,7 +426,7 @@ export const evaluateNewsArticle = action({
 
     const updatedDoc = await docRef.get();
     const updatedData = updatedDoc.data();
-    
+
     return {
       id: updatedDoc.id,
       ...updatedData,

@@ -16,7 +16,10 @@ export const WebScraperTool = tool(
       const scrapeResult = await app.scrape(url, { onlyMainContent: true, maxAge: 172800000, formats: ["markdown", "images"] });
 
       const markdown = scrapeResult.markdown || "No content found.";
-      const images = scrapeResult.images || [];
+      let images = scrapeResult.images || [];
+      if (images.length === 0 && markdown !== "No content found.") {
+        images = Array.from(markdown.matchAll(/!\[.*?\]\((.*?)\)/g)).map((m) => m[1]);
+      }
       return JSON.stringify({ markdown, images });
       } catch (_e) {
       console.warn(`[WebScraperTool] Firecrawl failed for ${url}, falling back to Jina Reader...`);

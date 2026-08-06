@@ -110,10 +110,16 @@ export const FirecrawlScrapeTool = tool(
         throw new Error((response as any).error || "Firecrawl failed");
       }
 
+      const markdown = response.markdown || "";
+      let images = response.images || [];
+      if (images.length === 0 && markdown) {
+        images = Array.from(markdown.matchAll(/!\[.*?\]\((.*?)\)/g)).map((m) => m[1]);
+      }
+
       return JSON.stringify({
-        markdown: response.markdown || "",
+        markdown,
         metadata: response.metadata || {},
-        images: response.images || [],
+        images,
       });
     } catch (e: any) {
       return JSON.stringify({ error: e.message || "Firecrawl extraction failed" });

@@ -1,7 +1,17 @@
 {
   "name": "viral_thread_generator",
-  "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
+  "description": "AI-powered viral thread generator built with Next.js 16, Convex, and LangChain",
+  "license": "MIT",
+  "keywords": [
+    "nextjs",
+    "convex",
+    "langchain",
+    "langgraph",
+    "threads",
+    "ai",
+    "viral-thread-generator"
+  ],
   "scripts": {
     "dev": "npm-run-all --parallel dev:frontend dev:backend",
     "dev:frontend": "next dev",

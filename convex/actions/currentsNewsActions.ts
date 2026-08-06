@@ -12,6 +12,7 @@ import { z } from "zod";
 import { v } from "convex/values";
 import googleTrends from '@alkalisummer/google-trends-js';
 import type { TrendingKeyword } from '@alkalisummer/google-trends-js/lib/types/index';
+import { SearchQueryOptimizerNode } from "../lib/agents/nodes";
 
 export const fetchAndStoreLatestNews = internalAction({
   args: {},
@@ -53,18 +54,26 @@ export const fetchAndStoreLatestNews = internalAction({
       const keyword = String(trend.keyword).toLowerCase().trim();
       const slugifiedKeyword = keyword.replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
       
-      // Use the first trend breakdown query if it differs from the main keyword
-      const relatedKeyword = trend.relatedKeywords?.find((k: string) => k.toLowerCase() !== keyword);
-      // Currents API uses space-separated terms to expand the search context
-      const searchQuery = relatedKeyword ? `${keyword} ${relatedKeyword}` : keyword;
-      
-      console.log(`Fetching latest news for keyword: ${keyword} (slug: ${slugifiedKeyword}) with query: ${searchQuery}`);
+      // Use LLM to optimize the boolean query based on traffic metrics
+      console.log(`Generating optimized query for ${keyword}...`);
+      const { optimized_query } = await SearchQueryOptimizerNode({
+        keyword: keyword,
+        relatedKeywords: trend.relatedKeywords || [],
+        traffic: trend.traffic || 0,
+        trafficGrowthRate: trend.trafficGrowthRate || 0,
+      });
+
+      // Fallback to simple keyword if LLM fails
+      // Currents API accepts space-separated boolean-like strings
+      const searchQuery = optimized_query || keyword;
+      console.log(`Optimized query for ${keyword}: ${searchQuery}`);
       
       let response;
       try {
         response = await currentsApi.search({
           language: "en",
           keywords: searchQuery,
+          start_date: trend.activeTime.toISOString(),
           limit: 5,
         });
       } catch (error) {
@@ -74,10 +83,9 @@ export const fetchAndStoreLatestNews = internalAction({
 
       console.log(`Currents API response status for ${keyword}:`, response.data.status);
 
-      const articles = response.data.news;
-      if (!articles || articles.length === 0) {
+      const articles = response.data.news || [];
+      if (articles.length === 0) {
         console.log(`No news articles fetched for ${keyword}.`);
-        continue;
       }
 
       // We explicitly create/update a root document to mark this keyword as active
@@ -85,10 +93,18 @@ export const fetchAndStoreLatestNews = internalAction({
       await rootDocRef.set({
         keyword: keyword,
         slug: slugifiedKeyword,
+        traffic: trend.traffic || 0,
+        trafficGrowthRate: trend.trafficGrowthRate || 0,
+        activeTime: trend.activeTime,
+        relatedKeywords: trend.relatedKeywords || [],
         updated_at: FieldValue.serverTimestamp()
       }, { merge: true });
 
       const collectionRef = rootDocRef.collection("articles");
+      
+      if (articles.length === 0) {
+        continue;
+      }
       
       const docRefs = articles.map(article => {
         const safeId = String(article.id).replace(/\//g, '_');

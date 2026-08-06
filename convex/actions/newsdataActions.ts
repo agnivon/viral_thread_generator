@@ -12,6 +12,7 @@ import { z } from "zod";
 import { v } from "convex/values";
 import googleTrends from '@alkalisummer/google-trends-js';
 import type { TrendingKeyword } from '@alkalisummer/google-trends-js/lib/types/index';
+import { SearchQueryOptimizerNode } from "../lib/agents/nodes";
 
 export const fetchAndStoreLatestNews = internalAction({
   args: {},
@@ -48,16 +49,31 @@ export const fetchAndStoreLatestNews = internalAction({
       
       console.log(`Fetching latest news for keyword: ${keyword} (slug: ${slugifiedKeyword})`);
       
-      // Use the first trend breakdown query if it differs from the main keyword
-      const relatedKeyword = trend.relatedKeywords?.find((k: string) => k.toLowerCase() !== keyword);
-      // NewsData API supports OR operator
-      const searchQuery = relatedKeyword ? `"${keyword}" OR "${relatedKeyword}"` : `"${keyword}"`;
+      // Use LLM to optimize the boolean query based on traffic metrics
+      console.log(`Generating optimized query for ${keyword}...`);
+      const { optimized_query } = await SearchQueryOptimizerNode({
+        keyword: keyword,
+        relatedKeywords: trend.relatedKeywords || [],
+        traffic: trend.traffic || 0,
+        trafficGrowthRate: trend.trafficGrowthRate || 0,
+      });
+
+      // Fallback to simple keyword if LLM fails
+      const searchQuery = optimized_query || `"${keyword}"`;
+      console.log(`Optimized query for ${keyword}: ${searchQuery}`);
+      
+      // Calculate timeframe in hours (bounding to [1, 48] for Newsdata /latest endpoint)
+      const hoursSinceActive = Math.ceil((Date.now() - trend.activeTime.getTime()) / (1000 * 60 * 60));
+      let timeframe = hoursSinceActive + 2; // +2 hours buffer
+      if (timeframe < 1) timeframe = 1;
+      if (timeframe > 48) timeframe = 48;
       
       const response = await newsdataApi.getLatestNews({
         language: "en",
         category: ["top", "breaking"],
         size: 5,
         q: searchQuery,
+        timeframe: timeframe,
       });
 
       console.log(`Newsdata API response status for ${keyword}:`, response.status);
@@ -71,18 +87,26 @@ export const fetchAndStoreLatestNews = internalAction({
 
       if (allArticles.length === 0) {
         console.log(`No news articles fetched for ${keyword}.`);
-        continue;
       }
-
+      // We explicitly create/update a root document to mark this keyword as active
       const rootDocRef = db.collection("newsdata_latest_news").doc(slugifiedKeyword);
       await rootDocRef.set({
         keyword: keyword,
         slug: slugifiedKeyword,
+        traffic: trend.traffic || 0,
+        trafficGrowthRate: trend.trafficGrowthRate || 0,
+        activeTime: trend.activeTime,
+        relatedKeywords: trend.relatedKeywords || [],
         updated_at: FieldValue.serverTimestamp()
       }, { merge: true });
 
       const collectionRef = rootDocRef.collection("articles");
       console.log(`Mapping articles to docRefs for ${keyword}...`);
+      
+      if (allArticles.length === 0) {
+        continue;
+      }
+
       const docRefs = allArticles.map(article => {
         // Ensure article.article_id is a string without slashes
         const safeId = String(article.article_id).replace(/\//g, '_');

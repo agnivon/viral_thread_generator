@@ -21,6 +21,12 @@ const createDeepSeekModel = (model: string, temperature: number, overrides: Deep
 export const googleGemini31FlashLiteT01Key1Max2k = createGoogleModel("gemini-3.1-flash-lite", 0.1, "GOOGLE_API_KEY", { maxOutputTokens: 2000 });
 export const googleGemini31FlashLiteT01Key2Max2k = createGoogleModel("gemini-3.1-flash-lite", 0.1, "GOOGLE_API_KEY2", { maxOutputTokens: 2000 });
 export const openAiGpt54MiniT01Max2kTimeout45k = createOpenAIModel("gpt-5.4-mini", 0.1, { maxTokens: 2000, timeout: 45000 });
+export const openRouterFreeT01 = new ChatOpenRouter({
+  model: "openrouter/free",
+  temperature: 0.1,
+  maxRetries: 3,
+  apiKey: process.env.OPENROUTER_API_KEY,
+});
 
 // HookStrategistNode Models
 export const googleGemini31FlashLiteT08Key1 = createGoogleModel("gemini-3.1-flash-lite", 0.8, "GOOGLE_API_KEY");

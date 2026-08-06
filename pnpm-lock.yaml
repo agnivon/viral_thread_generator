@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      '@alkalisummer/google-trends-js':
+        specifier: ^0.3.7
+        version: 0.3.7
       '@auth/core':
         specifier: 0.37.0
         version: 0.37.0
@@ -218,6 +221,9 @@ importers:
         version: 4.1.8(@edge-runtime/vm@5.0.0)(@opentelemetry/api@1.9.1)(@types/node@24.13.0)(msw@2.14.6(@types/node@24.13.0)(typescript@6.0.3))(vite@8.0.16(@types/node@24.13.0)(esbuild@0.28.0)(jiti@2.7.0)(tsx@4.22.4)(yaml@2.9.0))
 
 packages:
+
+  '@alkalisummer/google-trends-js@0.3.7':
+    resolution: {integrity: sha512-r5ku6Af53HKKi8u9n2ILw4SLhc+l63Q+2EYfjn0Cl9LDbCy4QoywrsgyUlB+9S6EpcqZZNdYFZAhH+ie0osiPw==}
 
   '@alloc/quick-lru@5.2.0':
     resolution: {integrity: sha512-UrcABB+4bUrFABwbluTIBErXwvbsU/V7TZWfmbgJfbkwiBuziS9gxdODUyuiecfdGQ85jglMW6juS3+z5TsKLw==}
@@ -5069,6 +5075,8 @@ packages:
     resolution: {integrity: sha512-bXE4cR/kVZhKZX/RjPEflHaKVhUVl85noU3v6b8apfQEc1x4A+zBxjZ4lN8LqGd6WZ3dl98pY4o717VFmoPp+A==}
 
 snapshots:
+
+  '@alkalisummer/google-trends-js@0.3.7': {}
 
   '@alloc/quick-lru@5.2.0': {}
 

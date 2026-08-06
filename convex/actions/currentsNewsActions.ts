@@ -10,8 +10,8 @@ import { googleGemini3FlashPreviewT00Key1, googleGemini3FlashPreviewT00Key2 } fr
 import { NEWS_SCORER_PROMPT } from "../lib/agents/news/prompts";
 import { z } from "zod";
 import { v } from "convex/values";
-
-const DOMAINS = ["reuters.com", "apnews.com", "bbc.com", "thewire.in", "thehindu.com"];
+import googleTrends from '@alkalisummer/google-trends-js';
+import type { TrendingKeyword } from '@alkalisummer/google-trends-js/lib/types/index';
 
 export const fetchAndStoreLatestNews = internalAction({
   args: {},
@@ -22,47 +22,91 @@ export const fetchAndStoreLatestNews = internalAction({
     }
 
     const currentsApi = new CurrentsAPI({ apiKey });
+
+    // 1. Fetch Trending Keywords from Google Trends (US only)
+    let combinedTrends: TrendingKeyword[] = [];
     
+    try {
+      const usResponse = await googleTrends.dailyTrends({ geo: 'US' });
+      
+      if (usResponse.data) {
+        // Deduplicate keywords just in case
+        combinedTrends = usResponse.data.reduce((acc, curr) => {
+          if (!acc.some(t => t.keyword === curr.keyword)) acc.push(curr);
+          return acc;
+        }, [] as TrendingKeyword[]).slice(0, 10);
+      }
+    } catch (error) {
+      console.error("Error fetching Google Trends:", error);
+    }
+    
+    if (combinedTrends.length === 0) {
+      console.log("No trending keywords found.");
+      return;
+    }
+
+    console.log("Fetching news for trending keywords:", combinedTrends);
+
     let totalStored = 0;
 
-    for (const domain of DOMAINS) {
-      console.log(`Fetching latest news for domain: ${domain}`);
-      // Fetch latest news
-      const response = await currentsApi.latestNews({
-        language: "en",
-        page_size: 20,
-        domain: domain,
-      });
-      console.log(`Currents API response status for ${domain}:`, response.data.status);
-
-      const articles = response.data.news;
-      if (!articles || articles.length === 0) {
-        console.log(`No news articles fetched for ${domain}.`);
+    for (const trend of combinedTrends) {
+      const keyword = String(trend.keyword).toLowerCase().trim();
+      const slugifiedKeyword = keyword.replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+      
+      // Use the first trend breakdown query if it differs from the main keyword
+      const relatedKeyword = trend.relatedKeywords?.find((k: string) => k.toLowerCase() !== keyword);
+      // Currents API uses space-separated terms to expand the search context
+      const searchQuery = relatedKeyword ? `${keyword} ${relatedKeyword}` : keyword;
+      
+      console.log(`Fetching latest news for keyword: ${keyword} (slug: ${slugifiedKeyword}) with query: ${searchQuery}`);
+      
+      let response;
+      try {
+        response = await currentsApi.search({
+          language: "en",
+          keywords: searchQuery,
+          limit: 5,
+        });
+      } catch (error) {
+        console.error(`Error fetching news for ${keyword}:`, error);
         continue;
       }
 
-      const collectionRef = db.collection("currents_latest_news").doc(domain).collection("articles");
-      console.log(`Mapping articles to docRefs for ${domain}...`);
+      console.log(`Currents API response status for ${keyword}:`, response.data.status);
+
+      const articles = response.data.news;
+      if (!articles || articles.length === 0) {
+        console.log(`No news articles fetched for ${keyword}.`);
+        continue;
+      }
+
+      // We explicitly create/update a root document to mark this keyword as active
+      const rootDocRef = db.collection("currents_latest_news").doc(slugifiedKeyword);
+      await rootDocRef.set({
+        keyword: keyword,
+        slug: slugifiedKeyword,
+        updated_at: FieldValue.serverTimestamp()
+      }, { merge: true });
+
+      const collectionRef = rootDocRef.collection("articles");
+      
       const docRefs = articles.map(article => {
-        // Ensure article.id is a string without slashes
         const safeId = String(article.id).replace(/\//g, '_');
         return collectionRef.doc(safeId);
       });
       
       let existingDocs;
       try {
-        console.log(`Calling db.getAll for ${docRefs.length} docs in ${domain}...`);
         existingDocs = await db.getAll(...docRefs);
-        console.log(`Successfully fetched existing docs from Firestore for ${domain}.`);
       } catch (error: any) {
-        console.error(`Firestore db.getAll Error details for ${domain}:`, error.message, error.code, error.details);
+        console.error(`Firestore db.getAll Error details for ${keyword}:`, error.message);
         throw error;
       }
       
       const newArticles = articles.filter((_, index) => !existingDocs[index].exists);
 
       if (newArticles.length === 0) {
-        console.log(`No new articles to store for ${domain}.`);
+        console.log(`No new articles to store for ${keyword}.`);
         continue;
       }
 
@@ -95,11 +139,11 @@ export const fetchAndStoreLatestNews = internalAction({
       }
 
       await batch.commit();
-      console.log(`Successfully stored ${newArticles.length} new news articles in Firestore for ${domain}.`);
+      console.log(`Successfully stored ${newArticles.length} new news articles in Firestore for ${keyword}.`);
       totalStored += newArticles.length;
     }
     
-    console.log(`Successfully stored a total of ${totalStored} new news articles across all domains.`);
+    console.log(`Successfully stored a total of ${totalStored} new news articles across all trending keywords.`);
   },
 });
 
@@ -110,14 +154,18 @@ export const deleteOldNewsArticles = internalAction({
     cutoffDate.setDate(cutoffDate.getDate() - 5);
 
     let totalDeleted = 0;
+    
+    const rootDocs = await db.collection("currents_latest_news").listDocuments();
 
-    for (const domain of DOMAINS) {
-      console.log(`Deleting old news articles for domain: ${domain}`);
-      const collectionRef = db.collection("currents_latest_news").doc(domain).collection("articles");
+    for (const rootDoc of rootDocs) {
+      const keywordSlug = rootDoc.id;
+      console.log(`Deleting old news articles for keyword: ${keywordSlug}`);
+      
+      const collectionRef = rootDoc.collection("articles");
       const snapshot = await collectionRef.where("published_at", "<", cutoffDate).get();
 
       if (snapshot.empty) {
-        console.log(`No old news articles found to delete for ${domain}.`);
+        console.log(`No old news articles found to delete for ${keywordSlug}.`);
         continue;
       }
 
@@ -144,17 +192,34 @@ export const deleteOldNewsArticles = internalAction({
       }
 
       await Promise.all(batches);
-      console.log(`Successfully deleted ${deletedCount} old news articles from Firestore for ${domain}.`);
+      console.log(`Successfully deleted ${deletedCount} old news articles from Firestore for ${keywordSlug}.`);
       totalDeleted += deletedCount;
     }
     
-    console.log(`Successfully deleted a total of ${totalDeleted} old news articles across all domains.`);
+    console.log(`Successfully deleted a total of ${totalDeleted} old news articles across all keywords.`);
   },
+});
+
+export const getAvailableKeywords = action({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) {
+      throw new Error("Unauthorized");
+    }
+
+    const snapshot = await db.collection("currents_latest_news").orderBy("updated_at", "desc").get();
+    
+    return snapshot.docs.map(doc => ({
+      id: doc.id,
+      keyword: doc.data().keyword || doc.id,
+    }));
+  }
 });
 
 export const getLatestNewsFromFirestore = action({
   args: {
-    domain: v.string(),
+    keyword: v.string(),
     cursor: v.optional(v.string()),
     numItems: v.optional(v.number()),
   },
@@ -165,7 +230,7 @@ export const getLatestNewsFromFirestore = action({
     }
 
     const limitNum = args.numItems ?? 50;
-    const collectionRef = db.collection("currents_latest_news").doc(args.domain).collection("articles");
+    const collectionRef = db.collection("currents_latest_news").doc(args.keyword).collection("articles");
     
     let firestoreQuery = collectionRef.orderBy("published_at", "desc").limit(limitNum);
     
@@ -181,7 +246,7 @@ export const getLatestNewsFromFirestore = action({
       const snapshot = await firestoreQuery.get();
       docs = snapshot.docs;
     } catch (e) {
-      console.warn(`Failed to sort by published_at from Firestore for ${args.domain}, falling back to unsorted fetch and in-memory sort`, e);
+      console.warn(`Failed to sort by published_at from Firestore for ${args.keyword}, falling back to unsorted fetch and in-memory sort`, e);
       let fallbackQuery = collectionRef.limit(limitNum);
       if (args.cursor) {
         const cursorDoc = await collectionRef.doc(args.cursor).get();
@@ -222,7 +287,7 @@ export const getLatestNewsFromFirestore = action({
 
 export const updateNewsArticle = action({
   args: {
-    domain: v.string(),
+    keyword: v.string(),
     id: v.string(),
     title: v.optional(v.string()),
     description: v.optional(v.string()),
@@ -235,13 +300,13 @@ export const updateNewsArticle = action({
       throw new Error("Unauthorized");
     }
 
-    const { domain, id, ...updates } = args;
+    const { keyword, id, ...updates } = args;
 
     if (Object.keys(updates).length === 0) {
       return { success: false, message: "No fields provided to update" };
     }
 
-    const docRef = db.collection("currents_latest_news").doc(domain).collection("articles").doc(id);
+    const docRef = db.collection("currents_latest_news").doc(keyword).collection("articles").doc(id);
     
     try {
       await docRef.update({
@@ -251,7 +316,7 @@ export const updateNewsArticle = action({
       return { success: true };
     } catch (error: any) {
       if (error.code === 5) { // 5 corresponds to NOT_FOUND in gRPC/Firestore
-        throw new Error(`Article with id ${id} not found in Firestore for domain ${domain}`);
+        throw new Error(`Article with id ${id} not found in Firestore for keyword ${keyword}`);
       }
       throw error;
     }
@@ -259,18 +324,18 @@ export const updateNewsArticle = action({
 });
 
 export const evaluateNewsArticle = action({
-  args: { domain: v.string(), id: v.string() },
+  args: { keyword: v.string(), id: v.string() },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (!userId) {
       throw new Error("Unauthorized");
     }
 
-    const docRef = db.collection("currents_latest_news").doc(args.domain).collection("articles").doc(args.id);
+    const docRef = db.collection("currents_latest_news").doc(args.keyword).collection("articles").doc(args.id);
     const snapshot = await docRef.get();
     
     if (!snapshot.exists) {
-      throw new Error(`Article with id ${args.id} not found in Firestore for domain ${args.domain}`);
+      throw new Error(`Article with id ${args.id} not found in Firestore for keyword ${args.keyword}`);
     }
 
     const article = snapshot.data();

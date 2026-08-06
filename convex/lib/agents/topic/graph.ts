@@ -10,7 +10,8 @@ import {
   HookStrategistNode,
   ThreadWriterNode,
   ViralityCriticNode,
-  TopicCharacterValidatorNode
+  TopicCharacterValidatorNode,
+  ManualHookSelectionNode
 } from "./nodes.js";
 
 const route_after_orchestrator = (state: TopicThreadFactoryStateType) => {
@@ -36,6 +37,9 @@ const route_after_hook = (state: TopicThreadFactoryStateType) => {
   if (!state.parse_success) {
     if ((state.retries?.hook || 0) >= 3) throw new Error("HookStrategistNode failed after 3 retries");
     return "HookStrategistNode";
+  }
+  if (state.manual_hook_selection) {
+    return "ManualHookSelectionNode";
   }
   return "ThreadWriterNode";
 };
@@ -75,6 +79,7 @@ export const TopicThreadFactoryGraph = new StateGraph(TopicThreadFactoryState)
   .addNode("ResearchOrchestratorNode", ResearchOrchestratorNode)
   .addNode("DeepPageScraperNode", DeepPageScraperNode)
   .addNode("HookStrategistNode", HookStrategistNode)
+  .addNode("ManualHookSelectionNode", ManualHookSelectionNode)
   .addNode("ThreadWriterNode", ThreadWriterNode)
   .addNode("TopicCharacterValidatorNode", TopicCharacterValidatorNode)
   .addNode("ViralityCriticNode", ViralityCriticNode)
@@ -82,7 +87,8 @@ export const TopicThreadFactoryGraph = new StateGraph(TopicThreadFactoryState)
   .addEdge(START, "ResearchOrchestratorNode")
   .addConditionalEdges("ResearchOrchestratorNode", route_after_orchestrator, ["DeepPageScraperNode", "HookStrategistNode", "ResearchOrchestratorNode"])
   .addConditionalEdges("DeepPageScraperNode", route_after_scraper, ["HookStrategistNode", "DeepPageScraperNode"])
-  .addConditionalEdges("HookStrategistNode", route_after_hook, ["ThreadWriterNode", "HookStrategistNode"])
+  .addConditionalEdges("HookStrategistNode", route_after_hook, ["ThreadWriterNode", "HookStrategistNode", "ManualHookSelectionNode"])
+  .addEdge("ManualHookSelectionNode", "ThreadWriterNode")
   .addConditionalEdges("ThreadWriterNode", route_after_writer, ["TopicCharacterValidatorNode", "ThreadWriterNode"])
   .addConditionalEdges("TopicCharacterValidatorNode", route_after_validator, ["ViralityCriticNode", "ThreadWriterNode", "VisualKeywordStrategistNode"])
   .addConditionalEdges("ViralityCriticNode", route_after_critic, [END, "ThreadWriterNode", "ViralityCriticNode", "VisualKeywordStrategistNode"])

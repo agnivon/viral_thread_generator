@@ -15,8 +15,8 @@ const isDev = process.env.SITE_URL?.includes("localhost") || process.env.NODE_EN
 
 if (!isDev) {
   crons.interval(
-    "fetch-currents-latest-news-hourly",
-    { hours: 1 },
+    "fetch-currents-latest-news-daily",
+    { hours: 24 },
     internal.actions.currentsNewsActions.fetchAndStoreLatestNews,
     {}
   );
@@ -29,8 +29,8 @@ if (!isDev) {
   );
 
   crons.interval(
-    "fetch-newsdata-latest-news-3-hourly",
-    { hours: 3 },
+    "fetch-newsdata-latest-news-daily",
+    { hours: 24 },
     internal.actions.newsdataActions.fetchAndStoreLatestNews,
     {}
   );

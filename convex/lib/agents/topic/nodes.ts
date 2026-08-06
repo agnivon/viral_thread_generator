@@ -1,6 +1,7 @@
 "use node";
 
 import { z } from "zod";
+import { interrupt } from "@langchain/langgraph";
 import { RunnableConfig } from "@langchain/core/runnables";
 import { providerStrategy } from "langchain";
 import {
@@ -280,4 +281,12 @@ export const TopicCharacterValidatorNode = async (state: TopicThreadFactoryState
     is_character_valid: true,
     character_critique: ""
   };
+};
+
+export const ManualHookSelectionNode = async (state: TopicThreadFactoryStateType, config?: RunnableConfig) => {
+  const selected_hook = interrupt({
+    core_hooks: state.core_hooks,
+    action: "Please select a hook to proceed."
+  });
+  return { selected_hook: selected_hook as string };
 };

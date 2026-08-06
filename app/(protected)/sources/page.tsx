@@ -23,17 +23,9 @@ import {
 } from "@/components/ui/sheet";
 import { api } from "@/convex/_generated/api";
 import { useAction } from "convex/react";
-import { AlertCircle, Calendar, ExternalLink, Globe, RefreshCw, Sparkles } from "lucide-react";
+import { AlertCircle, Calendar, ExternalLink, Globe, RefreshCw, Sparkles, TrendingUp } from "lucide-react";
 import { toast } from "sonner";
 import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-
-const DOMAINS = [
-  { id: "reuters.com", name: "Reuters", short: "RT", desc: "Global news agency based in London", color: "from-orange-500 to-amber-500" },
-  { id: "apnews.com", name: "AP News", short: "AP", desc: "Not-for-profit news agency based in NYC", color: "from-blue-500 to-indigo-500" },
-  { id: "bbc.com", name: "BBC News", short: "BC", desc: "British public broadcaster news service", color: "from-red-600 to-rose-500" },
-  { id: "thewire.in", name: "The Wire", short: "TW", desc: "Independent Indian current affairs portal", color: "from-teal-500 to-emerald-500" },
-  { id: "thehindu.com", name: "The Hindu", short: "TH", desc: "English-language Indian daily newspaper", color: "from-violet-500 to-purple-500" }
-];
 
 interface Article {
   id: string;
@@ -48,21 +40,34 @@ interface Article {
   hook_potential_analysis?: string;
 }
 
+interface KeywordItem {
+  id: string;
+  keyword: string;
+}
+
 function SourceDataGrid({
   sourceId,
   getLatestNewsAction,
-  evaluateArticleAction
+  evaluateArticleAction,
+  items
 }: {
   sourceId: string;
   getLatestNewsAction: any;
   evaluateArticleAction: any;
+  items: KeywordItem[];
 }) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
   const queryClient = useQueryClient();
   const [selectedArticle, setSelectedArticle] = useState<Article | null>(null);
   const [scoringIds, setScoringIds] = useState<Record<string, boolean>>({});
-  const [selectedDomain, setSelectedDomain] = useState<string>(DOMAINS[0].id);
+  const [selectedKeyword, setSelectedKeyword] = useState<string>("");
+
+  useEffect(() => {
+    if (items.length > 0 && !selectedKeyword) {
+      setSelectedKeyword(items[0].id);
+    }
+  }, [items, selectedKeyword]);
 
   const handleScoreArticle = async (articleId: string) => {
     setScoringIds((prev) => ({ ...prev, [articleId]: true }));
@@ -81,11 +86,11 @@ function SourceDataGrid({
 
   const evaluateMutation = useMutation({
     mutationFn: async (articleId: string) => {
-      return await evaluateArticleAction({ domain: selectedDomain, id: articleId });
+      return await evaluateArticleAction({ keyword: selectedKeyword, id: articleId });
     },
     onSuccess: (updatedArticle: any) => {
       // Update infinite query cache with the newly scored article
-      queryClient.setQueryData(["news", sourceId, selectedDomain], (oldData: any) => {
+      queryClient.setQueryData(["news", sourceId, selectedKeyword], (oldData: any) => {
         if (!oldData) return oldData;
         return {
           ...oldData,
@@ -118,17 +123,20 @@ function SourceDataGrid({
     refetch,
     isFetchingNextPage,
   } = useInfiniteQuery({
-    queryKey: ["news", sourceId, selectedDomain],
+    queryKey: ["news", sourceId, selectedKeyword],
     queryFn: async ({ pageParam }) => {
-      return await getLatestNewsAction({ domain: selectedDomain, cursor: pageParam, numItems: 30 });
+      if (!selectedKeyword) return { page: [], isDone: true, continueCursor: null };
+      return await getLatestNewsAction({ keyword: selectedKeyword, cursor: pageParam, numItems: 30 });
     },
+    enabled: !!selectedKeyword,
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage: any) => {
-      return lastPage.isDone ? undefined : (lastPage.continueCursor || undefined);
+      return lastPage?.isDone ? undefined : (lastPage?.continueCursor || undefined);
     },
   });
 
   const handleSync = async () => {
+    if (!selectedKeyword) return;
     try {
       await refetch();
       toast.success("News refreshed successfully!");
@@ -155,262 +163,272 @@ function SourceDataGrid({
     }
   };
 
-  const articles = data?.pages.flatMap((page) => page.page) ?? [];
+  const articles = data?.pages.flatMap((page) => page?.page || []) ?? [];
   const activeArticle = articles.find((a: any) => a.id === selectedArticle?.id) || selectedArticle;
   const isRefreshing = isFetching && !isFetchingNextPage;
 
+  const currentKeywordObj = items.find(i => i.id === selectedKeyword);
+  const displayKeyword = currentKeywordObj ? currentKeywordObj.keyword : selectedKeyword;
+
   return (
-    <div className="space-y-6 mt-6">
-      {/* Domain Selection Grid and Sync Now */}
-      <div className="flex flex-col gap-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-xl font-bold text-foreground">Select Domain</h2>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleSync}
-            disabled={mounted ? (isLoading || isRefreshing) : false}
-            className="rounded-xl border-border/80 hover:bg-muted/50 cursor-pointer flex items-center gap-2"
-          >
-            <RefreshCw className={`w-4 h-4 ${mounted && isRefreshing ? "animate-spin" : ""}`} />
-            Sync Now
-          </Button>
+    <div className="flex flex-col lg:flex-row gap-6 mt-6 min-h-[600px]">
+      
+      {/* Left Sidebar - Keywords */}
+      <div className="lg:w-1/4 flex flex-col gap-4">
+        <div className="flex items-center gap-2 px-1">
+          <TrendingUp className="w-5 h-5 text-violet-500" />
+          <h2 className="text-lg font-bold text-foreground">Trending Topics</h2>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-          {DOMAINS.map((domain) => {
-            const isSelected = selectedDomain === domain.id;
-            return (
-              <button
-                key={domain.id}
-                onClick={() => setSelectedDomain(domain.id)}
-                className={`relative group overflow-hidden p-5 rounded-2xl border text-left flex flex-col justify-between h-[130px] transition-all duration-300 cursor-pointer ${isSelected
-                    ? "bg-card border-violet-500/40 shadow-md ring-1 ring-violet-500/20"
-                    : "bg-card/45 backdrop-blur-xs border-border/80 hover:border-violet-500/20 hover:bg-card/60 hover:shadow-xs"
-                  }`}
-              >
-                {/* Visual Accent Top Bar */}
-                <div className={`absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r ${domain.color} ${isSelected ? "opacity-100" : "opacity-0 group-hover:opacity-60"
-                  } transition-opacity duration-300`} />
-
-                <div className="flex items-center justify-between w-full">
-                  <div className={`flex items-center justify-center h-9 w-9 rounded-xl font-black text-sm text-white bg-gradient-to-br ${domain.color} shadow-sm group-hover:scale-105 transition-transform duration-300`}>
-                    {domain.short}
-                  </div>
-                  <div className={`h-2.5 w-2.5 rounded-full ${isSelected ? "bg-violet-600 dark:bg-violet-400 animate-pulse" : "bg-transparent"
-                    }`} />
-                </div>
-
-                <div className="space-y-1 mt-3">
-                  <h3 className="font-bold text-sm text-foreground group-hover:text-violet-600 dark:group-hover:text-violet-400 transition-colors leading-tight">
-                    {domain.name}
-                  </h3>
-                  <p className="text-[10px] text-muted-foreground leading-snug line-clamp-2">
-                    {domain.desc}
-                  </p>
-                </div>
-              </button>
-            );
-          })}
-        </div>
+        <Card className="bg-card/45 backdrop-blur-xs border-border/80 flex flex-col h-[600px] overflow-hidden">
+          <div className="flex-1 overflow-y-auto p-3 space-y-2">
+            {items.length === 0 ? (
+              <div className="p-8 flex flex-col items-center justify-center text-center space-y-3 opacity-60">
+                <Globe className="w-8 h-8 text-muted-foreground" />
+                <p className="text-sm font-medium text-muted-foreground">No trending topics found.</p>
+              </div>
+            ) : (
+              items.map((item) => {
+                const isSelected = selectedKeyword === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => setSelectedKeyword(item.id)}
+                    className={`w-full text-left px-4 py-3.5 rounded-xl text-sm font-semibold transition-all duration-200 border cursor-pointer ${
+                      isSelected
+                        ? "bg-violet-600 border-violet-600 text-white shadow-md ring-1 ring-violet-500/30"
+                        : "bg-transparent border-transparent text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="truncate pr-2 capitalize leading-tight">{item.keyword}</span>
+                      {isSelected && (
+                        <div className="w-1.5 h-1.5 shrink-0 rounded-full bg-white animate-pulse" />
+                      )}
+                    </div>
+                  </button>
+                );
+              })
+            )}
+          </div>
+          <div className="p-4 border-t border-border/30 bg-muted/10">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleSync}
+              disabled={mounted ? (!selectedKeyword || isLoading || isRefreshing) : true}
+              className="w-full justify-center rounded-xl border-border/80 hover:bg-muted/50 flex items-center gap-2 cursor-pointer transition-colors"
+            >
+              <RefreshCw className={`w-4 h-4 ${mounted && isRefreshing ? "animate-spin" : ""}`} />
+              Sync Selected
+            </Button>
+          </div>
+        </Card>
       </div>
 
-      <Card className="group relative overflow-hidden bg-card/45 backdrop-blur-xs border-border/80 hover:border-violet-500/10 hover:shadow-lg transition-all duration-300">
-        {/* Accent Highlight Line on Card Hover */}
-        <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-violet-600 to-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+      {/* Right Area - Articles */}
+      <div className="lg:w-3/4 flex flex-col">
+        <Card className="flex-1 flex flex-col relative overflow-hidden bg-card/45 backdrop-blur-xs border-border/80 hover:border-violet-500/10 transition-all duration-300">
+          {/* Accent Highlight Line on Card Hover */}
+          <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-violet-600 to-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
-        <CardHeader className="px-6 py-5 border-b border-border/30 bg-muted/10">
-          <CardTitle className="text-xl font-bold tracking-tight text-foreground flex items-center gap-2">
-            Latest Synced Articles
-          </CardTitle>
-          <CardDescription className="text-xs sm:text-sm text-muted-foreground">
-            The latest news articles fetched and stored from {sourceId === "currents" ? "Currents API" : "NewsData API"}.
-          </CardDescription>
-        </CardHeader>
+          <CardHeader className="px-6 py-5 border-b border-border/30 bg-muted/10">
+            <CardTitle className="text-xl font-bold tracking-tight text-foreground flex items-center gap-2">
+              Articles for "{displayKeyword ? <span className="capitalize text-violet-500">{displayKeyword}</span> : '...'}"
+            </CardTitle>
+            <CardDescription className="text-xs sm:text-sm text-muted-foreground">
+              The latest news fetched and stored from {sourceId === "currents" ? "Currents API" : "NewsData API"}.
+            </CardDescription>
+          </CardHeader>
 
-        <CardContent className="p-0">
-          {isLoading ? (
-            <div className="p-6 space-y-4">
-              {[1, 2, 3, 4, 5].map((i) => (
-                <div key={i} className="flex gap-4 items-center">
-                  <Skeleton className="h-6 w-1/4 rounded-md" />
-                  <Skeleton className="h-6 w-1/2 rounded-md" />
-                  <Skeleton className="h-6 w-1/12 rounded-md" />
-                  <Skeleton className="h-6 w-1/12 rounded-md" />
-                </div>
-              ))}
-            </div>
-          ) : error ? (
-            <div className="flex flex-col items-center justify-center p-12 text-center space-y-4">
-              <div className="p-3 bg-destructive/10 rounded-full text-destructive">
-                <AlertCircle className="w-6 h-6" />
+          <CardContent className="p-0 flex-1 flex flex-col min-h-[400px]">
+            {isLoading && selectedKeyword ? (
+              <div className="p-6 space-y-4">
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <div key={i} className="flex gap-4 items-center">
+                    <Skeleton className="h-6 w-1/4 rounded-md" />
+                    <Skeleton className="h-6 w-1/2 rounded-md" />
+                    <Skeleton className="h-6 w-1/12 rounded-md" />
+                    <Skeleton className="h-6 w-1/12 rounded-md" />
+                  </div>
+                ))}
               </div>
-              <p className="text-sm font-medium text-foreground">Failed to fetch news from Firestore.</p>
-              <Button
-                variant="outline"
-                onClick={() => refetch()}
-                className="rounded-xl border-border/80 hover:bg-muted/50 cursor-pointer"
-              >
-                Try Again
-              </Button>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader className="bg-muted/20 border-b border-border/30">
-                  <TableRow className="hover:bg-transparent">
-                    <TableHead className="p-3 font-bold text-xs uppercase tracking-wider text-muted-foreground/80 w-[20%]">Title</TableHead>
-                    <TableHead className="p-3 font-bold text-xs uppercase tracking-wider text-muted-foreground/80 w-[35%]">Description</TableHead>
-                    <TableHead className="p-3 font-bold text-xs uppercase tracking-wider text-muted-foreground/80 w-[10%]">Category</TableHead>
-                    <TableHead className="p-3 font-bold text-xs uppercase tracking-wider text-muted-foreground/80 w-[15%]">Published</TableHead>
-                    <TableHead className="p-3 font-bold text-xs uppercase tracking-wider text-muted-foreground/80 w-[15%]">Score</TableHead>
-                    <TableHead className="p-3 font-bold text-xs uppercase tracking-wider text-muted-foreground/80 w-[5%] text-right">Link</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {articles.length === 0 ? (
-                    <TableRow className="hover:bg-transparent border-0">
-                      <TableCell colSpan={6} className="p-16 text-center">
-                        <div className="flex flex-col items-center justify-center space-y-4">
-                          <div className="p-4 bg-muted rounded-full text-muted-foreground/60">
-                            <Globe className="w-8 h-8" />
-                          </div>
-                          <h3 className="text-lg font-semibold text-foreground">No Articles Found</h3>
-                          <p className="text-xs sm:text-sm text-muted-foreground max-w-sm mx-auto leading-relaxed text-center">
-                            We couldn&apos;t find any articles synced to Firestore. Run the sync command or configure the hourly cron task.
-                          </p>
-                          <Button
-                            onClick={handleSync}
-                            className="rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 text-white font-semibold cursor-pointer"
-                          >
-                            <RefreshCw className="w-4 h-4 mr-2" /> Sync Now
-                          </Button>
-                        </div>
-                      </TableCell>
+            ) : error ? (
+              <div className="flex flex-col items-center justify-center flex-1 p-12 text-center space-y-4">
+                <div className="p-3 bg-destructive/10 rounded-full text-destructive">
+                  <AlertCircle className="w-6 h-6" />
+                </div>
+                <p className="text-sm font-medium text-foreground">Failed to fetch news from Firestore.</p>
+                <Button
+                  variant="outline"
+                  onClick={() => refetch()}
+                  className="rounded-xl border-border/80 hover:bg-muted/50 cursor-pointer"
+                >
+                  Try Again
+                </Button>
+              </div>
+            ) : (
+              <div className="overflow-x-auto flex-1">
+                <Table>
+                  <TableHeader className="bg-muted/20 border-b border-border/30">
+                    <TableRow className="hover:bg-transparent">
+                      <TableHead className="p-3 font-bold text-xs uppercase tracking-wider text-muted-foreground/80 w-[20%]">Title</TableHead>
+                      <TableHead className="p-3 font-bold text-xs uppercase tracking-wider text-muted-foreground/80 w-[35%]">Description</TableHead>
+                      <TableHead className="p-3 font-bold text-xs uppercase tracking-wider text-muted-foreground/80 w-[10%]">Category</TableHead>
+                      <TableHead className="p-3 font-bold text-xs uppercase tracking-wider text-muted-foreground/80 w-[15%]">Published</TableHead>
+                      <TableHead className="p-3 font-bold text-xs uppercase tracking-wider text-muted-foreground/80 w-[15%]">Score</TableHead>
+                      <TableHead className="p-3 font-bold text-xs uppercase tracking-wider text-muted-foreground/80 w-[5%] text-right">Link</TableHead>
                     </TableRow>
-                  ) : (
-                    articles.map((article: any) => (
-                      <TableRow
-                        key={article.id}
-                        className="border-b border-border/30 hover:bg-muted/25 transition-colors duration-150"
-                      >
-                        <TableCell className="p-3 align-top whitespace-normal min-w-[200px] font-semibold text-foreground leading-snug">
-                          {article.title}
-                        </TableCell>
-                        <TableCell className="p-3 align-top whitespace-normal min-w-[280px] text-muted-foreground text-xs leading-relaxed">
-                          {article.description || <span className="italic text-muted-foreground/50">No description provided.</span>}
-                        </TableCell>
-                        <TableCell className="p-3 align-top whitespace-normal min-w-[100px]">
-                          <div className="flex flex-wrap gap-1">
-                            {article.category && article.category.length > 0 ? (
-                              article.category.map((cat: string, idx: number) => (
-                                <span
-                                  key={idx}
-                                  className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold bg-violet-500/10 text-violet-600 dark:text-violet-400 border border-violet-500/20 shadow-xs"
-                                >
-                                  {cat}
-                                </span>
-                              ))
-                            ) : (
-                              <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold bg-muted text-muted-foreground border border-border">
-                                general
-                              </span>
+                  </TableHeader>
+                  <TableBody>
+                    {articles.length === 0 ? (
+                      <TableRow className="hover:bg-transparent border-0">
+                        <TableCell colSpan={6} className="p-16 text-center">
+                          <div className="flex flex-col items-center justify-center space-y-4">
+                            <div className="p-4 bg-muted rounded-full text-muted-foreground/60">
+                              <Globe className="w-8 h-8" />
+                            </div>
+                            <h3 className="text-lg font-semibold text-foreground">No Articles Found</h3>
+                            <p className="text-xs sm:text-sm text-muted-foreground max-w-sm mx-auto leading-relaxed text-center">
+                              {selectedKeyword 
+                                ? "We couldn't find any articles synced to Firestore for this keyword." 
+                                : "Please select a trending keyword from the sidebar."}
+                            </p>
+                            {selectedKeyword && (
+                              <Button
+                                onClick={handleSync}
+                                className="rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 text-white font-semibold cursor-pointer"
+                              >
+                                <RefreshCw className="w-4 h-4 mr-2" /> Sync This Topic
+                              </Button>
                             )}
                           </div>
-                        </TableCell>
-                        <TableCell className="p-3 align-top whitespace-nowrap text-xs text-muted-foreground">
-                          <div className="flex items-center gap-1.5 mt-0.5">
-                            <Calendar className="w-3.5 h-3.5 text-muted-foreground/60" />
-                            <span>{formatDate(article.published)}</span>
-                          </div>
-                        </TableCell>
-                        <TableCell className="p-3 align-top whitespace-normal min-w-[140px]">
-                          <div className="flex flex-col gap-2">
-                            {article.virality_score !== undefined && article.virality_score !== null ? (
-                              <div className="flex flex-col gap-1">
-                                <button
-                                  onClick={() => setSelectedArticle(article)}
-                                  className={`inline-flex items-center justify-center rounded-full px-2.5 py-0.5 text-[11px] font-bold w-fit shadow-xs hover:scale-105 active:scale-95 transition-all cursor-pointer ${article.virality_score >= 85
-                                      ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400"
-                                      : article.virality_score >= 70
-                                        ? "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400"
-                                        : "bg-rose-100 text-rose-800 dark:bg-rose-900/30 dark:text-rose-400"
-                                    }`}
-                                  title="Click to view overall critique"
-                                >
-                                  {article.virality_score} / 100
-                                </button>
-                                <button
-                                  onClick={() => setSelectedArticle(article)}
-                                  className="text-[10px] text-violet-600 dark:text-violet-400 hover:underline text-left font-medium flex items-center gap-0.5 mt-0.5 cursor-pointer"
-                                >
-                                  Read Critique &rarr;
-                                </button>
-                              </div>
-                            ) : (
-                              <span className="text-xs text-muted-foreground/50 italic">Not evaluated</span>
-                            )}
-
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleScoreArticle(article.id)}
-                              disabled={!!scoringIds[article.id]}
-                              className="rounded-lg text-xs py-1 h-7 border border-border/80 hover:bg-violet-500/5 hover:text-violet-600 dark:hover:text-violet-400 hover:border-violet-500/20 cursor-pointer flex items-center gap-1.5 w-full justify-center transition-all"
-                            >
-                              {scoringIds[article.id] ? (
-                                <>
-                                  <RefreshCw className="w-3 h-3 animate-spin" />
-                                  Scoring...
-                                </>
-                              ) : (
-                                <>
-                                  <Sparkles className="w-3 h-3" />
-                                  {article.virality_score !== undefined && article.virality_score !== null ? "Re-Score" : "Score"}
-                                </>
-                              )}
-                            </Button>
-                          </div>
-                        </TableCell>
-                        <TableCell className="p-3 align-top text-right">
-                          <a
-                            href={article.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center justify-center p-2 rounded-xl bg-violet-500/5 hover:bg-violet-500/10 text-violet-600 dark:text-violet-400 hover:text-violet-700 transition-all border border-violet-500/10 hover:border-violet-500/30"
-                            title="Open original article"
-                          >
-                            <ExternalLink className="w-4 h-4" />
-                          </a>
                         </TableCell>
                       </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-          )}
+                    ) : (
+                      articles.map((article: any) => (
+                        <TableRow
+                          key={article.id}
+                          className="border-b border-border/30 hover:bg-muted/25 transition-colors duration-150"
+                        >
+                          <TableCell className="p-3 align-top whitespace-normal min-w-[200px] font-semibold text-foreground leading-snug">
+                            {article.title}
+                          </TableCell>
+                          <TableCell className="p-3 align-top whitespace-normal min-w-[280px] text-muted-foreground text-xs leading-relaxed">
+                            {article.description || <span className="italic text-muted-foreground/50">No description provided.</span>}
+                          </TableCell>
+                          <TableCell className="p-3 align-top whitespace-normal min-w-[100px]">
+                            <div className="flex flex-wrap gap-1">
+                              {article.category && article.category.length > 0 ? (
+                                article.category.map((cat: string, idx: number) => (
+                                  <span
+                                    key={idx}
+                                    className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold bg-violet-500/10 text-violet-600 dark:text-violet-400 border border-violet-500/20 shadow-xs"
+                                  >
+                                    {cat}
+                                  </span>
+                                ))
+                              ) : (
+                                <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold bg-muted text-muted-foreground border border-border">
+                                  general
+                                </span>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell className="p-3 align-top whitespace-nowrap text-xs text-muted-foreground">
+                            <div className="flex items-center gap-1.5 mt-0.5">
+                              <Calendar className="w-3.5 h-3.5 text-muted-foreground/60" />
+                              <span>{formatDate(article.published)}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell className="p-3 align-top whitespace-normal min-w-[140px]">
+                            <div className="flex flex-col gap-2">
+                              {article.virality_score !== undefined && article.virality_score !== null ? (
+                                <div className="flex flex-col gap-1">
+                                  <button
+                                    onClick={() => setSelectedArticle(article)}
+                                    className={`inline-flex items-center justify-center rounded-full px-2.5 py-0.5 text-[11px] font-bold w-fit shadow-xs hover:scale-105 active:scale-95 transition-all cursor-pointer ${article.virality_score >= 85
+                                        ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400"
+                                        : article.virality_score >= 70
+                                          ? "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400"
+                                          : "bg-rose-100 text-rose-800 dark:bg-rose-900/30 dark:text-rose-400"
+                                      }`}
+                                    title="Click to view overall critique"
+                                  >
+                                    {article.virality_score} / 100
+                                  </button>
+                                  <button
+                                    onClick={() => setSelectedArticle(article)}
+                                    className="text-[10px] text-violet-600 dark:text-violet-400 hover:underline text-left font-medium flex items-center gap-0.5 mt-0.5 cursor-pointer"
+                                  >
+                                    Read Critique &rarr;
+                                  </button>
+                                </div>
+                              ) : (
+                                <span className="text-xs text-muted-foreground/50 italic">Not evaluated</span>
+                              )}
 
-          {hasNextPage && !isLoading && !error && articles.length > 0 && (
-            <div className="flex justify-center p-6 border-t border-border/30 bg-muted/5">
-              <Button
-                variant="outline"
-                onClick={() => fetchNextPage()}
-                disabled={isFetchingNextPage}
-                className="rounded-xl border-border/80 hover:bg-muted/50 cursor-pointer flex items-center gap-2"
-              >
-                {isFetchingNextPage ? (
-                  <>
-                    <RefreshCw className="w-4 h-4 animate-spin" />
-                    Loading...
-                  </>
-                ) : (
-                  "Load More Articles"
-                )}
-              </Button>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleScoreArticle(article.id)}
+                                disabled={!!scoringIds[article.id]}
+                                className="rounded-lg text-xs py-1 h-7 border border-border/80 hover:bg-violet-500/5 hover:text-violet-600 dark:hover:text-violet-400 hover:border-violet-500/20 cursor-pointer flex items-center gap-1.5 w-full justify-center transition-all"
+                              >
+                                {scoringIds[article.id] ? (
+                                  <>
+                                    <RefreshCw className="w-3 h-3 animate-spin" />
+                                    Scoring...
+                                  </>
+                                ) : (
+                                  <>
+                                    <Sparkles className="w-3 h-3" />
+                                    {article.virality_score !== undefined && article.virality_score !== null ? "Re-Score" : "Score"}
+                                  </>
+                                )}
+                              </Button>
+                            </div>
+                          </TableCell>
+                          <TableCell className="p-3 align-top text-right">
+                            <a
+                              href={article.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center justify-center p-2 rounded-xl bg-violet-500/5 hover:bg-violet-500/10 text-violet-600 dark:text-violet-400 hover:text-violet-700 transition-all border border-violet-500/10 hover:border-violet-500/30"
+                              title="Open original article"
+                            >
+                              <ExternalLink className="w-4 h-4" />
+                            </a>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+
+            {hasNextPage && !isLoading && !error && articles.length > 0 && (
+              <div className="flex justify-center p-6 border-t border-border/30 bg-muted/5 mt-auto">
+                <Button
+                  variant="outline"
+                  onClick={() => fetchNextPage()}
+                  disabled={isFetchingNextPage}
+                  className="rounded-xl border-border/80 hover:bg-muted/50 cursor-pointer flex items-center gap-2"
+                >
+                  {isFetchingNextPage ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                      Loading...
+                    </>
+                  ) : (
+                    "Load More Articles"
+                  )}
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
 
       <Sheet open={!!selectedArticle} onOpenChange={(open) => !open && setSelectedArticle(null)}>
         {activeArticle && (
@@ -545,9 +563,19 @@ function SourceDataGrid({
 export default function SourcesPage() {
   const getLatestCurrents = useAction(api.actions.currentsNewsActions.getLatestNewsFromFirestore);
   const evaluateCurrents = useAction(api.actions.currentsNewsActions.evaluateNewsArticle);
+  const getAvailableKeywordsCurrents = useAction(api.actions.currentsNewsActions.getAvailableKeywords);
 
   const getLatestNewsdata = useAction(api.actions.newsdataActions.getLatestNewsFromFirestore);
   const evaluateNewsdata = useAction(api.actions.newsdataActions.evaluateNewsArticle);
+  const getAvailableKeywordsNewsdata = useAction(api.actions.newsdataActions.getAvailableKeywords);
+
+  const [currentsKeywords, setCurrentsKeywords] = useState<KeywordItem[]>([]);
+  const [newsdataKeywords, setNewsdataKeywords] = useState<KeywordItem[]>([]);
+
+  useEffect(() => {
+    getAvailableKeywordsCurrents().then(setCurrentsKeywords).catch(console.error);
+    getAvailableKeywordsNewsdata().then(setNewsdataKeywords).catch(console.error);
+  }, [getAvailableKeywordsCurrents, getAvailableKeywordsNewsdata]);
 
   return (
     <div className="flex-1 w-full bg-gradient-to-b from-background via-background/95 to-background/50 py-12 px-4 sm:px-6 lg:px-8">
@@ -561,7 +589,7 @@ export default function SourcesPage() {
               </span>
             </h1>
             <p className="text-muted-foreground text-sm sm:text-base">
-              Manage and view news content sources synced to your workspace.
+              Manage and view news content sources synced to your workspace by trending topic.
             </p>
           </div>
         </div>
@@ -577,6 +605,7 @@ export default function SourcesPage() {
               sourceId="currents"
               getLatestNewsAction={getLatestCurrents}
               evaluateArticleAction={evaluateCurrents}
+              items={currentsKeywords}
             />
           </TabsContent>
           
@@ -585,6 +614,7 @@ export default function SourcesPage() {
               sourceId="newsdata"
               getLatestNewsAction={getLatestNewsdata}
               evaluateArticleAction={evaluateNewsdata}
+              items={newsdataKeywords}
             />
           </TabsContent>
         </Tabs>

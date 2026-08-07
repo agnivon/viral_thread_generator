@@ -150,7 +150,10 @@ export const TopicCharacterValidatorTool = tool(
 
     const banned_phrases = [
       "a thread 🧵", "read below", "let's dive in", "here is why",
-      "save this tweet", "what do you think?", "let's discuss"
+      "save this tweet", "what do you think?", "let's discuss",
+      "in today's fast-paced world", "have you ever wondered", "look no further",
+      "in this post, we will explore", "key takeaway", "crucial step",
+      "remember to", "let's look at", "here's the deal"
     ];
 
     // Thread Length Validation (The 9-Post Rule)

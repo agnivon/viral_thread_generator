@@ -20,7 +20,7 @@
     "build": "next build",
     "start": "next start",
     "logs": "convex logs",
-    "lint": "next lint && tsc -p convex && eslint . --report-unused-disable-directives --max-warnings 0",
+    "lint": "tsc -p convex && eslint . --report-unused-disable-directives --max-warnings 0",
     "create-user": "node scripts/create-user.js",
     "clear-auth": "node scripts/clear-auth.js",
     "prepare": "husky"

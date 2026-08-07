@@ -50,14 +50,14 @@ function getGraph(agent?: string) {
 async function handleGraphCompletion(ctx: any, recordId: Id<"threadDrafts">, finalState: any, agent?: string) {
   const {
     url,
-    topic,
-    description,
+    topic: _topic,
+    description: _description,
     research_dossier,
-    urls_to_scrape,
-    parse_success,
-    retries,
-    is_character_valid,
-    character_critique,
+    urls_to_scrape: _urls_to_scrape,
+    parse_success: _parse_success,
+    retries: _retries,
+    is_character_valid: _is_character_valid,
+    character_critique: _character_critique,
     __interrupt__,
     ...stateToSave
   } = finalState;
@@ -221,7 +221,7 @@ export const generateThreadInternal = internalAction({
       });
 
       console.log(`[generateThreadInternal] Graph finished. Iterations: ${finalState.iterations}, Approved: ${finalState.is_approved}`);
-      return await handleGraphCompletion(ctx, recordId!, finalState, agent);
+      return await handleGraphCompletion(ctx, recordId, finalState, agent);
     } catch (e) {
       if (recordId) {
         await ctx.runMutation(internal.mutations.threadsMutations.updateThreadDraft, {

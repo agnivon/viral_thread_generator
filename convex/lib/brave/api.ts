@@ -364,7 +364,7 @@ export class BraveSearchAPI {
       try {
         const errJson = JSON.parse(errorText);
         errorText = JSON.stringify(errJson, null, 2);
-      } catch (e) {
+      } catch {
         // Not JSON
       }
       throw new Error(`Brave API error (${response.status}): ${errorText}`);

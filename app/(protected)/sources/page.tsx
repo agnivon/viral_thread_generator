@@ -25,7 +25,7 @@ import { api } from "@/convex/_generated/api";
 import { useAction } from "convex/react";
 import { AlertCircle, Calendar, ExternalLink, Globe, RefreshCw, Sparkles, TrendingUp } from "lucide-react";
 import { toast } from "sonner";
-import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 interface Article {
   id: string;
@@ -49,12 +49,14 @@ function SourceDataGrid({
   sourceId,
   getLatestNewsAction,
   evaluateArticleAction,
-  items
+  items,
+  isKeywordsLoading = false
 }: {
   sourceId: string;
   getLatestNewsAction: any;
   evaluateArticleAction: any;
   items: KeywordItem[];
+  isKeywordsLoading?: boolean;
 }) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
@@ -181,7 +183,13 @@ function SourceDataGrid({
         </div>
         <Card className="bg-card/45 backdrop-blur-xs border-border/80 flex flex-col h-[600px] overflow-hidden">
           <div className="flex-1 overflow-y-auto p-3 space-y-2">
-            {items.length === 0 ? (
+            {isKeywordsLoading ? (
+              <div className="space-y-3 p-2">
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <Skeleton key={i} className="h-12 w-full rounded-xl opacity-50" />
+                ))}
+              </div>
+            ) : items.length === 0 ? (
               <div className="p-8 flex flex-col items-center justify-center text-center space-y-3 opacity-60">
                 <Globe className="w-8 h-8 text-muted-foreground" />
                 <p className="text-sm font-medium text-muted-foreground">No trending topics found.</p>
@@ -569,13 +577,15 @@ export default function SourcesPage() {
   const evaluateNewsdata = useAction(api.actions.newsdataActions.evaluateNewsArticle);
   const getAvailableKeywordsNewsdata = useAction(api.actions.newsdataActions.getAvailableKeywords);
 
-  const [currentsKeywords, setCurrentsKeywords] = useState<KeywordItem[]>([]);
-  const [newsdataKeywords, setNewsdataKeywords] = useState<KeywordItem[]>([]);
+  const { data: currentsKeywords = [], isLoading: isCurrentsLoading } = useQuery({
+    queryKey: ["currents-keywords"],
+    queryFn: async () => await getAvailableKeywordsCurrents({}),
+  });
 
-  useEffect(() => {
-    getAvailableKeywordsCurrents().then(setCurrentsKeywords).catch(console.error);
-    getAvailableKeywordsNewsdata().then(setNewsdataKeywords).catch(console.error);
-  }, [getAvailableKeywordsCurrents, getAvailableKeywordsNewsdata]);
+  const { data: newsdataKeywords = [], isLoading: isNewsdataLoading } = useQuery({
+    queryKey: ["newsdata-keywords"],
+    queryFn: async () => await getAvailableKeywordsNewsdata({}),
+  });
 
   return (
     <div className="flex-1 w-full bg-gradient-to-b from-background via-background/95 to-background/50 py-12 px-4 sm:px-6 lg:px-8">
@@ -606,6 +616,7 @@ export default function SourcesPage() {
               getLatestNewsAction={getLatestCurrents}
               evaluateArticleAction={evaluateCurrents}
               items={currentsKeywords}
+              isKeywordsLoading={isCurrentsLoading}
             />
           </TabsContent>
           
@@ -615,6 +626,7 @@ export default function SourcesPage() {
               getLatestNewsAction={getLatestNewsdata}
               evaluateArticleAction={evaluateNewsdata}
               items={newsdataKeywords}
+              isKeywordsLoading={isNewsdataLoading}
             />
           </TabsContent>
         </Tabs>

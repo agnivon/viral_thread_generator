@@ -5,7 +5,7 @@ import { z } from "zod";
 import FirecrawlApp from "@mendable/firecrawl-js";
 import { tavily } from "@tavily/core";
 import "dotenv/config";
-import { JinaClient, JinaResponse, FormattedPageDto } from "../../jina/api";
+import { JinaClient } from "../../jina/api";
 import { YoutubeTranscript } from "youtube-transcript-plus";
 
 // 1. WebScraperTool (Firecrawl API)
@@ -31,7 +31,7 @@ export const WebScraperTool = tool(
         if (typeof jinaResult === 'string') {
           markdown = jinaResult;
         } else if (jinaResult && typeof jinaResult === 'object' && jinaResult !== null) {
-          const typedResponse = jinaResult as JinaResponse<FormattedPageDto | string>;
+          const typedResponse = jinaResult;
           if (typedResponse.data) {
             if (typeof typedResponse.data === 'string') {
               markdown = typedResponse.data;

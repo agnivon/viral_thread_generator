@@ -48,5 +48,8 @@ export async function invokeWithFallbacks<RunInput = any, RunOutput = any>(
       lastError = e;
     }
   }
-  throw lastError || new Error("All fallback models failed.");
+  if (lastError instanceof Error) {
+    throw lastError;
+  }
+  throw new Error(typeof lastError === "string" ? lastError : "All fallback models failed.");
 }

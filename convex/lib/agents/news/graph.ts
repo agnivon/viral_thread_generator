@@ -17,7 +17,7 @@ if (connectionString) {
     const dbUrl = new URL(connectionString);
     dbUrl.searchParams.delete("sslmode");
     connectionString = dbUrl.toString();
-  } catch (e) {
+  } catch {
     // Ignore URL parse error in tests
   }
 }

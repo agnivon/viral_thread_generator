@@ -31,13 +31,13 @@ export const ScraperNode = async (state: NewsThreadFactoryStateType, config?: Ru
   const scraperResultStr = isYoutube 
     ? await YoutubeScraperTool.invoke({ url: state.url }, config)
     : await WebScraperTool.invoke({ url: state.url }, config);
-  let markdown = scraperResultStr as string;
+  let markdown = scraperResultStr;
   let images: string[] = [];
   try {
-    const parsed = JSON.parse(scraperResultStr as string);
+    const parsed = JSON.parse(scraperResultStr);
     markdown = parsed.markdown;
     images = parsed.images || [];
-  } catch (e) {
+  } catch {
     // Fallback if the tool returned raw string
   }
 
@@ -46,7 +46,7 @@ export const ScraperNode = async (state: NewsThreadFactoryStateType, config?: Ru
   try {
     const summary = await llm.invoke([
       { role: "system", content: NEWS_SCRAPER_PROMPT },
-      { role: "user", content: markdown as string }
+      { role: "user", content: markdown }
     ], config);
     return {
       raw_markdown: summary.content as string,
@@ -245,7 +245,7 @@ export const ViralityCriticNode = async (state: NewsThreadFactoryStateType, conf
   };
 };
 
-export const ManualHookSelectionNode = async (state: NewsThreadFactoryStateType, config?: RunnableConfig) => {
+export const ManualHookSelectionNode = async (state: NewsThreadFactoryStateType, _config?: RunnableConfig) => {
   const selected_hook = interrupt({
     core_hooks: state.core_hooks,
     action: "Please select a hook to proceed."

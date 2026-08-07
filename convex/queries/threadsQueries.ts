@@ -59,7 +59,7 @@ export const getThreadDraftInternal = internalQuery({
     userId: v.id("users"),
   },
   handler: async (ctx, args): Promise<Doc<"threadDrafts"> | null> => {
-    const draft = await ctx.db.get(args.id);
+    const draft = await ctx.db.get("threadDrafts", args.id);
     if (draft && draft.userId !== args.userId) {
       throw new Error("Unauthorized");
     }

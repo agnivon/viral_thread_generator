@@ -35,13 +35,13 @@ import { buildAgents, invokeWithFallbacks } from "../utils.js";
 
 export const PostScraperNode = async (state: SocialMediaThreadFactoryStateType, config?: RunnableConfig) => {
   const scraperResultStr = await WebScraperTool.invoke({ url: state.url }, config);
-  let markdown = scraperResultStr as string;
+  let markdown = scraperResultStr;
   let images: string[] = [];
   try {
-    const parsed = JSON.parse(scraperResultStr as string);
+    const parsed = JSON.parse(scraperResultStr);
     markdown = parsed.markdown;
     images = parsed.images || [];
-  } catch (e) {
+  } catch {
     // Fallback if the tool returned raw string
   }
 
@@ -50,7 +50,7 @@ export const PostScraperNode = async (state: SocialMediaThreadFactoryStateType, 
   try {
     const summary = await llm.invoke([
       { role: "system", content: SOCIAL_MEDIA_SCRAPER_PROMPT },
-      { role: "user", content: markdown as string }
+      { role: "user", content: markdown }
     ], config);
     return {
       raw_markdown: summary.content as string,
@@ -294,7 +294,7 @@ export const ViralityCriticNode = async (state: SocialMediaThreadFactoryStateTyp
   };
 };
 
-export const ManualHookSelectionNode = async (state: SocialMediaThreadFactoryStateType, config?: RunnableConfig) => {
+export const ManualHookSelectionNode = async (state: SocialMediaThreadFactoryStateType, _config?: RunnableConfig) => {
   const selected_hook = interrupt({
     core_hooks: state.core_hooks,
     action: "Please select a hook to proceed."

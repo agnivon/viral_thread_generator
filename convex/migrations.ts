@@ -35,6 +35,6 @@ export const fixAndRemoveTopLevelUrl = migrations.define({
     }
 
     // @ts-expect-error - we are deleting fields that no longer exist in the schema
-    await ctx.db.patch(draft._id, { input_field, url: undefined, topic: undefined, description: undefined });
+    await ctx.db.patch("threadDrafts", draft._id, { input_field, url: undefined, topic: undefined, description: undefined });
   },
 });

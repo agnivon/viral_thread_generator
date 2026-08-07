@@ -6,7 +6,7 @@ import { RunnableConfig } from "@langchain/core/runnables";
 import { providerStrategy } from "langchain";
 import {
   googleGemini36FlashT00Key1, googleGemini35FlashT00Key1, openAiGpt54MiniT00Timeout25k, googleGemini3FlashPreviewT00Key1, googleGemini3FlashPreviewT00Key2,
-  googleGemini31FlashLiteT08Key1, googleGemini31FlashLiteT08Key2, openAiGpt54MiniT08Timeout20k, openRouterFreeT08,
+  googleGemini31FlashLiteT08Key1, googleGemini31FlashLiteT08Key2, openAiGpt54MiniT08Timeout20k,
   googleGemini31FlashLiteT01Key1Max2k, googleGemini31FlashLiteT01Key2Max2k, openAiGpt54MiniT01Max2kTimeout45k,
   googleGemini36FlashT08Key1, googleGemini35FlashT08Key1, deepSeekV4ProT085ReasoningNone, deepSeekV4ProT00ReasoningHigh, openAiGpt54T08Penalty04Timeout30k, googleGemini3FlashPreviewT08Key1, googleGemini3FlashPreviewT08Key2,
   googleGemini31FlashLiteT02Key1Max2k, googleGemini31FlashLiteT02Key2Max2k, openAiGpt54MiniT02Max2kTimeout45k
@@ -86,16 +86,16 @@ export const DeepPageScraperNode = async (state: TopicThreadFactoryStateType, co
   const scrapePromises = state.urls_to_scrape.map(async (url) => {
     try {
       const jinaResultStr = await JinaReaderTool.invoke({ url }, config);
-      const parsedJina = JSON.parse(jinaResultStr as string);
+      const parsedJina = JSON.parse(jinaResultStr);
 
       if (parsedJina.error || !parsedJina.markdown || parsedJina.markdown.includes("Enable JavaScript")) {
         const firecrawlResultStr = await FirecrawlScrapeTool.invoke({ url }, config);
-        const parsedFirecrawl = JSON.parse(firecrawlResultStr as string);
+        const parsedFirecrawl = JSON.parse(firecrawlResultStr);
         return { text: `URL: ${url}\nContent:\n${parsedFirecrawl.markdown || ""}\n\n`, images: parsedFirecrawl.images || [] };
       } else {
         return { text: `URL: ${url}\nContent:\n${parsedJina.markdown || ""}\n\n`, images: parsedJina.images || [] };
       }
-    } catch (e) {
+    } catch {
       return { text: `URL: ${url}\nContent:\n(Failed to scrape)\n\n`, images: [] };
     }
   });
@@ -283,7 +283,7 @@ export const TopicCharacterValidatorNode = async (state: TopicThreadFactoryState
   };
 };
 
-export const ManualHookSelectionNode = async (state: TopicThreadFactoryStateType, config?: RunnableConfig) => {
+export const ManualHookSelectionNode = async (state: TopicThreadFactoryStateType, _config?: RunnableConfig) => {
   const selected_hook = interrupt({
     core_hooks: state.core_hooks,
     action: "Please select a hook to proceed."

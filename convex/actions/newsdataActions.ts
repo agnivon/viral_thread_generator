@@ -27,7 +27,7 @@ export const fetchAndStoreLatestNews = internalAction({
 
     // 1. Fetch Trending Keywords from Google Trends
     // We only fetch from the US region as per the requirements.
-    let allTrends: any[] = [];
+    const allTrends: any[] = [];
 
     try {
       // Fetch daily trends for the US. The GoogleTrendsApi returns data that includes

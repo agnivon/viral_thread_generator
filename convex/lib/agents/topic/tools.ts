@@ -5,7 +5,7 @@ import { z } from "zod";
 import { tavily } from "@tavily/core";
 import "dotenv/config";
 
-import { JinaClient, JinaResponse, FormattedPageDto } from "../../jina/api.js";
+import { JinaClient } from "../../jina/api.js";
 import FirecrawlApp from "@mendable/firecrawl-js";
 
 export const TavilySearchTool = tool(
@@ -78,7 +78,7 @@ export const JinaReaderTool = tool(
       if (typeof response === 'string') {
         markdown = response;
       } else if (response && typeof response === 'object') {
-        const typedResponse = response as JinaResponse<FormattedPageDto | string>;
+        const typedResponse = response;
         const data = typedResponse.data;
         if (data) {
           if (typeof data === 'string') {

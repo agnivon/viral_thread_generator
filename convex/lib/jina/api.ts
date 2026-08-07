@@ -8,7 +8,7 @@ export type JinaRespondWith =
   | 'vlm'
   | 'readerlm-v2'
   | 'frontmatter'
-  | string;
+  | (string & {});
 
 export interface JinaBaseOptions {
   respondWith?: JinaRespondWith;
@@ -54,7 +54,7 @@ export interface JinaReaderOptions extends JinaBaseOptions {
   base?: 'initial' | 'final';
   setCookies?: Array<object | string> | string;
   exportStorageState?: boolean;
-  engine?: 'auto' | 'browser' | 'curl' | 'cf-browser-rendering' | string;
+  engine?: 'auto' | 'browser' | 'curl' | 'cf-browser-rendering' | (string & {});
   injectPageScript?: string | string[];
   injectFrameScript?: string | string[];
   assertStatusCode?: number;
@@ -64,7 +64,7 @@ export interface JinaSearchOptions extends JinaBaseOptions {
   q?: string;
   engine?: 'google' | 'bing' | 'reader';
   respondTiming?: 'html' | 'visible-content' | 'mutation-idle' | 'resource-idle' | 'media-idle' | 'network-idle';
-  markdownChunking?: 'true' | 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'structured' | 's1' | 's2' | 's3' | 's4' | 's5' | string;
+  markdownChunking?: 'true' | 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'structured' | 's1' | 's2' | 's3' | 's4' | 's5' | (string & {});
   maxTokens?: number;
   count?: number; // 0 to 20
   provider?: 'google' | 'bing' | 'reader'; // same as engine
@@ -93,14 +93,14 @@ export interface FormattedPageDto {
   screenshotUrl?: string;
   pageshotUrl?: string;
   numPages?: number;
-  links?: Record<string, string> | string[] | any;
-  images?: Record<string, string> | string[] | any;
+  links?: Record<string, string> | string[];
+  images?: Record<string, string> | string[];
   warning?: string;
-  metadata?: Record<string, string> | any;
-  external?: any;
+  metadata?: Record<string, string>;
+  external?: unknown;
   httpStatus?: number;
   httpStatusText?: string;
-  storageState?: any;
+  storageState?: unknown;
 }
 
 export interface JinaResponse<T = any> {

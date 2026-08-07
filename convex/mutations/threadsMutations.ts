@@ -1,8 +1,7 @@
 import { v } from "convex/values";
-import { internalMutation, mutation } from "../_generated/server";
+import { internalMutation } from "../_generated/server";
 import { threadDraftInputValidator, commonThreadDraftArgs } from "../schema";
 import { getAuthUserId } from "@convex-dev/auth/server";
-import { vOnCompleteArgs } from "@convex-dev/workpool";
 import { Id } from "../_generated/dataModel";
 
 export const saveThreadDraft = internalMutation({
@@ -113,12 +112,12 @@ export const deleteThreadDraftInternal = internalMutation({
     if (!userId) {
       throw new Error("Unauthorized");
     }
-    const draft = await ctx.db.get(args.id);
+    const draft = await ctx.db.get("threadDrafts", args.id);
     if (draft && draft.userId !== userId) {
       throw new Error("Unauthorized");
     }
     if (draft) {
-      await ctx.db.delete(args.id);
+      await ctx.db.delete("threadDrafts", args.id);
     }
   },
 });

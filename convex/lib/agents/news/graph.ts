@@ -5,7 +5,7 @@ import { VisualKeywordStrategistNode } from "../nodes.js";
 import { PostgresSaver } from "@langchain/langgraph-checkpoint-postgres";
 import pg from "pg";
 import { NewsThreadFactoryState, NewsThreadFactoryStateType } from "./state.js";
-import { ScraperNode, HookStrategistNode, ThreadWriterNode, CharacterValidatorNode, ViralityCriticNode, ManualHookSelectionNode } from "./nodes.js";
+import { ScraperNode, ContextResearcherNode, HookStrategistNode, ThreadWriterNode, CharacterValidatorNode, ViralityCriticNode, ManualHookSelectionNode } from "./nodes.js";
 
 const { Pool } = pg;
 
@@ -39,6 +39,14 @@ const route_after_scraper = (state: NewsThreadFactoryStateType) => {
   if (!state.parse_success) {
     if ((state.retries?.scraper || 0) >= 3) throw new Error("ScraperNode failed after 3 retries");
     return "ScraperNode";
+  }
+  return "ContextResearcherNode";
+};
+
+const route_after_researcher = (state: NewsThreadFactoryStateType) => {
+  if (!state.parse_success) {
+    if ((state.retries?.researcher || 0) >= 3) throw new Error("ContextResearcherNode failed after 3 retries");
+    return "ContextResearcherNode";
   }
   return "HookStrategistNode";
 };
@@ -92,6 +100,7 @@ const route_after_critic = (state: NewsThreadFactoryStateType) => {
 export const NewsThreadFactoryGraph = new StateGraph(NewsThreadFactoryState)
   .setNodeDefaults({ timeout: { runTimeout: 3_00_000, idleTimeout: 2_00_000 } })
   .addNode("ScraperNode", ScraperNode)
+  .addNode("ContextResearcherNode", ContextResearcherNode)
   .addNode("HookStrategistNode", HookStrategistNode)
   .addNode("ManualHookSelectionNode", ManualHookSelectionNode)
   .addNode("ThreadWriterNode", ThreadWriterNode)
@@ -99,7 +108,8 @@ export const NewsThreadFactoryGraph = new StateGraph(NewsThreadFactoryState)
   .addNode("ViralityCriticNode", ViralityCriticNode)
   .addNode("VisualKeywordStrategistNode", VisualKeywordStrategistNode)
   .addEdge(START, "ScraperNode")
-  .addConditionalEdges("ScraperNode", route_after_scraper, ["HookStrategistNode", "ScraperNode"])
+  .addConditionalEdges("ScraperNode", route_after_scraper, ["ContextResearcherNode", "ScraperNode"])
+  .addConditionalEdges("ContextResearcherNode", route_after_researcher, ["HookStrategistNode", "ContextResearcherNode"])
   .addConditionalEdges("HookStrategistNode", route_after_hook, ["ThreadWriterNode", "HookStrategistNode", "ManualHookSelectionNode"])
   .addEdge("ManualHookSelectionNode", "ThreadWriterNode")
   .addConditionalEdges("ThreadWriterNode", route_after_writer, ["CharacterValidatorNode", "ThreadWriterNode"])

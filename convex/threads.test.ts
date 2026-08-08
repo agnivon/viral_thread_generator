@@ -81,9 +81,10 @@ test("generateNewsThread action runs graph and saves result", async () => {
     is_approved: false,
     is_character_valid: true,
     parse_success: true,
-    retries: { scraper: 0, hook: 0, writer: 0, critic: 0, validator: 0 },
+    retries: { scraper: 0, researcher: 0, hook: 0, writer: 0, critic: 0, validator: 0 },
     search_queries: undefined,
     search_query_generation: false,
+    research_context: "",
   };
 
   const invokeSpy = vi.spyOn(NewsThreadFactoryGraph, "invoke").mockResolvedValue(mockGraphOutput);
@@ -172,9 +173,10 @@ test("resumeNewsThreadGeneration action resumes graph and saves result", async (
     is_approved: true,
     is_character_valid: true,
     parse_success: true,
-    retries: { scraper: 0, hook: 0, writer: 0, critic: 0, validator: 0 },
+    retries: { scraper: 0, researcher: 0, hook: 0, writer: 0, critic: 0, validator: 0 },
     search_queries: undefined,
     search_query_generation: false,
+    research_context: "",
   };
 
   const invokeSpy = vi.spyOn(NewsThreadFactoryGraph, "invoke").mockResolvedValue(mockGraphOutput);

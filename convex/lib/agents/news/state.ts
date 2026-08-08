@@ -8,6 +8,7 @@ export const NewsThreadFactoryState = new StateSchema({
   guidance: z.string().optional(),
   manual_hook_selection: z.boolean().default(false),
   raw_markdown: z.string().default(""),
+  research_context: z.string().default(""),
   core_hooks: z.array(z.string()).default(() => []),
   selected_hook: z.string().default(""),
   thread_draft: z.array(z.string()).default(() => []),
@@ -22,11 +23,12 @@ export const NewsThreadFactoryState = new StateSchema({
   parse_success: z.boolean().default(true),
   retries: z.object({
     scraper: z.number().default(0),
+    researcher: z.number().default(0),
     hook: z.number().default(0),
     writer: z.number().default(0),
     critic: z.number().default(0),
     validator: z.number().default(0),
-  }).default({ scraper: 0, hook: 0, writer: 0, critic: 0, validator: 0 }),
+  }).default({ scraper: 0, researcher: 0, hook: 0, writer: 0, critic: 0, validator: 0 }),
   search_queries: SearchQueriesSchema.optional(),
   search_query_generation: z.boolean().default(false),
 });

@@ -13,22 +13,24 @@ import {
   googleGemini31FlashLiteT01Key1Max2k, googleGemini31FlashLiteT01Key2Max2k,
   openAiGpt54T08Penalty04Timeout30k, googleGemini3FlashPreviewT08Key1, googleGemini3FlashPreviewT08Key2,
   googleGemini36FlashT08Key1, googleGemini35FlashT08Key1, deepSeekV4ProT085ReasoningNone, deepSeekV4ProT00ReasoningHigh,
+  googleGemini31FlashLiteT02Key1Max2k, googleGemini31FlashLiteT02Key2Max2k, openAiGpt54MiniT02Max2kTimeout45k
 } from "../models.js";
 import {
   NEWS_HOOK_PROMPT,
   NEWS_SCRAPER_PROMPT,
   NEWS_WRITER_PROMPT,
-  NEWS_CRITIC_PROMPT
+  NEWS_CRITIC_PROMPT,
+  NEWS_RESEARCHER_PROMPT
 } from "./prompts.js";
 import { NewsThreadFactoryStateType } from "./state.js";
-import { ContentAuthenticityCheckerTool, TopicContextExpanderTool, WebScraperTool, YoutubeScraperTool } from "./tools.js";
+import { BackgroundDossierTool, ContentAuthenticityCheckerTool, TopicContextExpanderTool, WebScraperTool, YoutubeScraperTool } from "./tools.js";
 import { CharacterValidatorTool } from "../tools.js";
 import { buildAgents, invokeWithFallbacks } from "../utils.js";
 
 
 export const ScraperNode = async (state: NewsThreadFactoryStateType, config?: RunnableConfig) => {
   const isYoutube = state.url.includes("youtube.com") || state.url.includes("youtu.be");
-  const scraperResultStr = isYoutube 
+  const scraperResultStr = isYoutube
     ? await YoutubeScraperTool.invoke({ url: state.url }, config)
     : await WebScraperTool.invoke({ url: state.url }, config);
   let markdown = scraperResultStr;
@@ -63,6 +65,55 @@ export const ScraperNode = async (state: NewsThreadFactoryStateType, config?: Ru
   }
 };
 
+export const ContextResearcherNode = async (state: NewsThreadFactoryStateType, config?: RunnableConfig) => {
+  const schema = z.object({
+    research_context: z.string().min(1, "Must generate research context")
+  });
+
+  const agents = buildAgents(
+    [googleGemini31FlashLiteT02Key1Max2k, googleGemini31FlashLiteT02Key2Max2k, openAiGpt54MiniT02Max2kTimeout45k],
+    {
+      tools: [BackgroundDossierTool],
+      systemPrompt: NEWS_RESEARCHER_PROMPT,
+      responseFormat: providerStrategy(schema)
+    }
+  );
+
+  let result;
+  let parse_success = false;
+
+  try {
+    result = await invokeWithFallbacks(agents, {
+      messages: [{ role: "user", content: `<SOURCE>\n${state.raw_markdown}\n</SOURCE>` }]
+    }, config);
+    parse_success = true;
+  } catch (_e) {
+    parse_success = false;
+  }
+
+  let research_context = "";
+
+  if (parse_success && result?.structuredResponse) {
+    research_context = result.structuredResponse.research_context || "";
+  } else {
+    parse_success = false;
+  }
+
+  if (parse_success && research_context) {
+    return {
+      research_context,
+      parse_success: true,
+      retries: { ...(state.retries || {}), researcher: 0 }
+    };
+  } else {
+    return {
+      parse_success: false,
+      retries: { ...(state.retries || {}), researcher: (state.retries?.researcher || 0) + 1 }
+    };
+  }
+};
+
+
 export const HookStrategistNode = async (state: NewsThreadFactoryStateType, config?: RunnableConfig) => {
   const schema = z.object({
     core_hooks: z.array(z.string()).min(1, "Must generate at least one hook"),
@@ -72,7 +123,6 @@ export const HookStrategistNode = async (state: NewsThreadFactoryStateType, conf
   const agents = buildAgents(
     [googleGemini31FlashLiteT08Key1, googleGemini31FlashLiteT08Key2, openAiGpt54MiniT08Timeout20k, openRouterFreeT08],
     {
-      tools: [TopicContextExpanderTool],
       systemPrompt: NEWS_HOOK_PROMPT,
       responseFormat: providerStrategy(schema)
     }
@@ -83,8 +133,9 @@ export const HookStrategistNode = async (state: NewsThreadFactoryStateType, conf
 
   try {
     const guidanceContext = state.guidance ? `\n\n<ADDITIONAL_GUIDANCE>\n${state.guidance}\n</ADDITIONAL_GUIDANCE>` : "";
+    const researchContext = state.research_context ? `\n\n<RESEARCH_CONTEXT>\n${state.research_context}\n</RESEARCH_CONTEXT>` : "";
     result = await invokeWithFallbacks(agents, {
-      messages: [{ role: "user", content: `<SOURCE>\n${state.raw_markdown}\n</SOURCE>${guidanceContext}` }]
+      messages: [{ role: "user", content: `<SOURCE>\n${state.raw_markdown}\n</SOURCE>${researchContext}${guidanceContext}` }]
     }, config);
     parse_success = true;
   } catch (_e) {
@@ -136,13 +187,14 @@ export const ThreadWriterNode = async (state: NewsThreadFactoryStateType, config
   }
   const charCritiqueContext = state.character_critique ? `\n\n<CHARACTER_AND_FORMATTING_CONSTRAINTS_FAILED>\n${state.character_critique}\nFix the previous draft to respect these exact formatting constraints.\n</CHARACTER_AND_FORMATTING_CONSTRAINTS_FAILED>` : "";
   const guidanceContext = state.guidance ? `\n\n<ADDITIONAL_GUIDANCE>\n${state.guidance}\n</ADDITIONAL_GUIDANCE>` : "";
+  const researchContext = state.research_context ? `\n\n<RESEARCH_CONTEXT>\n${state.research_context}\n</RESEARCH_CONTEXT>` : "";
 
   let draft;
   let parse_success = true;
   try {
     draft = await structuredLlm.invoke([
       { role: "system", content: NEWS_WRITER_PROMPT },
-      { role: "user", content: `<HOOK>\n${state.selected_hook}\n</HOOK>\n\n<SOURCE>\n${state.raw_markdown}\n</SOURCE>${previousDraftContext}${critiqueContext}${postCritiquesContext}${charCritiqueContext}${guidanceContext}` }
+      { role: "user", content: `<HOOK>\n${state.selected_hook}\n</HOOK>\n\n<SOURCE>\n${state.raw_markdown}\n</SOURCE>${researchContext}${previousDraftContext}${critiqueContext}${postCritiquesContext}${charCritiqueContext}${guidanceContext}` }
     ], { ...config, timeout: 300000 });
     if (!draft || !draft.thread_draft) parse_success = false;
   } catch (_e) {
@@ -203,9 +255,10 @@ export const ViralityCriticNode = async (state: NewsThreadFactoryStateType, conf
 
   try {
     const guidanceContext = state.guidance ? `\n\n<ADDITIONAL_GUIDANCE>\n${state.guidance}\n</ADDITIONAL_GUIDANCE>` : "";
+    const researchContext = state.research_context ? `\n\n<RESEARCH_CONTEXT>\n${state.research_context}\n</RESEARCH_CONTEXT>` : "";
     result = await invokeWithFallbacks(agents, {
       messages: [
-        { role: "user", content: `<CURRENT_ITERATION_ATTEMPT>\n${state.iterations + 1}\n</CURRENT_ITERATION_ATTEMPT>\n\n<SOURCE_MATERIAL>\n${state.raw_markdown}\n</SOURCE_MATERIAL>\n\n<THREAD>\n${JSON.stringify(state.thread_draft, null, 2)}\n</THREAD>${guidanceContext}` }
+        { role: "user", content: `<CURRENT_ITERATION_ATTEMPT>\n${state.iterations + 1}\n</CURRENT_ITERATION_ATTEMPT>\n\n<SOURCE_MATERIAL>\n${state.raw_markdown}\n</SOURCE_MATERIAL>${researchContext}\n\n<THREAD>\n${JSON.stringify(state.thread_draft, null, 2)}\n</THREAD>${guidanceContext}` }
       ]
     }, { ...config, timeout: 300000 });
     parse_success = true;

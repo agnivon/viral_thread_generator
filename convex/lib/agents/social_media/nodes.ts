@@ -86,7 +86,7 @@ export const ContextResearcherNode = async (state: SocialMediaThreadFactoryState
 
   try {
     result = await invokeWithFallbacks(agents, {
-      messages: [{ role: "user", content: state.raw_markdown }]
+      messages: [{ role: "user", content: `<SOURCE>\n${state.raw_markdown}\n</SOURCE>` }]
     }, config);
     parse_success = true;
   } catch (_e) {
@@ -117,7 +117,6 @@ export const HookStrategistNode = async (state: SocialMediaThreadFactoryStateTyp
   const agents = buildAgents(
     [googleGemini31FlashLiteT08Key1, googleGemini31FlashLiteT08Key2, openAiGpt54MiniT08Timeout20k, openRouterFreeT08],
     {
-      tools: [TopicContextExpanderTool],
       systemPrompt: SOCIAL_MEDIA_HOOK_PROMPT,
       responseFormat: providerStrategy(schema)
     }

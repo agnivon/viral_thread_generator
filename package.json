@@ -20,7 +20,9 @@
     "build": "next build",
     "start": "next start",
     "logs": "convex logs",
+    "type-check": "tsc --noEmit && tsc -p convex --noEmit",
     "lint": "tsc -p convex && eslint . --report-unused-disable-directives --max-warnings 0",
+    "test": "vitest run",
     "create-user": "node scripts/create-user.js",
     "clear-auth": "node scripts/clear-auth.js",
     "prepare": "husky"

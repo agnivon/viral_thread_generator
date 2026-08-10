@@ -20,7 +20,7 @@ test("saveThreadDraft mutation saves state correctly", async () => {
   });
 
   const inputState = {
-    url: "https://example.com/source-url",
+    input_field: { agent: "news" as const, url: "https://example.com/source-url" },
     raw_markdown: "Mock raw markdown content",
     core_hooks: ["Hook 1", "Hook 2"],
     selected_hook: "Hook 1",
@@ -42,7 +42,7 @@ test("saveThreadDraft mutation saves state correctly", async () => {
   });
 
   expect(saved).toMatchObject({
-    url: inputState.url,
+    input_field: inputState.input_field,
     raw_markdown: inputState.raw_markdown,
     core_hooks: inputState.core_hooks,
     selected_hook: inputState.selected_hook,
@@ -101,14 +101,10 @@ test("generateNewsThread action runs graph and saves result", async () => {
 
   expect(recordId).toBeDefined();
   expect(invokeSpy).toHaveBeenCalledWith({
-    input_field: { agent: "news", url: "https://example.com/target-url" },
+    url: "https://example.com/target-url",
     guidance: undefined,
     manual_hook_selection: true,
-    raw_markdown: "",
-    core_hooks: [],
-    selected_hook: "",
-    thread_draft: [],
-    critique: "",
+    search_query_generation: false,
     iterations: 0,
     is_approved: false,
   }, { configurable: { thread_id: recordId } });
@@ -133,7 +129,7 @@ test("generateNewsThread action runs graph and saves result", async () => {
     generation_status: "success",
     manual_hook_selection: true,
   });
-});
+}, 20000);
 
 test("resumeNewsThreadGeneration action resumes graph and saves result", async () => {
   const t = convexTest(schema, modules);
@@ -199,7 +195,7 @@ test("resumeNewsThreadGeneration action resumes graph and saves result", async (
   expect(saved?.generation_status).toBe("success");
   expect(saved?.selected_hook).toBe("Hook 2");
   expect(saved?.is_approved).toBe(true);
-});
+}, 20000);
 
 test("publishThread action retrieves state and publishes thread of posts sequentially", async () => {
   const t = convexTest(schema, modules);

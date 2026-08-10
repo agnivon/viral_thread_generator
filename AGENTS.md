@@ -47,6 +47,18 @@ Convex agent skills for common tasks can be installed by running
   - **Avoid Unsafe Type Assertions**: Prefer type narrowing (e.g. `instanceof`, `typeof`, custom type predicates `isType`) over blanket `as` type casts.
 
 
+## Testing & Quality Assurance
+- **Audit & Update Existing Tests for Feature Changes**:
+  - Whenever refactoring, extending, or modifying an existing feature or API contract, always search for associated unit/integration tests (`*.test.ts`, `*.spec.tsx`, etc.).
+  - Update existing test cases to reflect new requirements, modified return signatures, or updated UI behavior, ensuring complete test coverage is maintained without breaking regressions.
+  - Never silence, skip, or delete failing test assertions without fixing the underlying contract or logic.
+- **Proactively Propose & Add Tests for New Features**:
+  - When building new features, utility modules, custom hooks, or Convex functions, propose and write comprehensive automated test cases.
+  - Cover happy paths, critical edge cases, failure/error states, and boundary conditions to safeguard stability.
+  - Ensure tests are deterministic, isolated, clean, and follow the project's testing frameworks (e.g. Vitest, Jest, React Testing Library, Convex test runners).
+- **Automated Verification**:
+  - Always run the relevant test suite (e.g., `pnpm test`) after modifying code or adding new tests to verify all tests pass cleanly before completing a task.
+
 ## Workspace Cleanliness & Temporary Files
 - **Delete Temporary and Scratch Files**: Always clean up any temporary scripts (e.g., test Python scripts, scratch Javascript/Typescript files, shell scripts), temporary log files, local JSON/CSV data dumps, or unused lockfiles created during the execution of a task.
 - **Maintain Pristine Repository State**: Ensure no trailing uncommitted, unused, or test-related files remain in the workspace root or source directories prior to completing a task. Avoid polluting the repository workspace.

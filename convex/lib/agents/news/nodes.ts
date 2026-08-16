@@ -13,7 +13,11 @@ import {
   googleGemini31FlashLiteT01Key1Max2k, googleGemini31FlashLiteT01Key2Max2k,
   openAiGpt54T08Penalty04Timeout30k, googleGemini3FlashPreviewT08Key1, googleGemini3FlashPreviewT08Key2,
   googleGemini36FlashT08Key1, googleGemini35FlashT08Key1, deepSeekV4ProT085ReasoningNone, deepSeekV4ProT00ReasoningHigh,
-  googleGemini31FlashLiteT02Key1Max2k, googleGemini31FlashLiteT02Key2Max2k, openAiGpt54MiniT02Max2kTimeout45k
+  googleGemini31FlashLiteT02Key1Max2k, googleGemini31FlashLiteT02Key2Max2k, openAiGpt54MiniT02Max2kTimeout45k,
+  googleGemini37FlashT08Key1, googleGemini37FlashT00Key1,
+  googleGemini35FlashLiteT01Key1Max2k, googleGemini35FlashLiteT01Key2Max2k,
+  googleGemini35FlashLiteT08Key1, googleGemini35FlashLiteT08Key2,
+  googleGemini35FlashLiteT02Key1Max2k, googleGemini35FlashLiteT02Key2Max2k
 } from "../models.js";
 import {
   NEWS_HOOK_PROMPT,
@@ -43,7 +47,7 @@ export const ScraperNode = async (state: NewsThreadFactoryStateType, config?: Ru
     // Fallback if the tool returned raw string
   }
 
-  const llm = googleGemini31FlashLiteT01Key1Max2k.withFallbacks({ fallbacks: [googleGemini31FlashLiteT01Key2Max2k, openAiGpt54MiniT01Max2kTimeout45k] });
+  const llm = googleGemini35FlashLiteT01Key1Max2k.withFallbacks({ fallbacks: [googleGemini35FlashLiteT01Key2Max2k, googleGemini31FlashLiteT01Key1Max2k, googleGemini31FlashLiteT01Key2Max2k, openAiGpt54MiniT01Max2kTimeout45k] });
 
   try {
     const summary = await llm.invoke([
@@ -71,7 +75,7 @@ export const ContextResearcherNode = async (state: NewsThreadFactoryStateType, c
   });
 
   const agents = buildAgents(
-    [googleGemini31FlashLiteT02Key1Max2k, googleGemini31FlashLiteT02Key2Max2k, openAiGpt54MiniT02Max2kTimeout45k],
+    [googleGemini35FlashLiteT02Key1Max2k, googleGemini35FlashLiteT02Key2Max2k, googleGemini31FlashLiteT02Key1Max2k, googleGemini31FlashLiteT02Key2Max2k, openAiGpt54MiniT02Max2kTimeout45k],
     {
       tools: [BackgroundDossierTool],
       systemPrompt: NEWS_RESEARCHER_PROMPT,
@@ -121,7 +125,7 @@ export const HookStrategistNode = async (state: NewsThreadFactoryStateType, conf
   });
 
   const agents = buildAgents(
-    [googleGemini31FlashLiteT08Key1, googleGemini31FlashLiteT08Key2, openAiGpt54MiniT08Timeout20k, openRouterFreeT08],
+    [googleGemini35FlashLiteT08Key1, googleGemini35FlashLiteT08Key2, googleGemini31FlashLiteT08Key1, googleGemini31FlashLiteT08Key2, openAiGpt54MiniT08Timeout20k, openRouterFreeT08],
     {
       systemPrompt: NEWS_HOOK_PROMPT,
       responseFormat: providerStrategy(schema)
@@ -165,8 +169,9 @@ export const ThreadWriterNode = async (state: NewsThreadFactoryStateType, config
     thread_draft: z.array(z.string()).min(1, "Must generate at least one post for the thread draft")
   });
 
-  const structuredLlm = googleGemini36FlashT08Key1.withStructuredOutput(schema, { name: "thread_writer", method: "jsonSchema" }).withFallbacks({
+  const structuredLlm = googleGemini37FlashT08Key1.withStructuredOutput(schema, { name: "thread_writer", method: "jsonSchema" }).withFallbacks({
     fallbacks: [
+      googleGemini36FlashT08Key1.withStructuredOutput(schema, { name: "thread_writer", method: "jsonSchema" }),
       googleGemini35FlashT08Key1.withStructuredOutput(schema, { name: "thread_writer", method: "jsonSchema" }),
       deepSeekV4ProT085ReasoningNone.withStructuredOutput(schema, { name: "thread_writer", method: "jsonMode" }),
       openAiGpt54T08Penalty04Timeout30k.withStructuredOutput(schema, { name: "thread_writer", method: "jsonSchema" }),
@@ -238,6 +243,7 @@ export const ViralityCriticNode = async (state: NewsThreadFactoryStateType, conf
 
   const agents = buildAgents(
     [
+      googleGemini37FlashT00Key1,
       googleGemini36FlashT00Key1, googleGemini35FlashT00Key1,
       deepSeekV4ProT00ReasoningHigh,
       openAiGpt54MiniT00Timeout25k,

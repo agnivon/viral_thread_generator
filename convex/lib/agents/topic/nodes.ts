@@ -9,7 +9,11 @@ import {
   googleGemini31FlashLiteT08Key1, googleGemini31FlashLiteT08Key2, openAiGpt54MiniT08Timeout20k,
   googleGemini31FlashLiteT01Key1Max2k, googleGemini31FlashLiteT01Key2Max2k, openAiGpt54MiniT01Max2kTimeout45k,
   googleGemini36FlashT08Key1, googleGemini35FlashT08Key1, deepSeekV4ProT085ReasoningNone, deepSeekV4ProT00ReasoningHigh, openAiGpt54T08Penalty04Timeout30k, googleGemini3FlashPreviewT08Key1, googleGemini3FlashPreviewT08Key2,
-  googleGemini31FlashLiteT02Key1Max2k, googleGemini31FlashLiteT02Key2Max2k, openAiGpt54MiniT02Max2kTimeout45k
+  googleGemini31FlashLiteT02Key1Max2k, googleGemini31FlashLiteT02Key2Max2k, openAiGpt54MiniT02Max2kTimeout45k,
+  googleGemini37FlashT08Key1, googleGemini37FlashT00Key1,
+  googleGemini35FlashLiteT01Key1Max2k, googleGemini35FlashLiteT01Key2Max2k,
+  googleGemini35FlashLiteT08Key1, googleGemini35FlashLiteT08Key2,
+  googleGemini35FlashLiteT02Key1Max2k, googleGemini35FlashLiteT02Key2Max2k
 } from "../models.js";
 import {
   TOPIC_RESEARCH_ORCHESTRATOR_PROMPT,
@@ -35,7 +39,7 @@ export const ResearchOrchestratorNode = async (state: TopicThreadFactoryStateTyp
   });
 
   const agents = buildAgents(
-    [googleGemini31FlashLiteT02Key1Max2k, googleGemini31FlashLiteT02Key2Max2k, openAiGpt54MiniT02Max2kTimeout45k],
+    [googleGemini35FlashLiteT02Key1Max2k, googleGemini35FlashLiteT02Key2Max2k, googleGemini31FlashLiteT02Key1Max2k, googleGemini31FlashLiteT02Key2Max2k, openAiGpt54MiniT02Max2kTimeout45k],
     {
       tools: [DuckDuckGoSearchTool, TavilySearchTool],
       systemPrompt: TOPIC_RESEARCH_ORCHESTRATOR_PROMPT,
@@ -108,8 +112,10 @@ export const DeepPageScraperNode = async (state: TopicThreadFactoryStateType, co
     research_dossier: z.string().min(1, "Must append to dossier")
   });
 
-  const structuredLlm = googleGemini31FlashLiteT01Key1Max2k.withStructuredOutput(schema, { name: "deep_scraper", method: "jsonSchema" }).withFallbacks({
+  const structuredLlm = googleGemini35FlashLiteT01Key1Max2k.withStructuredOutput(schema, { name: "deep_scraper", method: "jsonSchema" }).withFallbacks({
     fallbacks: [
+      googleGemini35FlashLiteT01Key2Max2k.withStructuredOutput(schema, { name: "deep_scraper", method: "jsonSchema" }),
+      googleGemini31FlashLiteT01Key1Max2k.withStructuredOutput(schema, { name: "deep_scraper", method: "jsonSchema" }),
       googleGemini31FlashLiteT01Key2Max2k.withStructuredOutput(schema, { name: "deep_scraper", method: "jsonSchema" }),
       openAiGpt54MiniT01Max2kTimeout45k.withStructuredOutput(schema, { name: "deep_scraper", method: "jsonSchema" })
     ]
@@ -142,8 +148,10 @@ export const HookStrategistNode = async (state: TopicThreadFactoryStateType, con
     selected_hook: z.string()
   });
 
-  const structuredLlm = googleGemini31FlashLiteT08Key1.withStructuredOutput(schema, { name: "hook_strategist", method: "jsonSchema" }).withFallbacks({
+  const structuredLlm = googleGemini35FlashLiteT08Key1.withStructuredOutput(schema, { name: "hook_strategist", method: "jsonSchema" }).withFallbacks({
     fallbacks: [
+      googleGemini35FlashLiteT08Key2.withStructuredOutput(schema, { name: "hook_strategist", method: "jsonSchema" }),
+      googleGemini31FlashLiteT08Key1.withStructuredOutput(schema, { name: "hook_strategist", method: "jsonSchema" }),
       googleGemini31FlashLiteT08Key2.withStructuredOutput(schema, { name: "hook_strategist", method: "jsonSchema" }),
       openAiGpt54MiniT08Timeout20k.withStructuredOutput(schema, { name: "hook_strategist", method: "jsonSchema" })
     ]
@@ -176,8 +184,9 @@ export const ThreadWriterNode = async (state: TopicThreadFactoryStateType, confi
     thread_draft: z.array(z.string())
   });
 
-  const structuredLlm = googleGemini36FlashT08Key1.withStructuredOutput(schema, { name: "thread_writer", method: "jsonSchema" }).withFallbacks({
+  const structuredLlm = googleGemini37FlashT08Key1.withStructuredOutput(schema, { name: "thread_writer", method: "jsonSchema" }).withFallbacks({
     fallbacks: [
+      googleGemini36FlashT08Key1.withStructuredOutput(schema, { name: "thread_writer", method: "jsonSchema" }),
       googleGemini35FlashT08Key1.withStructuredOutput(schema, { name: "thread_writer", method: "jsonSchema" }),
       deepSeekV4ProT085ReasoningNone.withStructuredOutput(schema, { name: "thread_writer", method: "jsonMode" }),
       openAiGpt54T08Penalty04Timeout30k.withStructuredOutput(schema, { name: "thread_writer", method: "jsonSchema" }),
@@ -230,8 +239,9 @@ export const ViralityCriticNode = async (state: TopicThreadFactoryStateType, con
     }))
   });
 
-  const structuredLlm = googleGemini36FlashT00Key1.withStructuredOutput(schema, { name: "virality_critic", method: "jsonSchema" }).withFallbacks({
+  const structuredLlm = googleGemini37FlashT00Key1.withStructuredOutput(schema, { name: "virality_critic", method: "jsonSchema" }).withFallbacks({
     fallbacks: [
+      googleGemini36FlashT00Key1.withStructuredOutput(schema, { name: "virality_critic", method: "jsonSchema" }),
       googleGemini35FlashT00Key1.withStructuredOutput(schema, { name: "virality_critic", method: "jsonSchema" }),
       deepSeekV4ProT00ReasoningHigh.withStructuredOutput(schema, { name: "virality_critic", method: "jsonMode" }),
       openAiGpt54MiniT00Timeout25k.withStructuredOutput(schema, { name: "virality_critic", method: "jsonSchema" }),

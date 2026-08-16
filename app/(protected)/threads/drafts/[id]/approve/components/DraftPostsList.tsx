@@ -206,7 +206,7 @@ export function DraftPostsList({
               )}
             </div>
             
-            {postCritique?.critique?.trim() && !isEditingPosts && (
+            {postCritique?.critique?.trim() && (
               <div className="mt-4 p-4.5 rounded-xl bg-amber-500/5 border border-amber-500/20 text-amber-800 dark:text-amber-300 text-xs">
                 <span className="font-bold flex items-center gap-1.5 mb-1.5 text-amber-900 dark:text-amber-400">
                   <Sparkles className="w-3.5 h-3.5 text-amber-500" />

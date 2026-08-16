@@ -7,13 +7,13 @@ import { providerStrategy } from "langchain";
 import {
   googleGemini36FlashT00Key1, googleGemini35FlashT00Key1, openAiGpt54MiniT00Timeout25k, googleGemini3FlashPreviewT00Key1, googleGemini3FlashPreviewT00Key2,
   googleGemini31FlashLiteT08Key1, googleGemini31FlashLiteT08Key2, openAiGpt54MiniT08Timeout20k,
-  googleGemini31FlashLiteT01Key1Max2k, googleGemini31FlashLiteT01Key2Max2k, openAiGpt54MiniT01Max2kTimeout45k,
+  googleGemini31FlashLiteT01Key1Max3k, googleGemini31FlashLiteT01Key2Max3k, openAiGpt54MiniT01Max2kTimeout45k,
   googleGemini36FlashT08Key1, googleGemini35FlashT08Key1, deepSeekV4ProT085ReasoningNone, deepSeekV4ProT00ReasoningHigh, openAiGpt54T08Penalty04Timeout30k, googleGemini3FlashPreviewT08Key1, googleGemini3FlashPreviewT08Key2,
-  googleGemini31FlashLiteT02Key1Max2k, googleGemini31FlashLiteT02Key2Max2k, openAiGpt54MiniT02Max2kTimeout45k,
+  googleGemini31FlashLiteT02Key1Max3k, googleGemini31FlashLiteT02Key2Max3k, openAiGpt54MiniT02Max2kTimeout45k,
   googleGemini37FlashT08Key1, googleGemini37FlashT00Key1,
-  googleGemini35FlashLiteT01Key1Max2k, googleGemini35FlashLiteT01Key2Max2k,
+  googleGemini35FlashLiteT01Key1Max3k, googleGemini35FlashLiteT01Key2Max3k,
   googleGemini35FlashLiteT08Key1, googleGemini35FlashLiteT08Key2,
-  googleGemini35FlashLiteT02Key1Max2k, googleGemini35FlashLiteT02Key2Max2k
+  googleGemini35FlashLiteT02Key1Max3k, googleGemini35FlashLiteT02Key2Max3k
 } from "../models.js";
 import {
   TOPIC_RESEARCH_ORCHESTRATOR_PROMPT,
@@ -39,7 +39,7 @@ export const ResearchOrchestratorNode = async (state: TopicThreadFactoryStateTyp
   });
 
   const agents = buildAgents(
-    [googleGemini35FlashLiteT02Key1Max2k, googleGemini35FlashLiteT02Key2Max2k, googleGemini31FlashLiteT02Key1Max2k, googleGemini31FlashLiteT02Key2Max2k, openAiGpt54MiniT02Max2kTimeout45k],
+    [googleGemini35FlashLiteT02Key1Max3k, googleGemini35FlashLiteT02Key2Max3k, googleGemini31FlashLiteT02Key1Max3k, googleGemini31FlashLiteT02Key2Max3k, openAiGpt54MiniT02Max2kTimeout45k],
     {
       tools: [DuckDuckGoSearchTool, TavilySearchTool],
       systemPrompt: TOPIC_RESEARCH_ORCHESTRATOR_PROMPT,
@@ -112,11 +112,11 @@ export const DeepPageScraperNode = async (state: TopicThreadFactoryStateType, co
     research_dossier: z.string().min(1, "Must append to dossier")
   });
 
-  const structuredLlm = googleGemini35FlashLiteT01Key1Max2k.withStructuredOutput(schema, { name: "deep_scraper", method: "jsonSchema" }).withFallbacks({
+  const structuredLlm = googleGemini35FlashLiteT01Key1Max3k.withStructuredOutput(schema, { name: "deep_scraper", method: "jsonSchema" }).withFallbacks({
     fallbacks: [
-      googleGemini35FlashLiteT01Key2Max2k.withStructuredOutput(schema, { name: "deep_scraper", method: "jsonSchema" }),
-      googleGemini31FlashLiteT01Key1Max2k.withStructuredOutput(schema, { name: "deep_scraper", method: "jsonSchema" }),
-      googleGemini31FlashLiteT01Key2Max2k.withStructuredOutput(schema, { name: "deep_scraper", method: "jsonSchema" }),
+      googleGemini35FlashLiteT01Key2Max3k.withStructuredOutput(schema, { name: "deep_scraper", method: "jsonSchema" }),
+      googleGemini31FlashLiteT01Key1Max3k.withStructuredOutput(schema, { name: "deep_scraper", method: "jsonSchema" }),
+      googleGemini31FlashLiteT01Key2Max3k.withStructuredOutput(schema, { name: "deep_scraper", method: "jsonSchema" }),
       openAiGpt54MiniT01Max2kTimeout45k.withStructuredOutput(schema, { name: "deep_scraper", method: "jsonSchema" })
     ]
   });

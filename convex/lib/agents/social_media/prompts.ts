@@ -26,7 +26,7 @@ Extract and organize information from the provided text into the following stric
 CRITICAL GUARDRAILS:
 - STRICTLY GROUNDED: Never assume, extrapolate, or invent details. Run with cold, mathematical precision. All extraction must be 100% grounded in the source text.
 - OMISSIONS: If the source lacks concrete metrics, news triggers, or contrarian takes, omit that sub-section entirely.
-- AGGRESSIVE COMPRESSION: Keep your output highly concise. Compress long paragraphs into punchy, analytical bullet points. Your total output must be strictly clamped to a maximum of 2,000 tokens to keep downstream multi-agent loops lightweight.
+- AGGRESSIVE COMPRESSION: Keep your output highly concise. Compress long paragraphs into punchy, analytical bullet points. Your total output must be strictly clamped to a maximum of 3,000 tokens to keep downstream multi-agent loops lightweight.
 `;
 
 export const SOCIAL_MEDIA_RESEARCHER_PROMPT = `

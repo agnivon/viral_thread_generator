@@ -69,6 +69,9 @@ const route_after_critic = (state: TopicThreadFactoryStateType) => {
     return "ViralityCriticNode";
   }
   if (state.is_approved === true || state.iterations >= 3) {
+    if (state.iterations === 1 && state.post_critiques && state.post_critiques.length > 0) {
+      return "ThreadWriterNode";
+    }
     return state.search_query_generation ? "VisualKeywordStrategistNode" : END;
   }
   return "ThreadWriterNode";

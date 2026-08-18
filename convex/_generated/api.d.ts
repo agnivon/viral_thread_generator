@@ -50,6 +50,10 @@ import type * as lib_workpool_index from "../lib/workpool/index.js";
 import type * as migrations from "../migrations.js";
 import type * as mutations_threadsMutations from "../mutations/threadsMutations.js";
 import type * as mutations_tokensMutations from "../mutations/tokensMutations.js";
+import type * as notifications from "../notifications.js";
+import type * as notifications_api from "../notifications/api.js";
+import type * as notifications_client from "../notifications/client.js";
+import type * as notifications_onComplete from "../notifications/onComplete.js";
 import type * as queries_threadsQueries from "../queries/threadsQueries.js";
 import type * as queries_tokensQueries from "../queries/tokensQueries.js";
 
@@ -102,6 +106,10 @@ declare const fullApi: ApiFromModules<{
   migrations: typeof migrations;
   "mutations/threadsMutations": typeof mutations_threadsMutations;
   "mutations/tokensMutations": typeof mutations_tokensMutations;
+  notifications: typeof notifications;
+  "notifications/api": typeof notifications_api;
+  "notifications/client": typeof notifications_client;
+  "notifications/onComplete": typeof notifications_onComplete;
   "queries/threadsQueries": typeof queries_threadsQueries;
   "queries/tokensQueries": typeof queries_tokensQueries;
 }>;
@@ -136,4 +144,5 @@ export declare const components: {
   generationPool: import("@convex-dev/workpool/_generated/component.js").ComponentApi<"generationPool">;
   publicationPool: import("@convex-dev/workpool/_generated/component.js").ComponentApi<"publicationPool">;
   migrations: import("@convex-dev/migrations/_generated/component.js").ComponentApi<"migrations">;
+  notification: import("convex-notification/_generated/component.js").ComponentApi<"notification">;
 };

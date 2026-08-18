@@ -1,6 +1,6 @@
 {
   "name": "viral_thread_generator",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "AI-powered viral thread generator built with Next.js 16, Convex, and LangChain",
   "license": "MIT",
   "keywords": [

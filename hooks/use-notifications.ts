@@ -209,6 +209,15 @@ export function useNotifications() {
           document.title = `(${currentCount}) ${originalTitleRef.current || "Viral Thread Generator"}`;
         }
       } else {
+        // Mark as read immediately upon displaying in-app toast when window is visible and in focus
+        void markSeen(item._id);
+
+        const handleToastClick = () => {
+          if (href) {
+            router.push(href);
+          }
+        };
+
         // Display in-app toast when window is active
         if (isSuccess) {
           toast.success(title, {
@@ -216,7 +225,7 @@ export function useNotifications() {
             action: href
               ? {
                   label: "Review",
-                  onClick: handleNotificationClick,
+                  onClick: handleToastClick,
                 }
               : undefined,
           });
@@ -226,7 +235,7 @@ export function useNotifications() {
             action: href
               ? {
                   label: "View",
-                  onClick: handleNotificationClick,
+                  onClick: handleToastClick,
                 }
               : undefined,
           });
@@ -236,7 +245,7 @@ export function useNotifications() {
             action: href
               ? {
                   label: "View",
-                  onClick: handleNotificationClick,
+                  onClick: handleToastClick,
                 }
               : undefined,
           });

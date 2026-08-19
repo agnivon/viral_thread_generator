@@ -605,7 +605,7 @@ export const publishThread = internalAction({
     images: v.optional(v.record(v.string(), v.string())),
     videos: v.optional(v.record(v.string(), v.string())),
   },
-  handler: async (ctx, args): Promise<{ postIds: string[]; threadId: Id<"threadDrafts"> }> => {
+  handler: async (ctx, args): Promise<{ postIds: string[]; threadId: Id<"threadDrafts">; permalink?: string }> => {
     const userId = args.userId;
     console.log(`[publishThread] Action started for state ID: ${args.id}`);
 
@@ -671,14 +671,19 @@ export const publishThread = internalAction({
         postIds.push(replyToId);
       }
 
+      let permalink: string | undefined = undefined;
+      if (postIds.length > 0) {
+        permalink = await threadsApi.getPostPermalink(postIds[0]);
+      }
+
       await ctx.runMutation(internal.mutations.threadsMutations.updateThreadDraft, {
         id: args.id,
         publication_status: "success",
         is_published: true,
       });
 
-      console.log("[publishThread] All posts published successfully. Post IDs:", postIds);
-      return { postIds, threadId: args.id };
+      console.log("[publishThread] All posts published successfully. Post IDs:", postIds, "Permalink:", permalink);
+      return { postIds, threadId: args.id, permalink };
     } catch (e) {
       await ctx.runMutation(internal.mutations.threadsMutations.updateThreadDraft, {
         id: args.id,

@@ -159,7 +159,11 @@ test("onPublicationComplete creates thread_publication_success notification when
     },
     result: {
       kind: "success",
-      returnValue: { postIds: ["post_1", "post_2", "post_3"], threadId },
+      returnValue: {
+        postIds: ["post_1", "post_2", "post_3"],
+        threadId,
+        permalink: "https://www.threads.net/@mockuser/post/post_1",
+      },
     },
   });
 
@@ -173,9 +177,65 @@ test("onPublicationComplete creates thread_publication_success notification when
         title: "Thread Published Successfully",
         body: "Your thread was published to Threads (3 posts).",
         postIds: ["post_1", "post_2", "post_3"],
-        href: `/threads/drafts/${threadId}/approve`,
+        href: "https://www.threads.net/@mockuser/post/post_1",
       },
       dedupeKey: "thread_publication_success:work_pub_1",
+      source: {
+        type: "thread_publication",
+        id: threadId,
+      },
+    })
+  );
+});
+
+test("onPublicationComplete uses canonical Threads shortlink fallback when permalink is absent", async () => {
+  const t = convexTest(schema, modules);
+  const userId = await t.mutation(async (ctx) => {
+    return await ctx.db.insert("users", {});
+  });
+
+  const threadId = await t.mutation(async (ctx) => {
+    return await ctx.db.insert("threadDrafts", {
+      userId,
+      generation_status: "success",
+      is_published: true,
+      publication_status: "success",
+    });
+  });
+
+  const createSpy = vi.spyOn(notifications, "create").mockResolvedValue({
+    created: true,
+    notificationId: "n4_fallback",
+  });
+
+  await t.mutation(internal.notifications.onComplete.onPublicationComplete, {
+    workId: "work_pub_fallback_1" as WorkId,
+    context: {
+      userId,
+      threadId,
+    },
+    result: {
+      kind: "success",
+      returnValue: {
+        postIds: ["post_1", "post_2"],
+        threadId,
+      },
+    },
+  });
+
+  expect(createSpy).toHaveBeenCalledWith(
+    expect.anything(),
+    expect.objectContaining({
+      targetId: userId,
+      kind: "thread_publication_success",
+      data: {
+        threadId,
+        title: "Thread Published Successfully",
+        body: "Your thread was published to Threads (2 posts).",
+        postIds: ["post_1", "post_2"],
+        href: "https://www.threads.net/t/post_1",
+      },
+      dedupeKey: "thread_publication_success:work_pub_fallback_1",
       source: {
         type: "thread_publication",
         id: threadId,

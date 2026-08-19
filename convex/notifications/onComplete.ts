@@ -41,6 +41,19 @@ function getPostIds(returnValue: unknown): string[] | undefined {
   return undefined;
 }
 
+function getPermalink(returnValue: unknown): string | undefined {
+  if (
+    typeof returnValue === "object" &&
+    returnValue !== null &&
+    "permalink" in returnValue &&
+    typeof returnValue.permalink === "string" &&
+    returnValue.permalink.length > 0
+  ) {
+    return returnValue.permalink;
+  }
+  return undefined;
+}
+
 export const onGenerationComplete = internalMutation({
   args: vOnCompleteArgs(generationContextValidator),
   handler: async (ctx, { workId, context, result }) => {
@@ -111,7 +124,14 @@ export const onPublicationComplete = internalMutation({
 
     if (result.kind === "success") {
       const postIds = getPostIds(result.returnValue);
+      const permalink = getPermalink(result.returnValue);
       const count = postIds?.length ?? 1;
+      const hookPostId = postIds?.[0];
+      const href =
+        permalink ??
+        (hookPostId
+          ? `https://www.threads.net/t/${hookPostId}`
+          : `/threads/drafts/${threadId}/approve`);
 
       await notifications.create(ctx, {
         targetId: context.userId,
@@ -121,7 +141,7 @@ export const onPublicationComplete = internalMutation({
           title: "Thread Published Successfully",
           body: `Your thread was published to Threads (${count} ${count === 1 ? "post" : "posts"}).`,
           postIds,
-          href: `/threads/drafts/${threadId}/approve`,
+          href,
         },
         source: {
           type: "thread_publication",

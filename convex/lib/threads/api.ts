@@ -434,6 +434,23 @@ export class ThreadsAPI {
     console.log(`[ThreadsAPI.deletePost] successfully deleted post ID: ${mediaId}`);
     return res;
   }
+
+  /**
+   * Retrieves the public permalink URL of a published Threads post
+   */
+  async getPostPermalink(mediaId: string): Promise<string | undefined> {
+    try {
+      console.log(`[ThreadsAPI.getPostPermalink] fetching permalink for media ID: ${mediaId}...`);
+      const res = await this.request(`${mediaId}?fields=permalink`);
+      if (res && typeof res.permalink === 'string' && res.permalink.length > 0) {
+        console.log(`[ThreadsAPI.getPostPermalink] retrieved permalink: ${res.permalink}`);
+        return res.permalink;
+      }
+    } catch (e: unknown) {
+      console.warn(`[ThreadsAPI.getPostPermalink] could not fetch permalink for ${mediaId}:`, e);
+    }
+    return undefined;
+  }
 }
 
 export class ThreadsAuthAPI {

@@ -233,6 +233,8 @@ test("publishThread action retrieves state and publishes thread of posts sequent
   const createPostSpy = vi.spyOn(ThreadsAPI.prototype, "createPost").mockResolvedValue("post-id-1");
   const createReplySpy = vi.spyOn(ThreadsAPI.prototype, "createReply")
     .mockResolvedValueOnce("post-id-2");
+  const getPermalinkSpy = vi.spyOn(ThreadsAPI.prototype, "getPostPermalink")
+    .mockResolvedValue("https://www.threads.net/@mock/post/post-id-1");
 
   // 4. Run the publishThread action
   const result = await t.action(internal.actions.threadsActions.publishThread, {
@@ -242,12 +244,15 @@ test("publishThread action retrieves state and publishes thread of posts sequent
 
   // 5. Verify results
   expect(result.postIds).toEqual(["post-id-1", "post-id-2"]);
+  expect(result.permalink).toBe("https://www.threads.net/@mock/post/post-id-1");
 
   expect(createPostSpy).toHaveBeenCalledTimes(1);
   expect(createPostSpy).toHaveBeenCalledWith({ text: "Draft 1" });
 
   expect(createReplySpy).toHaveBeenCalledTimes(1);
   expect(createReplySpy).toHaveBeenNthCalledWith(1, "post-id-1", { text: "Draft 2" });
+
+  expect(getPermalinkSpy).toHaveBeenCalledWith("post-id-1");
 });
 
 test("ThreadsAPI createContainer retries on propagation error (auto-publish)", async () => {

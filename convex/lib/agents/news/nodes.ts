@@ -6,14 +6,14 @@ import { z } from "zod";
 import { RunnableConfig } from "@langchain/core/runnables";
 import {
   googleGemini36FlashT00Key1, googleGemini35FlashT00Key1,
-  openAiGpt54MiniT00Timeout25k, googleGemini3FlashPreviewT00Key1, googleGemini3FlashPreviewT00Key2,
-  openAiGpt54MiniT08Timeout20k, openRouterFreeT08,
+  openAiGpt54MiniT00, googleGemini3FlashPreviewT00Key1, googleGemini3FlashPreviewT00Key2,
+  openAiGpt54MiniT08, openRouterFreeT08,
   googleGemini31FlashLiteT08Key1, googleGemini31FlashLiteT08Key2,
-  openAiGpt54MiniT01Max2kTimeout45k,
+  openAiGpt54MiniT01Max2k,
   googleGemini31FlashLiteT01Key1Max3k, googleGemini31FlashLiteT01Key2Max3k,
-  openAiGpt54T08Penalty04Timeout30k, googleGemini3FlashPreviewT08Key1, googleGemini3FlashPreviewT08Key2,
+  openAiGpt54T08Penalty04, googleGemini3FlashPreviewT08Key1, googleGemini3FlashPreviewT08Key2,
   googleGemini36FlashT08Key1, googleGemini35FlashT08Key1, deepSeekV4ProT085ReasoningNone, deepSeekV4ProT00ReasoningHigh,
-  googleGemini31FlashLiteT02Key1Max3k, googleGemini31FlashLiteT02Key2Max3k, openAiGpt54MiniT02Max2kTimeout45k,
+  googleGemini31FlashLiteT02Key1Max3k, googleGemini31FlashLiteT02Key2Max3k, openAiGpt54MiniT02Max2k,
   googleGemini37FlashT08Key1, googleGemini37FlashT00Key1,
   googleGemini35FlashLiteT01Key1Max3k, googleGemini35FlashLiteT01Key2Max3k,
   googleGemini35FlashLiteT08Key1, googleGemini35FlashLiteT08Key2,
@@ -35,8 +35,8 @@ import { buildAgents, invokeWithFallbacks } from "../utils.js";
 export const ScraperNode = async (state: NewsThreadFactoryStateType, config?: RunnableConfig) => {
   const isYoutube = state.url.includes("youtube.com") || state.url.includes("youtu.be");
   const scraperResultStr = isYoutube
-    ? await YoutubeScraperTool.invoke({ url: state.url }, config)
-    : await WebScraperTool.invoke({ url: state.url }, config);
+    ? await YoutubeScraperTool.invoke({ url: state.url }, { ...config, timeout: 60000 })
+    : await WebScraperTool.invoke({ url: state.url }, { ...config, timeout: 60000 });
   let markdown = scraperResultStr;
   let images: string[] = [];
   try {
@@ -47,13 +47,13 @@ export const ScraperNode = async (state: NewsThreadFactoryStateType, config?: Ru
     // Fallback if the tool returned raw string
   }
 
-  const llm = googleGemini35FlashLiteT01Key1Max3k.withFallbacks({ fallbacks: [googleGemini35FlashLiteT01Key2Max3k, googleGemini31FlashLiteT01Key1Max3k, googleGemini31FlashLiteT01Key2Max3k, openAiGpt54MiniT01Max2kTimeout45k] });
+  const llm = googleGemini35FlashLiteT01Key1Max3k.withFallbacks({ fallbacks: [googleGemini35FlashLiteT01Key2Max3k, googleGemini31FlashLiteT01Key1Max3k, googleGemini31FlashLiteT01Key2Max3k, openAiGpt54MiniT01Max2k] });
 
   try {
     const summary = await llm.invoke([
       { role: "system", content: NEWS_SCRAPER_PROMPT },
       { role: "user", content: markdown }
-    ], config);
+    ], { ...config, timeout: 60000 });
     return {
       raw_markdown: summary.content as string,
       images,
@@ -75,7 +75,7 @@ export const ContextResearcherNode = async (state: NewsThreadFactoryStateType, c
   });
 
   const agents = buildAgents(
-    [googleGemini35FlashLiteT02Key1Max3k, googleGemini35FlashLiteT02Key2Max3k, googleGemini31FlashLiteT02Key1Max3k, googleGemini31FlashLiteT02Key2Max3k, openAiGpt54MiniT02Max2kTimeout45k],
+    [googleGemini35FlashLiteT02Key1Max3k, googleGemini35FlashLiteT02Key2Max3k, googleGemini31FlashLiteT02Key1Max3k, googleGemini31FlashLiteT02Key2Max3k, openAiGpt54MiniT02Max2k],
     {
       tools: [BackgroundDossierTool],
       systemPrompt: NEWS_RESEARCHER_PROMPT,
@@ -89,7 +89,7 @@ export const ContextResearcherNode = async (state: NewsThreadFactoryStateType, c
   try {
     result = await invokeWithFallbacks(agents, {
       messages: [{ role: "user", content: `<SOURCE>\n${state.raw_markdown}\n</SOURCE>` }]
-    }, config);
+    }, { ...config, timeout: 60000 });
     parse_success = true;
   } catch (_e) {
     parse_success = false;
@@ -125,7 +125,7 @@ export const HookStrategistNode = async (state: NewsThreadFactoryStateType, conf
   });
 
   const agents = buildAgents(
-    [googleGemini35FlashLiteT08Key1, googleGemini35FlashLiteT08Key2, googleGemini31FlashLiteT08Key1, googleGemini31FlashLiteT08Key2, openAiGpt54MiniT08Timeout20k, openRouterFreeT08],
+    [googleGemini35FlashLiteT08Key1, googleGemini35FlashLiteT08Key2, googleGemini31FlashLiteT08Key1, googleGemini31FlashLiteT08Key2, openAiGpt54MiniT08, openRouterFreeT08],
     {
       systemPrompt: NEWS_HOOK_PROMPT,
       responseFormat: providerStrategy(schema)
@@ -140,7 +140,7 @@ export const HookStrategistNode = async (state: NewsThreadFactoryStateType, conf
     const researchContext = state.research_context ? `\n\n<RESEARCH_CONTEXT>\n${state.research_context}\n</RESEARCH_CONTEXT>` : "";
     result = await invokeWithFallbacks(agents, {
       messages: [{ role: "user", content: `<SOURCE>\n${state.raw_markdown}\n</SOURCE>${researchContext}${guidanceContext}` }]
-    }, config);
+    }, { ...config, timeout: 45000 });
     parse_success = true;
   } catch (_e) {
     parse_success = false;
@@ -174,7 +174,7 @@ export const ThreadWriterNode = async (state: NewsThreadFactoryStateType, config
       googleGemini36FlashT08Key1.withStructuredOutput(schema, { name: "thread_writer", method: "jsonSchema" }),
       googleGemini35FlashT08Key1.withStructuredOutput(schema, { name: "thread_writer", method: "jsonSchema" }),
       deepSeekV4ProT085ReasoningNone.withStructuredOutput(schema, { name: "thread_writer", method: "jsonMode" }),
-      openAiGpt54T08Penalty04Timeout30k.withStructuredOutput(schema, { name: "thread_writer", method: "jsonSchema" }),
+      openAiGpt54T08Penalty04.withStructuredOutput(schema, { name: "thread_writer", method: "jsonSchema" }),
       googleGemini3FlashPreviewT08Key1.withStructuredOutput(schema, { name: "thread_writer", method: "jsonSchema" }),
       googleGemini3FlashPreviewT08Key2.withStructuredOutput(schema, { name: "thread_writer", method: "jsonSchema" })
     ]
@@ -200,7 +200,7 @@ export const ThreadWriterNode = async (state: NewsThreadFactoryStateType, config
     draft = await structuredLlm.invoke([
       { role: "system", content: NEWS_WRITER_PROMPT },
       { role: "user", content: `<HOOK>\n${state.selected_hook}\n</HOOK>\n\n<SOURCE>\n${state.raw_markdown}\n</SOURCE>${researchContext}${previousDraftContext}${critiqueContext}${postCritiquesContext}${charCritiqueContext}${guidanceContext}` }
-    ], { ...config, timeout: 300000 });
+    ], { ...config, timeout: 180000 });
     if (!draft || !draft.thread_draft) parse_success = false;
   } catch (_e) {
     parse_success = false;
@@ -214,7 +214,7 @@ export const ThreadWriterNode = async (state: NewsThreadFactoryStateType, config
 };
 
 export const CharacterValidatorNode = async (state: NewsThreadFactoryStateType, config?: RunnableConfig) => {
-  const validationStr = await CharacterValidatorTool.invoke({ thread_draft: state.thread_draft }, config);
+  const validationStr = await CharacterValidatorTool.invoke({ thread_draft: state.thread_draft }, { ...config, timeout: 60000 });
   const validation = JSON.parse(validationStr);
 
   if (!validation.isValid) {
@@ -246,7 +246,7 @@ export const ViralityCriticNode = async (state: NewsThreadFactoryStateType, conf
       googleGemini37FlashT00Key1,
       googleGemini36FlashT00Key1, googleGemini35FlashT00Key1,
       deepSeekV4ProT00ReasoningHigh,
-      openAiGpt54MiniT00Timeout25k,
+      openAiGpt54MiniT00,
       googleGemini3FlashPreviewT00Key1, googleGemini3FlashPreviewT00Key2
     ],
     {
@@ -266,7 +266,7 @@ export const ViralityCriticNode = async (state: NewsThreadFactoryStateType, conf
       messages: [
         { role: "user", content: `<CURRENT_ITERATION_ATTEMPT>\n${state.iterations + 1}\n</CURRENT_ITERATION_ATTEMPT>\n\n<SOURCE_MATERIAL>\n${state.raw_markdown}\n</SOURCE_MATERIAL>${researchContext}\n\n<THREAD>\n${JSON.stringify(state.thread_draft, null, 2)}\n</THREAD>${guidanceContext}` }
       ]
-    }, { ...config, timeout: 300000 });
+    }, { ...config, timeout: 120000 });
     parse_success = true;
   } catch (_e) {
     parse_success = false;

@@ -1,6 +1,6 @@
 /// <reference types="vite/client" />
 import { expect, test, vi, describe, afterEach } from "vitest";
-import { showDesktopNotification, AppNotificationItem } from "./use-notifications";
+import { showDesktopNotification, AppNotificationItem, isExternalUrl } from "./use-notifications";
 
 interface MockNotificationInstance {
   title: string;
@@ -8,6 +8,21 @@ interface MockNotificationInstance {
   close: () => void;
   onclick?: () => void;
 }
+
+describe("isExternalUrl", () => {
+  test("returns true for http and https urls", () => {
+    expect(isExternalUrl("https://threads.net/@user/post/123")).toBe(true);
+    expect(isExternalUrl("http://example.com")).toBe(true);
+    expect(isExternalUrl("//example.com/path")).toBe(true);
+  });
+
+  test("returns false for internal relative routes or empty values", () => {
+    expect(isExternalUrl("/threads/drafts/123/approve")).toBe(false);
+    expect(isExternalUrl("/dashboard")).toBe(false);
+    expect(isExternalUrl("")).toBe(false);
+    expect(isExternalUrl(undefined)).toBe(false);
+  });
+});
 
 describe("showDesktopNotification", () => {
   const originalWindow = globalThis.window;

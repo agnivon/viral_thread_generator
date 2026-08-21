@@ -20,7 +20,7 @@ import {
   PopoverContent,
 } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
-import { useNotifications, AppNotificationItem } from "@/hooks/use-notifications";
+import { useNotifications, AppNotificationItem, isExternalUrl } from "@/hooks/use-notifications";
 import { cn } from "@/lib/utils";
 
 function formatRelativeTime(timestamp: number): string {
@@ -105,8 +105,12 @@ export function NotificationCenter() {
       void markSeen(item._id);
     }
     if (item.data.href) {
-      setIsOpen(false);
-      router.push(item.data.href);
+      if (isExternalUrl(item.data.href)) {
+        window.open(item.data.href, "_blank", "noopener,noreferrer");
+      } else {
+        setIsOpen(false);
+        router.push(item.data.href);
+      }
     }
   };
 

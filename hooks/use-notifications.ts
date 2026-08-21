@@ -29,6 +29,11 @@ export interface AppNotificationItem {
   dismissedAt?: number;
 }
 
+export function isExternalUrl(url?: string): boolean {
+  if (!url) return false;
+  return url.startsWith("http://") || url.startsWith("https://") || url.startsWith("//");
+}
+
 export function showDesktopNotification(
   notification: AppNotificationItem,
   onClickAction?: () => void
@@ -194,7 +199,11 @@ export function useNotifications() {
 
       const handleNotificationClick = () => {
         if (href) {
-          router.push(href);
+          if (isExternalUrl(href)) {
+            window.open(href, "_blank", "noopener,noreferrer");
+          } else {
+            router.push(href);
+          }
         }
         void markSeen(item._id);
       };
@@ -214,7 +223,11 @@ export function useNotifications() {
 
         const handleToastClick = () => {
           if (href) {
-            router.push(href);
+            if (isExternalUrl(href)) {
+              window.open(href, "_blank", "noopener,noreferrer");
+            } else {
+              router.push(href);
+            }
           }
         };
 

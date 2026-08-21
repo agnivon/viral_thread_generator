@@ -7,7 +7,7 @@ import { VISUAL_KEYWORD_STRATEGIST_PROMPT, SEARCH_QUERY_OPTIMIZER_PROMPT } from 
 import { 
   googleGemini31FlashLiteT02Key1Max3k, 
   googleGemini31FlashLiteT02Key2Max3k, 
-  openAiGpt54MiniT02Max2kTimeout45k,
+  openAiGpt54MiniT02Max2k,
   googleGemini31FlashLiteT01Key1Max3k,
   googleGemini31FlashLiteT01Key2Max3k,
   openRouterFreeT01
@@ -35,7 +35,7 @@ export const VisualKeywordStrategistNode = async (
     [
       googleGemini31FlashLiteT02Key1Max3k, 
       googleGemini31FlashLiteT02Key2Max3k, 
-      openAiGpt54MiniT02Max2kTimeout45k
+      openAiGpt54MiniT02Max2k
     ],
     {
       systemPrompt: VISUAL_KEYWORD_STRATEGIST_PROMPT,
@@ -49,7 +49,7 @@ export const VisualKeywordStrategistNode = async (
   try {
     result = await invokeWithFallbacks(agents, {
       messages: [{ role: "user", content: `<THREAD_DRAFT>\n${state.thread_draft.join("\n\n")}\n</THREAD_DRAFT>` }]
-    }, config);
+    }, { ...config, timeout: 45000 });
     parse_success = true;
   } catch (_e) {
     parse_success = false;
@@ -107,7 +107,7 @@ export const SearchQueryOptimizerNode = async (
   try {
     result = await invokeWithFallbacks(agents, {
       messages: [{ role: "user", content: content }]
-    }, config);
+    }, { ...config, timeout: 45000 });
     parse_success = true;
   } catch (_e) {
     parse_success = false;

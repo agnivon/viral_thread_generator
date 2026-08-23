@@ -32,21 +32,27 @@ import {
 } from "./tools.js";
 import { buildAgents, invokeWithFallbacks } from "../utils.js";
 
+const topicResearchOrchestratorSchema = z.object({
+  research_dossier: z.string().min(1, "Must generate research dossier"),
+  urls_to_scrape: z.array(z.string()).optional()
+});
+
+const topicResearchOrchestratorAgents = buildAgents(
+  [
+    googleGemini35FlashLiteT02Key1Max3k,
+    googleGemini35FlashLiteT02Key2Max3k,
+    googleGemini31FlashLiteT02Key1Max3k,
+    googleGemini31FlashLiteT02Key2Max3k,
+    openAiGpt54MiniT02Max2k
+  ],
+  {
+    tools: [DuckDuckGoSearchTool, TavilySearchTool],
+    systemPrompt: TOPIC_RESEARCH_ORCHESTRATOR_PROMPT,
+    responseFormat: providerStrategy(topicResearchOrchestratorSchema)
+  }
+);
+
 export const ResearchOrchestratorNode = async (state: TopicThreadFactoryStateType, config?: RunnableConfig) => {
-  const schema = z.object({
-    research_dossier: z.string().min(1, "Must generate research dossier"),
-    urls_to_scrape: z.array(z.string()).optional()
-  });
-
-  const agents = buildAgents(
-    [googleGemini35FlashLiteT02Key1Max3k, googleGemini35FlashLiteT02Key2Max3k, googleGemini31FlashLiteT02Key1Max3k, googleGemini31FlashLiteT02Key2Max3k, openAiGpt54MiniT02Max2k],
-    {
-      tools: [DuckDuckGoSearchTool, TavilySearchTool],
-      systemPrompt: TOPIC_RESEARCH_ORCHESTRATOR_PROMPT,
-      responseFormat: providerStrategy(schema)
-    }
-  );
-
   let result;
   let parse_success = false;
 
@@ -54,7 +60,7 @@ export const ResearchOrchestratorNode = async (state: TopicThreadFactoryStateTyp
     const guidanceContext = state.guidance ? `\n\n<ADDITIONAL_GUIDANCE>\n${state.guidance}\n</ADDITIONAL_GUIDANCE>` : "";
     const descriptionContext = state.description ? `\n\n<DESCRIPTION>\n${state.description}\n</DESCRIPTION>` : "";
 
-    result = await invokeWithFallbacks(agents, {
+    result = await invokeWithFallbacks(topicResearchOrchestratorAgents, {
       messages: [{ role: "user", content: `<TOPIC>\n${state.topic}\n</TOPIC>${descriptionContext}${guidanceContext}` }]
     }, config);
     parse_success = true;
@@ -79,6 +85,19 @@ export const ResearchOrchestratorNode = async (state: TopicThreadFactoryStateTyp
     retries: { ...(state.retries || {}), orchestrator: (state.retries?.orchestrator || 0) + 1 }
   };
 };
+
+const topicDeepScraperSchema = z.object({
+  research_dossier: z.string().min(1, "Must append to dossier")
+});
+
+const topicDeepScraperLlm = googleGemini35FlashLiteT01Key1Max3k.withStructuredOutput(topicDeepScraperSchema, { name: "deep_scraper", method: "jsonSchema" }).withFallbacks({
+  fallbacks: [
+    googleGemini35FlashLiteT01Key2Max3k.withStructuredOutput(topicDeepScraperSchema, { name: "deep_scraper", method: "jsonSchema" }),
+    googleGemini31FlashLiteT01Key1Max3k.withStructuredOutput(topicDeepScraperSchema, { name: "deep_scraper", method: "jsonSchema" }),
+    googleGemini31FlashLiteT01Key2Max3k.withStructuredOutput(topicDeepScraperSchema, { name: "deep_scraper", method: "jsonSchema" }),
+    openAiGpt54MiniT01Max2k.withStructuredOutput(topicDeepScraperSchema, { name: "deep_scraper", method: "jsonSchema" })
+  ]
+});
 
 export const DeepPageScraperNode = async (state: TopicThreadFactoryStateType, config?: RunnableConfig) => {
   if (!state.urls_to_scrape || state.urls_to_scrape.length === 0) {
@@ -108,24 +127,11 @@ export const DeepPageScraperNode = async (state: TopicThreadFactoryStateType, co
   scrapeResult = results.map(r => r.text).join("---\n");
   const allImages = results.flatMap(r => r.images).filter(Boolean);
 
-  const schema = z.object({
-    research_dossier: z.string().min(1, "Must append to dossier")
-  });
-
-  const structuredLlm = googleGemini35FlashLiteT01Key1Max3k.withStructuredOutput(schema, { name: "deep_scraper", method: "jsonSchema" }).withFallbacks({
-    fallbacks: [
-      googleGemini35FlashLiteT01Key2Max3k.withStructuredOutput(schema, { name: "deep_scraper", method: "jsonSchema" }),
-      googleGemini31FlashLiteT01Key1Max3k.withStructuredOutput(schema, { name: "deep_scraper", method: "jsonSchema" }),
-      googleGemini31FlashLiteT01Key2Max3k.withStructuredOutput(schema, { name: "deep_scraper", method: "jsonSchema" }),
-      openAiGpt54MiniT01Max2k.withStructuredOutput(schema, { name: "deep_scraper", method: "jsonSchema" })
-    ]
-  });
-
   let result;
   let parse_success = true;
 
   try {
-    result = await structuredLlm.invoke([
+    result = await topicDeepScraperLlm.invoke([
       { role: "system", content: TOPIC_DEEP_PAGE_SCRAPER_PROMPT },
       { role: "user", content: `<CURRENT_DOSSIER>\n${state.research_dossier}\n</CURRENT_DOSSIER>\n\n<SCRAPED_CONTENT>\n${scrapeResult}\n</SCRAPED_CONTENT>` }
     ], { ...config, timeout: 60000 });
@@ -142,27 +148,27 @@ export const DeepPageScraperNode = async (state: TopicThreadFactoryStateType, co
   };
 };
 
+const topicHookStrategistSchema = z.object({
+  core_hooks: z.array(z.string()),
+  selected_hook: z.string()
+});
+
+const topicHookStrategistLlm = googleGemini35FlashLiteT08Key1.withStructuredOutput(topicHookStrategistSchema, { name: "hook_strategist", method: "jsonSchema" }).withFallbacks({
+  fallbacks: [
+    googleGemini35FlashLiteT08Key2.withStructuredOutput(topicHookStrategistSchema, { name: "hook_strategist", method: "jsonSchema" }),
+    googleGemini31FlashLiteT08Key1.withStructuredOutput(topicHookStrategistSchema, { name: "hook_strategist", method: "jsonSchema" }),
+    googleGemini31FlashLiteT08Key2.withStructuredOutput(topicHookStrategistSchema, { name: "hook_strategist", method: "jsonSchema" }),
+    openAiGpt54MiniT08.withStructuredOutput(topicHookStrategistSchema, { name: "hook_strategist", method: "jsonSchema" })
+  ]
+});
+
 export const HookStrategistNode = async (state: TopicThreadFactoryStateType, config?: RunnableConfig) => {
-  const schema = z.object({
-    core_hooks: z.array(z.string()),
-    selected_hook: z.string()
-  });
-
-  const structuredLlm = googleGemini35FlashLiteT08Key1.withStructuredOutput(schema, { name: "hook_strategist", method: "jsonSchema" }).withFallbacks({
-    fallbacks: [
-      googleGemini35FlashLiteT08Key2.withStructuredOutput(schema, { name: "hook_strategist", method: "jsonSchema" }),
-      googleGemini31FlashLiteT08Key1.withStructuredOutput(schema, { name: "hook_strategist", method: "jsonSchema" }),
-      googleGemini31FlashLiteT08Key2.withStructuredOutput(schema, { name: "hook_strategist", method: "jsonSchema" }),
-      openAiGpt54MiniT08.withStructuredOutput(schema, { name: "hook_strategist", method: "jsonSchema" })
-    ]
-  });
-
   let result;
   let parse_success = true;
 
   try {
     const guidanceContext = state.guidance ? `\n\n<ADDITIONAL_GUIDANCE>\n${state.guidance}\n</ADDITIONAL_GUIDANCE>` : "";
-    result = await structuredLlm.invoke([
+    result = await topicHookStrategistLlm.invoke([
       { role: "system", content: TOPIC_HOOK_STRATEGIST_PROMPT },
       { role: "user", content: `<DOSSIER>\n${state.research_dossier}\n</DOSSIER>${guidanceContext}` }
     ], { ...config, timeout: 45000 });
@@ -179,22 +185,22 @@ export const HookStrategistNode = async (state: TopicThreadFactoryStateType, con
   };
 };
 
+const topicThreadWriterSchema = z.object({
+  thread_draft: z.array(z.string())
+});
+
+const topicThreadWriterLlm = googleGemini37FlashT08Key1.withStructuredOutput(topicThreadWriterSchema, { name: "thread_writer", method: "jsonSchema" }).withFallbacks({
+  fallbacks: [
+    googleGemini36FlashT08Key1.withStructuredOutput(topicThreadWriterSchema, { name: "thread_writer", method: "jsonSchema" }),
+    googleGemini35FlashT08Key1.withStructuredOutput(topicThreadWriterSchema, { name: "thread_writer", method: "jsonSchema" }),
+    deepSeekV4ProT085ReasoningNone.withStructuredOutput(topicThreadWriterSchema, { name: "thread_writer", method: "jsonMode" }),
+    openAiGpt54T08Penalty04.withStructuredOutput(topicThreadWriterSchema, { name: "thread_writer", method: "jsonSchema" }),
+    googleGemini3FlashPreviewT08Key1.withStructuredOutput(topicThreadWriterSchema, { name: "thread_writer", method: "jsonSchema" }),
+    googleGemini3FlashPreviewT08Key2.withStructuredOutput(topicThreadWriterSchema, { name: "thread_writer", method: "jsonSchema" })
+  ]
+});
+
 export const ThreadWriterNode = async (state: TopicThreadFactoryStateType, config?: RunnableConfig) => {
-  const schema = z.object({
-    thread_draft: z.array(z.string())
-  });
-
-  const structuredLlm = googleGemini37FlashT08Key1.withStructuredOutput(schema, { name: "thread_writer", method: "jsonSchema" }).withFallbacks({
-    fallbacks: [
-      googleGemini36FlashT08Key1.withStructuredOutput(schema, { name: "thread_writer", method: "jsonSchema" }),
-      googleGemini35FlashT08Key1.withStructuredOutput(schema, { name: "thread_writer", method: "jsonSchema" }),
-      deepSeekV4ProT085ReasoningNone.withStructuredOutput(schema, { name: "thread_writer", method: "jsonMode" }),
-      openAiGpt54T08Penalty04.withStructuredOutput(schema, { name: "thread_writer", method: "jsonSchema" }),
-      googleGemini3FlashPreviewT08Key1.withStructuredOutput(schema, { name: "thread_writer", method: "jsonSchema" }),
-      googleGemini3FlashPreviewT08Key2.withStructuredOutput(schema, { name: "thread_writer", method: "jsonSchema" })
-    ]
-  });
-
   let result;
   let parse_success = true;
 
@@ -212,7 +218,7 @@ export const ThreadWriterNode = async (state: TopicThreadFactoryStateType, confi
       critiqueContext = `\n\n<CURRENT_DRAFT>\n${JSON.stringify(state.thread_draft, null, 2)}\n</CURRENT_DRAFT>\n\n<CRITIQUES>\n${critiqueStr}\n</CRITIQUES>`;
     }
 
-    result = await structuredLlm.invoke([
+    result = await topicThreadWriterLlm.invoke([
       { role: "system", content: TOPIC_THREAD_WRITER_PROMPT },
       { role: "user", content: `<HOOK>\n${state.selected_hook}\n</HOOK>\n<DOSSIER>\n${state.research_dossier}\n</DOSSIER>${guidanceContext}${critiqueContext}` }
     ], { ...config, timeout: 180000 });
@@ -228,34 +234,34 @@ export const ThreadWriterNode = async (state: TopicThreadFactoryStateType, confi
   };
 };
 
+const topicViralityCriticSchema = z.object({
+  virality_score: z.number(),
+  critique: z.string().optional(),
+  post_critiques: z.array(z.object({
+    post_index: z.number(),
+    critique: z.string(),
+    fix_directive: z.string().optional()
+  }))
+});
+
+const topicViralityCriticLlm = googleGemini37FlashT00Key1.withStructuredOutput(topicViralityCriticSchema, { name: "virality_critic", method: "jsonSchema" }).withFallbacks({
+  fallbacks: [
+    googleGemini36FlashT00Key1.withStructuredOutput(topicViralityCriticSchema, { name: "virality_critic", method: "jsonSchema" }),
+    googleGemini35FlashT00Key1.withStructuredOutput(topicViralityCriticSchema, { name: "virality_critic", method: "jsonSchema" }),
+    deepSeekV4ProT00ReasoningHigh.withStructuredOutput(topicViralityCriticSchema, { name: "virality_critic", method: "jsonMode" }),
+    openAiGpt54MiniT00.withStructuredOutput(topicViralityCriticSchema, { name: "virality_critic", method: "jsonSchema" }),
+    googleGemini3FlashPreviewT00Key1.withStructuredOutput(topicViralityCriticSchema, { name: "virality_critic", method: "jsonSchema" }),
+    googleGemini3FlashPreviewT00Key2.withStructuredOutput(topicViralityCriticSchema, { name: "virality_critic", method: "jsonSchema" })
+  ]
+});
+
 export const ViralityCriticNode = async (state: TopicThreadFactoryStateType, config?: RunnableConfig) => {
-  const schema = z.object({
-    virality_score: z.number(),
-    critique: z.string().optional(),
-    post_critiques: z.array(z.object({
-      post_index: z.number(),
-      critique: z.string(),
-      fix_directive: z.string().optional()
-    }))
-  });
-
-  const structuredLlm = googleGemini37FlashT00Key1.withStructuredOutput(schema, { name: "virality_critic", method: "jsonSchema" }).withFallbacks({
-    fallbacks: [
-      googleGemini36FlashT00Key1.withStructuredOutput(schema, { name: "virality_critic", method: "jsonSchema" }),
-      googleGemini35FlashT00Key1.withStructuredOutput(schema, { name: "virality_critic", method: "jsonSchema" }),
-      deepSeekV4ProT00ReasoningHigh.withStructuredOutput(schema, { name: "virality_critic", method: "jsonMode" }),
-      openAiGpt54MiniT00.withStructuredOutput(schema, { name: "virality_critic", method: "jsonSchema" }),
-      googleGemini3FlashPreviewT00Key1.withStructuredOutput(schema, { name: "virality_critic", method: "jsonSchema" }),
-      googleGemini3FlashPreviewT00Key2.withStructuredOutput(schema, { name: "virality_critic", method: "jsonSchema" })
-    ]
-  });
-
   let result;
   let parse_success = true;
 
   try {
     const guidanceContext = state.guidance ? `\n\n<ADDITIONAL_GUIDANCE>\n${state.guidance}\n</ADDITIONAL_GUIDANCE>` : "";
-    result = await structuredLlm.invoke([
+    result = await topicViralityCriticLlm.invoke([
       { role: "system", content: TOPIC_VIRALITY_CRITIC_PROMPT },
       { role: "user", content: `<THREAD>\n${JSON.stringify(state.thread_draft, null, 2)}\n</THREAD>${guidanceContext}` }
     ], { ...config, timeout: 120000 });

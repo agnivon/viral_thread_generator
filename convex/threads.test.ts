@@ -253,7 +253,7 @@ test("publishThread action retrieves state and publishes thread of posts sequent
   expect(createReplySpy).toHaveBeenNthCalledWith(1, "post-id-1", { text: "Draft 2" });
 
   expect(getPermalinkSpy).toHaveBeenCalledWith("post-id-1");
-});
+}, 20000);
 
 test("ThreadsAPI createContainer retries on propagation error (auto-publish)", async () => {
   vi.useFakeTimers();

@@ -27,27 +27,27 @@ export const SearchQueriesSchema = z.object({
 
 export type SearchQueriesType = z.infer<typeof SearchQueriesSchema>;
 
+export const visualKeywordStrategistAgents = buildAgents(
+  [
+    googleGemini31FlashLiteT02Key1Max3k, 
+    googleGemini31FlashLiteT02Key2Max3k, 
+    openAiGpt54MiniT02Max2k
+  ],
+  {
+    systemPrompt: VISUAL_KEYWORD_STRATEGIST_PROMPT,
+    responseFormat: providerStrategy(SearchQueriesSchema)
+  }
+);
+
 export const VisualKeywordStrategistNode = async (
   state: { thread_draft: string[] },
   config?: RunnableConfig
 ) => {
-  const agents = buildAgents(
-    [
-      googleGemini31FlashLiteT02Key1Max3k, 
-      googleGemini31FlashLiteT02Key2Max3k, 
-      openAiGpt54MiniT02Max2k
-    ],
-    {
-      systemPrompt: VISUAL_KEYWORD_STRATEGIST_PROMPT,
-      responseFormat: providerStrategy(SearchQueriesSchema)
-    }
-  );
-
   let result;
   let parse_success = false;
 
   try {
-    result = await invokeWithFallbacks(agents, {
+    result = await invokeWithFallbacks(visualKeywordStrategistAgents, {
       messages: [{ role: "user", content: `<THREAD_DRAFT>\n${state.thread_draft.join("\n\n")}\n</THREAD_DRAFT>` }]
     }, { ...config, timeout: 45000 });
     parse_success = true;
@@ -73,6 +73,18 @@ export const OptimizedSearchQuerySchema = z.object({
 
 export type OptimizedSearchQueryType = z.infer<typeof OptimizedSearchQuerySchema>;
 
+export const searchQueryOptimizerAgents = buildAgents(
+  [
+    googleGemini31FlashLiteT01Key1Max3k,
+    googleGemini31FlashLiteT01Key2Max3k,
+    openRouterFreeT01
+  ],
+  {
+    systemPrompt: SEARCH_QUERY_OPTIMIZER_PROMPT,
+    responseFormat: providerStrategy(OptimizedSearchQuerySchema)
+  }
+);
+
 export const SearchQueryOptimizerNode = async (
   state: { 
     keyword: string, 
@@ -82,18 +94,6 @@ export const SearchQueryOptimizerNode = async (
   },
   config?: RunnableConfig
 ) => {
-  const agents = buildAgents(
-    [
-      googleGemini31FlashLiteT01Key1Max3k,
-      googleGemini31FlashLiteT01Key2Max3k,
-      openRouterFreeT01
-    ],
-    {
-      systemPrompt: SEARCH_QUERY_OPTIMIZER_PROMPT,
-      responseFormat: providerStrategy(OptimizedSearchQuerySchema)
-    }
-  );
-
   let result;
   let parse_success = false;
 
@@ -105,7 +105,7 @@ export const SearchQueryOptimizerNode = async (
   ].join("\n");
 
   try {
-    result = await invokeWithFallbacks(agents, {
+    result = await invokeWithFallbacks(searchQueryOptimizerAgents, {
       messages: [{ role: "user", content: content }]
     }, { ...config, timeout: 45000 });
     parse_success = true;

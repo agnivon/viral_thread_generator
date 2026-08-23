@@ -21,7 +21,7 @@ test("VisualKeywordStrategistNode - extracts search queries on successful LLM re
 
   vi.spyOn(agentUtils, "invokeWithFallbacks").mockResolvedValue({
     structuredResponse: mockStructuredResponse,
-  } as any);
+  });
 
   const result = await VisualKeywordStrategistNode({
     thread_draft: ["Hook post about AI coding", "Body post explaining AST parsing"],
@@ -47,7 +47,7 @@ test("SearchQueryOptimizerNode - optimizes boolean search query on successful LL
 
   vi.spyOn(agentUtils, "invokeWithFallbacks").mockResolvedValue({
     structuredResponse: mockStructuredResponse,
-  } as any);
+  });
 
   const result = await SearchQueryOptimizerNode({
     keyword: "AI agents",

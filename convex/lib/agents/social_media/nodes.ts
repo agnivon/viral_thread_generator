@@ -30,12 +30,20 @@ import { SocialMediaThreadFactoryStateType } from "./state.js";
 import { CharacterValidatorTool } from "../tools.js";
 import {
   ContentAuthenticityCheckerTool,
-  TopicContextExpanderTool,
   WebScraperTool,
   BackgroundDossierTool
 } from "./tools.js";
 import { buildAgents, invokeWithFallbacks } from "../utils.js";
 
+
+const socialMediaScraperLlm = googleGemini35FlashLiteT01Key1Max3k.withFallbacks({
+  fallbacks: [
+    googleGemini35FlashLiteT01Key2Max3k,
+    googleGemini31FlashLiteT01Key1Max3k,
+    googleGemini31FlashLiteT01Key2Max3k,
+    openAiGpt54MiniT01Max2k
+  ]
+});
 
 export const PostScraperNode = async (state: SocialMediaThreadFactoryStateType, config?: RunnableConfig) => {
   const scraperResultStr = await WebScraperTool.invoke({ url: state.url }, { ...config, timeout: 60000 });
@@ -49,10 +57,8 @@ export const PostScraperNode = async (state: SocialMediaThreadFactoryStateType, 
     // Fallback if the tool returned raw string
   }
 
-  const llm = googleGemini35FlashLiteT01Key1Max3k.withFallbacks({ fallbacks: [googleGemini35FlashLiteT01Key2Max3k, googleGemini31FlashLiteT01Key1Max3k, googleGemini31FlashLiteT01Key2Max3k, openAiGpt54MiniT01Max2k] });
-
   try {
-    const summary = await llm.invoke([
+    const summary = await socialMediaScraperLlm.invoke([
       { role: "system", content: SOCIAL_MEDIA_SCRAPER_PROMPT },
       { role: "user", content: markdown }
     ], { ...config, timeout: 60000 });
@@ -71,25 +77,31 @@ export const PostScraperNode = async (state: SocialMediaThreadFactoryStateType, 
   }
 };
 
+const socialMediaResearcherSchema = z.object({
+  research_context: z.string().min(1, "Must generate research context")
+});
+
+const socialMediaContextResearcherAgents = buildAgents(
+  [
+    googleGemini35FlashLiteT02Key1Max3k,
+    googleGemini35FlashLiteT02Key2Max3k,
+    googleGemini31FlashLiteT02Key1Max3k,
+    googleGemini31FlashLiteT02Key2Max3k,
+    openAiGpt54MiniT02Max2k
+  ],
+  {
+    tools: [BackgroundDossierTool],
+    systemPrompt: SOCIAL_MEDIA_RESEARCHER_PROMPT,
+    responseFormat: providerStrategy(socialMediaResearcherSchema)
+  }
+);
+
 export const ContextResearcherNode = async (state: SocialMediaThreadFactoryStateType, config?: RunnableConfig) => {
-  const schema = z.object({
-    research_context: z.string().min(1, "Must generate research context")
-  });
-
-  const agents = buildAgents(
-    [googleGemini35FlashLiteT02Key1Max3k, googleGemini35FlashLiteT02Key2Max3k, googleGemini31FlashLiteT02Key1Max3k, googleGemini31FlashLiteT02Key2Max3k, openAiGpt54MiniT02Max2k],
-    {
-      tools: [BackgroundDossierTool],
-      systemPrompt: SOCIAL_MEDIA_RESEARCHER_PROMPT,
-      responseFormat: providerStrategy(schema)
-    }
-  );
-
   let result;
   let parse_success = false;
 
   try {
-    result = await invokeWithFallbacks(agents, {
+    result = await invokeWithFallbacks(socialMediaContextResearcherAgents, {
       messages: [{ role: "user", content: `<SOURCE>\n${state.raw_markdown}\n</SOURCE>` }]
     }, { ...config, timeout: 60000 });
     parse_success = true;
@@ -112,27 +124,34 @@ export const ContextResearcherNode = async (state: SocialMediaThreadFactoryState
   };
 };
 
+const socialMediaHookSchema = z.object({
+  core_hooks: z.array(z.string()).min(1, "Must generate at least one hook"),
+  selected_hook: z.string().min(1, "Must select a hook")
+});
+
+const socialMediaHookStrategistAgents = buildAgents(
+  [
+    googleGemini35FlashLiteT08Key1,
+    googleGemini35FlashLiteT08Key2,
+    googleGemini31FlashLiteT08Key1,
+    googleGemini31FlashLiteT08Key2,
+    openAiGpt54MiniT08,
+    openRouterFreeT08
+  ],
+  {
+    systemPrompt: SOCIAL_MEDIA_HOOK_PROMPT,
+    responseFormat: providerStrategy(socialMediaHookSchema)
+  }
+);
+
 export const HookStrategistNode = async (state: SocialMediaThreadFactoryStateType, config?: RunnableConfig) => {
-  const schema = z.object({
-    core_hooks: z.array(z.string()).min(1, "Must generate at least one hook"),
-    selected_hook: z.string().min(1, "Must select a hook")
-  });
-
-  const agents = buildAgents(
-    [googleGemini35FlashLiteT08Key1, googleGemini35FlashLiteT08Key2, googleGemini31FlashLiteT08Key1, googleGemini31FlashLiteT08Key2, openAiGpt54MiniT08, openRouterFreeT08],
-    {
-      systemPrompt: SOCIAL_MEDIA_HOOK_PROMPT,
-      responseFormat: providerStrategy(schema)
-    }
-  );
-
   let result;
   let parse_success = false;
 
   try {
     const guidanceContext = state.guidance ? `\n\n<ADDITIONAL_GUIDANCE>\n${state.guidance}\n</ADDITIONAL_GUIDANCE>` : "";
     const researchContextStr = state.research_context ? `\n\n<RESEARCH_CONTEXT>\n${state.research_context}\n</RESEARCH_CONTEXT>` : "";
-    result = await invokeWithFallbacks(agents, {
+    result = await invokeWithFallbacks(socialMediaHookStrategistAgents, {
       messages: [{ role: "user", content: `<SOURCE>\n${state.raw_markdown}\n</SOURCE>${researchContextStr}${guidanceContext}` }]
     }, { ...config, timeout: 45000 });
     parse_success = true;
@@ -158,22 +177,22 @@ export const HookStrategistNode = async (state: SocialMediaThreadFactoryStateTyp
   };
 };
 
+const socialMediaWriterSchema = z.object({
+  thread_draft: z.array(z.string()).min(1, "Must generate at least one post for the thread draft")
+});
+
+const socialMediaThreadWriterLlm = googleGemini37FlashT08Key1.withStructuredOutput(socialMediaWriterSchema, { name: "thread_writer", method: "jsonSchema" }).withFallbacks({
+  fallbacks: [
+    googleGemini36FlashT08Key1.withStructuredOutput(socialMediaWriterSchema, { name: "thread_writer", method: "jsonSchema" }),
+    googleGemini35FlashT08Key1.withStructuredOutput(socialMediaWriterSchema, { name: "thread_writer", method: "jsonSchema" }),
+    deepSeekV4ProT085ReasoningNone.withStructuredOutput(socialMediaWriterSchema, { name: "thread_writer", method: "jsonMode" }),
+    openAiGpt54T08Penalty04.withStructuredOutput(socialMediaWriterSchema, { name: "thread_writer", method: "jsonSchema" }),
+    googleGemini3FlashPreviewT08Key1.withStructuredOutput(socialMediaWriterSchema, { name: "thread_writer", method: "jsonSchema" }),
+    googleGemini3FlashPreviewT08Key2.withStructuredOutput(socialMediaWriterSchema, { name: "thread_writer", method: "jsonSchema" })
+  ]
+});
+
 export const ThreadWriterNode = async (state: SocialMediaThreadFactoryStateType, config?: RunnableConfig) => {
-  const schema = z.object({
-    thread_draft: z.array(z.string()).min(1, "Must generate at least one post for the thread draft")
-  });
-
-  const structuredLlm = googleGemini37FlashT08Key1.withStructuredOutput(schema, { name: "thread_writer", method: "jsonSchema" }).withFallbacks({
-    fallbacks: [
-      googleGemini36FlashT08Key1.withStructuredOutput(schema, { name: "thread_writer", method: "jsonSchema" }),
-      googleGemini35FlashT08Key1.withStructuredOutput(schema, { name: "thread_writer", method: "jsonSchema" }),
-      deepSeekV4ProT085ReasoningNone.withStructuredOutput(schema, { name: "thread_writer", method: "jsonMode" }),
-      openAiGpt54T08Penalty04.withStructuredOutput(schema, { name: "thread_writer", method: "jsonSchema" }),
-      googleGemini3FlashPreviewT08Key1.withStructuredOutput(schema, { name: "thread_writer", method: "jsonSchema" }),
-      googleGemini3FlashPreviewT08Key2.withStructuredOutput(schema, { name: "thread_writer", method: "jsonSchema" })
-    ]
-  });
-
   const previousDraftContext = state.thread_draft && state.thread_draft.length > 0
     ? `\n\n<PREVIOUS_THREAD_DRAFT>\n${JSON.stringify(state.thread_draft, null, 2)}\n</PREVIOUS_THREAD_DRAFT>`
     : "";
@@ -191,7 +210,7 @@ export const ThreadWriterNode = async (state: SocialMediaThreadFactoryStateType,
   let draft;
   let parse_success = true;
   try {
-    draft = await structuredLlm.invoke([
+    draft = await socialMediaThreadWriterLlm.invoke([
       { role: "system", content: SOCIAL_MEDIA_WRITER_PROMPT },
       { role: "user", content: `<HOOK>\n${state.selected_hook}\n</HOOK>\n\n<SOURCE>\n${state.raw_markdown}\n</SOURCE>${researchContextStr}${previousDraftContext}${critiqueContext}${postCritiquesContext}${charCritiqueContext}${guidanceContext}` }
     ], { ...config, timeout: 180000 });
@@ -225,39 +244,41 @@ export const CharacterValidatorNode = async (state: SocialMediaThreadFactoryStat
   };
 };
 
+const socialMediaCriticSchema = z.object({
+  virality_score: z.number(),
+  overall_critique: z.string(),
+  post_critiques: z.array(z.object({
+    post_index: z.number(),
+    critique: z.string(),
+    fix_directive: z.string()
+  }))
+});
+
+const socialMediaViralityCriticAgents = buildAgents(
+  [
+    googleGemini37FlashT00Key1,
+    googleGemini36FlashT00Key1,
+    googleGemini35FlashT00Key1,
+    deepSeekV4ProT00ReasoningHigh,
+    openAiGpt54MiniT00,
+    googleGemini3FlashPreviewT00Key1,
+    googleGemini3FlashPreviewT00Key2
+  ],
+  {
+    tools: [ContentAuthenticityCheckerTool],
+    systemPrompt: SOCIAL_MEDIA_CRITIC_PROMPT,
+    responseFormat: providerStrategy(socialMediaCriticSchema)
+  }
+);
+
 export const ViralityCriticNode = async (state: SocialMediaThreadFactoryStateType, config?: RunnableConfig) => {
-  const schema = z.object({
-    virality_score: z.number(),
-    overall_critique: z.string(),
-    post_critiques: z.array(z.object({
-      post_index: z.number(),
-      critique: z.string(),
-      fix_directive: z.string()
-    }))
-  });
-
-  const agents = buildAgents(
-    [
-      googleGemini37FlashT00Key1,
-      googleGemini36FlashT00Key1, googleGemini35FlashT00Key1,
-      deepSeekV4ProT00ReasoningHigh,
-      openAiGpt54MiniT00,
-      googleGemini3FlashPreviewT00Key1, googleGemini3FlashPreviewT00Key2
-    ],
-    {
-      tools: [ContentAuthenticityCheckerTool],
-      systemPrompt: SOCIAL_MEDIA_CRITIC_PROMPT,
-      responseFormat: providerStrategy(schema)
-    }
-  );
-
   let result;
   let parse_success = false;
 
   try {
     const guidanceContext = state.guidance ? `\n\n<ADDITIONAL_GUIDANCE>\n${state.guidance}\n</ADDITIONAL_GUIDANCE>` : "";
     const researchContextStr = state.research_context ? `\n\n<RESEARCH_CONTEXT>\n${state.research_context}\n</RESEARCH_CONTEXT>` : "";
-    result = await invokeWithFallbacks(agents, {
+    result = await invokeWithFallbacks(socialMediaViralityCriticAgents, {
       messages: [
         { role: "user", content: `<CURRENT_ITERATION_ATTEMPT>\n${state.iterations + 1}\n</CURRENT_ITERATION_ATTEMPT>\n\n<SOURCE_MATERIAL>\n${state.raw_markdown}\n</SOURCE_MATERIAL>${researchContextStr}\n\n<THREAD>\n${JSON.stringify(state.thread_draft, null, 2)}\n</THREAD>${guidanceContext}` }
       ]

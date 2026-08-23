@@ -97,6 +97,7 @@ async function handleGraphCompletion(
     guidance: finalState.guidance,
     manual_hook_selection: finalState.manual_hook_selection,
     search_query_generation: finalState.search_query_generation,
+    research_context: finalState.research_context,
     generation_status: interrupted ? ("hook selection" as const) : ("success" as const),
   };
 
@@ -669,6 +670,12 @@ export const publishThread = internalAction({
 
         console.log(`[publishThread] [Post ${i + 1}/${postsToPublish.length}] Successfully published! Post ID: ${replyToId}`);
         postIds.push(replyToId);
+        
+        // Add a 5 second delay to ensure Meta's UI strings the thread together properly
+        if (i < postsToPublish.length - 1) {
+          console.log(`[publishThread] Waiting 5 seconds before publishing next post...`);
+          await new Promise(resolve => setTimeout(resolve, 5000));
+        }
       }
 
       let permalink: string | undefined = undefined;

@@ -2,7 +2,7 @@
 "use node";
 import { convexTest } from "convex-test";
 import { expect, test } from "vitest";
-import { api, internal } from "./_generated/api";
+import { internal } from "./_generated/api";
 import schema from "./schema";
 
 const modules = import.meta.glob("./**/*.ts");
@@ -39,7 +39,27 @@ test("threadsMutations - initializeThreadDraft, updateThreadDraft, markAsPublish
   // 2. updateThreadDraft
   await t.mutation(internal.mutations.threadsMutations.updateThreadDraft, {
     id: draftId,
+    generation_status: "failed",
+    failure_reason: "Scraper timeout after 60000ms",
+    publication_status: "failed",
+    publication_error: "Meta API Token Expired",
+  });
+
+  const failedDraft = await t.query(async (ctx) => ctx.db.get("threadDrafts", draftId));
+  expect(failedDraft).toMatchObject({
+    generation_status: "failed",
+    failure_reason: "Scraper timeout after 60000ms",
+    publication_status: "failed",
+    publication_error: "Meta API Token Expired",
+  });
+
+  // 3. Clear failure_reason and publication_error on recovery
+  await t.mutation(internal.mutations.threadsMutations.updateThreadDraft, {
+    id: draftId,
     generation_status: "success",
+    failure_reason: null,
+    publication_status: "publishing",
+    publication_error: null,
     raw_markdown: "# Updated Article",
     core_hooks: ["Hook A", "Hook B"],
     selected_hook: "Hook A",
@@ -51,6 +71,7 @@ test("threadsMutations - initializeThreadDraft, updateThreadDraft, markAsPublish
   const updatedDraft = await t.query(async (ctx) => ctx.db.get("threadDrafts", draftId));
   expect(updatedDraft).toMatchObject({
     generation_status: "success",
+    publication_status: "publishing",
     raw_markdown: "# Updated Article",
     core_hooks: ["Hook A", "Hook B"],
     selected_hook: "Hook A",
@@ -58,6 +79,8 @@ test("threadsMutations - initializeThreadDraft, updateThreadDraft, markAsPublish
     virality_score: 92,
     is_approved: true,
   });
+  expect(updatedDraft?.failure_reason).toBeUndefined();
+  expect(updatedDraft?.publication_error).toBeUndefined();
 
   // 3. markAsPublished
   await t.mutation(internal.mutations.threadsMutations.markAsPublished, {

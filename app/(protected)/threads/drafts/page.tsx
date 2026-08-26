@@ -9,7 +9,13 @@ import { toast } from "sonner";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button, buttonVariants } from "@/components/ui/button";
 import Link from "next/link";
-import { Loader2, Sparkles } from "lucide-react";
+import { Loader2, Sparkles, AlertCircle } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
   UpdateIcon,
   CheckCircledIcon,
@@ -258,13 +264,45 @@ export default function DraftsPage() {
                             <Sparkles className="w-3 h-3 text-indigo-500" /> Hook Selection
                           </span>
                         ) : genStatus === "failed" ? (
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg bg-destructive/10 text-destructive">
-                            <CrossCircledIcon className="w-3 h-3" /> Failed
-                          </span>
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger
+                                render={<span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg bg-destructive/10 text-destructive cursor-help hover:bg-destructive/15 transition-colors" />}
+                              >
+                                <CrossCircledIcon className="w-3 h-3 shrink-0" /> Failed
+                              </TooltipTrigger>
+                              <TooltipContent side="top" className="max-w-xs p-3 text-xs bg-popover text-popover-foreground border border-border shadow-xl rounded-xl space-y-1.5">
+                                <div className="font-semibold text-destructive flex items-center gap-1.5 text-xs">
+                                  <AlertCircle className="w-3.5 h-3.5 shrink-0" /> Generation Error
+                                </div>
+                                <p className="text-muted-foreground text-[11px] leading-relaxed break-words font-mono line-clamp-4">
+                                  {draft.failure_reason || "AI agent generation failed after trying all fallback models."}
+                                </p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
                         ) : draft.publication_status === "publishing" ? (
                           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 animate-pulse">
                             <UpdateIcon className="w-3 h-3 animate-spin" /> Publishing
                           </span>
+                        ) : draft.publication_status === "failed" ? (
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger
+                                render={<span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg bg-rose-500/10 text-rose-600 dark:text-rose-400 cursor-help hover:bg-rose-500/15 transition-colors" />}
+                              >
+                                <CrossCircledIcon className="w-3 h-3 shrink-0" /> Publish Failed
+                              </TooltipTrigger>
+                              <TooltipContent side="top" className="max-w-xs p-3 text-xs bg-popover text-popover-foreground border border-border shadow-xl rounded-xl space-y-1.5">
+                                <div className="font-semibold text-rose-500 flex items-center gap-1.5 text-xs">
+                                  <AlertCircle className="w-3.5 h-3.5 shrink-0" /> Publication Error
+                                </div>
+                                <p className="text-muted-foreground text-[11px] leading-relaxed break-words font-mono line-clamp-4">
+                                  {draft.publication_error || "Failed to publish to Threads. Please verify your Threads connection and permissions."}
+                                </p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
                         ) : draft.is_published ? (
                           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400">
                             <CheckCircledIcon className="w-3 h-3" /> Published

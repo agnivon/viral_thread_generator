@@ -94,6 +94,16 @@ export const onGenerationComplete = internalMutation({
         dedupeKey: `thread_generation_success:${workId}`,
       });
     } else if (result.kind === "failed") {
+      if (context.threadId) {
+        const draft = await ctx.db.get("threadDrafts", context.threadId);
+        if (draft && (!draft.failure_reason || draft.generation_status !== "failed")) {
+          await ctx.db.patch("threadDrafts", context.threadId, {
+            generation_status: "failed",
+            failure_reason: result.error,
+          });
+        }
+      }
+
       await notifications.create(ctx, {
         targetId: context.userId,
         kind: "thread_generation_failed",
@@ -150,6 +160,14 @@ export const onPublicationComplete = internalMutation({
         dedupeKey: `thread_publication_success:${workId}`,
       });
     } else if (result.kind === "failed") {
+      const draft = await ctx.db.get("threadDrafts", threadId);
+      if (draft && (!draft.publication_error || draft.publication_status !== "failed")) {
+        await ctx.db.patch("threadDrafts", threadId, {
+          publication_status: "failed",
+          publication_error: result.error,
+        });
+      }
+
       await notifications.create(ctx, {
         targetId: context.userId,
         kind: "thread_publication_failed",

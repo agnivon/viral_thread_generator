@@ -357,4 +357,60 @@ test("ThreadsAPI publishContainer retries on propagation error (2-step flow with
   vi.useRealTimers();
 });
 
+test("generateThreadInternal records failure_reason on error", async () => {
+  const t = convexTest(schema, modules);
+  const userId = await t.mutation(async (ctx) => {
+    return await ctx.db.insert("users", {});
+  });
+
+  vi.spyOn(NewsThreadFactoryGraph, "invoke").mockRejectedValue(new Error("LLM Scraper Timeout Error"));
+
+  await expect(
+    t.action(internal.actions.threadsActions.generateThreadInternal, {
+      input_field: { agent: "news", url: "https://example.com/failed-url" },
+      userId,
+    })
+  ).rejects.toThrow("LLM Scraper Timeout Error");
+
+  const drafts = await t.query(async (ctx) => {
+    return await ctx.db.query("threadDrafts").collect();
+  });
+
+  expect(drafts.length).toBe(1);
+  expect(drafts[0]).toMatchObject({
+    generation_status: "failed",
+    failure_reason: "LLM Scraper Timeout Error",
+  });
+});
+
+test("publishThread records publication_error on error", async () => {
+  const t = convexTest(schema, modules);
+  const userId = await t.mutation(async (ctx) => {
+    return await ctx.db.insert("users", {});
+  });
+
+  const draftId = await t.mutation(internal.mutations.threadsMutations.initializeThreadDraft, {
+    userId,
+    agent: "news",
+    input_field: { agent: "news", url: "https://example.com/news" },
+  });
+
+  await expect(
+    t.action(internal.actions.threadsActions.publishThread, {
+      id: draftId,
+      userId,
+    })
+  ).rejects.toThrow();
+
+  const draft = await t.query(async (ctx) => {
+    return await ctx.db.get("threadDrafts", draftId);
+  });
+
+  expect(draft).toMatchObject({
+    publication_status: "failed",
+  });
+  expect(draft?.publication_error).toBeDefined();
+  expect(typeof draft?.publication_error).toBe("string");
+});
+
 

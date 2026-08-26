@@ -1,7 +1,7 @@
 /// <reference types="vite/client" />
 "use node";
 import { convexTest } from "convex-test";
-import { expect, test, vi } from "vitest";
+import { expect, test } from "vitest";
 import { api, internal } from "./_generated/api";
 import schema from "./schema";
 
@@ -50,7 +50,7 @@ test("threadsQueries - getAllThreadDrafts & getPaginatedThreadDrafts", async () 
     });
   });
 
-  const draftId2 = await t.mutation(async (ctx) => {
+  const _draftId2 = await t.mutation(async (ctx) => {
     return await ctx.db.insert("threadDrafts", {
       userId,
       generation_status: "success",

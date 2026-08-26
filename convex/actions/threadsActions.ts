@@ -62,6 +62,16 @@ function getGraph(agent?: string): LangGraphInstance {
   return NewsThreadFactoryGraph as unknown as LangGraphInstance;
 }
 
+function formatErrorMessage(error: unknown, maxLen = 2000): string {
+  if (error instanceof Error) {
+    return error.message.slice(0, maxLen);
+  }
+  if (typeof error === "string") {
+    return error.slice(0, maxLen);
+  }
+  return "An unexpected error occurred.";
+}
+
 async function handleGraphCompletion(
   ctx: ActionCtx,
   recordId: Id<"threadDrafts">,
@@ -99,6 +109,7 @@ async function handleGraphCompletion(
     search_query_generation: finalState.search_query_generation,
     research_context: finalState.research_context,
     generation_status: interrupted ? ("hook selection" as const) : ("success" as const),
+    failure_reason: null,
   };
 
   if (actualAgent === "topic" && finalState.research_dossier) {
@@ -126,9 +137,11 @@ async function runGraphWithLifecycle(
     );
     return await handleGraphCompletion(ctx, recordId, finalState, agent);
   } catch (e) {
+    const failure_reason = formatErrorMessage(e);
     await ctx.runMutation(internal.mutations.threadsMutations.updateThreadDraft, {
       id: recordId,
       generation_status: "failed",
+      failure_reason,
     });
     throw e;
   }
@@ -331,9 +344,11 @@ export const generateThreadInternal = internalAction({
       });
     } catch (e) {
       if (recordId) {
+        const failure_reason = formatErrorMessage(e);
         await ctx.runMutation(internal.mutations.threadsMutations.updateThreadDraft, {
           id: recordId,
           generation_status: "failed",
+          failure_reason,
         });
       }
       throw e;
@@ -353,6 +368,7 @@ export const resumeThreadInternal = internalAction({
       id: args.recordId,
       generation_status: "processing",
       selected_hook: args.selected_hook,
+      failure_reason: null,
     });
 
     const agent = args.agent || "news";
@@ -375,6 +391,7 @@ export const retryThreadInternal = internalAction({
     await ctx.runMutation(internal.mutations.threadsMutations.updateThreadDraft, {
       id: args.recordId,
       generation_status: "processing",
+      failure_reason: null,
     });
 
     const agent = args.agent || "news";
@@ -445,6 +462,7 @@ export const regenerateThreadInternal = internalAction({
           generation_status: "processing",
           is_approved: false,
           iterations: 0,
+          failure_reason: null,
         });
 
         const stateUpdate: Record<string, unknown> = { iterations: 0, is_approved: false };
@@ -614,6 +632,7 @@ export const publishThread = internalAction({
       await ctx.runMutation(internal.mutations.threadsMutations.updateThreadDraft, {
         id: args.id,
         publication_status: "publishing",
+        publication_error: null,
         ...(args.modified_thread ? { thread_draft: args.modified_thread } : {}),
       });
 
@@ -680,15 +699,18 @@ export const publishThread = internalAction({
       await ctx.runMutation(internal.mutations.threadsMutations.updateThreadDraft, {
         id: args.id,
         publication_status: "success",
+        publication_error: null,
         is_published: true,
       });
 
       console.log("[publishThread] All posts published successfully. Post IDs:", postIds, "Permalink:", permalink);
       return { postIds, threadId: args.id, permalink };
     } catch (e) {
+      const publication_error = formatErrorMessage(e);
       await ctx.runMutation(internal.mutations.threadsMutations.updateThreadDraft, {
         id: args.id,
         publication_status: "failed",
+        publication_error,
       });
       throw e;
     }

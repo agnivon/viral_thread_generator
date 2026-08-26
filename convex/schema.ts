@@ -93,12 +93,14 @@ export default defineSchema(
         v.literal("success"),
         v.literal("failed")
       ),
+      failure_reason: v.optional(v.string()),
       publication_status: v.optional(v.union(
         v.literal("not_published"),
         v.literal("publishing"),
         v.literal("success"),
         v.literal("failed")
       )),
+      publication_error: v.optional(v.string()),
     }).index("by_userId", ["userId"]),
   },
   // If you ever get an error about schema mismatch

@@ -6,7 +6,6 @@ import { internal } from "./_generated/api";
 import schema from "./schema";
 import { db } from "./lib/firebase";
 import googleTrends from "@alkalisummer/google-trends-js";
-import { googleGemini3FlashPreviewT00Key1 } from "./lib/agents/models";
 import * as nodes from "./lib/agents/nodes";
 
 const modules = import.meta.glob("./**/*.ts");
@@ -27,7 +26,7 @@ test("newsdataActions - fetchAndStoreLatestNews fetches trends and stores new ar
   const t = convexTest(schema, modules);
 
   // 1. Mock googleTrends
-  vi.spyOn(googleTrends, "dailyTrends").mockResolvedValue({
+  const dailyTrendsSpy = vi.spyOn(googleTrends, "dailyTrends").mockResolvedValue({
     data: [
       {
         keyword: "Artificial Intelligence",
@@ -74,20 +73,12 @@ test("newsdataActions - fetchAndStoreLatestNews fetches trends and stores new ar
   const mockBatchSet = vi.fn();
   const mockBatchCommit = vi.fn().mockResolvedValue({});
   const mockGetAll = vi.fn().mockResolvedValue([{ exists: false }]);
-  const mockDoc = vi.fn().mockImplementation((path: string) => ({
-    collection: (subPath: string) => ({
-      doc: (docId: string) => ({
-        id: docId,
-        set: mockSet,
-      }),
-    }),
-  }));
 
-  vi.spyOn(db, "collection").mockImplementation((collName: string) => ({
+  vi.spyOn(db, "collection").mockImplementation((_collName: string) => ({
     doc: (docId: string) => ({
       id: docId,
       set: mockSet,
-      collection: (subColl: string) => ({
+      collection: (_subColl: string) => ({
         doc: (articleId: string) => ({
           id: articleId,
         }),
@@ -103,7 +94,7 @@ test("newsdataActions - fetchAndStoreLatestNews fetches trends and stores new ar
 
   await t.action(internal.actions.newsdataActions.fetchAndStoreLatestNews, {});
 
-  expect(googleTrends.dailyTrends).toHaveBeenCalledWith({ geo: "US" });
+  expect(dailyTrendsSpy).toHaveBeenCalledWith({ geo: "US" });
   expect(mockSet).toHaveBeenCalledWith(
     expect.objectContaining({
       keyword: "artificial intelligence",
@@ -128,7 +119,7 @@ test("newsdataActions - deleteOldNewsArticles purges articles older than 5 days"
     ],
   });
 
-  vi.spyOn(db, "collection").mockReturnValue({
+  const collectionSpy = vi.spyOn(db, "collection").mockReturnValue({
     listDocuments: vi.fn().mockResolvedValue([{ id: "artificial-intelligence" }]),
   } as any);
 
@@ -139,14 +130,11 @@ test("newsdataActions - deleteOldNewsArticles purges articles older than 5 days"
 
   // Mock subcollection where query
   const mockWhere = vi.fn().mockReturnValue({ get: mockGet });
-  const mockDoc = vi.fn().mockReturnValue({
-    collection: () => ({ where: mockWhere }),
-  });
   (db.collection as any).mockReturnValue({
     listDocuments: vi.fn().mockResolvedValue([{ id: "artificial-intelligence", collection: () => ({ where: mockWhere }) }]),
   });
 
   await t.action(internal.actions.newsdataActions.deleteOldNewsArticles, {});
 
-  expect(db.collection).toHaveBeenCalledWith("newsdata_latest_news");
+  expect(collectionSpy).toHaveBeenCalledWith("newsdata_latest_news");
 });

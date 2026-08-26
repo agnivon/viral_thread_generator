@@ -32,14 +32,13 @@ import { CharacterValidatorTool } from "../tools.js";
 import { buildAgents, invokeWithFallbacks } from "../utils.js";
 
 
-const scraperLlm = googleGemini35FlashLiteT01Key1Max3k.withFallbacks({
-  fallbacks: [
-    googleGemini35FlashLiteT01Key2Max3k,
-    googleGemini31FlashLiteT01Key1Max3k,
-    googleGemini31FlashLiteT01Key2Max3k,
-    openAiGpt54MiniT01Max2k
-  ]
-});
+const scraperModels = [
+  googleGemini35FlashLiteT01Key1Max3k,
+  googleGemini35FlashLiteT01Key2Max3k,
+  googleGemini31FlashLiteT01Key1Max3k,
+  googleGemini31FlashLiteT01Key2Max3k,
+  openAiGpt54MiniT01Max2k
+];
 
 export const ScraperNode = async (state: NewsThreadFactoryStateType, config?: RunnableConfig) => {
   const isYoutube = state.url.includes("youtube.com") || state.url.includes("youtu.be");
@@ -57,10 +56,14 @@ export const ScraperNode = async (state: NewsThreadFactoryStateType, config?: Ru
   }
 
   try {
-    const summary = await scraperLlm.invoke([
-      { role: "system", content: NEWS_SCRAPER_PROMPT },
-      { role: "user", content: markdown }
-    ], { ...config, timeout: 60000 });
+    const summary = await invokeWithFallbacks(
+      scraperModels,
+      [
+        { role: "system", content: NEWS_SCRAPER_PROMPT },
+        { role: "user", content: markdown }
+      ],
+      { ...config, timeout: 60000 }
+    );
     return {
       raw_markdown: summary.content as string,
       images,
@@ -187,16 +190,15 @@ const newsWriterSchema = z.object({
   thread_draft: z.array(z.string()).min(1, "Must generate at least one post for the thread draft")
 });
 
-const newsThreadWriterLlm = googleGemini37FlashT08Key1.withStructuredOutput(newsWriterSchema, { name: "thread_writer", method: "jsonSchema" }).withFallbacks({
-  fallbacks: [
-    googleGemini36FlashT08Key1.withStructuredOutput(newsWriterSchema, { name: "thread_writer", method: "jsonSchema" }),
-    googleGemini35FlashT08Key1.withStructuredOutput(newsWriterSchema, { name: "thread_writer", method: "jsonSchema" }),
-    deepSeekV4ProT085ReasoningNone.withStructuredOutput(newsWriterSchema, { name: "thread_writer", method: "jsonMode" }),
-    openAiGpt54T08Penalty04.withStructuredOutput(newsWriterSchema, { name: "thread_writer", method: "jsonSchema" }),
-    googleGemini3FlashPreviewT08Key1.withStructuredOutput(newsWriterSchema, { name: "thread_writer", method: "jsonSchema" }),
-    googleGemini3FlashPreviewT08Key2.withStructuredOutput(newsWriterSchema, { name: "thread_writer", method: "jsonSchema" })
-  ]
-});
+const newsThreadWriterModels = [
+  googleGemini37FlashT08Key1.withStructuredOutput(newsWriterSchema, { name: "thread_writer", method: "jsonSchema" }),
+  googleGemini36FlashT08Key1.withStructuredOutput(newsWriterSchema, { name: "thread_writer", method: "jsonSchema" }),
+  googleGemini35FlashT08Key1.withStructuredOutput(newsWriterSchema, { name: "thread_writer", method: "jsonSchema" }),
+  deepSeekV4ProT085ReasoningNone.withStructuredOutput(newsWriterSchema, { name: "thread_writer", method: "jsonMode" }),
+  openAiGpt54T08Penalty04.withStructuredOutput(newsWriterSchema, { name: "thread_writer", method: "jsonSchema" }),
+  googleGemini3FlashPreviewT08Key1.withStructuredOutput(newsWriterSchema, { name: "thread_writer", method: "jsonSchema" }),
+  googleGemini3FlashPreviewT08Key2.withStructuredOutput(newsWriterSchema, { name: "thread_writer", method: "jsonSchema" })
+];
 
 export const ThreadWriterNode = async (state: NewsThreadFactoryStateType, config?: RunnableConfig) => {
   const previousDraftContext = state.thread_draft && state.thread_draft.length > 0
@@ -216,10 +218,14 @@ export const ThreadWriterNode = async (state: NewsThreadFactoryStateType, config
   let draft;
   let parse_success = true;
   try {
-    draft = await newsThreadWriterLlm.invoke([
-      { role: "system", content: NEWS_WRITER_PROMPT },
-      { role: "user", content: `<HOOK>\n${state.selected_hook}\n</HOOK>\n\n<SOURCE>\n${state.raw_markdown}\n</SOURCE>${researchContext}${previousDraftContext}${critiqueContext}${postCritiquesContext}${charCritiqueContext}${guidanceContext}` }
-    ], { ...config, timeout: 180000 });
+    draft = await invokeWithFallbacks(
+      newsThreadWriterModels,
+      [
+        { role: "system", content: NEWS_WRITER_PROMPT },
+        { role: "user", content: `<HOOK>\n${state.selected_hook}\n</HOOK>\n\n<SOURCE>\n${state.raw_markdown}\n</SOURCE>${researchContext}${previousDraftContext}${critiqueContext}${postCritiquesContext}${charCritiqueContext}${guidanceContext}` }
+      ],
+      { ...config, timeout: 180000 }
+    );
     if (!draft || !draft.thread_draft) parse_success = false;
   } catch (_e) {
     parse_success = false;

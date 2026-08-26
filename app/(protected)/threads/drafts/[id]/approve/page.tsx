@@ -12,7 +12,7 @@ import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { useMutation } from "@tanstack/react-query";
 import { useAction, useQuery } from "convex/react";
-import { ArrowLeft, Loader2, Sparkles } from "lucide-react";
+import { ArrowLeft, Loader2, Sparkles, AlertCircle, Copy, Check, RotateCcw, XCircle } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -37,10 +37,13 @@ export default function ApproveDraftPage() {
   const state = useQuery(api.queries.threadsQueries.getThreadDraft, { id });
   const enqueuePublication = useAction(api.actions.threadsActions.enqueueThreadPublication);
   const enqueueRegeneration = useAction(api.actions.threadsActions.enqueueThreadRegeneration);
+  const retryGeneration = useAction(api.actions.threadsActions.enqueueThreadRetry);
   const resumeAction = useAction(api.actions.threadsActions.enqueueThreadResume);
 
   const [isPublishing, setIsPublishing] = useState(false);
   const [isRegenerating, setIsRegenerating] = useState(false);
+  const [isRetrying, setIsRetrying] = useState(false);
+  const [hasCopied, setHasCopied] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   const [selectedHookIdx, setSelectedHookIdx] = useState<number | null>(null);
@@ -184,6 +187,19 @@ export default function ApproveDraftPage() {
 
 
 
+  const handleRetry = async () => {
+    try {
+      setIsRetrying(true);
+      await retryGeneration({ ids: [id] });
+      toast.success("Thread generation retry enqueued!");
+    } catch (err: any) {
+      console.error(err);
+      toast.error(`Failed to retry generation: ${err.message || "Unknown error"}`);
+    } finally {
+      setIsRetrying(false);
+    }
+  };
+
   if (state === undefined) {
     return (
       <div className="relative min-h-screen flex flex-col items-center justify-center bg-background overflow-hidden p-4">
@@ -254,22 +270,71 @@ export default function ApproveDraftPage() {
   if (genStatus === "failed") {
     return (
       <div className="relative min-h-screen flex flex-col items-center justify-center bg-background overflow-hidden p-4">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-[400px] bg-gradient-to-b from-violet-500/10 via-transparent to-transparent blur-3xl pointer-events-none -z-10" />
-        <Card className="max-w-md w-full border-border/80 bg-card/45 backdrop-blur-xs shadow-xs rounded-2xl">
-          <CardHeader>
-            <CardTitle className="text-destructive font-black">Generation Failed</CardTitle>
-            <CardDescription>We encountered an error while generating this thread.</CardDescription>
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-[400px] bg-gradient-to-b from-rose-500/10 via-transparent to-transparent blur-3xl pointer-events-none -z-10" />
+        <Card className="max-w-lg w-full border-border/80 bg-card/60 backdrop-blur-md shadow-xl rounded-2xl border-rose-500/20">
+          <CardHeader className="space-y-2 pb-4">
+            <div className="w-12 h-12 rounded-2xl bg-destructive/10 text-destructive flex items-center justify-center mb-1">
+              <XCircle className="w-6 h-6" />
+            </div>
+            <CardTitle className="text-2xl font-bold tracking-tight text-foreground">
+              Thread Generation Failed
+            </CardTitle>
+            <CardDescription className="text-sm text-muted-foreground">
+              The AI agent pipeline was unable to complete thread creation for this source.
+            </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <p className="text-sm text-muted-foreground leading-relaxed">
-              You can try generating a new thread from the dashboard.
-            </p>
-            <Link
-              href="/threads/create"
-              className={`${buttonVariants({ className: "w-full" })} rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white font-semibold py-6 shadow-md hover:shadow-lg transition-all duration-300`}
-            >
-              Create a New Thread
-            </Link>
+          <CardContent className="space-y-5">
+            {state.failure_reason && (
+              <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-3.5 space-y-2 text-left">
+                <div className="flex items-center justify-between text-xs font-semibold text-destructive">
+                  <span className="flex items-center gap-1.5">
+                    <AlertCircle className="w-3.5 h-3.5 shrink-0" /> Error Diagnostic
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (state.failure_reason) {
+                        navigator.clipboard.writeText(state.failure_reason);
+                        setHasCopied(true);
+                        toast.success("Error copied to clipboard");
+                        setTimeout(() => setHasCopied(false), 2000);
+                      }
+                    }}
+                    className="text-[11px] text-muted-foreground hover:text-foreground inline-flex items-center gap-1 cursor-pointer transition-colors px-1.5 py-0.5 rounded-md hover:bg-muted"
+                  >
+                    {hasCopied ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
+                    {hasCopied ? "Copied" : "Copy"}
+                  </button>
+                </div>
+                <p className="text-xs font-mono text-muted-foreground break-words leading-relaxed max-h-40 overflow-y-auto pr-1">
+                  {state.failure_reason}
+                </p>
+              </div>
+            )}
+
+            <div className="flex flex-col sm:flex-row items-center gap-2.5 pt-1">
+              <Button
+                onClick={handleRetry}
+                disabled={isRetrying}
+                className="w-full sm:flex-1 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white font-semibold py-5 shadow-md cursor-pointer transition-all"
+              >
+                {isRetrying ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin mr-2" /> Retrying...
+                  </>
+                ) : (
+                  <>
+                    <RotateCcw className="w-4 h-4 mr-2" /> Retry Generation
+                  </>
+                )}
+              </Button>
+              <Link
+                href="/threads/drafts"
+                className={`${buttonVariants({ variant: "outline" })} w-full sm:w-auto rounded-xl py-5 font-medium border-border/80 hover:bg-muted/50 cursor-pointer`}
+              >
+                Drafts List
+              </Link>
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -336,17 +401,21 @@ export default function ApproveDraftPage() {
               ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400'
               : state.publication_status === "publishing"
                 ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 animate-pulse'
-                : state.is_approved
-                  ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
-                  : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
+                : state.publication_status === "failed"
+                  ? 'bg-rose-100 text-rose-800 dark:bg-rose-900/30 dark:text-rose-400'
+                  : state.is_approved
+                    ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
+                    : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
               }`}>
               {state.is_published
                 ? "Published"
                 : state.publication_status === "publishing"
                   ? "Publishing..."
-                  : state.is_approved
-                    ? "Approved"
-                    : "Pending Review"}
+                  : state.publication_status === "failed"
+                    ? "Publish Failed"
+                    : state.is_approved
+                      ? "Approved"
+                      : "Pending Review"}
             </span>
             <span className="px-3 py-1.5 rounded-full text-xs font-semibold bg-muted text-muted-foreground whitespace-nowrap border border-border/50 shadow-xs">
               {state.iterations} Iteration{state.iterations !== 1 ? 's' : ''}
@@ -363,6 +432,41 @@ export default function ApproveDraftPage() {
             )}
           </div>
         </div>
+
+        {/* Publication Failure Banner */}
+        {state.publication_status === "failed" && (
+          <div className="rounded-2xl border border-rose-500/30 bg-rose-500/5 dark:bg-rose-950/20 p-4.5 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 animate-in fade-in-50 duration-300">
+            <div className="flex items-start gap-3.5 min-w-0 flex-1">
+              <div className="p-2.5 rounded-xl bg-rose-500/10 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5">
+                <AlertCircle className="w-5 h-5" />
+              </div>
+              <div className="space-y-1 min-w-0">
+                <p className="text-sm font-semibold text-rose-700 dark:text-rose-300">
+                  Publication to Meta Threads Failed
+                </p>
+                <p className="text-xs text-muted-foreground font-mono break-words leading-relaxed">
+                  {state.publication_error || "The Threads API rejected the publishing request. Please verify your Threads connection, permissions, or image URLs."}
+                </p>
+              </div>
+            </div>
+            <Button
+              onClick={handlePublish}
+              disabled={isPublishing}
+              size="sm"
+              className="shrink-0 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-medium shadow-sm cursor-pointer"
+            >
+              {isPublishing ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" /> Publishing...
+                </>
+              ) : (
+                <>
+                  <RotateCcw className="w-3.5 h-3.5 mr-1.5" /> Retry Publication
+                </>
+              )}
+            </Button>
+          </div>
+        )}
 
         {/* AI Critique card */}
         {state.critique?.trim() && (

@@ -61,7 +61,9 @@ export const updateThreadDraft = internalMutation({
     id: v.id("threadDrafts"),
     input_field: v.optional(threadDraftInputValidator),
     generation_status: v.optional(v.union(v.literal("success"), v.literal("failed"), v.literal("processing"), v.literal("hook selection"))),
+    failure_reason: v.optional(v.union(v.string(), v.null())),
     publication_status: v.optional(v.union(v.literal("not_published"), v.literal("publishing"), v.literal("success"), v.literal("failed"))),
+    publication_error: v.optional(v.union(v.string(), v.null())),
     ...commonThreadDraftArgs,
     raw_markdown: v.optional(v.string()),
     core_hooks: v.optional(v.array(v.string())),
@@ -91,8 +93,15 @@ export const updateThreadDraft = internalMutation({
     })),
   },
   handler: async (ctx, args) => {
-    const { id, ...updates } = args;
-    await ctx.db.patch("threadDrafts", id, updates);
+    const { id, failure_reason, publication_error, ...updates } = args;
+    const patchFields: Record<string, unknown> = { ...updates };
+    if (failure_reason !== undefined) {
+      patchFields.failure_reason = failure_reason === null ? undefined : failure_reason;
+    }
+    if (publication_error !== undefined) {
+      patchFields.publication_error = publication_error === null ? undefined : publication_error;
+    }
+    await ctx.db.patch("threadDrafts", id, patchFields);
   },
 });
 

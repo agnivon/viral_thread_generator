@@ -670,12 +670,6 @@ export const publishThread = internalAction({
 
         console.log(`[publishThread] [Post ${i + 1}/${postsToPublish.length}] Successfully published! Post ID: ${replyToId}`);
         postIds.push(replyToId);
-        
-        // Add a 5 second delay to ensure Meta's UI strings the thread together properly
-        if (i < postsToPublish.length - 1) {
-          console.log(`[publishThread] Waiting 5 seconds before publishing next post...`);
-          await new Promise(resolve => setTimeout(resolve, 5000));
-        }
       }
 
       let permalink: string | undefined = undefined;

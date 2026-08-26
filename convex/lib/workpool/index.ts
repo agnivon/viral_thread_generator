@@ -6,5 +6,5 @@ export const generationPool = new Workpool(components.generationPool, {
 });
 
 export const publicationPool = new Workpool(components.publicationPool, {
-  maxParallelism: 5,
+  maxParallelism: 1,
 });

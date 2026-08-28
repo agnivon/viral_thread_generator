@@ -5,6 +5,7 @@ import { useQuery, useMutation, useConvexAuth } from "convex/react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { api } from "@/convex/_generated/api";
+import { Id } from "@/convex/_generated/dataModel";
 import { useWindowActivity } from "./use-window-activity";
 
 export interface NotificationPayload {
@@ -17,7 +18,7 @@ export interface NotificationPayload {
 }
 
 export interface AppNotificationItem {
-  _id: string;
+  _id: Id<"notifications">;
   kind: string;
   data: NotificationPayload;
   targetId: string;
@@ -127,7 +128,7 @@ export function useNotifications() {
   }, []);
 
   const markSeen = useCallback(
-    async (notificationId: string) => {
+    async (notificationId: Id<"notifications">) => {
       try {
         await markSeenMutation({ notificationId });
       } catch (err) {
@@ -148,7 +149,7 @@ export function useNotifications() {
   }, [markAllSeenMutation]);
 
   const dismiss = useCallback(
-    async (notificationId: string) => {
+    async (notificationId: Id<"notifications">) => {
       try {
         await dismissMutation({ notificationId });
       } catch (err) {

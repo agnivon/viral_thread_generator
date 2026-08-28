@@ -108,6 +108,33 @@ export default defineSchema(
       publication_status: v.optional(publicationStatusValidator),
       publication_error: v.optional(v.string()),
     }).index("by_userId", ["userId"]),
+    notifications: defineTable({
+      userId: v.id("users"),
+      kind: v.string(),
+      data: v.object({
+        threadId: v.optional(v.string()),
+        title: v.string(),
+        body: v.optional(v.string()),
+        href: v.optional(v.string()),
+        error: v.optional(v.string()),
+        postIds: v.optional(v.array(v.string())),
+      }),
+      source: v.optional(v.object({
+        type: v.string(),
+        id: v.string(),
+      })),
+      dedupeKey: v.optional(v.string()),
+      isSeen: v.boolean(),
+      isDismissed: v.boolean(),
+      seenAt: v.optional(v.number()),
+      dismissedAt: v.optional(v.number()),
+      createdAt: v.number(),
+    })
+      .index("by_userId", ["userId"])
+      .index("by_userId_active", ["userId", "isDismissed", "createdAt"])
+      .index("by_userId_unseen", ["userId", "isDismissed", "isSeen"])
+      .index("by_userId_dedupe", ["userId", "dedupeKey"])
+      .index("by_dismissed_at", ["isDismissed", "dismissedAt"]),
   },
   // If you ever get an error about schema mismatch
   // between your data and your schema, and you cannot

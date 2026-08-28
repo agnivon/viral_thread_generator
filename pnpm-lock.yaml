@@ -80,9 +80,6 @@ importers:
       convex:
         specifier: ^1.36.1
         version: 1.40.0(react@19.2.7)
-      convex-notification:
-        specifier: ^0.1.1
-        version: 0.1.1(convex-helpers@0.1.119(@standard-schema/spec@1.1.0)(convex@1.40.0(react@19.2.7))(hono@4.12.23)(react@19.2.7)(typescript@6.0.3)(zod@4.4.3))(convex@1.40.0(react@19.2.7))
       dotenv:
         specifier: ^17.4.2
         version: 17.4.2
@@ -2233,11 +2230,6 @@ packages:
         optional: true
       zod:
         optional: true
-
-  convex-notification@0.1.1:
-    resolution: {integrity: sha512-fPMlDRnmkieZuTaemNF+DjR+JM/Au1WdD78UOy9lDAviZZ3r5CJh9b1jX+Y0OK0PH9CsqqFcVKZnJpkI47KTBg==}
-    peerDependencies:
-      convex: ^1.39.1
 
   convex-test@0.0.53:
     resolution: {integrity: sha512-bouZQTnTvZi8IHljHL++yClj1vcV+/9ZxEcd8JZz7RDxOfPkRKrkMgkk/xlX4M1EAiwcEJPNiQE7VJFvDM3lCQ==}
@@ -7045,13 +7037,6 @@ snapshots:
       react: 19.2.7
       typescript: 6.0.3
       zod: 4.4.3
-
-  convex-notification@0.1.1(convex-helpers@0.1.119(@standard-schema/spec@1.1.0)(convex@1.40.0(react@19.2.7))(hono@4.12.23)(react@19.2.7)(typescript@6.0.3)(zod@4.4.3))(convex@1.40.0(react@19.2.7)):
-    dependencies:
-      '@convex-dev/workpool': 0.4.7(convex-helpers@0.1.119(@standard-schema/spec@1.1.0)(convex@1.40.0(react@19.2.7))(hono@4.12.23)(react@19.2.7)(typescript@6.0.3)(zod@4.4.3))(convex@1.40.0(react@19.2.7))
-      convex: 1.40.0(react@19.2.7)
-    transitivePeerDependencies:
-      - convex-helpers
 
   convex-test@0.0.53(convex@1.40.0(react@19.2.7)):
     dependencies:

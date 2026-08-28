@@ -11,6 +11,14 @@ crons.interval(
   {}
 );
 
+// Run the purgeDismissed internal mutation daily to permanently hard-delete dismissed notifications older than 7 days
+crons.interval(
+  "purge-dismissed-notifications-daily",
+  { hours: 24 },
+  internal.notifications.purgeDismissed,
+  { retentionDays: 7 }
+);
+
 const isDev = process.env.SITE_URL?.includes("localhost") || process.env.NODE_ENV === "development";
 
 if (!isDev) {

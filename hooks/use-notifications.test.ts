@@ -1,6 +1,7 @@
 /// <reference types="vite/client" />
 import { expect, test, vi, describe, afterEach } from "vitest";
 import { showDesktopNotification, AppNotificationItem, isExternalUrl } from "./use-notifications";
+import { Id } from "@/convex/_generated/dataModel";
 
 interface MockNotificationInstance {
   title: string;
@@ -37,7 +38,7 @@ describe("showDesktopNotification", () => {
   });
 
   const mockNotification: AppNotificationItem = {
-    _id: "notif_123",
+    _id: "notif_123" as Id<"notifications">,
     kind: "thread_generation_success",
     targetId: "user_123",
     data: {

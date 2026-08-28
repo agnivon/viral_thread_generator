@@ -557,6 +557,12 @@ export const enqueueThreadRegeneration = action({
         const manual_hook_selection = args.manual_hook_selection !== undefined ? args.manual_hook_selection : draft.manual_hook_selection;
         const search_query_generation = args.search_query_generation !== undefined ? args.search_query_generation : draft.search_query_generation;
 
+        // Optimistically set the status to "queued" so the UI immediately reflects it as queued
+        await ctx.runMutation(internal.mutations.threadsMutations.updateThreadDraft, {
+          id: id,
+          generation_status: "queued",
+        });
+
         return generationPool.enqueueAction(
           ctx,
           internal.actions.threadsActions.regenerateThreadInternal,
@@ -595,8 +601,14 @@ export const enqueueThreadPublication = action({
     const userId = await requireAuthUserId(ctx);
 
     await Promise.all(
-      args.requests.map((req) =>
-        publicationPool.enqueueAction(
+      args.requests.map(async (req) => {
+        // Optimistically set the status to "queued" so the UI immediately reflects it as queued
+        await ctx.runMutation(internal.mutations.threadsMutations.updateThreadDraft, {
+          id: req.id,
+          publication_status: "queued",
+        });
+
+        return publicationPool.enqueueAction(
           ctx,
           internal.actions.threadsActions.publishThread,
           {
@@ -610,8 +622,8 @@ export const enqueueThreadPublication = action({
             onComplete: internal.notifications.onComplete.onPublicationComplete,
             context: { userId, threadId: req.id },
           }
-        )
-      )
+        );
+      })
     );
   },
 });

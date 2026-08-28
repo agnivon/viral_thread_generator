@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import { internalMutation } from "../_generated/server";
-import { threadDraftInputValidator, commonThreadDraftArgs } from "../schema";
+import { threadDraftInputValidator, commonThreadDraftArgs, generationStatusValidator, publicationStatusValidator } from "../schema";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { Id } from "../_generated/dataModel";
 
@@ -60,9 +60,9 @@ export const updateThreadDraft = internalMutation({
   args: {
     id: v.id("threadDrafts"),
     input_field: v.optional(threadDraftInputValidator),
-    generation_status: v.optional(v.union(v.literal("success"), v.literal("failed"), v.literal("processing"), v.literal("hook selection"))),
+    generation_status: v.optional(generationStatusValidator),
     failure_reason: v.optional(v.union(v.string(), v.null())),
-    publication_status: v.optional(v.union(v.literal("not_published"), v.literal("publishing"), v.literal("success"), v.literal("failed"))),
+    publication_status: v.optional(publicationStatusValidator),
     publication_error: v.optional(v.union(v.string(), v.null())),
     ...commonThreadDraftArgs,
     raw_markdown: v.optional(v.string()),

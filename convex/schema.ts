@@ -15,6 +15,22 @@ export const tokenTypeValidator = v.union(
   v.literal("app")
 );
 
+export const generationStatusValidator = v.union(
+  v.literal("queued"),
+  v.literal("processing"),
+  v.literal("hook selection"),
+  v.literal("success"),
+  v.literal("failed")
+);
+
+export const publicationStatusValidator = v.union(
+  v.literal("not_published"),
+  v.literal("queued"),
+  v.literal("publishing"),
+  v.literal("success"),
+  v.literal("failed")
+);
+
 const NewsInput = v.object({
   agent: v.literal("news"),
   url: v.string(),
@@ -87,19 +103,9 @@ export default defineSchema(
           })
         )
       })),
-      generation_status: v.union(
-        v.literal("processing"),
-        v.literal("hook selection"),
-        v.literal("success"),
-        v.literal("failed")
-      ),
+      generation_status: generationStatusValidator,
       failure_reason: v.optional(v.string()),
-      publication_status: v.optional(v.union(
-        v.literal("not_published"),
-        v.literal("publishing"),
-        v.literal("success"),
-        v.literal("failed")
-      )),
+      publication_status: v.optional(publicationStatusValidator),
       publication_error: v.optional(v.string()),
     }).index("by_userId", ["userId"]),
   },

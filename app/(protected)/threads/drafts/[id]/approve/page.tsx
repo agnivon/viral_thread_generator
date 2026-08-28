@@ -403,6 +403,8 @@ export default function ApproveDraftPage() {
           <div className="flex flex-wrap items-center gap-2 self-start md:self-start pt-1">
             <span className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap shadow-xs ${state.is_published
               ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400'
+              : state.publication_status === "queued"
+                ? 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400'
               : state.publication_status === "publishing"
                 ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 animate-pulse'
                 : state.publication_status === "failed"
@@ -413,6 +415,8 @@ export default function ApproveDraftPage() {
               }`}>
               {state.is_published
                 ? "Published"
+                : state.publication_status === "queued"
+                  ? "Queued for Publishing"
                 : state.publication_status === "publishing"
                   ? "Publishing..."
                   : state.publication_status === "failed"
@@ -562,12 +566,12 @@ export default function ApproveDraftPage() {
               <Button
                 className="w-full rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white font-bold py-6 shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 cursor-pointer"
                 size="lg"
-                disabled={isPublishing || isRegenerating || state.is_published || state.publication_status === "publishing"}
+                disabled={isPublishing || isRegenerating || state.is_published || state.publication_status === "publishing" || state.publication_status === "queued"}
                 onClick={handlePublish}
               >
-                {isPublishing || state.publication_status === "publishing" ? (
+                {isPublishing || state.publication_status === "publishing" || state.publication_status === "queued" ? (
                   <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Publishing...
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" /> {state.publication_status === "queued" ? "Queued..." : "Publishing..."}
                   </>
                 ) : state.is_published ? (
                   "Published"
@@ -579,7 +583,7 @@ export default function ApproveDraftPage() {
                 variant="outline"
                 className="w-full rounded-xl border-border/80 text-foreground font-bold py-6 hover:bg-violet-600/5 hover:text-violet-600 dark:hover:bg-violet-500/5 dark:hover:text-violet-400 hover:border-violet-500/30 transition-all duration-300 cursor-pointer"
                 size="lg"
-                disabled={isPublishing || isRegenerating || state.is_published || state.publication_status === "publishing"}
+                disabled={isPublishing || isRegenerating || state.is_published || state.publication_status === "publishing" || state.publication_status === "queued" || state.generation_status === "processing" || state.generation_status === "queued"}
                 onClick={() => {
                   setIsDialogOpen(true);
                 }}

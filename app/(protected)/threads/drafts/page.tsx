@@ -22,7 +22,8 @@ import {
   CrossCircledIcon,
   FileTextIcon,
   ExternalLinkIcon,
-  TrashIcon
+  TrashIcon,
+  ClockIcon
 } from "@radix-ui/react-icons";
 
 export default function DraftsPage() {
@@ -70,7 +71,7 @@ export default function DraftsPage() {
 
   const publishableDraftsCount = Array.from(selectedDrafts).filter(id => {
     const d = drafts.find(draft => draft._id === id);
-    return d && !d.is_published && d.publication_status !== "publishing" && (d.generation_status ?? "success") === "success";
+    return d && !d.is_published && d.publication_status !== "publishing" && d.publication_status !== "queued" && (d.generation_status ?? "success") === "success";
   }).length;
 
   const toggleAll = () => {
@@ -84,7 +85,7 @@ export default function DraftsPage() {
   const handleBulkPublish = async () => {
     const validIds = Array.from(selectedDrafts).filter(id => {
       const draft = drafts.find(d => d._id === id);
-      return draft && !draft.is_published && draft.publication_status !== "publishing" && (draft.generation_status ?? "success") === "success";
+      return draft && !draft.is_published && draft.publication_status !== "publishing" && draft.publication_status !== "queued" && (draft.generation_status ?? "success") === "success";
     });
 
     if (validIds.length === 0) {
@@ -224,7 +225,7 @@ export default function DraftsPage() {
                   const title = isTopic ? draft.input_field?.topic : draft.input_field?.url || "Unknown Source";
                   const externalUrl = !isTopic && title?.startsWith("http") ? title : `https://${title}`;
                   const genStatus = draft.generation_status ?? "success";
-                  const isPublishable = !draft.is_published && draft.publication_status !== "publishing" && genStatus === "success";
+                  const isPublishable = !draft.is_published && draft.publication_status !== "publishing" && draft.publication_status !== "queued" && genStatus === "success";
                   return (
                     <tr key={draft._id} className="hover:bg-muted/20 transition-colors duration-150">
                       <td className="px-4 py-4.5 text-center">
@@ -255,7 +256,11 @@ export default function DraftsPage() {
                         )}
                       </td>
                       <td className="px-4 py-4.5">
-                        {genStatus === "processing" ? (
+                        {genStatus === "queued" ? (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg bg-orange-500/10 text-orange-600 dark:text-orange-400">
+                            <ClockIcon className="w-3 h-3" /> Queued
+                          </span>
+                        ) : genStatus === "processing" ? (
                           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 animate-pulse">
                             <UpdateIcon className="w-3 h-3 animate-spin" /> Generating
                           </span>
@@ -281,6 +286,10 @@ export default function DraftsPage() {
                               </TooltipContent>
                             </Tooltip>
                           </TooltipProvider>
+                        ) : draft.publication_status === "queued" ? (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg bg-orange-500/10 text-orange-600 dark:text-orange-400">
+                            <ClockIcon className="w-3 h-3" /> Queued
+                          </span>
                         ) : draft.publication_status === "publishing" ? (
                           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 animate-pulse">
                             <UpdateIcon className="w-3 h-3 animate-spin" /> Publishing
@@ -337,7 +346,7 @@ export default function DraftsPage() {
                         </span>
                       </td>
                       <td className="px-4 py-4.5 text-right">
-                        {genStatus === "processing" ? (
+                        {genStatus === "processing" || ["publishing", "queued"].includes(draft.publication_status ?? "") ? (
                           <Button disabled size="sm" variant="secondary" className="rounded-lg w-24 justify-center">
                             Review
                           </Button>

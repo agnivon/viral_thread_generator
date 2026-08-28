@@ -17,7 +17,7 @@ export const getLatestToken = internalQuery({
     return await ctx.db
       .query("accessTokens")
       .withIndex("by_userId_platform_active", (q) =>
-        q.eq("userId", args.userId).eq("platform", args.platform as any).eq("active", true)
+        q.eq("userId", args.userId).eq("platform", args.platform).eq("active", true)
       )
       .order("desc")
       // eslint-disable-next-line @convex-dev/no-filter-in-query
@@ -43,7 +43,7 @@ export const hasActiveToken = query({
     const token = await ctx.db
       .query("accessTokens")
       .withIndex("by_userId_platform_active", (q) =>
-        q.eq("userId", userId).eq("platform", args.platform as any).eq("active", true)
+        q.eq("userId", userId).eq("platform", args.platform).eq("active", true)
       )
       .order("desc")
       // eslint-disable-next-line @convex-dev/no-filter-in-query
@@ -71,7 +71,7 @@ export const getTokensNearExpiry = internalQuery({
     const token = await ctx.db
       .query("accessTokens")
       .withIndex("by_userId_platform_active", (q) =>
-        q.eq("userId", args.userId).eq("platform", args.platform as any).eq("active", true)
+        q.eq("userId", args.userId).eq("platform", args.platform).eq("active", true)
       )
       .order("desc")
       // eslint-disable-next-line @convex-dev/no-filter-in-query
@@ -100,7 +100,7 @@ export const getAllTokensNearExpiry = internalQuery({
     const tokens = await ctx.db
       .query("accessTokens")
       .withIndex("by_platform_and_active", (q) =>
-        q.eq("platform", args.platform as any).eq("active", true)
+        q.eq("platform", args.platform).eq("active", true)
       )
       .collect();
 

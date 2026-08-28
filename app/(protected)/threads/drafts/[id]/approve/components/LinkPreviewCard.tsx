@@ -7,6 +7,11 @@ interface LinkPreviewCardProps {
   url: string;
 }
 
+export const linkPreviewKeys = {
+  all: ["urlMetadata"] as const,
+  byUrl: (url: string) => ["urlMetadata", url] as const,
+};
+
 export function LinkPreviewCard({ url }: LinkPreviewCardProps) {
   const fetchMetadata = useAction(api.actions.threadsActions.getUrlMetadata);
 
@@ -34,19 +39,19 @@ export function LinkPreviewCard({ url }: LinkPreviewCardProps) {
     if (!cleanTitle) {
       cleanTitle = hostname;
     }
-  } catch (e) {
+  } catch (_e) {
     hostname = url;
     cleanTitle = url;
   }
 
   // Fetch OpenGraph metadata via TanStack Query and Convex Action
   const { data: metadata, isLoading: loading } = useQuery({
-    queryKey: ["urlMetadata", url],
+    queryKey: linkPreviewKeys.byUrl(url),
     queryFn: async () => {
       if (!url || !url.startsWith("http")) return null;
       return await fetchMetadata({ url });
     },
-    enabled: !!url && url.startsWith("http"),
+    enabled: Boolean(url && url.startsWith("http")),
     staleTime: 1000 * 60 * 10, // Cache for 10 minutes
   });
 

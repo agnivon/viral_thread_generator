@@ -11,57 +11,124 @@ Convex agent skills for common tasks can be installed by running
 `npx convex ai-files install`.
 
 - **Strict Type Safety**: Use Convex's schema definition to enforce strict type checking across all tables. Always import and use `v` validators (`convex/values`) to validate incoming arguments for queries, mutations, and actions.
-- **Architecture Separation**: Write queries and mutations for fast, deterministic database reads and writes. Use Convex actions for any side-effects, long-running processes, external network requests, or operations using non-deterministic inputs (like dates or random numbers).
-- **Safe Schema Evolution**: Do not introduce breaking schema modifications without a migration strategy. Use dry runs and proper backfills when modifying structure or data types in production collections.
+- **Architecture Separation & AI Workflows**: Write queries and mutations for fast, deterministic database reads and writes. Always execute external network requests, LangChain/LangGraph agent pipelines, and LLM calls within Convex `actions` (or background `@convex-dev/workpool` jobs), never in queries or mutations.
+- **Node Runtime in Actions**: Always add `"use node";` at the top of action files using Node.js modules or LangChain dependencies. Never add `"use node";` to files exporting queries or mutations.
+- **Safe Schema Evolution**: Do not introduce breaking schema modifications without a migration strategy. Use dry runs and proper backfills (`@convex-dev/migrations`) when modifying structure or data types.
+- **Server-Side Identity**: Derive authenticated identity strictly server-side via `ctx.auth.getUserIdentity()`. Never accept client-provided user IDs for authorization.
 
 <!-- convex-ai-end -->
 
-## Package Management
+## 1. Package Management & Tooling
+
 - **Always use `pnpm`**: Never run package-level commands using `npm`, `yarn`, or `bun`.
-  - Use `pnpm install` to add/update dependencies.
-  - Use `pnpm dev` for running the dev environment and `pnpm build` for building the app.
-  - Run CLI commands via `pnpm dlx` (e.g. `pnpm dlx shadcn@latest add ...` instead of `npx shadcn@latest add ...`).
-  - This ensures workspace consistency, avoids conflicts, and leverages `pnpm`'s efficient hard-linked store and lockfile features.
+  - Install dependencies: `pnpm install` / `pnpm add <package>`
+  - Run development server: `pnpm dev`
+  - Run CLI tools: `pnpm dlx` (e.g., `pnpm dlx shadcn@latest add ...`)
+- **Repository Verification Commands**:
+  - Type checking: `pnpm type-check` (`tsc --noEmit && tsc -p convex --noEmit`)
+  - Linting: `pnpm lint`
+  - Automated tests: `pnpm test` (`vitest run`)
 
-## Development & Build Workflow
-- **Do not run builds to test minor UI changes**: 
-  - Rely entirely on Hot Module Replacement (HMR) and Fast Refresh in the local dev server (`pnpm dev`) for styling adjustments, HTML structure edits, or minor UI logic changes.
-  - Only invoke `pnpm build` (or similar build commands) when validating production bundles, verifying type check compilation, profiling performance, or preparing for actual deployment.
+---
 
-## Code Quality & Architecture
-- **Clean, Concise, Elegant, & Readable Code**:
-  - Prefer readability over cleverness. Write code that describes its intent.
-  - Avoid deeply nested logic structures; use early returns and guard clauses to simplify control flow.
-  - Omit redundant or dead code, and keep comment blocks focused on explaining the *why* rather than the *what*.
+## 2. Development & Build Workflow
+
+- **Do not run full builds for minor UI/styling changes**:
+  - Rely on Hot Module Replacement (HMR) and Fast Refresh in dev mode (`pnpm dev`) for UI, Tailwind CSS, or component adjustments.
+  - Run `pnpm type-check` for fast static verification across Next.js and Convex.
+  - Only invoke `pnpm build` when verifying production bundles, static optimization limits, or deployment readiness.
+
+---
+
+## 3. Grounded Research & Integration Integrity
+
+- **Mandatory Research When Lacking Skills / MCPs**:
+  - When working with third-party APIs (Meta Threads API, Firecrawl, Tavily, Jina Reader, Currents, NewsData, Cloudflare Turnstile) or evolving framework features where no dedicated skill/MCP exists, **actively inspect installed package declarations (`d.ts`), documentation, or live types**.
+  - Never guess parameter names, endpoints, or response shapes based on outdated pre-trained memory.
+- **Preserve Codebase Ground Truth (Model IDs, Endpoints & Constants)**:
+  - **Never revert, downgrade, or replace modern identifiers configured in code with legacy training defaults.**
+  - Respect exact model IDs in `convex/lib/agents/models.ts` (e.g. `gemini-3.7-flash`, `gemini-3.5-flash-lite`, `gpt-5.4`, `gpt-5.4-mini`, `deepseek-v4-pro`, `gemma-4-26b-a4b-it`). Do NOT revert to `gpt-3.5-turbo`, `gemini-pro`, or `gpt-4o-mini`.
+  - Treat `.env.example`, service modules, and configuration files as authoritative over external assumptions.
+- **Inspect Installed Package Versions**:
+  - Check `package.json` to confirm versions (Next.js 16, React 19, Tailwind CSS v4, Convex 1.36+, TypeScript 6, Vitest 4) and utilize modern idioms rather than deprecated patterns.
+
+---
+
+## 4. Code Quality & TypeScript Standards
+
+- **Clean, Concise, & Readable**: Prefer self-documenting code and clear intent over cleverness. Use early returns and guard clauses to simplify control flow.
 - **Modular & Reusable Design**:
-  - Break monolithic files and UI components into small, cohesive, single-responsibility functions or components.
-  - Extract complex local UI state logic or fetching logic into custom React hooks or utility helper modules to decouple UI presentation from business logic.
-  - Design interfaces and props clearly, ensuring reusable components are highly composable and easily customizable.
-- **Leverage Native Framework & Library Capabilities**:
-  - Fully utilize modern platform features (e.g., React Server Components (RSC) where appropriate, React 19 hooks like `use()`, Tailwind CSS variables, etc.) rather than introducing custom, non-standard solutions.
-  - Do not reinvent the wheel: reuse utilities, styles, and patterns already configured within the project.
+  - Extract single-responsibility components and isolate complex state/agent logic into custom hooks or helper utilities.
+  - Keep LangGraph agent nodes (`ScraperNode`, `HookStrategistNode`, `ThreadWriterNode`, `ViralityCriticNode`, `ContextResearcherNode`) encapsulated and modular.
+- **Leverage Modern Platform Features**: Use React 19 hooks, Next.js 16 Server Components, Tailwind CSS v4 variables, and existing `shadcn/ui` components without unnecessary custom wrappers.
 - **Strict & Comprehensive Type Safety**:
-  - **Zero `any` Policy**: Never use `any`, `as any`, or implicit `any`. If a type is unknown or dynamic, use `unknown` accompanied by type guards, runtime validators (`v` validators / `zod`), or narrow union types.
-  - **Leverage Advanced TypeScript Capabilities**: Use generics, discriminated (tagged) unions, `satisfies` operators, utility types (`Record`, `Omit`, `Pick`, `Extract`), and `readonly` modifiers to model precise domain state and data contracts.
-  - **Exhaustive Handling & Strict Signatures**: Explicitly annotate function parameters, return types, component props, and API payloads. Use `never` pattern checks for exhaustive matching across union variants.
-  - **Avoid Unsafe Type Assertions**: Prefer type narrowing (e.g. `instanceof`, `typeof`, custom type predicates `isType`) over blanket `as` type casts.
+  - **Zero `any` Policy**: Never use `any`, `as any`, or implicit `any`. Use `unknown` with type guards, Zod, or Convex `v` validators for dynamic data.
+  - **Advanced TypeScript Capabilities**: Model domain state with generics, discriminated unions, `satisfies`, and utility types (`Record`, `Omit`, `Pick`, `Extract`, `readonly`).
+  - **Exhaustive Matching**: Explicitly annotate function parameters, return types, component props, and API payloads. Enforce `never` pattern checks on union branches.
+  - **Safe Type Narrowing**: Prefer `instanceof`, `typeof`, and custom type predicates over manual `as` casts.
 
+---
 
-## Testing & Quality Assurance
+## 5. Testing & Quality Assurance
+
 - **Audit & Update Existing Tests for Feature Changes**:
-  - Whenever refactoring, extending, or modifying an existing feature or API contract, always search for associated unit/integration tests (`*.test.ts`, `*.spec.tsx`, etc.).
-  - Update existing test cases to reflect new requirements, modified return signatures, or updated UI behavior, ensuring complete test coverage is maintained without breaking regressions.
-  - Never silence, skip, or delete failing test assertions without fixing the underlying contract or logic.
-- **Proactively Propose & Add Tests for New Features**:
-  - When building new features, utility modules, custom hooks, or Convex functions, propose and write comprehensive automated test cases.
-  - Cover happy paths, critical edge cases, failure/error states, and boundary conditions to safeguard stability.
-  - Ensure tests are deterministic, isolated, clean, and follow the project's testing frameworks (e.g. Vitest, Jest, React Testing Library, Convex test runners).
+  - When refactoring or updating existing features, search for associated tests (`convex/**/*.test.ts`, `*.test.ts`, `*.spec.tsx`).
+  - Update assertions and mocks to match modified contracts without silencing or skipping tests.
+- **Proactively Add Tests for New Features**:
+  - Write automated tests covering happy paths, critical edge cases, and failure modes.
+  - Use `convex-test` with Vitest and `@edge-runtime/vm` for Convex functions.
 - **Automated Verification**:
-  - Always run the relevant test suite (e.g., `pnpm test`) after modifying code or adding new tests to verify all tests pass cleanly before completing a task.
+  - Run `pnpm test` and `pnpm type-check` before concluding tasks to guarantee regression-free code.
 
-## Workspace Cleanliness & Temporary Files
-- **Delete Temporary and Scratch Files**: Always clean up any temporary scripts (e.g., test Python scripts, scratch Javascript/Typescript files, shell scripts), temporary log files, local JSON/CSV data dumps, or unused lockfiles created during the execution of a task.
-- **Maintain Pristine Repository State**: Ensure no trailing uncommitted, unused, or test-related files remain in the workspace root or source directories prior to completing a task. Avoid polluting the repository workspace.
-- **Use Dedicated Scratch Folders**: For any temporary testing/investigation files that must persist across steps but are not part of the project itself, use the designated artifacts scratch directory (`<appDataDir>/brain/<conversation-id>/scratch/`) rather than the workspace root.
-- **Keep Production Configs**: Never delete workspace configuration files (like `.gitignore`, `tsconfig.json`, `package.json`, `.agents/`, `AGENTS.md`) unless explicitly requested.
+---
+
+## 6. Environment Variables, Secrets & Boundaries
+
+- **Environment Variable Synchronization**:
+  - Whenever introducing or consuming an environment variable (`process.env.*`), immediately update `.env.example` with descriptive placeholder tokens (`your_api_key_here`, `dev:...`) and explanatory comments.
+  - Keep `.env.local` synchronized to avoid silent runtime failures.
+- **Client vs. Server Boundary**:
+  - Only browser-safe variables may use `NEXT_PUBLIC_` (e.g. `NEXT_PUBLIC_CONVEX_URL`, `NEXT_PUBLIC_CLOUDFLARE_TURNSTILE_SITE_KEY`).
+  - Sensitive provider keys (LLM keys, Threads App Secret, scraping tokens) must NEVER use `NEXT_PUBLIC_` or be imported into client components.
+- **Never Commit Secrets**:
+  - Never commit real credentials. All commits are validated via `secretlint` pre-commit hooks.
+
+---
+
+## 7. Workspace Cleanliness & Temporary Files
+
+- **Delete Temporary & Scratch Files**: Always clean up temporary test scripts, scratch logs, or local JSON/CSV data dumps upon task completion.
+- **Maintain Pristine Repository State**: Ensure no untracked, dangling test artifacts remain in source directories.
+- **Use Dedicated Scratch Folders**: For persistent multi-step investigations, store files in the designated scratch directory (`<appDataDir>/brain/<conversation-id>/scratch/`).
+- **Preserve Production Configs**: Never delete `.gitignore`, `tsconfig.json`, `package.json`, `components.json`, `.agents/`, or `AGENTS.md` unless explicitly instructed.
+
+---
+
+## 8. TanStack Query (React Query v5) Standards
+
+- **Convex vs. TanStack Query Boundary**:
+  - **Live Database Reads**: Always use Convex `useQuery` / `usePaginatedQuery` (`convex/react`). Never wrap live Convex queries in TanStack Query.
+  - **Convex Actions & External APIs**: Use TanStack Query (`useQuery`, `useInfiniteQuery`, `useMutation`) for Convex actions (`useAction`), third-party REST endpoints, and scraping/AI pipelines that benefit from client caching, debouncing, or retry handling.
+- **Type-Safe Query Key Factories**:
+  - Never use raw, unstructured string arrays for query keys. Define structured query key objects with explicit tuples (`as const`).
+- **Strict Query Function Typing**:
+  - Always explicitly type `queryFn` return types, parameters, and mutation payloads. Avoid `any` in callbacks (`onSuccess`, `onError`).
+- **Query Cache Invalidation**:
+  - Prefer invalidating queries (`queryClient.invalidateQueries({ queryKey: ... })`) over manual, deeply nested cache mutations (`queryClient.setQueryData`), unless performing structured optimistic updates.
+
+---
+
+## 9. React Hook Form & Validation Standards
+
+- **Schema-Driven Form Validation**:
+  - Pair `react-hook-form` with `zod` and `@hookform/resolvers/zod` when managing structured multi-field form inputs.
+- **Controlled Component Boundaries**:
+  - Use native `register()` for standard HTML `<input>`, `<textarea>`, and `<select>`.
+  - Always use `Controller` or Shadcn's `<FormField>` for custom/Radix UI components (Select, Checkbox, Switch, Combobox, Tabs).
+- **Performance & Re-render Optimization**:
+  - Avoid calling root-level `watch()` across large parent forms. Use `useWatch({ control, name })` inside isolated sub-components to limit re-render scope (e.g. character counters, live URL preview cards).
+  - Use `useFieldArray` for dynamic lists (such as multi-post thread editors) instead of manual string index manipulation.
+- **Clean Form Resetting & Default Values**:
+  - Always provide complete `defaultValues` matching the form data shape.
+  - When syncing server data (e.g. thread draft loading), call `reset(newData)` inside an effect with proper dependency tracking.
 

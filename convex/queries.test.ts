@@ -50,7 +50,7 @@ test("threadsQueries - getAllThreadDrafts & getPaginatedThreadDrafts", async () 
     });
   });
 
-  const _draftId2 = await t.mutation(async (ctx) => {
+  await t.mutation(async (ctx) => {
     return await ctx.db.insert("threadDrafts", {
       userId,
       generation_status: "success",

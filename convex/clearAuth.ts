@@ -1,4 +1,5 @@
 import { internalMutation } from "./_generated/server";
+import { TableNames } from "./_generated/dataModel";
 
 export const clearAll = internalMutation({
   args: {},
@@ -6,30 +7,28 @@ export const clearAll = internalMutation({
     const users = await ctx.db.query("users").collect();
     for (const u of users) await ctx.db.delete("users", u._id);
 
-    const accounts = await ctx.db.query("authAccounts" as any).collect();
-    for (const a of accounts) await ctx.db.delete("authAccounts" as any, a._id);
+    const tablesToClear: TableNames[] = [
+      "authAccounts",
+      "authSessions",
+      "authVerificationCodes",
+      "authRateLimits",
+      "authRefreshTokens",
+    ];
 
-    const sessions = await ctx.db.query("authSessions" as any).collect();
-    for (const s of sessions) await ctx.db.delete("authSessions" as any, s._id);
-
-    const hashes = await ctx.db.query("authPasswordHashes" as any).collect();
-    for (const h of hashes) await ctx.db.delete("authPasswordHashes" as any, h._id);
-    
-    // also check authRefreshTokens and authVerifications if they exist
-    try {
-      const refresh = await ctx.db.query("authRefreshTokens" as any).collect();
-      for (const r of refresh) await ctx.db.delete("authRefreshTokens" as any, r._id);
-    } catch (_e) {
-      // ignore
-    }
-    
-    try {
-      const verif = await ctx.db.query("authVerifications" as any).collect();
-      for (const vRef of verif) await ctx.db.delete("authVerifications" as any, vRef._id);
-    } catch (_e) {
-      // ignore
+    let clearedCount = 0;
+    for (const tableName of tablesToClear) {
+      try {
+        const docs = await ctx.db.query(tableName).collect();
+        for (const doc of docs) {
+          await ctx.db.delete(tableName, doc._id);
+          clearedCount++;
+        }
+      } catch (_e) {
+        // Table might not exist or be unused
+      }
     }
 
-    return `Cleared ${users.length} users, ${accounts.length} accounts, ${sessions.length} sessions, ${hashes.length} hashes.`;
+    return `Cleared ${users.length} users and ${clearedCount} auth records.`;
   },
 });
+

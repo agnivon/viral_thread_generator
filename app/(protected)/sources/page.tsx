@@ -25,7 +25,7 @@ import { api } from "@/convex/_generated/api";
 import { useAction } from "convex/react";
 import { AlertCircle, Calendar, ExternalLink, Globe, RefreshCw, Sparkles, TrendingUp } from "lucide-react";
 import { toast } from "sonner";
-import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient, type InfiniteData } from "@tanstack/react-query";
 
 interface Article {
   id: string;
@@ -45,19 +45,33 @@ interface KeywordItem {
   keyword: string;
 }
 
+interface NewsPageResult {
+  page: Article[];
+  isDone: boolean;
+  continueCursor: string | null;
+}
+
+export const sourcesQueryKeys = {
+  all: ["news"] as const,
+  bySourceKeyword: (sourceId: string, keyword: string) => ["news", sourceId, keyword] as const,
+  keywords: (sourceId: string) => ["keywords", sourceId] as const,
+};
+
+interface SourceDataGridProps {
+  sourceId: string;
+  getLatestNewsAction: (args: { keyword: string; cursor?: string; numItems?: number }) => Promise<NewsPageResult>;
+  evaluateArticleAction: (args: { keyword: string; id: string }) => Promise<Partial<Article> & { id: string }>;
+  items: KeywordItem[];
+  isKeywordsLoading?: boolean;
+}
+
 function SourceDataGrid({
   sourceId,
   getLatestNewsAction,
   evaluateArticleAction,
   items,
-  isKeywordsLoading = false
-}: {
-  sourceId: string;
-  getLatestNewsAction: any;
-  evaluateArticleAction: any;
-  items: KeywordItem[];
-  isKeywordsLoading?: boolean;
-}) {
+  isKeywordsLoading = false,
+}: SourceDataGridProps) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
   const queryClient = useQueryClient();
@@ -75,7 +89,7 @@ function SourceDataGrid({
     setScoringIds((prev) => ({ ...prev, [articleId]: true }));
     try {
       await evaluateMutation.mutateAsync(articleId);
-    } catch (err) {
+    } catch (_err) {
       // Handled in mutate callbacks
     } finally {
       setScoringIds((prev) => {
@@ -86,29 +100,32 @@ function SourceDataGrid({
     }
   };
 
-  const evaluateMutation = useMutation({
+  const evaluateMutation = useMutation<Partial<Article> & { id: string }, Error, string>({
     mutationFn: async (articleId: string) => {
       return await evaluateArticleAction({ keyword: selectedKeyword, id: articleId });
     },
-    onSuccess: (updatedArticle: any) => {
+    onSuccess: (updatedArticle) => {
       // Update infinite query cache with the newly scored article
-      queryClient.setQueryData(["news", sourceId, selectedKeyword], (oldData: any) => {
-        if (!oldData) return oldData;
-        return {
-          ...oldData,
-          pages: oldData.pages.map((page: any) => ({
-            ...page,
-            page: page.page.map((article: any) =>
-              article.id === updatedArticle.id
-                ? { ...article, ...updatedArticle }
-                : article
-            ),
-          })),
-        };
-      });
+      queryClient.setQueryData<InfiniteData<NewsPageResult>>(
+        sourcesQueryKeys.bySourceKeyword(sourceId, selectedKeyword),
+        (oldData) => {
+          if (!oldData) return oldData;
+          return {
+            ...oldData,
+            pages: oldData.pages.map((page) => ({
+              ...page,
+              page: page.page.map((article) =>
+                article.id === updatedArticle.id
+                  ? { ...article, ...updatedArticle }
+                  : article
+              ),
+            })),
+          };
+        }
+      );
       toast.success("Article evaluated and scored successfully!");
     },
-    onError: (err: any) => {
+    onError: (err: Error) => {
       console.error("Evaluation error:", err);
       toast.error(err.message || "Failed to evaluate article.");
     },
@@ -121,18 +138,17 @@ function SourceDataGrid({
     fetchNextPage,
     hasNextPage,
     isFetching,
-    isRefetching,
     refetch,
     isFetchingNextPage,
   } = useInfiniteQuery({
-    queryKey: ["news", sourceId, selectedKeyword],
-    queryFn: async ({ pageParam }) => {
+    queryKey: sourcesQueryKeys.bySourceKeyword(sourceId, selectedKeyword),
+    queryFn: async ({ pageParam }): Promise<NewsPageResult> => {
       if (!selectedKeyword) return { page: [], isDone: true, continueCursor: null };
       return await getLatestNewsAction({ keyword: selectedKeyword, cursor: pageParam, numItems: 30 });
     },
-    enabled: !!selectedKeyword,
+    enabled: Boolean(selectedKeyword),
     initialPageParam: undefined as string | undefined,
-    getNextPageParam: (lastPage: any) => {
+    getNextPageParam: (lastPage: NewsPageResult) => {
       return lastPage?.isDone ? undefined : (lastPage?.continueCursor || undefined);
     },
   });
@@ -160,13 +176,13 @@ function SourceDataGrid({
         hour: "2-digit",
         minute: "2-digit",
       });
-    } catch (e) {
+    } catch (_e) {
       return dateStr;
     }
   };
 
   const articles = data?.pages.flatMap((page) => page?.page || []) ?? [];
-  const activeArticle = articles.find((a: any) => a.id === selectedArticle?.id) || selectedArticle;
+  const activeArticle = articles.find((a) => a.id === selectedArticle?.id) || selectedArticle;
   const isRefreshing = isFetching && !isFetchingNextPage;
 
   const currentKeywordObj = items.find(i => i.id === selectedKeyword);
@@ -577,14 +593,14 @@ export default function SourcesPage() {
   const evaluateNewsdata = useAction(api.actions.newsdataActions.evaluateNewsArticle);
   const getAvailableKeywordsNewsdata = useAction(api.actions.newsdataActions.getAvailableKeywords);
 
-  const { data: currentsKeywords = [], isLoading: isCurrentsLoading } = useQuery({
-    queryKey: ["currents-keywords"],
-    queryFn: async () => await getAvailableKeywordsCurrents({}),
+  const { data: currentsKeywords = [], isLoading: isCurrentsLoading } = useQuery<KeywordItem[]>({
+    queryKey: sourcesQueryKeys.keywords("currents"),
+    queryFn: async () => (await getAvailableKeywordsCurrents({})) as KeywordItem[],
   });
 
-  const { data: newsdataKeywords = [], isLoading: isNewsdataLoading } = useQuery({
-    queryKey: ["newsdata-keywords"],
-    queryFn: async () => await getAvailableKeywordsNewsdata({}),
+  const { data: newsdataKeywords = [], isLoading: isNewsdataLoading } = useQuery<KeywordItem[]>({
+    queryKey: sourcesQueryKeys.keywords("newsdata"),
+    queryFn: async () => (await getAvailableKeywordsNewsdata({})) as KeywordItem[],
   });
 
   return (

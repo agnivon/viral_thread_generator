@@ -57,7 +57,7 @@ export default function ApproveDraftPage() {
   const [activeVideoPickerIdx, setActiveVideoPickerIdx] = useState<number | null>(null);
 
 
-  const { register, reset, watch, getValues } = useForm<{ posts: string[] }>({
+  const { register, reset, control, getValues } = useForm<{ posts: string[] }>({
     defaultValues: {
       posts: [],
     }
@@ -117,7 +117,7 @@ export default function ApproveDraftPage() {
       toast.success("Generation resumed! The thread draft is being generated.");
       router.push("/threads/drafts");
     },
-    onError: (err: any) => {
+    onError: (err: Error) => {
       console.error("Failed to resume generation:", err);
       toast.error(`Failed to resume: ${err.message || "Unknown error"}`);
     }
@@ -239,7 +239,11 @@ export default function ApproveDraftPage() {
     return (
       <HookSelectionScreen
         isTopic={state.input_field?.agent === "topic"}
-        url={state.input_field?.agent === "topic" ? (state.input_field as any).topic : (state.input_field as any)?.url || "Unknown Source"}
+        url={
+          state.input_field?.agent === "topic"
+            ? state.input_field.topic
+            : state.input_field?.url || "Unknown Source"
+        }
         coreHooks={state.core_hooks || []}
         selectedHook={state.selected_hook}
         selectedHookIdx={selectedHookIdx}
@@ -372,16 +376,16 @@ export default function ApproveDraftPage() {
               Generated from:{" "}
               {state.input_field?.agent === "topic" ? (
                 <span className="font-medium text-foreground">
-                  {(state.input_field as any).topic}
+                  {state.input_field.topic}
                 </span>
               ) : (
                 <a
-                  href={(state.input_field as any)?.url || "#"}
+                  href={state.input_field?.url || "#"}
                   target="_blank"
                   rel="noreferrer"
                   className="underline hover:text-violet-600 dark:hover:text-violet-400 transition-colors break-all font-medium"
                 >
-                  {(state.input_field as any)?.url || "Unknown Source"}
+                  {state.input_field?.url || "Unknown Source"}
                 </a>
               )}
             </p>
@@ -528,7 +532,7 @@ export default function ApproveDraftPage() {
                 posts={state.thread_draft}
                 isEditingPosts={isEditingPosts}
                 register={register}
-                watch={watch}
+                control={control}
                 selectedImages={selectedImages}
                 selectedVideos={selectedVideos}
                 postCritiques={state.post_critiques}

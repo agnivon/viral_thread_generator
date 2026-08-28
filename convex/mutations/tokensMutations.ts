@@ -1,15 +1,17 @@
-import { v } from "convex/values";
-import { internalMutation } from "../_generated/server";
+import { v, Infer } from "convex/values";
+import { MutationCtx, internalMutation } from "../_generated/server";
 import { Id } from "../_generated/dataModel";
 import { platformValidator, tokenTypeValidator } from "../schema";
+
+type Platform = Infer<typeof platformValidator>;
 
 /**
  * Helper function to delete all tokens for a platform.
  */
-async function deleteTokensByPlatformInternal(ctx: any, platform: string, userId: string) {
+async function deleteTokensByPlatformInternal(ctx: MutationCtx, platform: Platform, userId: Id<"users">) {
   const existingTokens = await ctx.db
     .query("accessTokens")
-    .withIndex("by_userId_platform_active", (q: any) =>
+    .withIndex("by_userId_platform_active", (q) =>
       q.eq("userId", userId).eq("platform", platform)
     )
     .collect();
@@ -59,7 +61,7 @@ export const updateToken = internalMutation({
       token: args.newToken,
       userId: args.userId,
       platformUserId: args.platformUserId,
-      platform: args.platform as any,
+      platform: args.platform,
       type: args.type,
       active: true,
       expiredIn: now + args.expiresIn * 1000,
@@ -90,7 +92,7 @@ export const storeAuthToken = internalMutation({
       token: args.token,
       userId: args.userId,
       platformUserId: args.platformUserId,
-      platform: args.platform as any,
+      platform: args.platform,
       type: args.type,
       active: args.active,
       expiredIn: now + args.expiresIn * 1000,
@@ -100,3 +102,4 @@ export const storeAuthToken = internalMutation({
     return tokenId;
   },
 });
+

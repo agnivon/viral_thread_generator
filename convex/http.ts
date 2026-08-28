@@ -1,12 +1,13 @@
 import { httpRouter } from "convex/server";
 import { httpAction } from "./_generated/server";
 import { internal } from "./_generated/api";
+import { Id } from "./_generated/dataModel";
 import { ThreadsAuthAPI } from "./lib/threads/api";
 import { auth } from "./auth";
 
 const http = httpRouter();
 
-async function verifyState(stateStr: string, secret: string): Promise<string | null> {
+async function verifyState(stateStr: string, secret: string): Promise<Id<"users"> | null> {
   try {
     const parts = stateStr.split(":");
     if (parts.length !== 3) return null;
@@ -39,7 +40,7 @@ async function verifyState(stateStr: string, secret: string): Promise<string | n
     );
     
     const isValid = await crypto.subtle.verify("HMAC", key, sigBytes, data);
-    return isValid ? userId : null;
+    return isValid ? (userId as Id<"users">) : null;
   } catch (err) {
     console.error("Error verifying state:", err);
     return null;
@@ -58,7 +59,7 @@ http.route({
       return new Response("Threads API configurations are missing in the environment variables", { status: 500 });
     }
 
-    const userId = await verifyState(stateStr, clientSecret) as any;
+    const userId = await verifyState(stateStr, clientSecret);
 
     if (!userId) {
       return new Response("Unauthorized", { status: 401 });

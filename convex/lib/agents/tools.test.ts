@@ -93,11 +93,12 @@ test("CharacterValidatorTool - detects line breaks limit (>4)", async () => {
   );
 });
 
-test("CharacterValidatorTool - detects banned engagement phrases and markdown formatting", async () => {
+test("CharacterValidatorTool - detects banned engagement phrases and markdown formatting including em dashes", async () => {
   const thread = [
     "Here is a thread 🧵 about AI development", // contains banned phrase "a thread 🧵"
     "This post has **bold text** and `code` inside.", // contains markdown bold & code
-    "CTA: Check our website!"
+    "This post uses an em dash — which is forbidden.", // contains em dash
+    "CTA: Check our thesis and build accordingly."
   ];
 
   const rawResult = await CharacterValidatorTool.invoke({ thread_draft: thread });
@@ -107,15 +108,49 @@ test("CharacterValidatorTool - detects banned engagement phrases and markdown fo
   expect(result.errors).toEqual(
     expect.arrayContaining([
       expect.stringContaining('banned engagement phrase: "a thread 🧵"'),
-      expect.stringContaining("contains invalid markdown formatting characters"),
+      expect.stringContaining("contains invalid markdown or em dash characters"),
     ])
   );
 });
 
-test("CharacterValidatorTool - detects forbidden URLs in body and forbidden placeholders in CTA", async () => {
-  const thread = [
+test("CharacterValidatorTool - detects forbidden URLs anywhere in thread (Hook, Body, or CTA)", async () => {
+  const threadWithBodyUrl = [
     "Hook post",
     "Body post with raw URL: https://example.com/article", // URL in body
+    "CTA: Follow and build accordingly."
+  ];
+
+  const rawResultBody = await CharacterValidatorTool.invoke({ thread_draft: threadWithBodyUrl });
+  const resultBody = JSON.parse(rawResultBody);
+
+  expect(resultBody.isValid).toBe(false);
+  expect(resultBody.errors).toEqual(
+    expect.arrayContaining([
+      expect.stringContaining("Hyperlinks and URLs are strictly forbidden anywhere in the thread"),
+    ])
+  );
+
+  const threadWithCtaUrl = [
+    "Hook post",
+    "Body post content here.",
+    "CTA with URL: https://example.com/download" // URL in CTA
+  ];
+
+  const rawResultCta = await CharacterValidatorTool.invoke({ thread_draft: threadWithCtaUrl });
+  const resultCta = JSON.parse(rawResultCta);
+
+  expect(resultCta.isValid).toBe(false);
+  expect(resultCta.errors).toEqual(
+    expect.arrayContaining([
+      expect.stringContaining("Hyperlinks and URLs are strictly forbidden anywhere in the thread"),
+    ])
+  );
+});
+
+test("CharacterValidatorTool - detects forbidden placeholders and tags in CTA", async () => {
+  const thread = [
+    "Hook post",
+    "Body post without links",
     "CTA: Follow @developer for updates and click [Link]" // CTA with tag @developer & placeholder [Link]
   ];
 
@@ -125,8 +160,8 @@ test("CharacterValidatorTool - detects forbidden URLs in body and forbidden plac
   expect(result.isValid).toBe(false);
   expect(result.errors).toEqual(
     expect.arrayContaining([
-      expect.stringContaining("Hyperlinks are strictly forbidden in the Hook and Body posts"),
       expect.stringContaining("forbidden placeholders, tags, or account identifiers"),
     ])
   );
 });
+

@@ -46,11 +46,11 @@ export const CharacterValidatorTool = tool(
         }
       }
 
-      // Complex markdown check for formatting (including any use of asterisks)
-      const formattingRegex = /(\*|__|~~|`|#\s+|>+\s+|\[.*\]\(.*\))/g;
+      // Complex markdown check for formatting (including any use of asterisks and em dashes)
+      const formattingRegex = /(\*|__|~~|`|#\s+|>+\s+|\[.*\]\(.*\)|\u2014|\u2013)/g;
       const foundFormatting = post.match(formattingRegex);
       if (foundFormatting) {
-        errors.push(`Post ${index + 1} (${position}) contains invalid markdown formatting characters (${foundFormatting.join(", ")}). Remove all markdown formatting (bold, italic, headers, code blocks, etc).`);
+        errors.push(`Post ${index + 1} (${position}) contains invalid markdown or em dash characters (${foundFormatting.join(", ")}). Remove all markdown formatting (bold, italic, headers, code blocks) and em dashes.`);
       }
 
       // 4. Exact-Match Banned Phrase Validation
@@ -61,11 +61,11 @@ export const CharacterValidatorTool = tool(
         }
       }
 
-      // Check for raw hyperlinks (URLs)
+      // Check for raw hyperlinks (URLs) - strictly forbidden everywhere in the thread
       const urlRegex = /(https?:\/\/[^\s]+|www\.[^\s]+)/g;
       const foundUrls = post.match(urlRegex);
-      if (foundUrls && position !== "CTA") {
-        errors.push(`Post ${index + 1} (${position}) contains a hyperlink (${foundUrls.join(", ")}). Hyperlinks are strictly forbidden in the Hook and Body posts. Remove all URLs.`);
+      if (foundUrls) {
+        errors.push(`Post ${index + 1} (${position}) contains a hyperlink (${foundUrls.join(", ")}). Hyperlinks and URLs are strictly forbidden anywhere in the thread. Remove all URLs.`);
       }
 
       // Check for placeholders, account names, identifiers, or tags in the CTA

@@ -1,11 +1,12 @@
-import { Sparkles, Image as ImageIcon, X, Video as VideoIcon } from "lucide-react";
+import { Sparkles, Image as ImageIcon, X, Video as VideoIcon, GripVertical } from "lucide-react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { CardContent } from "@/components/ui/card";
 import { LinkPreviewCard } from "./LinkPreviewCard";
-import { useWatch, type Control, type UseFormRegister } from "react-hook-form";
+import { useWatch, useFieldArray, type Control, type UseFormRegister } from "react-hook-form";
 
 export interface ThreadDraftFormData {
-  posts: string[];
+  posts: { content: string }[];
 }
 
 interface DraftPostsListProps {
@@ -41,6 +42,12 @@ interface DraftPostItemProps {
   onRemoveImage: (index: number) => void;
   onAttachVideo: (index: number) => void;
   onRemoveVideo: (index: number) => void;
+  onRemovePost?: (index: number) => void;
+  isDragging?: boolean;
+  onDragStart?: (e: React.DragEvent) => void;
+  onDragOver?: (e: React.DragEvent) => void;
+  onDrop?: (e: React.DragEvent) => void;
+  onDragEnd?: (e: React.DragEvent) => void;
 }
 
 function DraftPostItem({
@@ -56,34 +63,63 @@ function DraftPostItem({
   onRemoveImage,
   onAttachVideo,
   onRemoveVideo,
+  onRemovePost,
+  isDragging,
+  onDragStart,
+  onDragOver,
+  onDrop,
+  onDragEnd,
 }: DraftPostItemProps) {
   // Use isolated useWatch at the post-item level to avoid re-rendering entire thread list
-  const watchedValue = useWatch({ control, name: `posts.${index}` }) ?? post;
-  const charCount = watchedValue.length;
-  const detectedUrl = getFirstUrl(watchedValue);
+  const watchedValue = useWatch({ control, name: `posts.${index}.content` }) ?? post;
+  const charCount = watchedValue?.length || 0;
+  const detectedUrl = getFirstUrl(watchedValue || "");
 
   return (
     <div
-      className={`group relative overflow-hidden p-6 rounded-xl border transition-all duration-300 flex flex-col justify-between min-h-[120px] ${
+      draggable={isEditingPosts}
+      onDragStart={onDragStart}
+      onDragOver={onDragOver}
+      onDrop={onDrop}
+      onDragEnd={onDragEnd}
+      className={`group relative overflow-hidden p-6 rounded-xl border transition-all duration-300 flex flex-col justify-between min-h-30 ${
         isEditingPosts
           ? "border-violet-500 bg-violet-500/5 shadow-md animate-in fade-in duration-200"
           : "border-border/80 bg-card/40 backdrop-blur-xs hover:border-violet-500/30 hover:shadow-md"
-      }`}
+      } ${isDragging ? "opacity-50 scale-[0.98] border-violet-600 bg-violet-600/10 shadow-xl" : ""}`}
     >
-      <div className="absolute top-0 left-0 w-[4px] h-full bg-gradient-to-b from-violet-600 to-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+      <div className="absolute top-0 left-0 w-1 h-full bg-linear-to-b from-violet-600 to-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
       <div className="flex gap-4 items-start w-full">
-        <span className="flex-shrink-0 bg-gradient-to-r from-violet-600 to-indigo-600 text-white h-7 w-7 rounded-full flex items-center justify-center text-xs font-black shadow-md select-none mt-0.5">
+        {isEditingPosts && (
+          <div className="mt-1 -ml-2 text-muted-foreground/50 hover:text-foreground cursor-grab active:cursor-grabbing transition-colors shrink-0">
+            <GripVertical className="w-5 h-5" />
+          </div>
+        )}
+        <span className="shrink-0 bg-linear-to-r from-violet-600 to-indigo-600 text-white h-7 w-7 rounded-full flex items-center justify-center text-xs font-black shadow-md select-none mt-0.5">
           {index + 1}
         </span>
 
         {isEditingPosts ? (
           <div className="flex-1 space-y-2 min-w-0">
-            <textarea
-              {...register(`posts.${index}`)}
-              rows={4}
-              className="w-full text-sm bg-background border border-border focus:border-violet-500 focus:ring-1 focus:ring-violet-500 focus:outline-none rounded-lg p-3.5 resize-y leading-relaxed"
-            />
+            <div className="flex justify-between items-start gap-4">
+              <textarea
+                {...register(`posts.${index}.content` as const)}
+                rows={4}
+                className="w-full text-sm bg-background border border-border focus:border-violet-500 focus:ring-1 focus:ring-violet-500 focus:outline-none rounded-lg p-3.5 resize-y leading-relaxed"
+              />
+              {onRemovePost && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => onRemovePost(index)}
+                  className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive shrink-0 h-8 w-8 p-0"
+                >
+                  <X className="w-4 h-4" />
+                </Button>
+              )}
+            </div>
 
             {/* URL Link Preview */}
             {detectedUrl && <LinkPreviewCard url={detectedUrl} />}
@@ -253,16 +289,27 @@ export function DraftPostsList({
   onAttachVideo,
   onRemoveVideo,
 }: DraftPostsListProps) {
+  const { fields, append, remove, move } = useFieldArray({
+    control,
+    name: "posts",
+  });
+
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+
+  const displayPosts = isEditingPosts
+    ? fields.map((field, i) => ({ id: field.id, content: (field as any).content || "" }))
+    : posts.map((post, i) => ({ id: i.toString(), content: post }));
+
   return (
     <CardContent className="space-y-6 pt-6">
-      {posts.map((post, index) => {
+      {displayPosts.map((item, index) => {
         const postCritique = postCritiques?.find((pc) => pc.post_index === index + 1);
 
         return (
           <DraftPostItem
-            key={index}
+            key={item.id}
             index={index}
-            post={post}
+            post={item.content}
             isEditingPosts={isEditingPosts}
             register={register}
             control={control}
@@ -273,10 +320,41 @@ export function DraftPostsList({
             onRemoveImage={onRemoveImage}
             onAttachVideo={onAttachVideo}
             onRemoveVideo={onRemoveVideo}
+            onRemovePost={isEditingPosts ? () => remove(index) : undefined}
+            isDragging={draggedIndex === index}
+            onDragStart={(e) => {
+              setDraggedIndex(index);
+              e.dataTransfer.effectAllowed = "move";
+              e.dataTransfer.setData("text/plain", index.toString());
+            }}
+            onDragOver={(e) => {
+              e.preventDefault();
+              e.dataTransfer.dropEffect = "move";
+            }}
+            onDrop={(e) => {
+              e.preventDefault();
+              if (draggedIndex !== null && draggedIndex !== index) {
+                move(draggedIndex, index);
+              }
+              setDraggedIndex(null);
+            }}
+            onDragEnd={() => setDraggedIndex(null)}
           />
         );
       })}
-      {posts.length === 0 && (
+      
+      {isEditingPosts && (
+        <Button
+          type="button"
+          variant="outline"
+          className="w-full rounded-xl border-dashed border-border hover:border-violet-500 hover:text-violet-600 hover:bg-violet-500/5 transition-all py-6"
+          onClick={() => append({ content: "" })}
+        >
+          + Add New Post
+        </Button>
+      )}
+
+      {posts.length === 0 && !isEditingPosts && (
         <p className="text-muted-foreground italic text-center py-6">No draft content generated yet.</p>
       )}
     </CardContent>

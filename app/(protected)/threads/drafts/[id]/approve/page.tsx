@@ -57,7 +57,7 @@ export default function ApproveDraftPage() {
   const [activeVideoPickerIdx, setActiveVideoPickerIdx] = useState<number | null>(null);
 
 
-  const { register, reset, control, getValues } = useForm<{ posts: string[] }>({
+  const { register, reset, control, getValues } = useForm<{ posts: { content: string }[] }>({
     defaultValues: {
       posts: [],
     }
@@ -65,13 +65,13 @@ export default function ApproveDraftPage() {
 
   useEffect(() => {
     if (state?.thread_draft) {
-      reset({ posts: state.thread_draft });
+      reset({ posts: state.thread_draft.map(p => ({ content: p })) });
     }
   }, [state, reset]);
 
   const handleCancelEditing = () => {
     if (state?.thread_draft) {
-      reset({ posts: state.thread_draft });
+      reset({ posts: state.thread_draft.map(p => ({ content: p })) });
     }
     setSelectedImages({});
     setSelectedVideos({});
@@ -139,7 +139,7 @@ export default function ApproveDraftPage() {
       setIsPublishing(true);
 
       const formValues = getValues();
-      const currentPosts = formValues.posts || [];
+      const currentPosts = (formValues.posts || []).map(p => p.content);
 
       // Validate 500-character limit
       const tooLongIndex = currentPosts.findIndex(p => p.length > 500);

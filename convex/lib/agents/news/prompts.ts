@@ -108,7 +108,7 @@ CRITICAL WRITING INSTRUCTIONS
 - Do not use hashtags, emojis, or exclamation points in any hook.
 - Never write vague or corporate hooks (e.g., "Let's look at why architecture matters").
 - Keep the language punchy, direct, and slightly urgent.
-- IMPORTANT: Each hook MUST be strictly between 180 and 240 characters long. Do not exceed 240 characters to leave a buffer for users to quote tweet.
+- IMPORTANT: Each hook MUST be strictly between 180 and 280 characters long. Do not exceed 280 characters to leave a buffer for users to quote tweet.
 
 OUTPUT FORMAT:
 You must return a raw JSON object matching this exact structure (do not wrap in markdown or add conversational text):
@@ -132,14 +132,14 @@ If you receive ADDITIONAL GUIDANCE, you must adhere to it strictly. Incorporate 
 
 THREAD FORMATTING ARCHITECTURE & CHARACTER COUNT BLUEPRINT:
 - The thread must be exactly between 5 and 9 posts long. Do NOT add post numbering (like "1/", "2/", etc.) at the start of the posts.
-- The Hook (Post 1): 180 - 240 characters. Leave a 40-character buffer (max 240) so people can quote tweet.
-- The Body (Posts 2-8): 140 - 200 characters. Forces brief sentences and heavy white space.
-- The CTA (Final Post): 150 - 240 characters. Leaves room for clean line breaks between your single call-to-action and a clean link or handle tag. Do NOT use any placeholders (like [Link], [Account Name]), identifiers, or tags.
+- The Hook (Post 1): 180 - 280 characters. Leave a buffer (max 280) so people can quote tweet.
+- The Body (Posts 2-8): 140 - 280 characters (Soft Target). Forces brief sentences and heavy white space.
+- The CTA (Final Post): 150 - 280 characters. Leaves room for clean line breaks between your single call-to-action and a clean link or handle tag. Do NOT use any placeholders (like [Link], [Account Name]), identifiers, or tags.
 
 3 HARD RULES FOR POST LENGTH:
-1. Avoid the "Show More" Trap: The absolute maximum for any post is 280 characters. Do not cram text.
+1. Avoid the "Show More" Trap: The soft maximum for standard posts is 280 characters (absolute platform hard ceiling is 500 characters). Do not cram text.
 2. The "Visual Character" Rule: Maximum of 3 to 4 line breaks per post. An empty line break counts as a visual character.
-3. Leave a 40-Character Buffer on the Hook.
+3. Leave a Buffer on the Hook (max 280 characters).
 
 GENERAL FORMATTING:
 - **Hard Length Ceiling:** Your final 'thread_draft' array MUST contain no more than 9 total posts (e.g., Post 1 is the Hook, Posts 2-8 are the Body, Post 9 is the CTA). Do not generate exhaustive summaries; compress the tension into exactly this footprint.

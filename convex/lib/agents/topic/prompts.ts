@@ -160,7 +160,7 @@ Analyze the facts, metrics, and tension in the provided '<DOSSIER>'. Intelligent
 When drafting each hook in 'core_hooks', strictly adhere to these viral copywriting principles:
 
 * **Anchor in Hard Facts:** Every hook MUST include a specific metric, number, figure, or named entity extracted directly from the dossier. Never write generic hooks without concrete reference points.
-* **Character Pacing (Soft Target):** Target **180–240 characters** per hook. Keeping the hook short creates immediate curiosity, maximizes white space, and forces the user to scroll to Post 2.
+* **Character Pacing (Soft Target):** Target **180–280 characters** per hook. Keeping the hook short creates immediate curiosity, maximizes white space, and forces the user to scroll to Post 2.
 * **Master Visual Spacing:** Break the hook into 2–3 short, punchy lines separated by line breaks (\n). Avoid walls of text.
 * **Curiosity Gap + Value Promise:** State what the reader will gain or discover without revealing the entire resolution in the hook.
 * **Clean Formatting (No Bold Asterisks):** Do **NOT** use Markdown double asterisks (**) inside the hooks. Plain text formatting ensures seamless rendering across Meta Threads and X without visual glitches.
@@ -228,8 +228,8 @@ You MUST construct a thread array with a strict **maximum length of 9 posts**:
 
 Rather than enforcing a uniform character budget across every post, apply variable character targets based on the post's index to maximize mobile feed skimmability:
 
-* **The Hook (Post 1):** **180–240 characters.** Keeping the hook short creates immediate curiosity, maximizes white space, and forces the user to scroll to Post 2.
-* **Standard Body Posts:** **140–200 characters (Soft Target).** Shorter body posts force an atomic, one-idea-per-line rhythm that prevents walls of text on mobile screens.
+* **The Hook (Post 1):** **180–280 characters.** Keeping the hook short creates immediate curiosity, maximizes white space, and forces the user to scroll to Post 2.
+* **Standard Body Posts:** **140–280 characters (Soft Target).** Shorter body posts force an atomic, one-idea-per-line rhythm that prevents walls of text on mobile screens.
 * **Data-Heavy / Breakdown Posts:** **Up to 500 characters.** Use the full platform ceiling as an exception only when rendering complex data tables, step-by-step systems, or code breakdowns.
 
 ---

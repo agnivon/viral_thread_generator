@@ -33,16 +33,16 @@ test("CharacterValidatorTool - detects 9-post maximum limit breach", async () =>
   );
 });
 
-test("CharacterValidatorTool - detects hard ceiling (500 chars) and 200-char relief valve limit", async () => {
-  const over200Post = "A".repeat(210);
+test("CharacterValidatorTool - detects hard ceiling (500 chars) and 280-char relief valve limit", async () => {
+  const over280Post = "A".repeat(290);
   const over500Post = "B".repeat(505);
 
   const thread = [
     "Hook post",
-    over200Post,
-    over200Post,
-    over200Post,
-    over200Post, // 4th post over 200 -> relief valve breached
+    over280Post,
+    over280Post,
+    over280Post,
+    over280Post, // 4th post over 280 -> relief valve breached
     over500Post, // over 500 -> hard ceiling breached
     "CTA post"
   ];
@@ -54,9 +54,28 @@ test("CharacterValidatorTool - detects hard ceiling (500 chars) and 200-char rel
   expect(result.errors).toEqual(
     expect.arrayContaining([
       expect.stringContaining("Hard ceiling of 500 characters breached"),
-      expect.stringContaining("Only 3 relief valve posts > 200 characters are allowed"),
+      expect.stringContaining("Only 3 relief valve posts > 280 characters are allowed"),
     ])
   );
+});
+
+test("CharacterValidatorTool - allows body posts between 200 and 280 chars as standard posts", async () => {
+  const post250Chars = "C".repeat(250);
+
+  const thread = [
+    "Hook post",
+    post250Chars,
+    post250Chars,
+    post250Chars,
+    post250Chars, // 4 posts with 250 chars <= 280 soft limit -> passes without relief valve breach
+    "CTA post"
+  ];
+
+  const rawResult = await CharacterValidatorTool.invoke({ thread_draft: thread });
+  const result = JSON.parse(rawResult);
+
+  expect(result.isValid).toBe(true);
+  expect(result.errors.length).toBe(0);
 });
 
 test("CharacterValidatorTool - detects line breaks limit (>4)", async () => {

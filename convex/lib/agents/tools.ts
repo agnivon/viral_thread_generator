@@ -6,7 +6,7 @@ import { z } from "zod";
 export const CharacterValidatorTool = tool(
   async ({ thread_draft, check_line_breaks }) => {
     const errors: string[] = [];
-    let over200Count = 0;
+    let over280Count = 0;
 
     const banned_phrases = [
       "a thread 🧵", "read below", "let's dive in", "here is why",
@@ -29,8 +29,8 @@ export const CharacterValidatorTool = tool(
       // 1. Hook length validation removed per user request.
       // 2. Body Post Length & Relief Valve Validation
       if (index !== 0) {
-        if (post.length > 200) {
-          over200Count++;
+        if (post.length > 280) {
+          over280Count++;
         }
       }
 
@@ -78,8 +78,8 @@ export const CharacterValidatorTool = tool(
       }
     });
 
-    if (over200Count > 3) {
-      errors.push(`Thread contains ${over200Count} posts over 200 characters (excluding the hook). Only 3 relief valve posts > 200 characters are allowed.`);
+    if (over280Count > 3) {
+      errors.push(`Thread contains ${over280Count} posts over 280 characters (excluding the hook). Only 3 relief valve posts > 280 characters are allowed.`);
     }
 
     return JSON.stringify({

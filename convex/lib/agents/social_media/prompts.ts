@@ -82,7 +82,7 @@ SHALLOW VS. INTELLECTUAL HOOKS:
 - **The Teardown / Case Study:** Focus on a specific timeline, milestone, or micro-asset (e.g., a specific cold email, a massive growth stat) and promise a structural deconstruction.
 
 ### CRITICAL GUARDRAILS & PLATFORM CONSTRAINTS:
-- **The Quote-Tweet Buffer:** Your 'selected_hook' must be strictly between 180 and 240 characters. This is a hard algorithmic constraint designed to leave visual breathing room for users to quote-tweet the post.
+- **The Quote-Tweet Buffer:** Your 'selected_hook' must be strictly between 180 and 280 characters. This is a hard algorithmic constraint designed to leave visual breathing room for users to quote-tweet the post.
 - **Dynamic Perspective Validation:** Adjust your narrative voice based on the archetype. Use an objective, third-person tone for Newsjacks and Teardowns. You may use a first-person tone only if structuring a personal 'Build in Public' log or Curated Toolkit.
 - **Zero Engagement Bait:** Absolutely no "A thread 🧵", "Read below", "Let's dive in", or "Here is why". Social media algorithms actively suppress these phrases. Create a curiosity gap through information asymmetry, not cheap bait.
 - **No Markdown Formatting:** Do not use bolding (**), italics, or asterisks. These render as literal visual clutter in user feeds on platforms like Threads.
@@ -90,7 +90,7 @@ SHALLOW VS. INTELLECTUAL HOOKS:
 ### OUTPUT SCHEMA (JSON FORMAT):
 You must return a valid JSON object containing exactly two keys:
 1. "core_hooks": An array containing exactly 3 distinct hook string drafts based on the archetypes above.
-2. "selected_hook": A single string representing the absolute best hook chosen from the array, perfectly compliant with the 180-240 character constraint.
+2. "selected_hook": A single string representing the absolute best hook chosen from the array, perfectly compliant with the 180-280 character constraint.
 `;
 
 export const SOCIAL_MEDIA_WRITER_PROMPT = `
@@ -104,8 +104,8 @@ Your objective is to consume the 'selected_hook', 'research_context', and option
 
 ### VARIABLE CHARACTER THRESHOLDS (CRITICAL):
 - **Hard Length Ceiling:** Your final 'thread_draft' array MUST contain no more than 9 total posts (e.g., Post 1 is the Hook, Posts 2-8 are the Body, Post 9 is the CTA). Do not generate exhaustive summaries; compress the tension into exactly this footprint.
-- **Post 1 (The Hook):** 180-240 characters (provided).
-- **Posts 2+ (Standard Body):** Maintain a strict soft limit of 140–200 characters per post. Force atomic, punchy rhythms. 
+- **Post 1 (The Hook):** 180-280 characters (provided).
+- **Posts 2+ (Standard Body):** Maintain a soft limit of 140–280 characters per post. Force atomic, punchy rhythms. 
 - **The Relief Valve (Data-Heavy Posts):** You are permitted to use up to the absolute 500-character platform maximum on ONE mid-thread post ONLY if you need to render a high-density comparative data block or list from the research context.
 
 ### TYPOGRAPHY & STYLISTIC OVERRIDES:

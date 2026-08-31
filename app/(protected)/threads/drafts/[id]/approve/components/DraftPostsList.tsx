@@ -70,6 +70,7 @@ function DraftPostItem({
   onDrop,
   onDragEnd,
 }: DraftPostItemProps) {
+  const [dragEnabled, setDragEnabled] = useState(false);
   // Use isolated useWatch at the post-item level to avoid re-rendering entire thread list
   const watchedValue = useWatch({ control, name: `posts.${index}.content` }) ?? post;
   const charCount = watchedValue?.length || 0;
@@ -77,7 +78,7 @@ function DraftPostItem({
 
   return (
     <div
-      draggable={isEditingPosts}
+      draggable={isEditingPosts && dragEnabled}
       onDragStart={onDragStart}
       onDragOver={onDragOver}
       onDrop={onDrop}
@@ -92,7 +93,11 @@ function DraftPostItem({
 
       <div className="flex gap-4 items-start w-full">
         {isEditingPosts && (
-          <div className="mt-1 -ml-2 text-muted-foreground/50 hover:text-foreground cursor-grab active:cursor-grabbing transition-colors shrink-0">
+          <div 
+            className="mt-1 -ml-2 text-muted-foreground/50 hover:text-foreground cursor-grab active:cursor-grabbing transition-colors shrink-0"
+            onMouseEnter={() => setDragEnabled(true)}
+            onMouseLeave={() => setDragEnabled(false)}
+          >
             <GripVertical className="w-5 h-5" />
           </div>
         )}

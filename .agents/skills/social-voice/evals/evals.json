@@ -1,0 +1,24 @@
+{
+  "skill_name": "social-voice",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "learn my voice from these posts: [3 sample posts]",
+      "expected_output": "A set of concrete, checkable voice rules written into the ## Voice section of social-context.md, plus a rewritten sample for the user to confirm sounds like them.",
+      "assertions": [
+        "Produces concrete, checkable voice rules (not vague adjectives)",
+        "Writes rules into the ## Voice section of social-context.md",
+        "Includes a verification rewrite for the user to approve"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "match my tone using these two emails",
+      "expected_output": "Voice rules distilled even from a small sample, with an explicit note where the sample was too thin to be confident.",
+      "assertions": [
+        "Distills specific rules from the provided samples",
+        "Flags low confidence where the sample is small"
+      ]
+    }
+  ]
+}

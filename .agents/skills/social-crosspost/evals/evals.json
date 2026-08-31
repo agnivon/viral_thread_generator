@@ -1,0 +1,25 @@
+{
+  "skill_name": "social-crosspost",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "cross-post this to LinkedIn, X, and Instagram: we open-sourced our internal design system today",
+      "expected_output": "One native-feeling draft per requested platform, each adapted in tone/length/format, with a one-line note on what changed for that platform.",
+      "assertions": [
+        "Produces a distinct draft for LinkedIn, X, and Instagram",
+        "Each draft respects that platform's length and format norms",
+        "Each draft includes a one-line note on what was adapted and why",
+        "Drafts are not identical copy-paste across platforms"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "post this everywhere: blog post announcing our Series A [link]",
+      "expected_output": "Native drafts across the user's default platforms, handling the link per each platform's convention (e.g. first comment on LinkedIn).",
+      "assertions": [
+        "Link placement follows each platform's convention",
+        "Each draft stands alone without referencing the other platforms"
+      ]
+    }
+  ]
+}

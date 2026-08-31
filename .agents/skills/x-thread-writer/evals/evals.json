@@ -1,0 +1,17 @@
+{
+  "skill_name": "x-thread-writer",
+  "evals": [
+    {
+      "id": 0,
+      "prompt": "I built a Claude Code skill that analyzes medical MRI scans from a hospital CD. My friend couldn't understand his scan results so I plugged in the CD and Claude read 435 DICOM files, rendered all the images, and wrote a plain-language report. I want to post about it on X. The GitHub repo is github.com/yamz8/dicom-mri-skill",
+      "expected_output": "A 4-tweet thread saved as plain text. No em dashes. Lowercase tone. Opens with the human story (friend, hospital CD). Specific numbers. Link in tweet 3. Short personal reply as tweet 4.",
+      "files": []
+    },
+    {
+      "id": 1,
+      "prompt": "I made an open source tool that converts any Figma design to a working React component in one command. It uses the Figma API and GPT-4. Took me a weekend to build. Want to share it on X to get some stars on the repo: github.com/example/figma-to-react",
+      "expected_output": "A 4-tweet thread. Hook focuses on the pain of manually translating Figma to code. Specific details about how it works. Link in tweet 3. Personal behind-the-scenes reply as tweet 4. No AI writing tells.",
+      "files": []
+    }
+  ]
+}

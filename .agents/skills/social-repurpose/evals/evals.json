@@ -1,0 +1,25 @@
+{
+  "skill_name": "social-repurpose",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "repurpose this blog post into a week of content: [long post about our migration from REST to GraphQL]",
+      "expected_output": "A 7-day plan: two LinkedIn posts from different angles, one X thread, three single X posts, an Instagram carousel outline, and a short-video beat sheet — each standing alone.",
+      "assertions": [
+        "Includes two LinkedIn posts from different angles",
+        "Includes one X thread and three single X posts",
+        "Includes an Instagram carousel outline and a short-video beat sheet",
+        "No piece references 'my blog post' or 'as I wrote' as a crutch"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "get a week of content from this podcast transcript [transcript]",
+      "expected_output": "Atomic ideas mined from the transcript and shaped into platform-native drafts across the week, each usable on its own.",
+      "assertions": [
+        "Extracts multiple distinct atomic ideas from the source",
+        "Each output piece is self-contained"
+      ]
+    }
+  ]
+}

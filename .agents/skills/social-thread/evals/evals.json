@@ -1,0 +1,25 @@
+{
+  "skill_name": "social-thread",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "turn this into an X thread: how we cut our AWS bill by 60%",
+      "expected_output": "A hook tweet drafted three ways and scored, then a thread of one-idea tweets each within 280 characters (counts shown), ending with a CTA tweet.",
+      "assertions": [
+        "The hook tweet is drafted three ways and scored before the thread",
+        "Each tweet is within 280 characters with its count shown",
+        "Each tweet carries a single idea",
+        "The thread ends with a CTA tweet"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "write a thread about the 5 hiring mistakes we made",
+      "expected_output": "A thread with an escalation-and-payoff structure, a strong scored hook, and tweet-by-tweet character budgeting.",
+      "assertions": [
+        "Hook is selected from multiple scored options",
+        "Every tweet respects the 280-character limit"
+      ]
+    }
+  ]
+}

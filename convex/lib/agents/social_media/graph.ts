@@ -79,7 +79,7 @@ const route_after_critic = (state: SocialMediaThreadFactoryStateType) => {
 };
 
 export const SocialMediaThreadFactoryGraph = new StateGraph(SocialMediaThreadFactoryState)
-  .setNodeDefaults({ timeout: { runTimeout: 3_00_000, idleTimeout: 2_00_000 } })
+  .setNodeDefaults({ timeout: { idleTimeout: 2_00_000 } })
   .addNode("PostScraperNode", PostScraperNode)
   .addNode("ContextResearcherNode", ContextResearcherNode)
   .addNode("HookStrategistNode", HookStrategistNode)

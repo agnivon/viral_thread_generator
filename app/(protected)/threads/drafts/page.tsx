@@ -346,11 +346,7 @@ export default function DraftsPage() {
                         </span>
                       </td>
                       <td className="px-4 py-4.5 text-right">
-                        {genStatus === "processing" || ["publishing", "queued"].includes(draft.publication_status ?? "") ? (
-                          <Button disabled size="sm" variant="secondary" className="rounded-lg w-24 justify-center">
-                            Review
-                          </Button>
-                        ) : genStatus === "failed" ? (
+                        {genStatus === "failed" ? (
                           <Button 
                             size="sm" 
                             variant="destructive" 

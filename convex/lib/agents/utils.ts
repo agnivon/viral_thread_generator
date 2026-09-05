@@ -12,7 +12,7 @@ export interface AgentConfig {
 
 export type AgentCandidate =
   | BaseChatModel
-  | { model: BaseChatModel; timeout?: number };
+  | { runnable: BaseChatModel; timeout?: number };
 
 /**
  * Builds an array of identical agents configured with different fallback models,
@@ -22,7 +22,7 @@ export type AgentCandidate =
  */
 export function buildAgents(models: AgentCandidate[], config: AgentConfig) {
   return models.map((candidate) => {
-    const model = "model" in candidate ? candidate.model : candidate;
+    const model = "runnable" in candidate ? candidate.runnable : candidate;
     const timeout = "timeout" in candidate ? candidate.timeout : undefined;
     const agent = createAgent({
       model,
@@ -48,12 +48,8 @@ export type FallbackCandidate<RunInput = any, RunOutput = any> =
 export function withTimeout<T extends FallbackRunnable<any, any> | BaseChatModel>(
   target: T,
   timeoutMs: number
-): T extends BaseChatModel ? { model: T; timeout: number } : { runnable: T; timeout: number } {
-  return (
-    "invoke" in target && typeof (target as any).invoke === "function" && !("pipe" in target && "bindTools" in target)
-      ? { runnable: target, timeout: timeoutMs }
-      : { model: target, timeout: timeoutMs }
-  ) as any;
+): { runnable: T; timeout: number } {
+  return { runnable: target, timeout: timeoutMs };
 }
 
 /**

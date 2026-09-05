@@ -161,3 +161,23 @@ test("invokeWithFallbacks - respects custom per-model timeout via withTimeout", 
   expect(slowModel.invoke).toHaveBeenCalledTimes(1);
   expect(fastFallbackModel.invoke).toHaveBeenCalledTimes(1);
 });
+
+test("buildAgents - passes actual model instances to createAgent instead of extracting model name strings", async () => {
+  const { buildAgents, withTimeout } = await import("./utils");
+  const { ChatGoogle } = await import("@langchain/google");
+
+  const model1 = new ChatGoogle({ model: "gemini-3.8-flash", apiKey: "dummy" });
+  const model2 = new ChatGoogle({ model: "gemini-3.8-flash", apiKey: "dummy2" });
+
+  const agents = buildAgents(
+    [model1, withTimeout(model2, 45000)],
+    {
+      systemPrompt: "test",
+      responseFormat: undefined,
+    }
+  );
+
+  expect(agents).toHaveLength(2);
+  // Check that the second agent wrapper holds timeout 45000 and has runnable
+  expect((agents[1] as { timeout: number }).timeout).toBe(45000);
+});

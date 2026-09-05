@@ -91,6 +91,16 @@ async function handleGraphCompletion(
     thread_draft = [...thread_draft, url];
   }
 
+  const hasDraft = Array.isArray(thread_draft) && thread_draft.length > 0;
+  const generation_status = interrupted
+    ? ("hook selection" as const)
+    : hasDraft
+    ? ("success" as const)
+    : ("failed" as const);
+  const failure_reason = (!interrupted && !hasDraft)
+    ? "Thread generation finished without producing any thread draft."
+    : null;
+
   const stateToSave: Record<string, unknown> = {
     id: recordId,
     raw_markdown: finalState.raw_markdown,
@@ -108,8 +118,8 @@ async function handleGraphCompletion(
     manual_hook_selection: finalState.manual_hook_selection,
     search_query_generation: finalState.search_query_generation,
     research_context: finalState.research_context,
-    generation_status: interrupted ? ("hook selection" as const) : ("success" as const),
-    failure_reason: null,
+    generation_status,
+    failure_reason,
   };
 
   if (actualAgent === "topic" && finalState.research_dossier) {
@@ -117,7 +127,7 @@ async function handleGraphCompletion(
   }
 
   await ctx.runMutation(internal.mutations.threadsMutations.updateThreadDraft, stateToSave as Parameters<typeof ctx.runMutation>[1]);
-  console.log(`[handleGraphCompletion] State saved with ID: ${recordId}. Interrupted: ${interrupted}`);
+  console.log(`[handleGraphCompletion] State saved with ID: ${recordId}. Interrupted: ${interrupted}, Status: ${generation_status}`);
 
   await awaitAllCallbacks();
   return { recordId };
@@ -158,6 +168,12 @@ async function restartGraphFromScratch(
   },
   agentOverride?: string
 ): Promise<Record<string, unknown>> {
+  await ctx.runMutation(internal.mutations.threadsMutations.updateThreadDraft, {
+    id: recordId,
+    generation_status: "processing",
+    failure_reason: null,
+  });
+
   const draft = await ctx.runQuery(internal.queries.threadsQueries.getThreadDraftInternal, { id: recordId, userId });
   if (!draft || !draft.input_field) {
     throw new Error("Draft not found or missing input_field");
@@ -400,24 +416,25 @@ export const retryThreadInternal = internalAction({
       const config = { configurable: { thread_id: args.recordId } };
       const state = await graph.getState(config);
 
-      if (!state || !state.values || Object.keys(state.values).length === 0) {
-        console.log(`[retryThreadInternal] No prior state found. Restarting from scratch...`);
+      if (!state || !state.values || Object.keys(state.values).length === 0 || !state.next || state.next.length === 0) {
+        console.log(`[retryThreadInternal] No prior state or pending tasks found (next: ${state?.next?.length || 0}). Restarting from scratch...`);
         return await restartGraphFromScratch(ctx, args.recordId, args.userId, undefined, agent);
       }
 
       try {
-        return await graph.invoke(null, config);
-      } catch (e: unknown) {
-        const err = e as Error;
-        if (
-          err.name === "EmptyInputError" ||
-          err.message?.includes("EmptyInputError") ||
-          err.message?.includes('Received no input writes for "__start__"')
-        ) {
-          console.log(`[retryThreadInternal] Caught EmptyInputError. Restarting from scratch...`);
+        const resumedState = await graph.invoke(null, config);
+        const hasDraft = Array.isArray(resumedState?.thread_draft) && (resumedState.thread_draft as string[]).length > 0;
+        const interrupted = isInterrupted(resumedState) || (await graph.getState(config)).next.length > 0;
+
+        if (!interrupted && !hasDraft) {
+          console.log(`[retryThreadInternal] Resumed graph completed without generating a thread draft. Restarting from scratch...`);
           return await restartGraphFromScratch(ctx, args.recordId, args.userId, undefined, agent);
         }
-        throw e;
+        return resumedState;
+      } catch (e: unknown) {
+        const err = e as Error;
+        console.log(`[retryThreadInternal] Resuming failed with error: ${err.message}. Restarting from scratch...`);
+        return await restartGraphFromScratch(ctx, args.recordId, args.userId, undefined, agent);
       }
     });
   },
@@ -435,6 +452,18 @@ export const regenerateThreadInternal = internalAction({
     if (!draft || !draft.input_field) {
       throw new Error("Draft not found or missing input_field");
     }
+
+    // Immediately mark draft as processing so it never stays stuck on queued in the backend
+    await ctx.runMutation(internal.mutations.threadsMutations.updateThreadDraft, {
+      id: args.recordId,
+      generation_status: "processing",
+      is_approved: false,
+      iterations: 0,
+      failure_reason: null,
+      guidance: args.guidance,
+      manual_hook_selection: args.manual_hook_selection,
+      search_query_generation: args.search_query_generation,
+    });
 
     const agent = args.agent || draft.agent || "news";
     console.log(`[regenerateThreadInternal] Started for Record: ${args.recordId}, Agent: ${agent}`);
@@ -457,13 +486,6 @@ export const regenerateThreadInternal = internalAction({
             checkpoint_id: pastStateBeforeHook.config.configurable?.checkpoint_id,
           },
         };
-        await ctx.runMutation(internal.mutations.threadsMutations.updateThreadDraft, {
-          id: args.recordId,
-          generation_status: "processing",
-          is_approved: false,
-          iterations: 0,
-          failure_reason: null,
-        });
 
         const stateUpdate: Record<string, unknown> = { iterations: 0, is_approved: false };
         if (args.guidance !== undefined) stateUpdate.guidance = args.guidance;
@@ -525,6 +547,14 @@ export const enqueueThreadRetry = action({
         if (!draft) {
           throw new Error(`Draft ${id} not found or unauthorized`);
         }
+
+        // Optimistically set status to "queued" so the UI immediately reflects it as queued
+        await ctx.runMutation(internal.mutations.threadsMutations.updateThreadDraft, {
+          id,
+          generation_status: "queued",
+          failure_reason: null,
+        });
+
         return generationPool.enqueueAction(
           ctx,
           internal.actions.threadsActions.retryThreadInternal,

@@ -413,4 +413,192 @@ test("publishThread records publication_error on error", async () => {
   expect(typeof draft?.publication_error).toBe("string");
 });
 
+test("retryThreadInternal restarts from scratch when state.next is empty", async () => {
+  const t = convexTest(schema, modules);
+  const userId = await t.mutation(async (ctx) => {
+    return await ctx.db.insert("users", {});
+  });
+
+  const draftId = await t.mutation(internal.mutations.threadsMutations.initializeThreadDraft, {
+    userId,
+    agent: "news",
+    input_field: { agent: "news", url: "https://example.com/retry-empty-next" },
+  });
+
+  await t.mutation(internal.mutations.threadsMutations.updateThreadDraft, {
+    id: draftId,
+    generation_status: "failed",
+    failure_reason: "Previous failure",
+  });
+
+  // Mock getState to return empty next array
+  vi.spyOn(NewsThreadFactoryGraph, "getState").mockResolvedValue({
+    values: { retries: { researcher: 3 }, thread_draft: [] },
+    next: [],
+  } as any);
+
+  const mockGraphOutput = {
+    url: "https://example.com/retry-empty-next",
+    raw_markdown: "Restarted markdown",
+    core_hooks: ["Hook 1"],
+    selected_hook: "Hook 1",
+    thread_draft: ["Post 1", "Post 2"],
+    critique: "Great",
+    virality_score: 88,
+    post_critiques: [],
+    iterations: 1,
+    is_approved: true,
+  };
+
+  const invokeSpy = vi.spyOn(NewsThreadFactoryGraph, "invoke").mockResolvedValue(mockGraphOutput as any);
+
+  const { recordId } = await t.action(internal.actions.threadsActions.retryThreadInternal, {
+    recordId: draftId,
+    userId,
+    agent: "news",
+  });
+
+  expect(recordId).toBe(draftId);
+  // It should NOT call invoke(null, ...). It must invoke with initialState (restarted from scratch).
+  expect(invokeSpy).toHaveBeenCalledWith(
+    expect.objectContaining({
+      url: "https://example.com/retry-empty-next",
+    }),
+    { configurable: { thread_id: draftId } }
+  );
+
+  const saved = await t.query(async (ctx) => {
+    return await ctx.db.get("threadDrafts", draftId);
+  });
+
+  expect(saved?.generation_status).toBe("success");
+  expect(saved?.thread_draft).toEqual(["Post 1", "Post 2", "https://example.com/retry-empty-next"]);
+});
+
+test("retryThreadInternal falls back to restart from scratch if graph.invoke(null) returns no thread_draft", async () => {
+  const t = convexTest(schema, modules);
+  const userId = await t.mutation(async (ctx) => {
+    return await ctx.db.insert("users", {});
+  });
+
+  const draftId = await t.mutation(internal.mutations.threadsMutations.initializeThreadDraft, {
+    userId,
+    agent: "news",
+    input_field: { agent: "news", url: "https://example.com/retry-empty-draft" },
+  });
+
+  // Mock getState to return a pending task initially, then empty after invoke completes
+  vi.spyOn(NewsThreadFactoryGraph, "getState")
+    .mockResolvedValueOnce({
+      values: { retries: { researcher: 1 }, thread_draft: [] },
+      next: ["ContextResearcherNode"],
+    } as any)
+    .mockResolvedValue({
+      values: { retries: { researcher: 1 }, thread_draft: [] },
+      next: [],
+    } as any);
+
+  const invokeSpy = vi.spyOn(NewsThreadFactoryGraph, "invoke")
+    // First call (with null) returns empty thread_draft
+    .mockResolvedValueOnce({ thread_draft: [] } as any)
+    // Second call (restartGraphFromScratch) returns valid draft
+    .mockResolvedValueOnce({
+      url: "https://example.com/retry-empty-draft",
+      raw_markdown: "Full markdown",
+      core_hooks: ["Hook A"],
+      selected_hook: "Hook A",
+      thread_draft: ["P1", "P2"],
+      virality_score: 92,
+      is_approved: true,
+      iterations: 1,
+    } as any);
+
+  const { recordId } = await t.action(internal.actions.threadsActions.retryThreadInternal, {
+    recordId: draftId,
+    userId,
+    agent: "news",
+  });
+
+  expect(recordId).toBe(draftId);
+  expect(invokeSpy).toHaveBeenCalledTimes(2);
+
+  const saved = await t.query(async (ctx) => {
+    return await ctx.db.get("threadDrafts", draftId);
+  });
+
+  expect(saved?.generation_status).toBe("success");
+  expect(saved?.thread_draft).toEqual(["P1", "P2", "https://example.com/retry-empty-draft"]);
+});
+
+test("generateThreadInternal marks draft as failed if thread_draft is empty and not interrupted", async () => {
+  const t = convexTest(schema, modules);
+  const userId = await t.mutation(async (ctx) => {
+    return await ctx.db.insert("users", {});
+  });
+
+  vi.spyOn(NewsThreadFactoryGraph, "invoke").mockResolvedValue({
+    thread_draft: [],
+    raw_markdown: "Incomplete",
+  } as any);
+  vi.spyOn(NewsThreadFactoryGraph, "getState").mockResolvedValue({ next: [] } as any);
+
+  const { recordId } = await t.action(internal.actions.threadsActions.generateThreadInternal, {
+    input_field: { agent: "news", url: "https://example.com/empty-result" },
+    userId,
+  });
+
+  const saved = await t.query(async (ctx) => {
+    return await ctx.db.get("threadDrafts", recordId);
+  });
+
+  expect(saved?.generation_status).toBe("failed");
+  expect(saved?.failure_reason).toBe("Thread generation finished without producing any thread draft.");
+});
+
+test("regenerateThreadInternal sets generation_status to processing immediately", async () => {
+  const t = convexTest(schema, modules);
+  const userId = await t.mutation(async (ctx) => {
+    return await ctx.db.insert("users", {});
+  });
+
+  const draftId = await t.mutation(internal.mutations.threadsMutations.initializeThreadDraft, {
+    userId,
+    agent: "news",
+    input_field: { agent: "news", url: "https://example.com/regen" },
+  });
+
+  await t.mutation(internal.mutations.threadsMutations.updateThreadDraft, {
+    id: draftId,
+    generation_status: "queued",
+  });
+
+  let statusDuringInvoke: string | undefined;
+  vi.spyOn(NewsThreadFactoryGraph, "getStateHistory").mockImplementation(async function* () {
+    // Return no past states before hook
+  });
+  vi.spyOn(NewsThreadFactoryGraph, "getState").mockResolvedValue({ next: [] } as any);
+  vi.spyOn(NewsThreadFactoryGraph, "invoke").mockImplementation(async () => {
+    const current = await t.query(async (ctx) => ctx.db.get("threadDrafts", draftId));
+    statusDuringInvoke = current?.generation_status;
+    return {
+      url: "https://example.com/regen",
+      thread_draft: ["Regen 1", "Regen 2"],
+      is_approved: true,
+      virality_score: 90,
+    } as any;
+  });
+
+  await t.action(internal.actions.threadsActions.regenerateThreadInternal, {
+    recordId: draftId,
+    userId,
+    guidance: "More technical",
+  });
+
+  expect(statusDuringInvoke).toBe("processing");
+
+  const finalSaved = await t.query(async (ctx) => ctx.db.get("threadDrafts", draftId));
+  expect(finalSaved?.generation_status).toBe("success");
+});
+
+
 

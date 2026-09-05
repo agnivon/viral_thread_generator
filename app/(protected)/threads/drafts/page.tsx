@@ -362,6 +362,16 @@ export default function DraftsPage() {
                               "Retry"
                             )}
                           </Button>
+                        ) : genStatus === "queued" || genStatus === "processing" ? (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled
+                            className="rounded-lg text-muted-foreground border-border/60 w-24 justify-center opacity-70 cursor-not-allowed"
+                          >
+                            <Loader2 className="w-3.5 h-3.5 animate-spin mr-1 inline" />
+                            {genStatus === "queued" ? "Queued" : "Working"}
+                          </Button>
                         ) : (
                           <Link
                             href={`/threads/drafts/${draft._id}/approve`}

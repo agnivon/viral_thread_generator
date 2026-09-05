@@ -259,7 +259,7 @@ export default function ApproveDraftPage() {
     );
   }
 
-  if ((genStatus === "processing" || genStatus === "queued") && (!state.thread_draft || state.thread_draft.length === 0)) {
+  if (genStatus === "processing" || genStatus === "queued") {
     return (
       <div className="relative min-h-[50vh] flex flex-col items-center justify-center bg-background overflow-hidden p-4">
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-[300px] bg-gradient-to-b from-violet-500/10 via-transparent to-transparent blur-3xl pointer-events-none -z-10" />
@@ -401,12 +401,6 @@ export default function ApproveDraftPage() {
 
           {/* Status Badges */}
           <div className="flex flex-wrap items-center gap-2 self-start md:self-start pt-1">
-            { (genStatus === "queued" || genStatus === "processing") && (
-              <span className="px-3 py-1.5 rounded-full text-xs font-semibold bg-violet-100 text-violet-800 dark:bg-violet-900/30 dark:text-violet-400 whitespace-nowrap border border-violet-500/30 shadow-xs flex items-center gap-1.5 animate-pulse">
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                {genStatus === "queued" ? "Queued for Generation" : "Generating..."}
-              </span>
-            )}
             <span className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap shadow-xs ${state.is_published
               ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400'
               : state.publication_status === "queued"
@@ -515,7 +509,7 @@ export default function ApproveDraftPage() {
                       <Button
                         variant="default"
                         size="sm"
-                        disabled={genStatus === "processing" || genStatus === "queued"}
+                        disabled={isPublishing || isRegenerating}
                         onClick={() => setIsEditingPosts(false)}
                         className="rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white font-semibold py-4 shadow-sm cursor-pointer"
                       >
@@ -525,7 +519,7 @@ export default function ApproveDraftPage() {
                     <Button
                       variant="outline"
                       size="sm"
-                      disabled={genStatus === "processing" || genStatus === "queued"}
+                      disabled={isPublishing || isRegenerating}
                       onClick={() => {
                         if (isEditingPosts) {
                           handleCancelEditing();
@@ -574,7 +568,7 @@ export default function ApproveDraftPage() {
               <Button
                 className="w-full rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white font-bold py-6 shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 cursor-pointer"
                 size="lg"
-                disabled={isPublishing || isRegenerating || state.is_published || state.publication_status === "publishing" || state.publication_status === "queued" || genStatus === "processing" || genStatus === "queued"}
+                disabled={isPublishing || isRegenerating || state.is_published || state.publication_status === "publishing" || state.publication_status === "queued"}
                 onClick={handlePublish}
               >
                 {isPublishing || state.publication_status === "publishing" || state.publication_status === "queued" ? (

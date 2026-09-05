@@ -125,3 +125,39 @@ test("invokeWithFallbacks - stops immediately if parent signal is already aborte
 
   expect(model1.invoke).not.toHaveBeenCalled();
 });
+
+test("invokeWithFallbacks - respects custom per-model timeout via withTimeout", async () => {
+  vi.useFakeTimers();
+
+  const slowModel: FallbackRunnable = {
+    invoke: vi.fn().mockImplementation((_input, config) => {
+      return new Promise((resolve, reject) => {
+        const timer = setTimeout(() => resolve({ text: "slow response" }), 10000);
+        config?.signal?.addEventListener("abort", () => {
+          clearTimeout(timer);
+          reject(new Error("AbortError"));
+        });
+      });
+    }),
+  };
+
+  const fastFallbackModel: FallbackRunnable = {
+    invoke: vi.fn().mockResolvedValue({ text: "fast fallback success" }),
+  };
+
+  // Node default timeout is 10000ms, but slowModel has a custom timeout of 1500ms via withTimeout
+  const { withTimeout } = await import("./utils");
+  const promise = invokeWithFallbacks(
+    [withTimeout(slowModel, 1500), fastFallbackModel],
+    { prompt: "hello" },
+    { timeout: 10000 }
+  );
+
+  const assertion = expect(promise).resolves.toEqual({ text: "fast fallback success" });
+  // Advance by 1500ms (the custom timeout), which should trigger the fallback early
+  await vi.advanceTimersByTimeAsync(1500);
+  await assertion;
+
+  expect(slowModel.invoke).toHaveBeenCalledTimes(1);
+  expect(fastFallbackModel.invoke).toHaveBeenCalledTimes(1);
+});

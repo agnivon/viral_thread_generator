@@ -5,12 +5,19 @@ import { interrupt } from "@langchain/langgraph";
 import { RunnableConfig } from "@langchain/core/runnables";
 import { providerStrategy } from "langchain";
 import {
-  googleGemini36FlashT00Key1, googleGemini35FlashT00Key1, openAiGpt54MiniT00, googleGemini3FlashPreviewT00Key1, googleGemini3FlashPreviewT00Key2,
+  googleGemini38FlashT00Key1, googleGemini38FlashT00Key2,
+  googleGemini37FlashT00Key1, googleGemini37FlashT00Key2,
+  googleGemini36FlashT00Key1, googleGemini36FlashT00Key2,
+  googleGemini35FlashT00Key1, googleGemini35FlashT00Key2,
+  openAiGpt54MiniT00, googleGemini3FlashPreviewT00Key1, googleGemini3FlashPreviewT00Key2,
   googleGemini31FlashLiteT08Key1, googleGemini31FlashLiteT08Key2, openAiGpt54MiniT08,
   googleGemini31FlashLiteT01Key1Max3k, googleGemini31FlashLiteT01Key2Max3k, openAiGpt54MiniT01Max2k,
-  googleGemini36FlashT08Key1, googleGemini35FlashT08Key1, deepSeekV4ProT085ReasoningNone, deepSeekV4ProT00ReasoningHigh, openAiGpt54T08Penalty04, googleGemini3FlashPreviewT08Key1, googleGemini3FlashPreviewT08Key2,
+  googleGemini38FlashT08Key1, googleGemini38FlashT08Key2,
+  googleGemini37FlashT08Key1, googleGemini37FlashT08Key2,
+  googleGemini36FlashT08Key1, googleGemini36FlashT08Key2,
+  googleGemini35FlashT08Key1, googleGemini35FlashT08Key2,
+  deepSeekV4ProT085ReasoningNone, deepSeekV4ProT00ReasoningHigh, openAiGpt54T08Penalty04, googleGemini3FlashPreviewT08Key1, googleGemini3FlashPreviewT08Key2,
   googleGemini31FlashLiteT02Key1Max3k, googleGemini31FlashLiteT02Key2Max3k, openAiGpt54MiniT02Max2k,
-  googleGemini37FlashT08Key1, googleGemini37FlashT00Key1,
   googleGemini35FlashLiteT01Key1Max3k, googleGemini35FlashLiteT01Key2Max3k,
   googleGemini35FlashLiteT08Key1, googleGemini35FlashLiteT08Key2,
   googleGemini35FlashLiteT02Key1Max3k, googleGemini35FlashLiteT02Key2Max3k
@@ -30,7 +37,7 @@ import {
   FirecrawlScrapeTool,
   TopicCharacterValidatorTool
 } from "./tools.js";
-import { buildAgents, invokeWithFallbacks } from "../utils.js";
+import { buildAgents, invokeWithFallbacks, withTimeout } from "../utils.js";
 
 const topicResearchOrchestratorSchema = z.object({
   research_dossier: z.string().min(1, "Must generate research dossier"),
@@ -196,13 +203,18 @@ const topicThreadWriterSchema = z.object({
 });
 
 const topicThreadWriterModels = [
+  googleGemini38FlashT08Key1.withStructuredOutput(topicThreadWriterSchema, { name: "thread_writer", method: "jsonSchema" }),
+  withTimeout(googleGemini38FlashT08Key2.withStructuredOutput(topicThreadWriterSchema, { name: "thread_writer", method: "jsonSchema" }), 45000),
   googleGemini37FlashT08Key1.withStructuredOutput(topicThreadWriterSchema, { name: "thread_writer", method: "jsonSchema" }),
+  withTimeout(googleGemini37FlashT08Key2.withStructuredOutput(topicThreadWriterSchema, { name: "thread_writer", method: "jsonSchema" }), 45000),
   googleGemini36FlashT08Key1.withStructuredOutput(topicThreadWriterSchema, { name: "thread_writer", method: "jsonSchema" }),
+  withTimeout(googleGemini36FlashT08Key2.withStructuredOutput(topicThreadWriterSchema, { name: "thread_writer", method: "jsonSchema" }), 45000),
   googleGemini35FlashT08Key1.withStructuredOutput(topicThreadWriterSchema, { name: "thread_writer", method: "jsonSchema" }),
+  withTimeout(googleGemini35FlashT08Key2.withStructuredOutput(topicThreadWriterSchema, { name: "thread_writer", method: "jsonSchema" }), 45000),
   deepSeekV4ProT085ReasoningNone.withStructuredOutput(topicThreadWriterSchema, { name: "thread_writer", method: "jsonMode" }),
   openAiGpt54T08Penalty04.withStructuredOutput(topicThreadWriterSchema, { name: "thread_writer", method: "jsonSchema" }),
   googleGemini3FlashPreviewT08Key1.withStructuredOutput(topicThreadWriterSchema, { name: "thread_writer", method: "jsonSchema" }),
-  googleGemini3FlashPreviewT08Key2.withStructuredOutput(topicThreadWriterSchema, { name: "thread_writer", method: "jsonSchema" })
+  withTimeout(googleGemini3FlashPreviewT08Key2.withStructuredOutput(topicThreadWriterSchema, { name: "thread_writer", method: "jsonSchema" }), 45000)
 ];
 
 export const ThreadWriterNode = async (state: TopicThreadFactoryStateType, config?: RunnableConfig) => {
@@ -254,13 +266,18 @@ const topicViralityCriticSchema = z.object({
 });
 
 const topicViralityCriticModels = [
+  googleGemini38FlashT00Key1.withStructuredOutput(topicViralityCriticSchema, { name: "virality_critic", method: "jsonSchema" }),
+  withTimeout(googleGemini38FlashT00Key2.withStructuredOutput(topicViralityCriticSchema, { name: "virality_critic", method: "jsonSchema" }), 45000),
   googleGemini37FlashT00Key1.withStructuredOutput(topicViralityCriticSchema, { name: "virality_critic", method: "jsonSchema" }),
+  withTimeout(googleGemini37FlashT00Key2.withStructuredOutput(topicViralityCriticSchema, { name: "virality_critic", method: "jsonSchema" }), 45000),
   googleGemini36FlashT00Key1.withStructuredOutput(topicViralityCriticSchema, { name: "virality_critic", method: "jsonSchema" }),
+  withTimeout(googleGemini36FlashT00Key2.withStructuredOutput(topicViralityCriticSchema, { name: "virality_critic", method: "jsonSchema" }), 45000),
   googleGemini35FlashT00Key1.withStructuredOutput(topicViralityCriticSchema, { name: "virality_critic", method: "jsonSchema" }),
+  withTimeout(googleGemini35FlashT00Key2.withStructuredOutput(topicViralityCriticSchema, { name: "virality_critic", method: "jsonSchema" }), 45000),
   deepSeekV4ProT00ReasoningHigh.withStructuredOutput(topicViralityCriticSchema, { name: "virality_critic", method: "jsonMode" }),
   openAiGpt54MiniT00.withStructuredOutput(topicViralityCriticSchema, { name: "virality_critic", method: "jsonSchema" }),
   googleGemini3FlashPreviewT00Key1.withStructuredOutput(topicViralityCriticSchema, { name: "virality_critic", method: "jsonSchema" }),
-  googleGemini3FlashPreviewT00Key2.withStructuredOutput(topicViralityCriticSchema, { name: "virality_critic", method: "jsonSchema" })
+  withTimeout(googleGemini3FlashPreviewT00Key2.withStructuredOutput(topicViralityCriticSchema, { name: "virality_critic", method: "jsonSchema" }), 45000)
 ];
 
 export const ViralityCriticNode = async (state: TopicThreadFactoryStateType, config?: RunnableConfig) => {

@@ -44,9 +44,14 @@ export const openRouterFreeT08 = new ChatOpenRouter({
 });
 
 // ThreadWriterNode Models
+export const googleGemini38FlashT08Key1 = createGoogleModel("gemini-3.8-flash", 0.8, "GOOGLE_API_KEY");
+export const googleGemini38FlashT08Key2 = createGoogleModel("gemini-3.8-flash", 0.8, "GOOGLE_API_KEY2");
 export const googleGemini37FlashT08Key1 = createGoogleModel("gemini-3.7-flash", 0.8, "GOOGLE_API_KEY");
+export const googleGemini37FlashT08Key2 = createGoogleModel("gemini-3.7-flash", 0.8, "GOOGLE_API_KEY2");
 export const googleGemini36FlashT08Key1 = createGoogleModel("gemini-3.6-flash", 0.8, "GOOGLE_API_KEY");
+export const googleGemini36FlashT08Key2 = createGoogleModel("gemini-3.6-flash", 0.8, "GOOGLE_API_KEY2");
 export const googleGemini35FlashT08Key1 = createGoogleModel("gemini-3.5-flash", 0.8, "GOOGLE_API_KEY");
+export const googleGemini35FlashT08Key2 = createGoogleModel("gemini-3.5-flash", 0.8, "GOOGLE_API_KEY2");
 export const deepSeekV4ProT085ReasoningNone = createDeepSeekModel("deepseek-v4-pro", 0.85, { reasoning: { effort: "none" }, modelKwargs: { thinking: { type: "disabled" }, response_format: { type: "json_object" } } });
 export const openAiGpt54T08Penalty04 = createOpenAIModel("gpt-5.4", 0.8, { presencePenalty: 0.4 });
 export const googleGemma426bT08Key1 = createGoogleModel("gemma-4-26b-a4b-it", 0.8, "GOOGLE_API_KEY");
@@ -55,9 +60,14 @@ export const googleGemini3FlashPreviewT08Key1 = createGoogleModel("gemini-3-flas
 export const googleGemini3FlashPreviewT08Key2 = createGoogleModel("gemini-3-flash-preview", 0.8, "GOOGLE_API_KEY2");
 
 // ViralityCriticNode Models
+export const googleGemini38FlashT00Key1 = createGoogleModel("gemini-3.8-flash", 0.0, "GOOGLE_API_KEY");
+export const googleGemini38FlashT00Key2 = createGoogleModel("gemini-3.8-flash", 0.0, "GOOGLE_API_KEY2");
 export const googleGemini37FlashT00Key1 = createGoogleModel("gemini-3.7-flash", 0.0, "GOOGLE_API_KEY");
+export const googleGemini37FlashT00Key2 = createGoogleModel("gemini-3.7-flash", 0.0, "GOOGLE_API_KEY2");
 export const googleGemini36FlashT00Key1 = createGoogleModel("gemini-3.6-flash", 0.0, "GOOGLE_API_KEY");
+export const googleGemini36FlashT00Key2 = createGoogleModel("gemini-3.6-flash", 0.0, "GOOGLE_API_KEY2");
 export const googleGemini35FlashT00Key1 = createGoogleModel("gemini-3.5-flash", 0.0, "GOOGLE_API_KEY");
+export const googleGemini35FlashT00Key2 = createGoogleModel("gemini-3.5-flash", 0.0, "GOOGLE_API_KEY2");
 export const deepSeekV4ProT00ReasoningHigh = createDeepSeekModel("deepseek-v4-pro", 0.0, { reasoning: { effort: "high" }, modelKwargs: { thinking: { type: "enabled" }, response_format: { type: "json_object" } } });
 export const openAiGpt54MiniT00 = createOpenAIModel("gpt-5.4-mini", 0.0);
 export const googleGemma431bT00Key1 = createGoogleModel("gemma-4-31b-it", 0.0, "GOOGLE_API_KEY");

@@ -47,7 +47,7 @@ Convex agent skills for common tasks can be installed by running
   - Never guess parameter names, endpoints, or response shapes based on outdated pre-trained memory.
 - **Preserve Codebase Ground Truth (Model IDs, Endpoints & Constants)**:
   - **Never revert, downgrade, or replace modern identifiers configured in code with legacy training defaults.**
-  - Respect exact model IDs in `convex/lib/agents/models.ts` (e.g. `gemini-3.7-flash`, `gemini-3.5-flash-lite`, `gpt-5.4`, `gpt-5.4-mini`, `deepseek-v4-pro`, `gemma-4-26b-a4b-it`). Do NOT revert to `gpt-3.5-turbo`, `gemini-pro`, or `gpt-4o-mini`.
+  - Respect exact model IDs in `convex/lib/agents/models.ts` (e.g. `gemini-3.8-flash`, `gemini-3.7-flash`, `gemini-3.5-flash-lite`, `gpt-5.4`, `gpt-5.4-mini`, `deepseek-v4-pro`, `gemma-4-26b-a4b-it`). Do NOT revert to `gpt-3.5-turbo`, `gemini-pro`, or `gpt-4o-mini`.
   - Treat `.env.example`, service modules, and configuration files as authoritative over external assumptions.
 - **Inspect Installed Package Versions**:
   - Check `package.json` to confirm versions (Next.js 16, React 19, Tailwind CSS v4, Convex 1.36+, TypeScript 6, Vitest 4) and utilize modern idioms rather than deprecated patterns.

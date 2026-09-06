@@ -37,7 +37,7 @@ import {
   FirecrawlScrapeTool,
   TopicCharacterValidatorTool
 } from "./tools.js";
-import { buildAgents, invokeWithFallbacks, withTimeout } from "../utils.js";
+import { buildAgents, invokeWithFallbacks, withTimeout, normalizeResearchDossier } from "../utils.js";
 
 const topicResearchOrchestratorSchema = z.object({
   research_dossier: z.string().min(1, "Must generate research dossier"),
@@ -78,19 +78,36 @@ export const ResearchOrchestratorNode = async (state: TopicThreadFactoryStateTyp
   let research_dossier = "";
   let urls_to_scrape: string[] = [];
 
-  if (parse_success && result?.structuredResponse) {
-    research_dossier = result.structuredResponse.research_dossier || "";
-    urls_to_scrape = result.structuredResponse.urls_to_scrape || [];
+  if (parse_success && result) {
+    const rawDossier = result.structuredResponse?.research_dossier ?? result.structuredResponse;
+    if (rawDossier) {
+      research_dossier = normalizeResearchDossier(rawDossier);
+    } else if (Array.isArray(result.messages) && result.messages.length > 0) {
+      const lastMsg = result.messages[result.messages.length - 1];
+      if (lastMsg?.content) {
+        research_dossier = normalizeResearchDossier(lastMsg.content);
+      }
+    }
+    urls_to_scrape = result.structuredResponse?.urls_to_scrape || [];
   } else {
     parse_success = false;
   }
 
-  return {
-    research_dossier,
-    urls_to_scrape,
-    parse_success,
-    retries: { ...(state.retries || {}), orchestrator: (state.retries?.orchestrator || 0) + 1 }
-  };
+  if (parse_success && research_dossier) {
+    return {
+      research_dossier,
+      urls_to_scrape,
+      parse_success: true,
+      retries: { ...(state.retries || {}), orchestrator: 0 }
+    };
+  } else {
+    return {
+      research_dossier: state.research_dossier || "",
+      urls_to_scrape: [],
+      parse_success: false,
+      retries: { ...(state.retries || {}), orchestrator: (state.retries?.orchestrator || 0) + 1 }
+    };
+  }
 };
 
 const topicDeepScraperSchema = z.object({
@@ -151,7 +168,7 @@ export const DeepPageScraperNode = async (state: TopicThreadFactoryStateType, co
   }
 
   return {
-    research_dossier: parse_success && result ? result.research_dossier : state.research_dossier,
+    research_dossier: parse_success && result?.research_dossier ? normalizeResearchDossier(result.research_dossier) : state.research_dossier,
     images: [...(state.images || []), ...allImages],
     parse_success,
     retries: { ...(state.retries || {}), scraper: (state.retries?.scraper || 0) + 1 }

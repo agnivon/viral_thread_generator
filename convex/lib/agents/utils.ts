@@ -134,3 +134,131 @@ export async function invokeWithFallbacks<RunInput = any, RunOutput = any>(
   }
   throw new Error(typeof lastError === "string" ? lastError : "All fallback models failed.");
 }
+
+function safeStringify(val: unknown): string {
+  if (val === null || val === undefined) return "";
+  if (typeof val === "string") return val;
+  if (typeof val === "number" || typeof val === "boolean" || typeof val === "bigint") return String(val);
+  try {
+    return JSON.stringify(val);
+  } catch {
+    return "";
+  }
+}
+
+function formatHeaderTitle(key: string): string {
+  const words = key
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .replace(/[_-]+/g, " ")
+    .trim()
+    .split(/\s+/);
+  return words
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+    .join(" ");
+}
+
+function jsonToMarkdown(data: unknown, depth = 3): string {
+  if (typeof data === "string") return data.trim();
+  if (typeof data === "number" || typeof data === "boolean") return String(data);
+  if (!data) return "";
+
+  const headingPrefix = "#".repeat(Math.min(depth, 6));
+
+  if (Array.isArray(data)) {
+    return data
+      .map((item) => {
+        if (typeof item === "object" && item !== null) {
+          return Object.entries(item as Record<string, unknown>)
+            .map(([k, v]) => `- **${formatHeaderTitle(k)}:** ${typeof v === "object" && v !== null ? safeStringify(v) : safeStringify(v)}`)
+            .join("\n");
+        }
+        return `- ${safeStringify(item)}`;
+      })
+      .join("\n");
+  }
+
+  if (typeof data === "object") {
+    const sections: string[] = [];
+    for (const [key, value] of Object.entries(data as Record<string, unknown>)) {
+      if (value === undefined || value === null) continue;
+      const title = formatHeaderTitle(key);
+      const header = `${headingPrefix} ${title}`;
+
+      if (Array.isArray(value)) {
+        const listContent = value
+          .map((item) => {
+            if (typeof item === "object" && item !== null) {
+              return Object.entries(item as Record<string, unknown>)
+                .map(([k, v]) => `  - **${formatHeaderTitle(k)}:** ${typeof v === "object" && v !== null ? safeStringify(v) : safeStringify(v)}`)
+                .join("\n");
+            }
+            return `- ${safeStringify(item)}`;
+          })
+          .join("\n");
+        sections.push(`${header}\n\n${listContent}`);
+      } else if (typeof value === "object") {
+        const subContent = jsonToMarkdown(value, depth + 1);
+        sections.push(`${header}\n\n${subContent}`);
+      } else {
+        sections.push(`${header}\n\n${safeStringify(value).trim()}`);
+      }
+    }
+    return sections.join("\n\n");
+  }
+
+  return safeStringify(data);
+}
+
+/**
+ * Normalizes raw research dossier / context content.
+ * Guarantees that even if an LLM returns stringified JSON, nested objects, or codeblock-wrapped
+ * JSON payloads, it is parsed and converted into a clean, human-readable Markdown dossier.
+ */
+export function normalizeResearchDossier(rawContent: unknown): string {
+  if (!rawContent) return "";
+
+  if (typeof rawContent === "object") {
+    const obj = rawContent as Record<string, unknown>;
+    const nested = obj.research_context ?? obj.research_dossier ?? obj.dossier;
+    if (typeof nested === "string" && nested) {
+      return normalizeResearchDossier(nested);
+    }
+    return jsonToMarkdown(rawContent);
+  }
+
+  if (typeof rawContent !== "string") {
+    return safeStringify(rawContent);
+  }
+
+  let text = rawContent.trim();
+  if (!text) return "";
+
+  // Strip wrapping markdown codeblock fences if present (e.g. ```markdown ... ``` or ```json ... ```)
+  const codeBlockMatch = text.match(/^```(?:markdown|json|text)?\s*([\s\S]*?)\s*```$/i);
+  if (codeBlockMatch) {
+    text = codeBlockMatch[1].trim();
+  }
+
+  // Check if string looks like JSON (starts with { or [)
+  if ((text.startsWith("{") && text.endsWith("}")) || (text.startsWith("[") && text.endsWith("]"))) {
+    try {
+      const parsed = JSON.parse(text);
+      if (typeof parsed === "string") {
+        return normalizeResearchDossier(parsed);
+      }
+      if (typeof parsed === "object" && parsed !== null) {
+        const obj = parsed as Record<string, unknown>;
+        const inner = obj.research_context ?? obj.research_dossier ?? obj.dossier;
+        if (inner && typeof inner === "string") {
+          return normalizeResearchDossier(inner);
+        }
+        return jsonToMarkdown(parsed);
+      }
+    } catch {
+      // If JSON.parse fails, treat as raw text
+    }
+  }
+
+  return text;
+}
+

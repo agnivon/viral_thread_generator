@@ -39,7 +39,7 @@ import {
   WebScraperTool,
   BackgroundDossierTool
 } from "./tools.js";
-import { buildAgents, invokeWithFallbacks, withTimeout } from "../utils.js";
+import { buildAgents, invokeWithFallbacks, withTimeout, normalizeResearchDossier } from "../utils.js";
 
 
 const socialMediaScraperModels = [
@@ -120,17 +120,30 @@ export const ContextResearcherNode = async (state: SocialMediaThreadFactoryState
 
   let research_context = "";
 
-  if (parse_success && result?.structuredResponse) {
-    research_context = result.structuredResponse.research_context || "";
-  } else {
-    parse_success = false;
+  if (parse_success && result) {
+    const rawContext = result.structuredResponse?.research_context ?? result.structuredResponse;
+    if (rawContext) {
+      research_context = normalizeResearchDossier(rawContext);
+    } else if (Array.isArray(result.messages) && result.messages.length > 0) {
+      const lastMsg = result.messages[result.messages.length - 1];
+      if (lastMsg?.content) {
+        research_context = normalizeResearchDossier(lastMsg.content);
+      }
+    }
   }
 
-  return {
-    research_context,
-    parse_success,
-    retries: { ...(state.retries || {}), researcher: (state.retries?.researcher || 0) + 1 }
-  };
+  if (parse_success && research_context) {
+    return {
+      research_context,
+      parse_success: true,
+      retries: { ...(state.retries || {}), researcher: 0 }
+    };
+  } else {
+    return {
+      parse_success: false,
+      retries: { ...(state.retries || {}), researcher: (state.retries?.researcher || 0) + 1 }
+    };
+  }
 };
 
 const socialMediaHookSchema = z.object({

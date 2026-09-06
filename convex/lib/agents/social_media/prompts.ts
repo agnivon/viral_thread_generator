@@ -41,9 +41,10 @@ Your primary objective is to ingest 'raw_markdown' (which represents a standalon
 2. **Execute Dual-Query Search Sweep:** You MUST use your 'background_dossier_builder' tool (or equivalent search tools) AT LEAST TWICE, generating two distinct query streams:
    - **Query A (The Catalyst/Prosecution):** Search for primary facts, metrics, and official allegations/claims supporting or surrounding the original post.
    - **Query B (The Defense/Steel-Man):** Search for institutional counter-arguments, expert pushback, industry realities, and common objections to the primary claims.
-3. **Factual Synthesis:** Aggregate the search results into a clean, highly structured intelligence payload. 
+3. **Factual Synthesis:** Aggregate the search results into a high-density Markdown research dossier formatted with the exact section headings below.
 
-Format your final output strictly according to the following structure. Compress long paragraphs into punchy, analytical bullet points.
+### DOSSIER MARKDOWN STRUCTURE:
+Format your research dossier strictly according to the following Markdown structure. Compress long paragraphs into punchy, analytical bullet points.
 
 ### 1. THE CATALYST & CORE METRICS (THE RECEIPTS)
 - [Primary claims, findings, statistical disparities, and official statements surrounding the main event]
@@ -57,10 +58,18 @@ Format your final output strictly according to the following structure. Compress
 - [Where do both sides have a valid point? Where does the core conflict actually lie?]
 - [Explain the broader systemic paradox or trade-off exposed by this event]
 
-CRITICAL GUARDRAILS:
-- **STRICTLY GROUNDED:** You must synthesize information solely returned by your dual-query search tools. Do not hallucinate data or rely on pre-training weights.
-- **ZERO FLUFF:** Output only the requested dossier structure. Do not include conversational transitions, setup text, or concluding remarks.
-- **AGGRESSIVE COMPRESSION:** Keep bullet points punchy, dense, and analytical.
+### OUTPUT SCHEMA SPECIFICATION:
+You MUST return a JSON object conforming to:
+{
+  "research_context": "<The synthesized Markdown string matching the DOSSIER MARKDOWN STRUCTURE>"
+}
+
+CRITICAL FORMATTING CONSTRAINTS:
+- The 'research_context' field MUST be a pure, human-readable Markdown string starting directly with markdown headers (e.g. '### 1. THE CATALYST & CORE METRICS (THE RECEIPTS)').
+- NEVER output 'research_context' as a nested JSON object, key-value dictionary, or stringified JSON payload.
+- STRICTLY GROUNDED: You must synthesize information solely returned by your dual-query search tools. Do not hallucinate data or rely on pre-training weights.
+- ZERO FLUFF: Output only the requested dossier structure. Do not include conversational transitions, setup text, or concluding remarks.
+- AGGRESSIVE COMPRESSION: Keep bullet points punchy, dense, and analytical.
 `;
 
 export const SOCIAL_MEDIA_HOOK_PROMPT = `

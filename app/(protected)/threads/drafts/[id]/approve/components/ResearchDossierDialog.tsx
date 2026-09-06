@@ -14,8 +14,69 @@ interface ResearchDossierDialogProps {
   researchContext: string;
 }
 
+function safeStringify(val: unknown): string {
+  if (val === null || val === undefined) return "";
+  if (typeof val === "string") return val;
+  if (typeof val === "number" || typeof val === "boolean" || typeof val === "bigint") return String(val);
+  try {
+    return JSON.stringify(val);
+  } catch {
+    return "";
+  }
+}
+
+function formatDossierForDisplay(text: string): string {
+  if (!text) return "";
+  let trimmed = text.trim();
+  const codeBlockMatch = trimmed.match(/^```(?:markdown|json|text)?\s*([\s\S]*?)\s*```$/i);
+  if (codeBlockMatch) {
+    trimmed = codeBlockMatch[1].trim();
+  }
+  if ((trimmed.startsWith("{") && trimmed.endsWith("}")) || (trimmed.startsWith("[") && trimmed.endsWith("]"))) {
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (typeof parsed === "object" && parsed !== null) {
+        const renderObj = (data: unknown, depth = 3): string => {
+          if (!data) return "";
+          if (typeof data === "string") return data;
+          if (typeof data !== "object") return safeStringify(data);
+          const prefix = "#".repeat(Math.min(depth, 6));
+          if (Array.isArray(data)) {
+            return data.map((item) => `- ${typeof item === "object" && item !== null ? safeStringify(item) : safeStringify(item)}`).join("\n");
+          }
+          return Object.entries(data as Record<string, unknown>)
+            .map(([k, v]) => {
+              const title = k
+                .replace(/([a-z])([A-Z])/g, "$1 $2")
+                .replace(/[_-]+/g, " ")
+                .trim();
+              const header = `${prefix} ${title.charAt(0).toUpperCase() + title.slice(1)}`;
+              if (Array.isArray(v)) {
+                return `${header}\n\n${v.map((item) => `- ${typeof item === "object" && item !== null ? safeStringify(item) : safeStringify(item)}`).join("\n")}`;
+              }
+              if (typeof v === "object" && v !== null) {
+                return `${header}\n\n${renderObj(v, depth + 1)}`;
+              }
+              return `${header}\n\n${safeStringify(v).trim()}`;
+            })
+            .join("\n\n");
+        };
+        const unwrapped = (parsed as Record<string, unknown>).research_context ?? (parsed as Record<string, unknown>).research_dossier ?? (parsed as Record<string, unknown>).dossier;
+        if (typeof unwrapped === "string") {
+          return formatDossierForDisplay(unwrapped);
+        }
+        return renderObj(parsed);
+      }
+    } catch {
+      // not valid json, fall through
+    }
+  }
+  return trimmed;
+}
+
 export function ResearchDossierDialog({ researchContext }: ResearchDossierDialogProps) {
   if (!researchContext) return null;
+  const content = formatDossierForDisplay(researchContext);
 
   return (
     <Dialog>
@@ -44,7 +105,7 @@ export function ResearchDossierDialog({ researchContext }: ResearchDossierDialog
         <div className="flex-1 overflow-y-auto p-6 scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
           <div className="prose prose-sm md:prose-base dark:prose-invert prose-violet max-w-none text-foreground/90 font-medium">
             <ReactMarkdown>
-              {researchContext}
+              {content}
             </ReactMarkdown>
           </div>
         </div>

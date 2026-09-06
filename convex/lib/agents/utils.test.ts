@@ -181,3 +181,73 @@ test("buildAgents - passes actual model instances to createAgent instead of extr
   // Check that the second agent wrapper holds timeout 45000 and has runnable
   expect((agents[1] as { timeout: number }).timeout).toBe(45000);
 });
+
+test("normalizeResearchDossier - preserves pure markdown content", async () => {
+  const { normalizeResearchDossier } = await import("./utils");
+
+  const markdown = `### 1. THE CATALYST & CORE METRICS (THE RECEIPTS)
+- Discovered critical zero-day in core runtime.
+- Affects 120,000 servers globally.
+
+### 2. THE STEEL-MANNED COUNTER-PERSPECTIVES (The Defense)
+- Vendor argues exploit requires physical console access.`;
+
+  expect(normalizeResearchDossier(markdown)).toBe(markdown);
+});
+
+test("normalizeResearchDossier - strips wrapping markdown and json code fences", async () => {
+  const { normalizeResearchDossier } = await import("./utils");
+
+  const fenced = "```markdown\n### 1. THE CATALYST\n- Fact\n```";
+  expect(normalizeResearchDossier(fenced)).toBe("### 1. THE CATALYST\n- Fact");
+
+  const jsonFenced = "```json\n{\"research_context\": \"### 1. THE CATALYST\\n- Fact\"}\n```";
+  expect(normalizeResearchDossier(jsonFenced)).toBe("### 1. THE CATALYST\n- Fact");
+});
+
+test("normalizeResearchDossier - unwraps nested envelope object in stringified JSON", async () => {
+  const { normalizeResearchDossier } = await import("./utils");
+
+  const stringifiedContext = JSON.stringify({
+    research_context: "### 1. THE CATALYST\n- 500M users impacted",
+  });
+  expect(normalizeResearchDossier(stringifiedContext)).toBe("### 1. THE CATALYST\n- 500M users impacted");
+
+  const stringifiedDossier = JSON.stringify({
+    research_dossier: "### 1. TOPIC DOSSIER\n- Key metric: 95%",
+  });
+  expect(normalizeResearchDossier(stringifiedDossier)).toBe("### 1. TOPIC DOSSIER\n- Key metric: 95%");
+});
+
+test("normalizeResearchDossier - converts structured JSON payload to clean formatted markdown", async () => {
+  const { normalizeResearchDossier } = await import("./utils");
+
+  const structuredPayload = JSON.stringify({
+    the_catalyst: "A critical zero-day was disclosed by researchers.",
+    core_metrics: [
+      "CVE-2026-9999 with 10.0 CVSS score",
+      "$2.4B market cap swing within 2 hours",
+    ],
+    counter_perspectives: "Maintainers claim upstream patches were merged before disclosure.",
+  });
+
+  const normalized = normalizeResearchDossier(structuredPayload);
+
+  expect(normalized).toContain("### The Catalyst");
+  expect(normalized).toContain("A critical zero-day was disclosed by researchers.");
+  expect(normalized).toContain("### Core Metrics");
+  expect(normalized).toContain("- CVE-2026-9999 with 10.0 CVSS score");
+  expect(normalized).toContain("- $2.4B market cap swing within 2 hours");
+  expect(normalized).toContain("### Counter Perspectives");
+  expect(normalized).toContain("Maintainers claim upstream patches were merged before disclosure.");
+});
+
+test("normalizeResearchDossier - handles empty, null, or undefined values gracefully", async () => {
+  const { normalizeResearchDossier } = await import("./utils");
+
+  expect(normalizeResearchDossier("")).toBe("");
+  expect(normalizeResearchDossier(null)).toBe("");
+  expect(normalizeResearchDossier(undefined)).toBe("");
+  expect(normalizeResearchDossier("   ")).toBe("");
+});
+

@@ -69,6 +69,7 @@ You MUST output your response strictly matching the schema parameters required b
 2. **Absolute Grounding:** Do NOT invent, extrapolate, or hallucinate stats or facts. Every metric in 'research_dossier' must originate from tool search results.
 3. **Graceful Handling of Thin Topics:** If research yields limited metrics or news triggers, omit empty sub-sections rather than padding them with generic AI buzzwords ("In today's fast-paced digital world...").
 4. **Clean URL Array:** If no high-value URLs require full-page scraping, return an empty array [] for 'urls_to_scrape'. Never pass search engine redirect links or domain homepages.
+5. **Pure Markdown Field:** The 'research_dossier' field MUST be a pure, human-readable Markdown string starting directly with markdown headers. NEVER output 'research_dossier' as a nested JSON object or stringified JSON payload.
 `;
 
 export const TOPIC_DEEP_PAGE_SCRAPER_PROMPT = `You are the **DeepPageScraperNode**, an intelligence extraction and data synthesis agent in a multi-agent viral thread generation system.
@@ -132,6 +133,7 @@ You MUST return your response strictly conforming to the required JSON schema. D
 1. **Zero Hallucination:** Only append information explicitly found in '<SCRAPED_CONTENT>'. If the scraped text provides no new meaningful information, return '<CURRENT_DOSSIER>' exactly as provided.
 2. **No Hallucinated URLs or References:** Do NOT add new external links or speculate on facts outside the provided scraped text.
 3. **Density Over Fluff:** Maintain punchy, bulleted Markdown format. Do not use verbose prose or filler phrases ("According to the article..."). State facts and data points directly.
+4. **Pure Markdown Field:** The 'research_dossier' field MUST be a pure, human-readable Markdown string starting directly with markdown headers. NEVER output 'research_dossier' as a nested JSON object or stringified JSON payload.
 `;
 
 export const TOPIC_HOOK_STRATEGIST_PROMPT = `You are the **HookStrategistNode**, a world-class viral copywriter and growth engineer specializing in high-engagement social media content (Meta Threads & X/Twitter).

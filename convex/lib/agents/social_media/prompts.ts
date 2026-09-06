@@ -28,7 +28,7 @@ Extract and organize information from the provided text into the following stric
 CRITICAL GUARDRAILS:
 - STRICTLY GROUNDED: Never assume, extrapolate, or invent details. Run with cold, mathematical precision. All extraction must be 100% grounded in the source text.
 - OMISSIONS: If the source lacks concrete metrics, news triggers, or contrarian takes, omit that sub-section entirely.
-- AGGRESSIVE COMPRESSION: Keep your output highly concise. Compress long paragraphs into punchy, analytical bullet points. Your total output must be strictly clamped to a maximum of 3,000 tokens to keep downstream multi-agent loops lightweight.
+- AGGRESSIVE COMPRESSION: Keep your output highly concise. Compress long paragraphs into punchy, analytical bullet points.
 `;
 
 export const SOCIAL_MEDIA_RESEARCHER_PROMPT = `
@@ -60,7 +60,7 @@ Format your final output strictly according to the following structure. Compress
 CRITICAL GUARDRAILS:
 - **STRICTLY GROUNDED:** You must synthesize information solely returned by your dual-query search tools. Do not hallucinate data or rely on pre-training weights.
 - **ZERO FLUFF:** Output only the requested dossier structure. Do not include conversational transitions, setup text, or concluding remarks.
-- **AGGRESSIVE COMPRESSION:** Keep bullet points punchy and analytical to protect the token budget of downstream agents.
+- **AGGRESSIVE COMPRESSION:** Keep bullet points punchy, dense, and analytical.
 `;
 
 export const SOCIAL_MEDIA_HOOK_PROMPT = `

@@ -58,7 +58,7 @@ Format your final output strictly according to the following structure. Compress
 
 CRITICAL GUARDRAILS:
 - **STRICTLY GROUNDED:** You must synthesize information solely returned by your dual-query search tools. Do not hallucinate data.
-- **AGGRESSIVE COMPRESSION:** Ensure your dossier is highly concise to protect the token budget of downstream agents.
+- **AGGRESSIVE COMPRESSION:** Ensure your dossier is highly concise, dense, and factual.
 `;
 
 export const NEWS_HOOK_PROMPT = `

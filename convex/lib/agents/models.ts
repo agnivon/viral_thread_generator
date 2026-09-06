@@ -18,11 +18,11 @@ const createDeepSeekModel = (model: string, temperature: number, overrides: Deep
   new ChatDeepSeek({ model, temperature, maxRetries: 3, apiKey: process.env.DEEPSEEK_API_KEY, ...overrides });
 
 // ScraperNode Models
-export const googleGemini31FlashLiteT01Key1Max3k = createGoogleModel("gemini-3.1-flash-lite", 0.1, "GOOGLE_API_KEY", { maxOutputTokens: 3000 });
-export const googleGemini31FlashLiteT01Key2Max3k = createGoogleModel("gemini-3.1-flash-lite", 0.1, "GOOGLE_API_KEY2", { maxOutputTokens: 3000 });
-export const googleGemini35FlashLiteT01Key1Max3k = createGoogleModel("gemini-3.5-flash-lite", 0.1, "GOOGLE_API_KEY", { maxOutputTokens: 3000 });
-export const googleGemini35FlashLiteT01Key2Max3k = createGoogleModel("gemini-3.5-flash-lite", 0.1, "GOOGLE_API_KEY2", { maxOutputTokens: 3000 });
-export const openAiGpt54MiniT01Max2k = createOpenAIModel("gpt-5.4-mini", 0.1, { maxTokens: 2000 });
+export const googleGemini31FlashLiteT01Key1 = createGoogleModel("gemini-3.1-flash-lite", 0.1, "GOOGLE_API_KEY");
+export const googleGemini31FlashLiteT01Key2 = createGoogleModel("gemini-3.1-flash-lite", 0.1, "GOOGLE_API_KEY2");
+export const googleGemini35FlashLiteT01Key1 = createGoogleModel("gemini-3.5-flash-lite", 0.1, "GOOGLE_API_KEY");
+export const googleGemini35FlashLiteT01Key2 = createGoogleModel("gemini-3.5-flash-lite", 0.1, "GOOGLE_API_KEY2");
+export const openAiGpt54MiniT01 = createOpenAIModel("gpt-5.4-mini", 0.1);
 export const openRouterFreeT01 = new ChatOpenRouter({
   model: "openrouter/free",
   temperature: 0.1,
@@ -76,8 +76,21 @@ export const googleGemini3FlashPreviewT00Key1 = createGoogleModel("gemini-3-flas
 export const googleGemini3FlashPreviewT00Key2 = createGoogleModel("gemini-3-flash-preview", 0.0, "GOOGLE_API_KEY2");
 
 // ContextResearcherNode Models
-export const googleGemini31FlashLiteT02Key1Max3k = createGoogleModel("gemini-3.1-flash-lite", 0.2, "GOOGLE_API_KEY", { maxOutputTokens: 3000 });
-export const googleGemini31FlashLiteT02Key2Max3k = createGoogleModel("gemini-3.1-flash-lite", 0.2, "GOOGLE_API_KEY2", { maxOutputTokens: 3000 });
-export const googleGemini35FlashLiteT02Key1Max3k = createGoogleModel("gemini-3.5-flash-lite", 0.2, "GOOGLE_API_KEY", { maxOutputTokens: 3000 });
-export const googleGemini35FlashLiteT02Key2Max3k = createGoogleModel("gemini-3.5-flash-lite", 0.2, "GOOGLE_API_KEY2", { maxOutputTokens: 3000 });
-export const openAiGpt54MiniT02Max2k = createOpenAIModel("gpt-5.4-mini", 0.2, { maxTokens: 2000 });
+export const googleGemini31FlashLiteT02Key1 = createGoogleModel("gemini-3.1-flash-lite", 0.2, "GOOGLE_API_KEY");
+export const googleGemini31FlashLiteT02Key2 = createGoogleModel("gemini-3.1-flash-lite", 0.2, "GOOGLE_API_KEY2");
+export const googleGemini35FlashLiteT02Key1 = createGoogleModel("gemini-3.5-flash-lite", 0.2, "GOOGLE_API_KEY");
+export const googleGemini35FlashLiteT02Key2 = createGoogleModel("gemini-3.5-flash-lite", 0.2, "GOOGLE_API_KEY2");
+export const openAiGpt54MiniT02 = createOpenAIModel("gpt-5.4-mini", 0.2);
+
+// Backward compatibility aliases
+export const googleGemini31FlashLiteT01Key1Max3k = googleGemini31FlashLiteT01Key1;
+export const googleGemini31FlashLiteT01Key2Max3k = googleGemini31FlashLiteT01Key2;
+export const googleGemini35FlashLiteT01Key1Max3k = googleGemini35FlashLiteT01Key1;
+export const googleGemini35FlashLiteT01Key2Max3k = googleGemini35FlashLiteT01Key2;
+export const openAiGpt54MiniT01Max2k = openAiGpt54MiniT01;
+
+export const googleGemini31FlashLiteT02Key1Max3k = googleGemini31FlashLiteT02Key1;
+export const googleGemini31FlashLiteT02Key2Max3k = googleGemini31FlashLiteT02Key2;
+export const googleGemini35FlashLiteT02Key1Max3k = googleGemini35FlashLiteT02Key1;
+export const googleGemini35FlashLiteT02Key2Max3k = googleGemini35FlashLiteT02Key2;
+export const openAiGpt54MiniT02Max2k = openAiGpt54MiniT02;

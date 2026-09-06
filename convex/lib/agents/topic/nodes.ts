@@ -11,16 +11,16 @@ import {
   googleGemini35FlashT00Key1, googleGemini35FlashT00Key2,
   openAiGpt54MiniT00, googleGemini3FlashPreviewT00Key1, googleGemini3FlashPreviewT00Key2,
   googleGemini31FlashLiteT08Key1, googleGemini31FlashLiteT08Key2, openAiGpt54MiniT08,
-  googleGemini31FlashLiteT01Key1Max3k, googleGemini31FlashLiteT01Key2Max3k, openAiGpt54MiniT01Max2k,
+  googleGemini31FlashLiteT01Key1, googleGemini31FlashLiteT01Key2, openAiGpt54MiniT01,
   googleGemini38FlashT08Key1, googleGemini38FlashT08Key2,
   googleGemini37FlashT08Key1, googleGemini37FlashT08Key2,
   googleGemini36FlashT08Key1, googleGemini36FlashT08Key2,
   googleGemini35FlashT08Key1, googleGemini35FlashT08Key2,
   deepSeekV4ProT085ReasoningNone, deepSeekV4ProT00ReasoningHigh, openAiGpt54T08Penalty04, googleGemini3FlashPreviewT08Key1, googleGemini3FlashPreviewT08Key2,
-  googleGemini31FlashLiteT02Key1Max3k, googleGemini31FlashLiteT02Key2Max3k, openAiGpt54MiniT02Max2k,
-  googleGemini35FlashLiteT01Key1Max3k, googleGemini35FlashLiteT01Key2Max3k,
+  googleGemini31FlashLiteT02Key1, googleGemini31FlashLiteT02Key2, openAiGpt54MiniT02,
+  googleGemini35FlashLiteT01Key1, googleGemini35FlashLiteT01Key2,
   googleGemini35FlashLiteT08Key1, googleGemini35FlashLiteT08Key2,
-  googleGemini35FlashLiteT02Key1Max3k, googleGemini35FlashLiteT02Key2Max3k
+  googleGemini35FlashLiteT02Key1, googleGemini35FlashLiteT02Key2
 } from "../models.js";
 import {
   TOPIC_RESEARCH_ORCHESTRATOR_PROMPT,
@@ -46,11 +46,11 @@ const topicResearchOrchestratorSchema = z.object({
 
 const topicResearchOrchestratorAgents = buildAgents(
   [
-    googleGemini35FlashLiteT02Key1Max3k,
-    googleGemini35FlashLiteT02Key2Max3k,
-    googleGemini31FlashLiteT02Key1Max3k,
-    googleGemini31FlashLiteT02Key2Max3k,
-    openAiGpt54MiniT02Max2k
+    googleGemini35FlashLiteT02Key1,
+    googleGemini35FlashLiteT02Key2,
+    googleGemini31FlashLiteT02Key1,
+    googleGemini31FlashLiteT02Key2,
+    openAiGpt54MiniT02
   ],
   {
     tools: [DuckDuckGoSearchTool, TavilySearchTool],
@@ -98,11 +98,11 @@ const topicDeepScraperSchema = z.object({
 });
 
 const topicDeepScraperModels = [
-  googleGemini35FlashLiteT01Key1Max3k.withStructuredOutput(topicDeepScraperSchema, { name: "deep_scraper", method: "jsonSchema" }),
-  googleGemini35FlashLiteT01Key2Max3k.withStructuredOutput(topicDeepScraperSchema, { name: "deep_scraper", method: "jsonSchema" }),
-  googleGemini31FlashLiteT01Key1Max3k.withStructuredOutput(topicDeepScraperSchema, { name: "deep_scraper", method: "jsonSchema" }),
-  googleGemini31FlashLiteT01Key2Max3k.withStructuredOutput(topicDeepScraperSchema, { name: "deep_scraper", method: "jsonSchema" }),
-  openAiGpt54MiniT01Max2k.withStructuredOutput(topicDeepScraperSchema, { name: "deep_scraper", method: "jsonSchema" })
+  googleGemini35FlashLiteT01Key1.withStructuredOutput(topicDeepScraperSchema, { name: "deep_scraper", method: "jsonSchema" }),
+  googleGemini35FlashLiteT01Key2.withStructuredOutput(topicDeepScraperSchema, { name: "deep_scraper", method: "jsonSchema" }),
+  googleGemini31FlashLiteT01Key1.withStructuredOutput(topicDeepScraperSchema, { name: "deep_scraper", method: "jsonSchema" }),
+  googleGemini31FlashLiteT01Key2.withStructuredOutput(topicDeepScraperSchema, { name: "deep_scraper", method: "jsonSchema" }),
+  openAiGpt54MiniT01.withStructuredOutput(topicDeepScraperSchema, { name: "deep_scraper", method: "jsonSchema" })
 ];
 
 export const DeepPageScraperNode = async (state: TopicThreadFactoryStateType, config?: RunnableConfig) => {

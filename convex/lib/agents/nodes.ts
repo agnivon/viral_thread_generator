@@ -5,11 +5,11 @@ import { providerStrategy } from "langchain";
 import { RunnableConfig } from "@langchain/core/runnables";
 import { VISUAL_KEYWORD_STRATEGIST_PROMPT, SEARCH_QUERY_OPTIMIZER_PROMPT } from "./prompts.js";
 import { 
-  googleGemini31FlashLiteT02Key1Max3k, 
-  googleGemini31FlashLiteT02Key2Max3k, 
-  openAiGpt54MiniT02Max2k,
-  googleGemini31FlashLiteT01Key1Max3k,
-  googleGemini31FlashLiteT01Key2Max3k,
+  googleGemini31FlashLiteT02Key1, 
+  googleGemini31FlashLiteT02Key2, 
+  openAiGpt54MiniT02,
+  googleGemini31FlashLiteT01Key1,
+  googleGemini31FlashLiteT01Key2,
   openRouterFreeT01
 } from "./models.js";
 import { buildAgents, invokeWithFallbacks } from "./utils.js";
@@ -29,9 +29,9 @@ export type SearchQueriesType = z.infer<typeof SearchQueriesSchema>;
 
 export const visualKeywordStrategistAgents = buildAgents(
   [
-    googleGemini31FlashLiteT02Key1Max3k, 
-    googleGemini31FlashLiteT02Key2Max3k, 
-    openAiGpt54MiniT02Max2k
+    googleGemini31FlashLiteT02Key1, 
+    googleGemini31FlashLiteT02Key2, 
+    openAiGpt54MiniT02
   ],
   {
     systemPrompt: VISUAL_KEYWORD_STRATEGIST_PROMPT,
@@ -75,8 +75,8 @@ export type OptimizedSearchQueryType = z.infer<typeof OptimizedSearchQuerySchema
 
 export const searchQueryOptimizerAgents = buildAgents(
   [
-    googleGemini31FlashLiteT01Key1Max3k,
-    googleGemini31FlashLiteT01Key2Max3k,
+    googleGemini31FlashLiteT01Key1,
+    googleGemini31FlashLiteT01Key2,
     openRouterFreeT01
   ],
   {

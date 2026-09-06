@@ -71,3 +71,58 @@ test("SearchQueryOptimizerNode - returns undefined when invocation fails", async
 
   expect(result.optimized_query).toBeUndefined();
 });
+
+test("All flash-lite and OpenAI models have no token limits (maxOutputTokens / maxTokens are undefined)", async () => {
+  const {
+    googleGemini31FlashLiteT01Key1,
+    googleGemini31FlashLiteT01Key2,
+    googleGemini35FlashLiteT01Key1,
+    googleGemini35FlashLiteT01Key2,
+    googleGemini31FlashLiteT01Key1Max3k,
+    googleGemini31FlashLiteT01Key2Max3k,
+    googleGemini35FlashLiteT01Key1Max3k,
+    googleGemini35FlashLiteT01Key2Max3k,
+    googleGemini31FlashLiteT02Key1,
+    googleGemini31FlashLiteT02Key2,
+    googleGemini35FlashLiteT02Key1,
+    googleGemini35FlashLiteT02Key2,
+    googleGemini31FlashLiteT02Key1Max3k,
+    googleGemini31FlashLiteT02Key2Max3k,
+    googleGemini35FlashLiteT02Key1Max3k,
+    googleGemini35FlashLiteT02Key2Max3k,
+    openAiGpt54MiniT01,
+    openAiGpt54MiniT01Max2k,
+    openAiGpt54MiniT02,
+    openAiGpt54MiniT02Max2k,
+  } = await import("./models");
+
+  const getMaxTokens = (model: unknown): number | undefined => {
+    return (model as { params?: { maxOutputTokens?: number } })?.params?.maxOutputTokens;
+  };
+
+  // Verify scraper flash-lite models have NO maxOutputTokens limit
+  expect(getMaxTokens(googleGemini31FlashLiteT01Key1)).toBeUndefined();
+  expect(getMaxTokens(googleGemini31FlashLiteT01Key2)).toBeUndefined();
+  expect(getMaxTokens(googleGemini35FlashLiteT01Key1)).toBeUndefined();
+  expect(getMaxTokens(googleGemini35FlashLiteT01Key2)).toBeUndefined();
+  expect(getMaxTokens(googleGemini31FlashLiteT01Key1Max3k)).toBeUndefined();
+  expect(getMaxTokens(googleGemini31FlashLiteT01Key2Max3k)).toBeUndefined();
+  expect(getMaxTokens(googleGemini35FlashLiteT01Key1Max3k)).toBeUndefined();
+  expect(getMaxTokens(googleGemini35FlashLiteT01Key2Max3k)).toBeUndefined();
+
+  // Verify researcher flash-lite models have NO maxOutputTokens limit
+  expect(getMaxTokens(googleGemini31FlashLiteT02Key1)).toBeUndefined();
+  expect(getMaxTokens(googleGemini31FlashLiteT02Key2)).toBeUndefined();
+  expect(getMaxTokens(googleGemini35FlashLiteT02Key1)).toBeUndefined();
+  expect(getMaxTokens(googleGemini35FlashLiteT02Key2)).toBeUndefined();
+  expect(getMaxTokens(googleGemini31FlashLiteT02Key1Max3k)).toBeUndefined();
+  expect(getMaxTokens(googleGemini31FlashLiteT02Key2Max3k)).toBeUndefined();
+  expect(getMaxTokens(googleGemini35FlashLiteT02Key1Max3k)).toBeUndefined();
+  expect(getMaxTokens(googleGemini35FlashLiteT02Key2Max3k)).toBeUndefined();
+
+  // Verify OpenAI models have NO maxTokens limit
+  expect(openAiGpt54MiniT01.maxTokens).toBeUndefined();
+  expect(openAiGpt54MiniT01Max2k.maxTokens).toBeUndefined();
+  expect(openAiGpt54MiniT02.maxTokens).toBeUndefined();
+  expect(openAiGpt54MiniT02Max2k.maxTokens).toBeUndefined();
+});

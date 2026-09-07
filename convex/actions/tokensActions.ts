@@ -7,7 +7,7 @@ import { ThreadsAuthAPI } from "../lib/threads/api";
 import { v } from "convex/values";
 
 /**
- * Action to retrieve the latest token, check if it's near expiry (less than 24 hrs),
+ * Action to retrieve the latest token, check if it's near expiry (less than 48 hrs),
  * and refresh it via Threads API if needed, updating the database.
  */
 export const refreshThreadsToken = internalAction({

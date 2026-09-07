@@ -1,6 +1,6 @@
 "use node";
 
-import googleTrends from '@alkalisummer/google-trends-js';
+import googleTrends, { TrendingKeyword } from '@alkalisummer/google-trends-js';
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { v } from "convex/values";
@@ -25,7 +25,7 @@ export const fetchAndStoreLatestNews = internalAction({
 
     // 1. Fetch Trending Keywords from Google Trends
     // We only fetch from the US region as per the requirements.
-    const allTrends: any[] = [];
+    const allTrends: TrendingKeyword[] = [];
 
     try {
       // Fetch daily trends for the US. The GoogleTrendsApi returns data that includes
@@ -44,14 +44,14 @@ export const fetchAndStoreLatestNews = internalAction({
     // ==========================================
     // 1. Deduplication: We use a Map to ensure each keyword only appears once.
     // If we encounter a duplicate keyword, we keep the one with the highest search volume (traffic).
-    const uniqueTrendsMap = new Map();
+    const uniqueTrendsMap = new Map<string, TrendingKeyword>();
     for (const t of allTrends) {
       const keyword = String(t.keyword).toLowerCase().trim();
       if (!uniqueTrendsMap.has(keyword)) {
         uniqueTrendsMap.set(keyword, t);
       } else {
         const existing = uniqueTrendsMap.get(keyword);
-        if ((t.traffic || 0) > (existing.traffic || 0)) {
+        if (existing && (t.traffic || 0) > (existing.traffic || 0)) {
           uniqueTrendsMap.set(keyword, t);
         }
       }

@@ -21,20 +21,6 @@ export const getThreadDraft = query({
   },
 });
 
-export const getAllThreadDrafts = query({
-  args: {},
-  handler: async (ctx): Promise<Doc<"threadDrafts">[]> => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) {
-      throw new Error("Unauthorized");
-    }
-    return await ctx.db
-      .query("threadDrafts")
-      .withIndex("by_userId", (q) => q.eq("userId", userId))
-      .order("desc")
-      .collect();
-  },
-});
 
 export const getPaginatedThreadDrafts = query({
   args: {

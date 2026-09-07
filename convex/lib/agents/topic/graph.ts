@@ -93,7 +93,7 @@ export const TopicThreadFactoryGraph = new StateGraph(TopicThreadFactoryState)
   .addConditionalEdges("HookStrategistNode", route_after_hook, ["ThreadWriterNode", "HookStrategistNode", "ManualHookSelectionNode"])
   .addEdge("ManualHookSelectionNode", "ThreadWriterNode")
   .addConditionalEdges("ThreadWriterNode", route_after_writer, ["TopicCharacterValidatorNode", "ThreadWriterNode"])
-  .addConditionalEdges("TopicCharacterValidatorNode", route_after_validator, ["ViralityCriticNode", "ThreadWriterNode", "VisualKeywordStrategistNode"])
+  .addConditionalEdges("TopicCharacterValidatorNode", route_after_validator, ["ViralityCriticNode", "ThreadWriterNode"])
   .addConditionalEdges("ViralityCriticNode", route_after_critic, [END, "ThreadWriterNode", "ViralityCriticNode", "VisualKeywordStrategistNode"])
   .addEdge("VisualKeywordStrategistNode", END)
   .compile({ checkpointer: checkpointSaver });

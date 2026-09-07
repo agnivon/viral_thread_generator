@@ -37,7 +37,7 @@ test("threadsQueries - getThreadDraft unauthorized when not logged in or wrong u
   expect(draft?.userId).toBe(user1);
 });
 
-test("threadsQueries - getAllThreadDrafts & getPaginatedThreadDrafts", async () => {
+test("threadsQueries - getPaginatedThreadDrafts", async () => {
   const t = convexTest(schema, modules);
   const userId = await t.mutation(async (ctx) => ctx.db.insert("users", {}));
 
@@ -60,10 +60,6 @@ test("threadsQueries - getAllThreadDrafts & getPaginatedThreadDrafts", async () 
   });
 
   const tUser = t.withIdentity({ subject: userId });
-
-  // getAllThreadDrafts
-  const allDrafts = await tUser.query(api.queries.threadsQueries.getAllThreadDrafts, {});
-  expect(allDrafts.length).toBe(2);
 
   // getPaginatedThreadDrafts
   const paginated = await tUser.query(api.queries.threadsQueries.getPaginatedThreadDrafts, {

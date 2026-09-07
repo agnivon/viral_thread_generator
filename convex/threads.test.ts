@@ -13,14 +13,21 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-test("saveThreadDraft mutation saves state correctly", async () => {
+test("initializeThreadDraft and updateThreadDraft mutations save state correctly", async () => {
   const t = convexTest(schema, modules);
   const userId = await t.mutation(async (ctx) => {
     return await ctx.db.insert("users", {});
   });
 
-  const inputState = {
+  const id = await t.mutation(internal.mutations.threadsMutations.initializeThreadDraft, {
+    userId,
+    agent: "news",
     input_field: { agent: "news" as const, url: "https://example.com/source-url" },
+  });
+  expect(id).toBeDefined();
+
+  const updateState = {
+    id,
     raw_markdown: "Mock raw markdown content",
     core_hooks: ["Hook 1", "Hook 2"],
     selected_hook: "Hook 1",
@@ -30,11 +37,10 @@ test("saveThreadDraft mutation saves state correctly", async () => {
     post_critiques: [{ post_index: 1, critique: "" }],
     iterations: 1,
     is_approved: false,
-    userId,
+    generation_status: "success" as const,
   };
 
-  const id = await t.mutation(internal.mutations.threadsMutations.saveThreadDraft, inputState);
-  expect(id).toBeDefined();
+  await t.mutation(internal.mutations.threadsMutations.updateThreadDraft, updateState);
 
   // Read it back
   const saved = await t.query(async (ctx) => {
@@ -42,17 +48,17 @@ test("saveThreadDraft mutation saves state correctly", async () => {
   });
 
   expect(saved).toMatchObject({
-    input_field: inputState.input_field,
-    raw_markdown: inputState.raw_markdown,
-    core_hooks: inputState.core_hooks,
-    selected_hook: inputState.selected_hook,
-    thread_draft: inputState.thread_draft,
-    critique: inputState.critique,
-    virality_score: inputState.virality_score,
-    post_critiques: inputState.post_critiques,
-    iterations: inputState.iterations,
-    is_approved: inputState.is_approved,
-    userId: inputState.userId,
+    input_field: { agent: "news", url: "https://example.com/source-url" },
+    raw_markdown: updateState.raw_markdown,
+    core_hooks: updateState.core_hooks,
+    selected_hook: updateState.selected_hook,
+    thread_draft: updateState.thread_draft,
+    critique: updateState.critique,
+    virality_score: updateState.virality_score,
+    post_critiques: updateState.post_critiques,
+    iterations: updateState.iterations,
+    is_approved: updateState.is_approved,
+    userId,
     is_published: false,
     generation_status: "success",
   });
@@ -138,18 +144,23 @@ test("resumeNewsThreadGeneration action resumes graph and saves result", async (
   });
 
   // 1. Insert thread factory state record in hook selection status
-  const stateId = await t.mutation(internal.mutations.threadsMutations.saveThreadDraft, {
-    input_field: { agent: "news", url: "https://example.com/source-url" },
-    raw_markdown: "Mock raw markdown content",
-    core_hooks: ["Hook 1", "Hook 2"],
-    selected_hook: "",
-    thread_draft: [],
-    critique: "",
-    virality_score: 0,
-    post_critiques: [],
-    iterations: 0,
-    is_approved: false,
-    userId,
+  const stateId = await t.mutation(async (ctx) => {
+    return await ctx.db.insert("threadDrafts", {
+      input_field: { agent: "news", url: "https://example.com/source-url" },
+      raw_markdown: "Mock raw markdown content",
+      core_hooks: ["Hook 1", "Hook 2"],
+      selected_hook: "",
+      thread_draft: [],
+      critique: "",
+      virality_score: 0,
+      post_critiques: [],
+      iterations: 0,
+      is_approved: false,
+      userId,
+      is_published: false,
+      generation_status: "hook selection",
+      publication_status: "not_published",
+    });
   });
 
   const mockGraphOutput = {
@@ -215,18 +226,23 @@ test("publishThread action retrieves state and publishes thread of posts sequent
   });
 
   // 2. Insert thread factory state record
-  const stateId = await t.mutation(internal.mutations.threadsMutations.saveThreadDraft, {
-    input_field: { agent: "news", url: "https://example.com/source-url" },
-    raw_markdown: "Mock raw markdown content",
-    core_hooks: [],
-    selected_hook: "Hook 1",
-    thread_draft: ["Draft 1", "Draft 2"],
-    critique: "Mock critique",
-    virality_score: 95,
-    post_critiques: [],
-    iterations: 1,
-    is_approved: true,
-    userId,
+  const stateId = await t.mutation(async (ctx) => {
+    return await ctx.db.insert("threadDrafts", {
+      input_field: { agent: "news", url: "https://example.com/source-url" },
+      raw_markdown: "Mock raw markdown content",
+      core_hooks: [],
+      selected_hook: "Hook 1",
+      thread_draft: ["Draft 1", "Draft 2"],
+      critique: "Mock critique",
+      virality_score: 95,
+      post_critiques: [],
+      iterations: 1,
+      is_approved: true,
+      userId,
+      is_published: false,
+      generation_status: "success",
+      publication_status: "not_published",
+    });
   });
 
   // 3. Spy/Mock ThreadsAPI calls

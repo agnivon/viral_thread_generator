@@ -103,6 +103,57 @@ test("onGenerationComplete creates thread_generation_success notification when g
   );
 });
 
+test("onGenerationComplete creates hook selection notification when graph interrupts for manual hook selection", async () => {
+  const t = convexTest(schema, modules);
+  const userId = await t.mutation(async (ctx) => {
+    return await ctx.db.insert("users", {});
+  });
+
+  const threadId = await t.mutation(async (ctx) => {
+    return await ctx.db.insert("threadDrafts", {
+      userId,
+      generation_status: "hook selection",
+      is_published: false,
+    });
+  });
+
+  const createSpy = vi.spyOn(notifications, "create").mockResolvedValue({
+    created: true,
+    notificationId: "n_hook" as unknown as Id<"notifications">,
+  });
+
+  await t.mutation(internal.notifications.onComplete.onGenerationComplete, {
+    workId: "work_gen_hook_1" as WorkId,
+    context: {
+      userId,
+      threadId,
+    },
+    result: {
+      kind: "success",
+      returnValue: { recordId: threadId },
+    },
+  });
+
+  expect(createSpy).toHaveBeenCalledWith(
+    expect.anything(),
+    expect.objectContaining({
+      targetId: userId,
+      kind: "thread_generation_success",
+      data: {
+        threadId,
+        title: "Hook Selection Required",
+        body: "Hooks have been generated. Please select your preferred hook to continue generating the thread.",
+        href: `/threads/drafts/${threadId}/approve`,
+      },
+      dedupeKey: "thread_generation_success:work_gen_hook_1",
+      source: {
+        type: "thread_generation",
+        id: threadId,
+      },
+    })
+  );
+});
+
 test("onGenerationComplete creates thread_generation_failed notification on failure", async () => {
   const t = convexTest(schema, modules);
   const userId = await t.mutation(async (ctx) => {

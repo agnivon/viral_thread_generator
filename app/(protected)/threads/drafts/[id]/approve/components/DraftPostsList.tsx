@@ -302,7 +302,7 @@ export function DraftPostsList({
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
 
   const displayPosts = isEditingPosts
-    ? fields.map((field, i) => ({ id: field.id, content: (field as any).content || "" }))
+    ? fields.map((field) => ({ id: field.id, content: field.content || "" }))
     : posts.map((post, i) => ({ id: i.toString(), content: post }));
 
   return (

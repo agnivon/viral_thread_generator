@@ -5,9 +5,9 @@ import { RunnableConfig } from "@langchain/core/runnables";
 import { createAgent } from "langchain";
 
 export interface AgentConfig {
-  tools?: any[];
+  tools?: Parameters<typeof createAgent>[0]["tools"];
   systemPrompt: string;
-  responseFormat: any;
+  responseFormat?: any;
 }
 
 export type AgentCandidate =
@@ -169,7 +169,7 @@ function jsonToMarkdown(data: unknown, depth = 3): string {
       .map((item) => {
         if (typeof item === "object" && item !== null) {
           return Object.entries(item as Record<string, unknown>)
-            .map(([k, v]) => `- **${formatHeaderTitle(k)}:** ${typeof v === "object" && v !== null ? safeStringify(v) : safeStringify(v)}`)
+            .map(([k, v]) => `- **${formatHeaderTitle(k)}:** ${safeStringify(v)}`)
             .join("\n");
         }
         return `- ${safeStringify(item)}`;
@@ -189,7 +189,7 @@ function jsonToMarkdown(data: unknown, depth = 3): string {
           .map((item) => {
             if (typeof item === "object" && item !== null) {
               return Object.entries(item as Record<string, unknown>)
-                .map(([k, v]) => `  - **${formatHeaderTitle(k)}:** ${typeof v === "object" && v !== null ? safeStringify(v) : safeStringify(v)}`)
+                .map(([k, v]) => `  - **${formatHeaderTitle(k)}:** ${safeStringify(v)}`)
                 .join("\n");
             }
             return `- ${safeStringify(item)}`;

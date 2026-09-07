@@ -196,6 +196,51 @@ async function restartGraphFromScratch(
 // Enqueue Generation Actions
 // ─────────────────────────────────────────────────────────────
 
+interface EnqueueThreadRequest {
+  input_field: {
+    agent: "news" | "social_media";
+    url: string;
+  } | {
+    agent: "topic";
+    topic: string;
+    description?: string;
+  };
+  guidance?: string;
+  manual_hook_selection?: boolean;
+  search_query_generation?: boolean;
+}
+
+async function enqueueThreadGenerationHelper(
+  ctx: ActionCtx,
+  requests: EnqueueThreadRequest[]
+) {
+  const userId = await requireAuthUserId(ctx);
+
+  await Promise.all(
+    requests.map((req) =>
+      generationPool.enqueueAction(
+        ctx,
+        internal.actions.threadsActions.generateThreadInternal,
+        {
+          input_field: req.input_field,
+          guidance: req.guidance,
+          manual_hook_selection: req.manual_hook_selection,
+          search_query_generation: req.search_query_generation,
+          userId,
+          agent: req.input_field.agent,
+        },
+        {
+          onComplete: internal.notifications.onComplete.onGenerationComplete,
+          context: {
+            userId,
+            title: req.input_field.agent === "topic" ? req.input_field.topic : req.input_field.url,
+          },
+        }
+      )
+    )
+  );
+}
+
 export const enqueueThreadGeneration = action({
   args: {
     requests: v.array(v.object({
@@ -204,31 +249,7 @@ export const enqueueThreadGeneration = action({
     }))
   },
   handler: async (ctx, args) => {
-    const userId = await requireAuthUserId(ctx);
-
-    await Promise.all(
-      args.requests.map((req) =>
-        generationPool.enqueueAction(
-          ctx,
-          internal.actions.threadsActions.generateThreadInternal,
-          {
-            input_field: req.input_field,
-            guidance: req.guidance,
-            manual_hook_selection: req.manual_hook_selection,
-            search_query_generation: req.search_query_generation,
-            userId,
-            agent: req.input_field.agent,
-          },
-          {
-            onComplete: internal.notifications.onComplete.onGenerationComplete,
-            context: {
-              userId,
-              title: req.input_field.agent === "topic" ? req.input_field.topic : req.input_field.url,
-            },
-          }
-        )
-      )
-    );
+    await enqueueThreadGenerationHelper(ctx, args.requests);
   },
 });
 
@@ -244,7 +265,7 @@ export const enqueueNewsThreadGeneration = action({
       ...req,
       input_field: { agent: "news" as const, url: req.url },
     }));
-    await ctx.runAction(internal.actions.threadsActions.enqueueThreadGenerationWrapper, { requests });
+    await enqueueThreadGenerationHelper(ctx, requests);
   },
 });
 
@@ -260,7 +281,7 @@ export const enqueueSocialMediaThreadGeneration = action({
       ...req,
       input_field: { agent: "social_media" as const, url: req.url },
     }));
-    await ctx.runAction(internal.actions.threadsActions.enqueueThreadGenerationWrapper, { requests });
+    await enqueueThreadGenerationHelper(ctx, requests);
   },
 });
 
@@ -277,43 +298,7 @@ export const enqueueTopicThreadGeneration = action({
       ...req,
       input_field: { agent: "topic" as const, topic: req.topic, description: req.description },
     }));
-    await ctx.runAction(internal.actions.threadsActions.enqueueThreadGenerationWrapper, { requests });
-  },
-});
-
-export const enqueueThreadGenerationWrapper = internalAction({
-  args: {
-    requests: v.array(v.object({
-      input_field: threadDraftInputValidator,
-      ...commonThreadDraftArgs,
-    }))
-  },
-  handler: async (ctx, args) => {
-    const userId = await requireAuthUserId(ctx);
-
-    await Promise.all(
-      args.requests.map((req) =>
-        generationPool.enqueueAction(
-          ctx,
-          internal.actions.threadsActions.generateThreadInternal,
-          {
-            input_field: req.input_field,
-            guidance: req.guidance,
-            manual_hook_selection: req.manual_hook_selection,
-            search_query_generation: req.search_query_generation,
-            userId,
-            agent: req.input_field.agent,
-          },
-          {
-            onComplete: internal.notifications.onComplete.onGenerationComplete,
-            context: {
-              userId,
-              title: req.input_field.agent === "topic" ? req.input_field.topic : req.input_field.url,
-            },
-          }
-        )
-      )
-    );
+    await enqueueThreadGenerationHelper(ctx, requests);
   },
 });
 

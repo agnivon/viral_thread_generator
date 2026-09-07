@@ -220,12 +220,15 @@ export default function DraftsPage() {
               </thead>
               <tbody className="divide-y divide-border/40">
                 {drafts.map((draft) => {
-                  const isTopic = draft.input_field?.agent === "topic";
-                  // @ts-ignore - union type narrowing
-                  const title = isTopic ? draft.input_field?.topic : draft.input_field?.url || "Unknown Source";
-                  const externalUrl = !isTopic && title?.startsWith("http") ? title : `https://${title}`;
+                  const inputField = draft.input_field;
+                  const isTopic = inputField?.agent === "topic";
+                  const title = !inputField
+                    ? "Unknown Source"
+                    : inputField.agent === "topic"
+                    ? inputField.topic
+                    : inputField.url;
+                  const externalUrl = !isTopic && title.startsWith("http") ? title : `https://${title}`;
                   const genStatus = draft.generation_status ?? "success";
-                  const isPublishable = !draft.is_published && draft.publication_status !== "publishing" && draft.publication_status !== "queued" && genStatus === "success";
                   return (
                     <tr key={draft._id} className="hover:bg-muted/20 transition-colors duration-150">
                       <td className="px-4 py-4.5 text-center">

@@ -7,7 +7,7 @@ import schema from "./schema";
 
 const modules = import.meta.glob("./**/*.ts");
 
-test("threadsMutations - initializeThreadDraft, updateThreadDraft, markAsPublished, deleteThreadDraftInternal", async () => {
+test("threadsMutations - initializeThreadDraft, updateThreadDraft, updateThreadDraftPublicationStatus, deleteThreadDraftInternal", async () => {
   const t = convexTest(schema, modules);
   const userId = await t.mutation(async (ctx) => ctx.db.insert("users", {}));
   const user2 = await t.mutation(async (ctx) => ctx.db.insert("users", {}));
@@ -82,14 +82,17 @@ test("threadsMutations - initializeThreadDraft, updateThreadDraft, markAsPublish
   expect(updatedDraft?.failure_reason).toBeUndefined();
   expect(updatedDraft?.publication_error).toBeUndefined();
 
-  // 3. markAsPublished
-  await t.mutation(internal.mutations.threadsMutations.markAsPublished, {
+  // 3. updateThreadDraft publication status
+  await t.mutation(internal.mutations.threadsMutations.updateThreadDraft, {
     id: draftId,
-    userId,
+    publication_status: "success",
+    publication_error: null,
+    is_published: true,
   });
 
   const publishedDraft = await t.query(async (ctx) => ctx.db.get("threadDrafts", draftId));
   expect(publishedDraft?.is_published).toBe(true);
+  expect(publishedDraft?.publication_status).toBe("success");
 
   // 4. deleteThreadDraftInternal unauthorized check
   const tUser2 = t.withIdentity({ subject: user2 });

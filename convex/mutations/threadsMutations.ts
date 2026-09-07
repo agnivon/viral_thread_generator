@@ -4,33 +4,6 @@ import { threadDraftInputValidator, commonThreadDraftArgs, generationStatusValid
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { Id } from "../_generated/dataModel";
 
-export const saveThreadDraft = internalMutation({
-  args: {
-    input_field: v.optional(threadDraftInputValidator),
-    raw_markdown: v.string(),
-    core_hooks: v.array(v.string()),
-    selected_hook: v.string(),
-    thread_draft: v.array(v.string()),
-    critique: v.union(v.string(), v.null()),
-    virality_score: v.optional(v.number()),
-    post_critiques: v.optional(v.array(v.object({
-      post_index: v.number(),
-      critique: v.string(),
-      fix_directive: v.optional(v.string())
-    }))),
-    research_context: v.optional(v.string()),
-    iterations: v.number(),
-    is_approved: v.boolean(),
-    userId: v.id("users"),
-  },
-  handler: async (ctx, args): Promise<Id<"threadDrafts">> => {
-    return await ctx.db.insert("threadDrafts", {
-      ...args,
-      is_published: false,
-      generation_status: "success" as const,
-    });
-  },
-});
 
 export const initializeThreadDraft = internalMutation({
   args: {
@@ -105,12 +78,6 @@ export const updateThreadDraft = internalMutation({
   },
 });
 
-export const markAsPublished = internalMutation({
-  args: { id: v.id("threadDrafts"), userId: v.id("users") },
-  handler: async (ctx, args) => {
-    await ctx.db.patch("threadDrafts", args.id, { is_published: true });
-  },
-});
 
 export const deleteThreadDraftInternal = internalMutation({
   args: {

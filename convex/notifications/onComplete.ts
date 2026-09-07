@@ -63,13 +63,17 @@ export const onGenerationComplete = internalMutation({
 
     if (result.kind === "success") {
       const recordId = getRecordId(result.returnValue) ?? context.threadId;
+      let title = "Thread Generation Succeeded";
       let body = "Your thread has been generated successfully.";
       let href: string | undefined = undefined;
 
       if (recordId) {
         href = `/threads/drafts/${recordId}/approve`;
         const draft = await ctx.db.get("threadDrafts", recordId);
-        if (draft?.selected_hook) {
+        if (draft?.generation_status === "hook selection") {
+          title = "Hook Selection Required";
+          body = "Hooks have been generated. Please select your preferred hook to continue generating the thread.";
+        } else if (draft?.selected_hook) {
           const truncatedHook =
             draft.selected_hook.length > 60
               ? `${draft.selected_hook.substring(0, 60)}...`
@@ -83,7 +87,7 @@ export const onGenerationComplete = internalMutation({
         kind: "thread_generation_success",
         data: {
           threadId: recordId ?? "",
-          title: "Thread Generation Succeeded",
+          title,
           body,
           href,
         },

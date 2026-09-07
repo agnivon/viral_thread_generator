@@ -329,7 +329,7 @@ function SourceDataGrid({
                         </TableCell>
                       </TableRow>
                     ) : (
-                      articles.map((article: any) => (
+                      articles.map((article: Article) => (
                         <TableRow
                           key={article.id}
                           className="border-b border-border/30 hover:bg-muted/25 transition-colors duration-150"

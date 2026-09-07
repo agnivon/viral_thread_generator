@@ -23,6 +23,6 @@ try {
   console.log("");
   console.log(`✅ User successfully created in Convex (${isProd ? 'production' : 'development'})!`);
 } catch (e) {
-  console.error("❌ Failed to create user.");
+  console.error("❌ Failed to create user:", e instanceof Error ? e.message : e);
   process.exit(1);
 }

@@ -68,21 +68,16 @@ export default function CreateThreadPage() {
       // Trigger thread generation enqueuing
       await enqueueThreadGeneration({ 
         requests: validEntries.map(entry => {
-          let input_field: any;
-          if (entry.agent === "topic") {
-            input_field = {
-              agent: "topic",
-              topic: entry.topic || "",
-            };
-            if (entry.description?.trim()) {
-              input_field.description = entry.description.trim();
-            }
-          } else {
-            input_field = {
-              url: entry.url || "",
-              agent: entry.agent as "news" | "social_media"
-            };
-          }
+          const input_field = entry.agent === "topic"
+            ? {
+                agent: "topic" as const,
+                topic: entry.topic || "",
+                ...(entry.description?.trim() ? { description: entry.description.trim() } : {}),
+              }
+            : {
+                agent: entry.agent as "news" | "social_media",
+                url: entry.url || "",
+              };
 
           return {
             input_field,

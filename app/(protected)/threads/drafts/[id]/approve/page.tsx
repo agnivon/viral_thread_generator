@@ -592,7 +592,7 @@ export default function ApproveDraftPage() {
               >
                 {isRegenerating ? (
                   <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin mr-2" /> Regenerating...
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Regenerating...
                   </>
                 ) : (
                   <>

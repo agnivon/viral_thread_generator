@@ -86,7 +86,7 @@ export class ThreadsAPI {
   private async executeWithRetry<T>(
     operationName: string,
     actionFn: (attempt: number, maxAttempts: number) => Promise<T>,
-    shouldRetryFn: (error: any) => boolean,
+    shouldRetryFn: (error: unknown) => boolean,
     retryWarningMsgFn: (delayMs: number, attempt: number, maxAttempts: number) => string,
     maxAttempts: number = 5,
     initialDelayMs: number = 2000
@@ -97,14 +97,15 @@ export class ThreadsAPI {
     while (attempts < maxAttempts) {
       try {
         return await actionFn(attempts + 1, maxAttempts);
-      } catch (error: any) {
+      } catch (error: unknown) {
         attempts++;
         if (shouldRetryFn(error) && attempts < maxAttempts) {
           console.warn(retryWarningMsgFn(delayMs, attempts, maxAttempts));
           await new Promise(resolve => setTimeout(resolve, delayMs));
           delayMs *= 2;
         } else {
-          console.error(`[ThreadsAPI.${operationName}] error: ${error.message}`);
+          const errorMsg = error instanceof Error ? error.message : String(error);
+          console.error(`[ThreadsAPI.${operationName}] error: ${errorMsg}`);
           throw error;
         }
       }
@@ -313,11 +314,12 @@ export class ThreadsAPI {
         return res.id;
       },
       (error) => {
+        const msg = error instanceof Error ? error.message : String(error);
         const isPropagationError = 
-          error.message?.includes("does not exist") || 
-          error.message?.includes("cannot be loaded") ||
-          error.message?.includes("missing permissions") ||
-          error.message?.includes("Unsupported post request");
+          msg.includes("does not exist") || 
+          msg.includes("cannot be loaded") ||
+          msg.includes("missing permissions") ||
+          msg.includes("Unsupported post request");
         return !!(isPropagationError && options.replyToId);
       },
       (delayMs, attempt, max) => `[ThreadsAPI.createContainer] Threads API propagation delay detected for reply_to_id ${options.replyToId}. Retrying in ${delayMs}ms (attempt ${attempt}/${max})...`,
@@ -348,11 +350,12 @@ export class ThreadsAPI {
         return res.id;
       },
       (error) => {
-        return error.message?.includes("does not exist") || 
-          error.message?.includes("cannot be loaded") ||
-          error.message?.includes("missing permissions") ||
-          error.message?.includes("Unsupported post request") ||
-          error.message?.includes("resource does not exist");
+        const msg = error instanceof Error ? error.message : String(error);
+        return msg.includes("does not exist") || 
+          msg.includes("cannot be loaded") ||
+          msg.includes("missing permissions") ||
+          msg.includes("Unsupported post request") ||
+          msg.includes("resource does not exist");
       },
       (delayMs, attempt, max) => `[ThreadsAPI.publishContainer] Container not found/ready yet for ID ${creationId}. Retrying publish in ${delayMs}ms (attempt ${attempt}/${max})...`,
       maxAttempts

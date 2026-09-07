@@ -205,17 +205,15 @@ export const deleteOldNewsArticles = internalAction({
     cutoffDate.setDate(cutoffDate.getDate() - 5);
 
     let totalDeleted = 0;
+    let collectionsWithDeletions = 0;
 
     const topLevelDocs = await db.collection("newsdata_latest_news").listDocuments();
 
     for (const rootDoc of topLevelDocs) {
-      const keywordSlug = rootDoc.id;
-      console.log(`Deleting old news articles for keyword: ${keywordSlug}`);
       const collectionRef = rootDoc.collection("articles");
       const snapshot = await collectionRef.where("published_at", "<", cutoffDate).get();
 
       if (snapshot.empty) {
-        console.log(`No old news articles found to delete for ${keywordSlug}.`);
         continue;
       }
 
@@ -242,11 +240,13 @@ export const deleteOldNewsArticles = internalAction({
       }
 
       await Promise.all(batches);
-      console.log(`Successfully deleted ${deletedCount} old news articles from Firestore for ${keywordSlug}.`);
       totalDeleted += deletedCount;
+      collectionsWithDeletions++;
     }
 
-    console.log(`Successfully deleted a total of ${totalDeleted} old news articles across all keywords.`);
+    console.log(
+      `Successfully deleted a total of ${totalDeleted} old news articles across ${collectionsWithDeletions} keywords (${topLevelDocs.length} keywords checked).`
+    );
   },
 });
 

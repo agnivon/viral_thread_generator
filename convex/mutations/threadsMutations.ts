@@ -82,9 +82,10 @@ export const updateThreadDraft = internalMutation({
 export const deleteThreadDraftInternal = internalMutation({
   args: {
     id: v.id("threadDrafts"),
+    userId: v.optional(v.id("users")),
   },
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
+    const userId = args.userId ?? (await getAuthUserId(ctx));
     if (!userId) {
       throw new Error("Unauthorized");
     }

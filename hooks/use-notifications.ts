@@ -17,9 +17,16 @@ export interface NotificationPayload {
   href?: string;
 }
 
+export type NotificationKind =
+  | "thread_generation_success"
+  | "thread_hook_selection_required"
+  | "thread_generation_failed"
+  | "thread_publication_success"
+  | "thread_publication_failed";
+
 export interface AppNotificationItem {
   _id: Id<"notifications">;
-  kind: string;
+  kind: NotificationKind | string;
   data: NotificationPayload;
   targetId: string;
   sequence?: number;
@@ -254,11 +261,12 @@ export function useNotifications() {
               : undefined,
           });
         } else {
+          const actionLabel = item.kind === "thread_hook_selection_required" ? "Select Hook" : "View";
           toast.info(title, {
             description: body,
             action: href
               ? {
-                  label: "View",
+                  label: actionLabel,
                   onClick: handleToastClick,
                 }
               : undefined,

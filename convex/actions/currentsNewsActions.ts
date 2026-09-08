@@ -149,8 +149,9 @@ export const fetchAndStoreLatestNews = internalAction({
       let existingDocs;
       try {
         existingDocs = await db.getAll(...docRefs);
-      } catch (error: any) {
-        console.error(`Firestore db.getAll Error details for ${keyword}:`, error.message);
+      } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : String(error);
+        console.error(`Firestore db.getAll Error details for ${keyword}:`, message);
         throw error;
       }
 
@@ -218,7 +219,7 @@ export const deleteOldNewsArticles = internalAction({
       }
 
       let deletedCount = 0;
-      const batches = [];
+      const batches: Promise<unknown>[] = [];
       let currentBatch = db.batch();
       let currentBatchSize = 0;
 
@@ -370,8 +371,13 @@ export const updateNewsArticle = action({
         updated_at: FieldValue.serverTimestamp()
       });
       return { success: true };
-    } catch (error: any) {
-      if (error.code === 5) { // 5 corresponds to NOT_FOUND in gRPC/Firestore
+    } catch (error: unknown) {
+      if (
+        typeof error === "object" &&
+        error !== null &&
+        "code" in error &&
+        error.code === 5
+      ) { // 5 corresponds to NOT_FOUND in gRPC/Firestore
         throw new Error(`Article with id ${id} not found in Firestore for keyword ${keyword}`);
       }
       throw error;

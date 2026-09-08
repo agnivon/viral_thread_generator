@@ -3,6 +3,7 @@ import { Id } from "../_generated/dataModel";
 
 export type NotificationKind =
   | "thread_generation_success"
+  | "thread_hook_selection_required"
   | "thread_generation_failed"
   | "thread_publication_success"
   | "thread_publication_failed";

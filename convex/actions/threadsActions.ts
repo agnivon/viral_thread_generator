@@ -417,8 +417,8 @@ export const retryThreadInternal = internalAction({
         }
         return resumedState;
       } catch (e: unknown) {
-        const err = e as Error;
-        console.log(`[retryThreadInternal] Resuming failed with error: ${err.message}. Restarting from scratch...`);
+        const message = e instanceof Error ? e.message : String(e);
+        console.log(`[retryThreadInternal] Resuming failed with error: ${message}. Restarting from scratch...`);
         return await restartGraphFromScratch(ctx, args.recordId, args.userId, undefined, agent);
       }
     });
@@ -765,7 +765,7 @@ export const deleteThreadDraft = action({
       throw e;
     }
 
-    await ctx.runMutation(internal.mutations.threadsMutations.deleteThreadDraftInternal, { id: args.id });
+    await ctx.runMutation(internal.mutations.threadsMutations.deleteThreadDraftInternal, { id: args.id, userId });
   }
 });
 

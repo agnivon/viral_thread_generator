@@ -16,7 +16,7 @@ if (!email || !password) {
 try {
   console.log(`Creating user with email: ${email} on ${isProd ? 'production' : 'development'}...`);
   const prodFlag = isProd ? ' --prod' : '';
-  const cmd = `npx convex run${prodFlag} auth:signIn '{"provider": "password", "params": {"email": "${email}", "password": "${password}", "flow": "signUp"}}'`;
+  const cmd = `pnpm exec convex run${prodFlag} auth:signIn '{"provider": "password", "params": {"email": "${email}", "password": "${password}", "flow": "signUp"}}'`;
   
   execSync(cmd, { stdio: 'inherit' });
   

@@ -266,7 +266,7 @@ export const ThreadWriterNode = async (state: TopicThreadFactoryStateType, confi
   }
 
   return {
-    thread_draft: parse_success && result ? result.thread_draft : ["Placeholder Post 1", "Placeholder Post 2"],
+    thread_draft: parse_success && result ? result.thread_draft : (state.thread_draft || []),
     parse_success,
     retries: { ...(state.retries || {}), writer: (state.retries?.writer || 0) + 1 }
   };
@@ -316,14 +316,24 @@ export const ViralityCriticNode = async (state: TopicThreadFactoryStateType, con
     parse_success = false;
   }
 
+  if (!parse_success || !result) {
+    return {
+      retries: { ...(state.retries || {}), critic: (state.retries?.critic || 0) + 1 },
+      parse_success: false,
+    };
+  }
+
+  const virality_score = result.virality_score;
+  const is_approved = typeof virality_score === "number" && virality_score >= 85;
+
   return {
-    virality_score: parse_success && result ? result.virality_score : 85,
-    critique: parse_success && result ? result.critique : undefined,
-    post_critiques: parse_success && result ? result.post_critiques : [],
-    is_approved: parse_success && result && result.virality_score >= 85 ? true : false,
+    is_approved,
+    critique: result.critique,
+    virality_score,
+    post_critiques: result.post_critiques || [],
     iterations: state.iterations + 1,
-    parse_success,
-    retries: { ...(state.retries || {}), critic: (state.retries?.critic || 0) + 1 }
+    retries: { ...(state.retries || {}), critic: (state.retries?.critic || 0) + 1, validator: 0 },
+    parse_success: true,
   };
 };
 

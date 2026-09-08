@@ -159,15 +159,16 @@ http.route({
           headers: { "Content-Type": "text/html" },
         }
       );
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
       return new Response(
         `<html>
           <head><title>Exchange Failed</title></head>
           <body style="font-family: sans-serif; padding: 2rem; background: #fafafa; color: #333;">
-            <div style="max-width: 500px; margin: auto; background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+            <div style="max-width: 500px; margin: auto; background: white; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); padding: 2rem;">
               <h2 style="color: #d32f2f; margin-top: 0;">Exchange Failed</h2>
               <p>An error occurred while exchanging the authorization code for access tokens.</p>
-              <p style="color: #d32f2f;"><strong>Details:</strong> ${error.message || error}</p>
+              <p style="color: #d32f2f;"><strong>Details:</strong> ${errorMessage}</p>
               <p style="color: #666; font-size: 0.9rem;">Please try authorizing again.</p>
             </div>
           </body>

@@ -89,15 +89,16 @@ export default function CreateThreadPage() {
       });
       // Redirect to drafts list page
       router.push("/threads/drafts");
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Failed to enqueue thread generation:", err);
-      setError(err.message || "Failed to start thread generation. Please try again.");
+      const message = err instanceof Error ? err.message : "Failed to start thread generation. Please try again.";
+      setError(message);
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="flex-1 w-full bg-gradient-to-b from-background via-background/95 to-background/50 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="flex-1 w-full bg-linear-to-b from-background via-background/95 to-background/50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-3xl mx-auto space-y-10">
         
         {/* Header Section */}
@@ -106,7 +107,7 @@ export default function CreateThreadPage() {
             <Sparkles className="w-6 h-6" />
           </div>
           <h1 className="text-4xl font-extrabold tracking-tight sm:text-5xl">
-            <span className="bg-gradient-to-r from-violet-600 via-indigo-600 to-cyan-500 bg-clip-text text-transparent dark:from-violet-400 dark:via-indigo-400 dark:to-cyan-400">
+            <span className="bg-linear-to-r from-violet-600 via-indigo-600 to-cyan-500 bg-clip-text text-transparent dark:from-violet-400 dark:via-indigo-400 dark:to-cyan-400">
               Create Viral Threads
             </span>
           </h1>
@@ -125,7 +126,7 @@ export default function CreateThreadPage() {
                 className="group relative overflow-hidden bg-card/40 backdrop-blur-xs border-border/80 hover:border-violet-500/30 hover:shadow-lg transition-all duration-300"
               >
                 {/* Accent Highlight Line on Card Hover */}
-                <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-violet-600 to-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                <div className="absolute top-0 left-0 w-1 h-full bg-linear-to-b from-violet-600 to-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                 
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4 border-b border-border/30 bg-muted/20 px-6 py-4">
                   <div className="flex items-center gap-3">
@@ -204,7 +205,7 @@ export default function CreateThreadPage() {
                           value={entry.description || ""}
                           onChange={(e) => handleChange(index, "description", e.target.value)}
                           disabled={isLoading}
-                          className="flex min-h-[60px] w-full rounded-lg border border-border/80 bg-background/50 px-3 py-2 text-sm shadow-xs placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-violet-500 focus-visible:border-violet-500 disabled:cursor-not-allowed disabled:opacity-50 resize-none transition-all"
+                          className="flex min-h-15 w-full rounded-lg border border-border/80 bg-background/50 px-3 py-2 text-sm shadow-xs placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-violet-500 focus-visible:border-violet-500 disabled:cursor-not-allowed disabled:opacity-50 resize-none transition-all"
                         />
                       </div>
                     </div>
@@ -272,7 +273,7 @@ export default function CreateThreadPage() {
                       value={entry.guidance}
                       onChange={(e) => handleChange(index, "guidance", e.target.value)}
                       disabled={isLoading}
-                      className="flex min-h-[80px] w-full rounded-lg border border-border/80 bg-background/50 px-3 py-2 text-sm shadow-xs placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-violet-500 focus-visible:border-violet-500 disabled:cursor-not-allowed disabled:opacity-50 resize-none transition-all"
+                      className="flex min-h-20 w-full rounded-lg border border-border/80 bg-background/50 px-3 py-2 text-sm shadow-xs placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-violet-500 focus-visible:border-violet-500 disabled:cursor-not-allowed disabled:opacity-50 resize-none transition-all"
                     />
                     <p className="text-[11px] text-muted-foreground flex items-center gap-1">
                       <HelpCircle className="w-3.5 h-3.5 text-muted-foreground/75" /> Set tone instructions, specific callouts, or layout requirements for the generator.
@@ -354,7 +355,7 @@ export default function CreateThreadPage() {
             <Button 
               type="submit" 
               size="lg"
-              className="w-full sm:w-auto sm:min-w-[240px] rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white font-semibold py-6 shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 cursor-pointer"
+              className="w-full sm:w-auto sm:min-w-60 rounded-xl bg-linear-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white font-semibold py-6 shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 cursor-pointer"
               disabled={isLoading || entries.every(e => {
                 if (e.agent === "topic") return !(e.topic || "").trim();
                 return !(e.url || "").trim();

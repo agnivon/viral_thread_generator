@@ -106,6 +106,19 @@ test("threadsMutations - initializeThreadDraft, updateThreadDraft, updateThreadD
 
   const deletedDraft = await t.query(async (ctx) => ctx.db.get("threadDrafts", draftId));
   expect(deletedDraft).toBeNull();
+
+  // 6. deleteThreadDraftInternal with explicit userId
+  const draftId2 = await t.mutation(internal.mutations.threadsMutations.initializeThreadDraft, {
+    userId,
+    agent: "topic",
+    input_field: { agent: "topic", topic: "Test topic 2" },
+  });
+  await expect(
+    t.mutation(internal.mutations.threadsMutations.deleteThreadDraftInternal, { id: draftId2, userId: user2 })
+  ).rejects.toThrow("Unauthorized");
+  await t.mutation(internal.mutations.threadsMutations.deleteThreadDraftInternal, { id: draftId2, userId });
+  const deletedDraft2 = await t.query(async (ctx) => ctx.db.get("threadDrafts", draftId2));
+  expect(deletedDraft2).toBeNull();
 });
 
 test("tokensMutations - storeAuthToken, updateToken, deleteTokensByPlatform", async () => {

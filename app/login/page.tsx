@@ -15,20 +15,21 @@ import {
 } from "@/components/ui/card";
 import { toast } from "sonner";
 import { useMutation } from "@tanstack/react-query";
-import { Turnstile } from "@marsidev/react-turnstile";
+import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
 
 export default function LoginPage() {
   const { signIn } = useAuthActions();
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const turnstileRef = useRef<any>(null);
+  const turnstileRef = useRef<TurnstileInstance | null>(null);
+  const siteKey = process.env.NEXT_PUBLIC_CLOUDFLARE_TURNSTILE_SITE_KEY;
 
   const loginMutation = useMutation({
     mutationFn: async (formData: FormData) => {
       await signIn("password", formData);
     },
-    onError: (err: any) => {
-      const msg = err?.message || "Invalid email or password";
+    onError: (err: unknown) => {
+      const msg = err instanceof Error ? err.message : "Invalid email or password";
       setError(msg);
       toast.error(msg);
       // Reset Turnstile widget on failure
@@ -43,7 +44,7 @@ export default function LoginPage() {
     event.preventDefault();
     setError(null);
 
-    if (!turnstileToken) {
+    if (siteKey && !turnstileToken) {
       const msg = "Please complete the CAPTCHA verification.";
       setError(msg);
       toast.error(msg);
@@ -51,7 +52,9 @@ export default function LoginPage() {
     }
 
     const formData = new FormData(event.currentTarget);
-    formData.append("token", turnstileToken);
+    if (turnstileToken) {
+      formData.append("token", turnstileToken);
+    }
     
     loginMutation.mutate(formData);
   };
@@ -59,19 +62,19 @@ export default function LoginPage() {
   return (
     <div className="relative min-h-screen flex items-center justify-center p-4 bg-background overflow-hidden">
       {/* Background Mesh Decorative Gradients */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-lg h-[400px] bg-gradient-to-br from-violet-500/10 via-transparent to-transparent blur-3xl pointer-events-none -z-10" />
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-lg h-100 bg-linear-to-br from-violet-500/10 via-transparent to-transparent blur-3xl pointer-events-none -z-10" />
       <div className="absolute -top-40 -right-40 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none -z-10" />
 
       <Card className="group relative w-full max-w-sm overflow-hidden bg-card/45 backdrop-blur-xs border-border/80 hover:border-violet-500/30 hover:shadow-lg transition-all duration-300">
         {/* Accent Highlight Line on Card Hover */}
-        <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-violet-600 to-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+        <div className="absolute top-0 left-0 w-1 h-full bg-linear-to-b from-violet-600 to-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
         <CardHeader className="space-y-3 pb-6 text-center border-b border-border/30 bg-muted/10">
-          <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-violet-600 to-indigo-600 text-white shadow-xs">
+          <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-xl bg-linear-to-br from-violet-600 to-indigo-600 text-white shadow-xs">
             <Sparkles className="h-5 w-5" />
           </div>
           <div className="space-y-1">
-            <CardTitle className="text-2xl font-extrabold tracking-tight bg-gradient-to-r from-violet-600 to-indigo-600 bg-clip-text text-transparent dark:from-violet-400 dark:to-indigo-400">
+            <CardTitle className="text-2xl font-extrabold tracking-tight bg-linear-to-r from-violet-600 to-indigo-600 bg-clip-text text-transparent dark:from-violet-400 dark:to-indigo-400">
               Sign In
             </CardTitle>
             <CardDescription className="text-xs font-semibold text-muted-foreground/80">
@@ -125,22 +128,24 @@ export default function LoginPage() {
             <input name="flow" type="hidden" value="signIn" />
             
             {/* Turnstile CAPTCHA */}
-            <div className="flex justify-center my-1">
-              <Turnstile
-                ref={turnstileRef}
-                siteKey={process.env.NEXT_PUBLIC_CLOUDFLARE_TURNSTILE_SITE_KEY!}
-                onSuccess={(token) => {
-                  setTurnstileToken(token);
-                  setError(null);
-                }}
-                onError={() => {
-                  toast.error("Security verification failed to load.");
-                }}
-                onExpire={() => {
-                  setTurnstileToken(null);
-                }}
-              />
-            </div>
+            {siteKey && (
+              <div className="flex justify-center my-1">
+                <Turnstile
+                  ref={turnstileRef}
+                  siteKey={siteKey}
+                  onSuccess={(token) => {
+                    setTurnstileToken(token);
+                    setError(null);
+                  }}
+                  onError={() => {
+                    toast.error("Security verification failed to load.");
+                  }}
+                  onExpire={() => {
+                    setTurnstileToken(null);
+                  }}
+                />
+              </div>
+            )}
             
             {/* Error Message */}
             {error && (
@@ -152,7 +157,7 @@ export default function LoginPage() {
             {/* Submit Button */}
             <Button 
               type="submit" 
-              className="w-full rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white font-semibold py-6 shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 cursor-pointer" 
+              className="w-full rounded-xl bg-linear-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white font-semibold py-6 shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 cursor-pointer" 
               disabled={isLoading}
             >
               {isLoading ? (

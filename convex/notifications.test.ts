@@ -138,14 +138,14 @@ test("onGenerationComplete creates hook selection notification when graph interr
     expect.anything(),
     expect.objectContaining({
       targetId: userId,
-      kind: "thread_generation_success",
+      kind: "thread_hook_selection_required",
       data: {
         threadId,
         title: "Hook Selection Required",
         body: "Hooks have been generated. Please select your preferred hook to continue generating the thread.",
         href: `/threads/drafts/${threadId}/approve`,
       },
-      dedupeKey: "thread_generation_success:work_gen_hook_1",
+      dedupeKey: "thread_hook_selection_required:work_gen_hook_1",
       source: {
         type: "thread_generation",
         id: threadId,

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { usePaginatedQuery, useAction, useMutation } from "convex/react";
+import { usePaginatedQuery, useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -47,9 +47,10 @@ export default function DraftsPage() {
       setRetryingIds(prev => new Set(prev).add(id));
       await retryGeneration({ ids: [id] });
       toast.success("Generation retry enqueued!");
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      toast.error(`Failed to retry generation: ${err.message || "Unknown error"}`);
+      const message = err instanceof Error ? err.message : "Unknown error";
+      toast.error(`Failed to retry generation: ${message}`);
     } finally {
       setRetryingIds(prev => {
         const next = new Set(prev);
@@ -98,9 +99,10 @@ export default function DraftsPage() {
       await enqueuePublication({ requests: validIds.map(id => ({ id })) });
       toast.success(`Publication queued for ${validIds.length} threads!`);
       setSelectedDrafts(new Set());
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      toast.error(`Failed to publish: ${err.message || "Unknown error"}`);
+      const message = err instanceof Error ? err.message : "Unknown error";
+      toast.error(`Failed to publish: ${message}`);
     } finally {
       setIsPublishing(false);
     }
@@ -124,9 +126,10 @@ export default function DraftsPage() {
 
       toast.success(`Successfully deleted ${idsToDelete.length} thread draft(s).`);
       setSelectedDrafts(new Set());
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      toast.error(`Failed to delete: ${err.message || "Unknown error"}`);
+      const message = err instanceof Error ? err.message : "Unknown error";
+      toast.error(`Failed to delete: ${message}`);
     } finally {
       setIsDeleting(false);
     }
@@ -150,7 +153,7 @@ export default function DraftsPage() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-border/30 pb-6">
         <div className="space-y-1">
           <h1 className="text-4xl font-extrabold tracking-tight">
-            <span className="bg-gradient-to-r from-violet-600 to-indigo-600 bg-clip-text text-transparent dark:from-violet-400 dark:to-indigo-400">
+            <span className="bg-linear-to-r from-violet-600 to-indigo-600 bg-clip-text text-transparent dark:from-violet-400 dark:to-indigo-400">
               Thread Drafts
             </span>
           </h1>
@@ -163,7 +166,7 @@ export default function DraftsPage() {
             <Button
               onClick={handleBulkPublish}
               disabled={isPublishing || isDeleting || publishableDraftsCount === 0}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white font-semibold shadow-md hover:shadow-lg transition-all duration-300 cursor-pointer disabled:opacity-50"
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-linear-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white font-semibold shadow-md hover:shadow-lg transition-all duration-300 cursor-pointer disabled:opacity-50"
             >
               {isPublishing ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
               Publish ({publishableDraftsCount})
@@ -172,7 +175,7 @@ export default function DraftsPage() {
               onClick={handleBulkDelete}
               disabled={isPublishing || isDeleting}
               variant="destructive"
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-700 hover:to-red-700 text-white font-semibold shadow-md hover:shadow-lg transition-all duration-300 cursor-pointer disabled:opacity-50"
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-linear-to-r from-rose-600 to-red-600 hover:from-rose-700 hover:to-red-700 text-white font-semibold shadow-md hover:shadow-lg transition-all duration-300 cursor-pointer disabled:opacity-50"
             >
               {isDeleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <TrashIcon className="w-4 h-4" />}
               Delete ({selectedDrafts.size})
@@ -191,7 +194,7 @@ export default function DraftsPage() {
           <p className="text-muted-foreground font-semibold">You don't have any thread drafts yet.</p>
           <Link
             href="/threads/create"
-            className={`${buttonVariants()} rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white font-semibold shadow-md hover:shadow-lg transition-all duration-300`}
+            className={`${buttonVariants()} rounded-xl bg-linear-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white font-semibold shadow-md hover:shadow-lg transition-all duration-300`}
           >
             Create your first thread
           </Link>
@@ -199,7 +202,7 @@ export default function DraftsPage() {
       ) : (
         <>
           <div className="overflow-x-auto border border-border/80 rounded-xl bg-card/45 backdrop-blur-xs shadow-xs w-full">
-            <table className="w-full text-sm text-left border-collapse min-w-[650px]">
+            <table className="w-full text-sm text-left border-collapse min-w-162.5">
               <thead className="bg-muted/30 text-muted-foreground/80 text-xs font-bold uppercase border-b border-border/50">
                 <tr>
                   <th className="px-4 py-4 font-semibold w-10 text-center">
@@ -242,7 +245,7 @@ export default function DraftsPage() {
                       </td>
                       <td className="px-4 py-4.5">
                         {isTopic ? (
-                          <span className="flex items-center gap-1.5 font-semibold text-foreground max-w-[180px] sm:max-w-xs md:max-w-md" title={title}>
+                          <span className="flex items-center gap-1.5 font-semibold text-foreground max-w-45 sm:max-w-xs md:max-w-md" title={title}>
                             <span className="truncate">{title}</span>
                           </span>
                         ) : (
@@ -250,11 +253,11 @@ export default function DraftsPage() {
                             href={externalUrl}
                             target="_blank"
                             rel="noreferrer"
-                            className="hover:text-violet-600 dark:hover:text-violet-400 hover:underline flex items-center gap-1.5 font-semibold text-foreground max-w-[180px] sm:max-w-xs md:max-w-md transition-colors"
+                            className="hover:text-violet-600 dark:hover:text-violet-400 hover:underline flex items-center gap-1.5 font-semibold text-foreground max-w-45 sm:max-w-xs md:max-w-md transition-colors"
                             title={title}
                           >
                             <span className="truncate">{title}</span>
-                            <ExternalLinkIcon className="w-3.5 h-3.5 flex-shrink-0 text-muted-foreground" />
+                            <ExternalLinkIcon className="w-3.5 h-3.5 shrink-0 text-muted-foreground" />
                           </a>
                         )}
                       </td>
@@ -283,7 +286,7 @@ export default function DraftsPage() {
                                 <div className="font-semibold text-destructive flex items-center gap-1.5 text-xs">
                                   <AlertCircle className="w-3.5 h-3.5 shrink-0" /> Generation Error
                                 </div>
-                                <p className="text-muted-foreground text-[11px] leading-relaxed break-words font-mono line-clamp-4">
+                                <p className="text-muted-foreground text-[11px] leading-relaxed wrap-break-word font-mono line-clamp-4">
                                   {draft.failure_reason || "AI agent generation failed after trying all fallback models."}
                                 </p>
                               </TooltipContent>
@@ -309,7 +312,7 @@ export default function DraftsPage() {
                                 <div className="font-semibold text-rose-500 flex items-center gap-1.5 text-xs">
                                   <AlertCircle className="w-3.5 h-3.5 shrink-0" /> Publication Error
                                 </div>
-                                <p className="text-muted-foreground text-[11px] leading-relaxed break-words font-mono line-clamp-4">
+                                <p className="text-muted-foreground text-[11px] leading-relaxed wrap-break-word font-mono line-clamp-4">
                                   {draft.publication_error || "Failed to publish to Threads. Please verify your Threads connection and permissions."}
                                 </p>
                               </TooltipContent>

@@ -27,7 +27,7 @@ async function signState(userId: string, secret: string): Promise<string> {
   const keyData = encoder.encode(secret);
   const data = encoder.encode(dataToSign);
   
-  const cryptoObj = typeof crypto !== 'undefined' ? crypto : require('crypto').webcrypto;
+  const cryptoObj = globalThis.crypto;
   
   const key = await cryptoObj.subtle.importKey(
     "raw",

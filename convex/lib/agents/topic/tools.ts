@@ -7,6 +7,7 @@ import "dotenv/config";
 
 import { JinaClient } from "../../jina/api.js";
 import FirecrawlApp from "@mendable/firecrawl-js";
+import { validateThreadDraftContent } from "../tools.js";
 
 export const TavilySearchTool = tool(
   async ({ query, topic, days, maxResults, includeDomains, excludeDomains }) => {
@@ -26,8 +27,9 @@ export const TavilySearchTool = tool(
         answer: response.answer,
         results: response.results
       });
-    } catch (e: any) {
-      return JSON.stringify({ error: e.message || "Tavily search failed" });
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "Tavily search failed";
+      return JSON.stringify({ error: message });
     }
   },
   {
@@ -53,8 +55,9 @@ export const DuckDuckGoSearchTool = tool(
         safeSearch: SafeSearchType.MODERATE,
       });
       return JSON.stringify(response.results.slice(0, 5));
-    } catch (e: any) {
-      return JSON.stringify({ error: e.message || "DuckDuckGo search failed" });
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "DuckDuckGo search failed";
+      return JSON.stringify({ error: message });
     }
   },
   {
@@ -97,8 +100,9 @@ export const JinaReaderTool = tool(
         title,
         images,
       });
-    } catch (e: any) {
-      return JSON.stringify({ error: e.message || "Jina Reader extraction failed" });
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "Jina Reader extraction failed";
+      return JSON.stringify({ error: message });
     }
   },
   {
@@ -116,8 +120,11 @@ export const FirecrawlScrapeTool = tool(
       const app = new FirecrawlApp({ apiKey: process.env.FIRECRAWL_API_KEY });
       const response = await app.scrape(url, { formats: ["markdown", "images"] });
 
-      if (!(response as any).success && (response as any).error) {
-        throw new Error((response as any).error || "Firecrawl failed");
+      if (typeof response === "object" && response !== null) {
+        const respObj = response as { success?: boolean; error?: string };
+        if (respObj.success === false && respObj.error) {
+          throw new Error(respObj.error || "Firecrawl failed");
+        }
       }
 
       const markdown = response.markdown || "";
@@ -131,8 +138,9 @@ export const FirecrawlScrapeTool = tool(
         metadata: response.metadata || {},
         images,
       });
-    } catch (e: any) {
-      return JSON.stringify({ error: e.message || "Firecrawl extraction failed" });
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "Firecrawl extraction failed";
+      return JSON.stringify({ error: message });
     }
   },
   {
@@ -146,74 +154,12 @@ export const FirecrawlScrapeTool = tool(
 
 export const TopicCharacterValidatorTool = tool(
   async ({ thread_draft, check_line_breaks }) => {
-    const errors: string[] = [];
-
-    const banned_phrases = [
-      "a thread 🧵", "read below", "let's dive in", "here is why",
-      "save this tweet", "what do you think?", "let's discuss",
-      "in today's fast-paced world", "have you ever wondered", "look no further",
-      "in this post, we will explore", "key takeaway", "crucial step",
-      "remember to", "let's look at", "here's the deal"
-    ];
-
-    // Thread Length Validation (The 9-Post Rule)
-    if (thread_draft.length > 9) {
-      errors.push("Thread exceeds the 9-post maximum limit. Condense the body.");
-    }
-
-    thread_draft.forEach((post: string, index: number) => {
-      let position = "Body";
-      if (index === 0) position = "Hook";
-      else if (index === thread_draft.length - 1) position = "CTA";
-
-      // 500 Char Hard Ceiling
-      if (post.length > 500) {
-        errors.push(`Post ${index + 1} (${position}) is ${post.length} characters long. Hard ceiling of 500 characters breached.`);
-      }
-
-      if (check_line_breaks !== false) {
-        const lineBreaks = (post.match(/\n/g) || []).length;
-        if (lineBreaks > 4) {
-          errors.push(`Post ${index + 1} (${position}) has ${lineBreaks} line breaks. Maximum allowed is 4 line breaks.`);
-        }
-      }
-
-      // Complex markdown check for formatting (including any use of asterisks and em dashes)
-      const formattingRegex = /(\*|__|~~|`|#\s+|>+\s+|\[.*\]\(.*\)|\u2014|\u2013)/g;
-      const foundFormatting = post.match(formattingRegex);
-      if (foundFormatting) {
-        errors.push(`Post ${index + 1} (${position}) contains invalid markdown or em dash characters (${foundFormatting.join(", ")}). Remove all markdown formatting (bold, italic, headers, code blocks, etc) and em dashes.`);
-      }
-
-      // Exact-Match Banned Phrase Validation
-      const postLower = post.toLowerCase();
-      for (const phrase of banned_phrases) {
-        if (postLower.includes(phrase)) {
-          errors.push(`Post ${index + 1} (${position}) contains banned engagement phrase: "${phrase}".`);
-        }
-      }
-
-      // Check for raw hyperlinks (URLs) - strictly forbidden everywhere in the thread
-      const urlRegex = /(https?:\/\/[^\s]+|www\.[^\s]+)/g;
-      const foundUrls = post.match(urlRegex);
-      if (foundUrls) {
-        errors.push(`Post ${index + 1} (${position}) contains a hyperlink (${foundUrls.join(", ")}). Hyperlinks and URLs are strictly forbidden anywhere in the thread. Remove all URLs.`);
-      }
-
-      // Check for placeholders, account names, identifiers, or tags in the CTA
-      if (position === "CTA") {
-        const placeholderRegex = /(\[.*?\]|<.*?>|@[a-zA-Z0-9_]+)/g;
-        const foundPlaceholders = post.match(placeholderRegex);
-        if (foundPlaceholders) {
-          errors.push(`Post ${index + 1} (CTA) contains forbidden placeholders, tags, or account identifiers (${foundPlaceholders.join(", ")}). Remove all placeholders like [Link] or @account from the CTA.`);
-        }
-      }
+    const result = validateThreadDraftContent({
+      thread_draft,
+      check_line_breaks,
+      ignoreSoftLimits: true,
     });
-
-    return JSON.stringify({
-      isValid: errors.length === 0,
-      errors
-    });
+    return JSON.stringify(result);
   },
   {
     name: "topic_character_validator",

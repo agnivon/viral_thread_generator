@@ -177,9 +177,10 @@ export default function ApproveDraftPage() {
 
       toast.success("Publication queued! The thread is being published to Threads.");
       setIsEditingPosts(false);
-    } catch (e: any) {
+    } catch (e: unknown) {
       console.error(e);
-      toast.error(`Failed to publish: ${e.message || "Unknown error"}`);
+      const message = e instanceof Error ? e.message : "Unknown error";
+      toast.error(`Failed to publish: ${message}`);
     } finally {
       setIsPublishing(false);
     }
@@ -192,9 +193,10 @@ export default function ApproveDraftPage() {
       setIsRetrying(true);
       await retryGeneration({ ids: [id] });
       toast.success("Thread generation retry enqueued!");
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      toast.error(`Failed to retry generation: ${err.message || "Unknown error"}`);
+      const message = err instanceof Error ? err.message : "Unknown error";
+      toast.error(`Failed to retry generation: ${message}`);
     } finally {
       setIsRetrying(false);
     }
@@ -647,9 +649,10 @@ export default function ApproveDraftPage() {
             });
             toast.success("Regeneration queued! The thread is being regenerated.");
             router.push("/threads/drafts");
-          } catch (e: any) {
+          } catch (e: unknown) {
             console.error(e);
-            toast.error(`Failed to regenerate: ${e.message || "Unknown error"}`);
+            const message = e instanceof Error ? e.message : "Unknown error";
+            toast.error(`Failed to regenerate: ${message}`);
           } finally {
             setIsRegenerating(false);
           }

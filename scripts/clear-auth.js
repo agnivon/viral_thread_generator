@@ -2,7 +2,7 @@ const { execSync } = require('child_process');
 
 try {
   console.log("Clearing all orphaned authentication records from the Convex database...");
-  const cmd = `npx convex run clearAuth:clearAll`;
+  const cmd = `pnpm exec convex run clearAuth:clearAll`;
   
   const result = execSync(cmd, { stdio: 'pipe' }).toString();
   

@@ -49,6 +49,13 @@ function formatRelativeTime(timestamp: number): string {
 }
 
 function getNotificationIcon(kind: string) {
+  if (kind === "thread_hook_selection_required") {
+    return (
+      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400">
+        <Sparkles className="h-4 w-4" />
+      </div>
+    );
+  }
   if (kind === "thread_generation_success") {
     return (
       <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-violet-500/10 text-violet-600 dark:text-violet-400">

@@ -103,11 +103,11 @@ export interface FormattedPageDto {
   storageState?: unknown;
 }
 
-export interface JinaResponse<T = any> {
+export interface JinaResponse<T = unknown> {
   code: number;
   status: number;
   data?: T;
-  meta?: any;
+  meta?: Record<string, unknown>;
   error?: string;
 }
 
@@ -117,13 +117,13 @@ export class JinaClient {
   private searchBaseUrl = 'https://s.jina.ai/';
 
   constructor(apiKey?: string) {
-    this.apiKey = apiKey || ((globalThis as any).process?.env?.JINA_API_KEY as string) || '';
+    this.apiKey = apiKey || (typeof process !== "undefined" ? process.env.JINA_API_KEY : undefined) || '';
   }
 
   /**
    * Helper to perform requests against the Jina API
    */
-  private async request<T = any>(
+  private async request<T = unknown>(
     baseUrl: string,
     endpoint: string,
     payload: object,

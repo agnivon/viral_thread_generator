@@ -5,7 +5,7 @@ import { z } from "zod";
 import FirecrawlApp from "@mendable/firecrawl-js";
 import { tavily } from "@tavily/core";
 import "dotenv/config";
-import { JinaClient } from "../../jina/api";
+import { JinaClient } from "../../jina/api.js";
 import { YoutubeTranscript } from "youtube-transcript-plus";
 
 // 1. WebScraperTool (Firecrawl API)
@@ -66,9 +66,10 @@ export const YoutubeScraperTool = tool(
       const markdown = transcript.map(t => t.text).join(' ');
       const images: string[] = []; // No images for YouTube transcripts yet
       return JSON.stringify({ markdown, images });
-    } catch (e: any) {
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : String(e);
       console.error(`[YoutubeScraperTool] Failed to fetch transcript for ${url}`, e);
-      throw new Error(`Failed to fetch YouTube transcript: ${e.message}`);
+      throw new Error(`Failed to fetch YouTube transcript: ${message}`);
     }
   },
   {
@@ -83,18 +84,23 @@ export const YoutubeScraperTool = tool(
 // 3. TopicContextExpanderTool
 export const TopicContextExpanderTool = tool(
   async ({ query, topic, days, maxResults, includeDomains, excludeDomains }) => {
-    const client = tavily({ apiKey: process.env.TAVILY_API_KEY });
-    const response = await client.search(query, {
-      searchDepth: "basic",
-      includeAnswer: false,
-      topic: topic as "general" | "news" | undefined,
-      days: days,
-      maxResults: maxResults,
-      includeDomains: includeDomains,
-      excludeDomains: excludeDomains,
-    });
+    try {
+      const client = tavily({ apiKey: process.env.TAVILY_API_KEY });
+      const response = await client.search(query, {
+        searchDepth: "basic",
+        includeAnswer: false,
+        topic: topic as "general" | "news" | undefined,
+        days: days,
+        maxResults: maxResults,
+        includeDomains: includeDomains,
+        excludeDomains: excludeDomains,
+      });
 
-    return JSON.stringify(response.results);
+      return JSON.stringify(response.results);
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "Tavily search failed";
+      return JSON.stringify({ error: message });
+    }
   },
   {
     name: "topic_context_expander",
@@ -113,21 +119,26 @@ export const TopicContextExpanderTool = tool(
 // 4. ContentAuthenticityCheckerTool
 export const ContentAuthenticityCheckerTool = tool(
   async ({ query, topic, days, maxResults, includeDomains, excludeDomains }) => {
-    const client = tavily({ apiKey: process.env.TAVILY_API_KEY });
-    const response = await client.search(query, {
-      searchDepth: "advanced",
-      includeAnswer: true,
-      topic: topic as "general" | "news" | undefined,
-      days: days,
-      maxResults: maxResults,
-      includeDomains: includeDomains,
-      excludeDomains: excludeDomains,
-    });
+    try {
+      const client = tavily({ apiKey: process.env.TAVILY_API_KEY });
+      const response = await client.search(query, {
+        searchDepth: "advanced",
+        includeAnswer: true,
+        topic: topic as "general" | "news" | undefined,
+        days: days,
+        maxResults: maxResults,
+        includeDomains: includeDomains,
+        excludeDomains: excludeDomains,
+      });
 
-    return JSON.stringify({
-      answer: response.answer,
-      results: response.results
-    });
+      return JSON.stringify({
+        answer: response.answer,
+        results: response.results
+      });
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "Tavily search failed";
+      return JSON.stringify({ error: message });
+    }
   },
   {
     name: "content_authenticity_checker",
@@ -146,21 +157,26 @@ export const ContentAuthenticityCheckerTool = tool(
 // 5. BackgroundDossierTool
 export const BackgroundDossierTool = tool(
   async ({ query, topic, days, maxResults, includeDomains, excludeDomains }) => {
-    const client = tavily({ apiKey: process.env.TAVILY_API_KEY });
-    const response = await client.search(query, {
-      searchDepth: "advanced",
-      includeAnswer: true,
-      topic: topic as "general" | "news" | undefined,
-      days: days,
-      maxResults: maxResults,
-      includeDomains: includeDomains,
-      excludeDomains: excludeDomains,
-    });
+    try {
+      const client = tavily({ apiKey: process.env.TAVILY_API_KEY });
+      const response = await client.search(query, {
+        searchDepth: "advanced",
+        includeAnswer: true,
+        topic: topic as "general" | "news" | undefined,
+        days: days,
+        maxResults: maxResults,
+        includeDomains: includeDomains,
+        excludeDomains: excludeDomains,
+      });
 
-    return JSON.stringify({
-      answer: response.answer,
-      results: response.results
-    });
+      return JSON.stringify({
+        answer: response.answer,
+        results: response.results
+      });
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "Tavily search failed";
+      return JSON.stringify({ error: message });
+    }
   },
   {
     name: "background_dossier_builder",

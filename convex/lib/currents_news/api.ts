@@ -84,9 +84,9 @@ export type CurrentsResponseWithRateLimit = z.infer<typeof currentsResponseWithR
 
 export class CurrentsAPIError extends Error {
   status: string;
-  details?: Record<string, any>;
+  details?: Record<string, unknown>;
 
-  constructor(msg: string, status: string, details?: Record<string, any>) {
+  constructor(msg: string, status: string, details?: Record<string, unknown>) {
     super(msg);
     this.status = status;
     this.details = details;
@@ -108,15 +108,17 @@ export class CurrentsAPI {
   /**
    * Fetches data from a specific Currents API endpoint.
    */
-  private async fetch(endpoint: string, params: Record<string, any> = {}): Promise<CurrentsResponseWithRateLimit> {
+  private async fetch(endpoint: string, params: Record<string, unknown> = {}): Promise<CurrentsResponseWithRateLimit> {
     const url = new URL(`${this.baseUrl}${endpoint}`);
 
     for (const [key, value] of Object.entries(params)) {
       if (value !== undefined && value !== null) {
         if (Array.isArray(value)) {
           url.searchParams.append(key, value.join(','));
-        } else {
+        } else if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
           url.searchParams.append(key, String(value));
+        } else {
+          url.searchParams.append(key, JSON.stringify(value));
         }
       }
     }

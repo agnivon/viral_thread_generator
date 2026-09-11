@@ -27,6 +27,7 @@ import {
   isExternalUrl,
   getTrendSourceHref,
 } from "@/hooks/use-notifications";
+import { useDev } from "@/hooks/use-dev";
 import { cn } from "@/lib/utils";
 
 function formatRelativeTime(timestamp: number): string {
@@ -57,48 +58,49 @@ function formatRelativeTime(timestamp: number): string {
 function getNotificationIcon(kind: string) {
   if (kind === "emerging_trend_alert") {
     return (
-      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-linear-to-br from-amber-500/20 to-violet-500/20 text-amber-500 dark:text-amber-400 border border-amber-500/30 shadow-xs">
-        <TrendingUp className="h-4 w-4 text-amber-500" />
+      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-linear-to-br from-amber-500/20 to-violet-500/20 text-amber-500 dark:text-amber-400 border border-amber-500/30 shadow-xs">
+        <TrendingUp className="h-4.5 w-4.5 text-amber-500" />
       </div>
     );
   }
   if (kind === "thread_hook_selection_required") {
     return (
-      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400">
-        <Sparkles className="h-4 w-4" />
+      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400">
+        <Sparkles className="h-4.5 w-4.5" />
       </div>
     );
   }
   if (kind === "thread_generation_success") {
     return (
-      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-violet-500/10 text-violet-600 dark:text-violet-400">
-        <Sparkles className="h-4 w-4" />
+      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-violet-500/10 text-violet-600 dark:text-violet-400">
+        <Sparkles className="h-4.5 w-4.5" />
       </div>
     );
   }
   if (kind === "thread_publication_success") {
     return (
-      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
-        <Send className="h-4 w-4" />
+      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+        <Send className="h-4.5 w-4.5" />
       </div>
     );
   }
   if (kind === "thread_generation_failed" || kind === "thread_publication_failed") {
     return (
-      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-rose-500/10 text-rose-600 dark:text-rose-400">
-        <AlertCircle className="h-4 w-4" />
+      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-rose-500/10 text-rose-600 dark:text-rose-400">
+        <AlertCircle className="h-4.5 w-4.5" />
       </div>
     );
   }
   return (
-    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-muted text-muted-foreground">
-      <Bell className="h-4 w-4" />
+    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-muted text-muted-foreground">
+      <Bell className="h-4.5 w-4.5" />
     </div>
   );
 }
 
 export function NotificationCenter() {
   const router = useRouter();
+  const isDev = useDev();
   const [isOpen, setIsOpen] = useState(false);
   const [filter, setFilter] = useState<"all" | "unread">("all");
 
@@ -161,14 +163,14 @@ export function NotificationCenter() {
       <PopoverContent
         align="end"
         sideOffset={8}
-        className="w-[380px] sm:w-[420px] p-0 shadow-2xl border-border/60 rounded-2xl bg-card/95 backdrop-blur-xl z-50 overflow-hidden"
+        className="w-[calc(100vw-2rem)] sm:w-[480px] md:w-[500px] p-0 shadow-2xl border-border/60 rounded-2xl bg-card/95 backdrop-blur-xl z-50 overflow-hidden"
       >
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-border/40 px-4 py-3 bg-muted/20">
-          <div className="flex items-center gap-2">
-            <h3 className="text-sm font-bold text-foreground">Notifications</h3>
+        <div className="flex items-center justify-between border-b border-border/40 px-5 py-3.5 bg-muted/20">
+          <div className="flex items-center gap-2.5">
+            <h3 className="text-base font-bold text-foreground">Notifications</h3>
             {unseenCount > 0 && (
-              <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-violet-500/10 text-violet-600 dark:text-violet-400 border border-violet-500/20">
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-violet-500/10 text-violet-600 dark:text-violet-400 border border-violet-500/20">
                 {unseenCount} new
               </span>
             )}
@@ -179,10 +181,10 @@ export function NotificationCenter() {
                 size="sm"
                 variant="ghost"
                 onClick={() => void markAllSeen()}
-                className="h-7 text-xs px-2 text-muted-foreground hover:text-foreground cursor-pointer rounded-lg flex items-center gap-1"
+                className="h-8 text-xs px-2.5 text-muted-foreground hover:text-foreground cursor-pointer rounded-lg flex items-center gap-1.5"
                 title="Mark all as read"
               >
-                <CheckCheck className="h-3.5 w-3.5" />
+                <CheckCheck className="h-4 w-4" />
                 <span>Mark all read</span>
               </Button>
             )}
@@ -191,23 +193,23 @@ export function NotificationCenter() {
 
         {/* Desktop Notification Permission Banner */}
         {permission === "default" && (
-          <div className="border-b border-border/40 bg-violet-500/5 p-3 text-xs text-muted-foreground">
-            <div className="flex items-start gap-2.5">
-              <div className="p-1 rounded-md bg-violet-500/10 text-violet-600 dark:text-violet-400 mt-0.5">
-                <Laptop className="h-3.5 w-3.5" />
+          <div className="border-b border-border/40 bg-violet-500/5 p-3.5 text-xs text-muted-foreground">
+            <div className="flex items-start gap-3">
+              <div className="p-1.5 rounded-lg bg-violet-500/10 text-violet-600 dark:text-violet-400 mt-0.5">
+                <Laptop className="h-4 w-4" />
               </div>
               <div className="flex-1 space-y-1.5">
-                <p className="font-medium text-foreground leading-snug">
+                <p className="font-semibold text-foreground leading-snug">
                   Get notified in background
                 </p>
-                <p className="text-[11px] leading-relaxed">
+                <p className="text-[12px] leading-relaxed">
                   Enable desktop alerts so you never miss emerging trends and drafts when working in other tabs.
                 </p>
                 <Button
                   size="sm"
                   variant="outline"
                   onClick={() => void requestPermission()}
-                  className="h-6 text-[11px] px-2.5 rounded-lg border-violet-500/30 text-violet-600 dark:text-violet-400 hover:bg-violet-500/10 font-semibold cursor-pointer"
+                  className="h-7 text-xs px-3 rounded-lg border-violet-500/30 text-violet-600 dark:text-violet-400 hover:bg-violet-500/10 font-semibold cursor-pointer"
                 >
                   Enable Desktop Alerts
                 </Button>
@@ -217,23 +219,25 @@ export function NotificationCenter() {
         )}
 
         {permission === "granted" && (
-          <div className="border-b border-border/40 bg-emerald-500/5 px-4 py-2 text-xs flex items-center justify-between">
+          <div className="border-b border-border/40 bg-emerald-500/5 px-5 py-2.5 text-xs flex items-center justify-between">
             <span className="flex items-center gap-1.5 text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
               Desktop alerts active
             </span>
-            <button
-              type="button"
-              onClick={() => void sendTestNotification()}
-              className="text-[11px] text-violet-600 dark:text-violet-400 hover:underline font-semibold cursor-pointer"
-            >
-              Send test alert
-            </button>
+            {isDev && (
+              <button
+                type="button"
+                onClick={() => void sendTestNotification()}
+                className="text-[11px] text-violet-600 dark:text-violet-400 hover:underline font-semibold cursor-pointer"
+              >
+                Send test alert
+              </button>
+            )}
           </div>
         )}
 
         {permission === "denied" && (
-          <div className="border-b border-border/40 bg-amber-500/5 px-4 py-2 text-xs text-amber-600 dark:text-amber-400">
+          <div className="border-b border-border/40 bg-amber-500/5 px-5 py-2.5 text-xs text-amber-600 dark:text-amber-400">
             <p className="text-[11px] leading-snug">
               Desktop alerts are blocked by your browser. Enable notifications in your browser address bar to receive background alerts.
             </p>
@@ -241,12 +245,12 @@ export function NotificationCenter() {
         )}
 
         {/* Filter Tabs */}
-        <div className="flex items-center gap-2 border-b border-border/40 px-4 py-2 bg-muted/10">
+        <div className="flex items-center gap-2 border-b border-border/40 px-5 py-2.5 bg-muted/10">
           <button
             type="button"
             onClick={() => setFilter("all")}
             className={cn(
-              "rounded-lg px-2.5 py-1 text-xs font-semibold transition-colors cursor-pointer",
+              "rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors cursor-pointer",
               filter === "all"
                 ? "bg-muted text-foreground shadow-xs"
                 : "text-muted-foreground hover:text-foreground"
@@ -258,7 +262,7 @@ export function NotificationCenter() {
             type="button"
             onClick={() => setFilter("unread")}
             className={cn(
-              "rounded-lg px-2.5 py-1 text-xs font-semibold transition-colors cursor-pointer",
+              "rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors cursor-pointer",
               filter === "unread"
                 ? "bg-muted text-foreground shadow-xs"
                 : "text-muted-foreground hover:text-foreground"
@@ -269,14 +273,14 @@ export function NotificationCenter() {
         </div>
 
         {/* Notification Items List */}
-        <div className="max-h-[340px] overflow-y-auto divide-y divide-border/30">
+        <div className="max-h-[460px] sm:max-h-[500px] overflow-y-auto divide-y divide-border/30">
           {filteredNotifications.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-10 px-4 text-center">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted text-muted-foreground/60 mb-2">
-                <Bell className="h-5 w-5" />
+            <div className="flex flex-col items-center justify-center py-14 px-6 text-center">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted text-muted-foreground/60 mb-3">
+                <Bell className="h-6 w-6" />
               </div>
-              <p className="text-xs font-semibold text-foreground">No notifications</p>
-              <p className="text-[11px] text-muted-foreground mt-0.5">
+              <p className="text-sm font-semibold text-foreground">No notifications</p>
+              <p className="text-xs text-muted-foreground mt-1">
                 {filter === "unread" ? "You have caught up with all updates." : "New activity will appear here."}
               </p>
             </div>
@@ -286,7 +290,7 @@ export function NotificationCenter() {
                 key={item._id}
                 onClick={() => handleNotificationClick(item)}
                 className={cn(
-                  "group relative flex items-start gap-3 p-3.5 transition-colors cursor-pointer text-left",
+                  "group relative flex items-start gap-3.5 p-4 transition-colors cursor-pointer text-left",
                   !item.isSeen
                     ? "bg-violet-500/5 hover:bg-violet-500/10"
                     : "hover:bg-muted/40"
@@ -296,11 +300,11 @@ export function NotificationCenter() {
                 {getNotificationIcon(item.kind)}
 
                 {/* Content */}
-                <div className="flex-1 min-w-0 pr-6 space-y-1">
-                  <div className="flex items-baseline justify-between gap-1">
+                <div className="flex-1 min-w-0 pr-7 space-y-1">
+                  <div className="flex items-baseline justify-between gap-1.5">
                     <h4
                       className={cn(
-                        "text-xs leading-snug truncate",
+                        "text-sm leading-snug truncate",
                         !item.isSeen ? "font-bold text-foreground" : "font-medium text-foreground/80"
                       )}
                     >
@@ -308,28 +312,28 @@ export function NotificationCenter() {
                     </h4>
                   </div>
                   {item.data.body && (
-                    <p className="text-[11px] text-muted-foreground line-clamp-2 leading-relaxed">
+                    <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
                       {item.data.body}
                     </p>
                   )}
-                  <div className="flex items-center gap-2 pt-0.5 flex-wrap">
-                    <span className="text-[10px] text-muted-foreground/70 font-medium">
+                  <div className="flex items-center gap-2 pt-1 flex-wrap">
+                    <span className="text-[11px] text-muted-foreground/70 font-medium">
                       {formatRelativeTime(item.createdAt)}
                     </span>
                     {item.kind === "emerging_trend_alert" && (
-                      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
                         ⚡ Emerging Trend
                       </span>
                     )}
                     {item.kind !== "emerging_trend_alert" && item.data.href && (
-                      <span className="inline-flex items-center gap-0.5 text-[10px] text-violet-600 dark:text-violet-400 font-semibold group-hover:underline ml-auto">
-                        View <ExternalLink className="h-2.5 w-2.5" />
+                      <span className="inline-flex items-center gap-1 text-[11px] text-violet-600 dark:text-violet-400 font-semibold group-hover:underline ml-auto">
+                        View <ExternalLink className="h-3 w-3" />
                       </span>
                     )}
                   </div>
 
                   {item.kind === "emerging_trend_alert" && (
-                    <div className="flex items-center gap-2 pt-1.5">
+                    <div className="flex items-center gap-2 pt-2">
                       {item.data.trendKeyword && (
                         <button
                           type="button"
@@ -339,9 +343,9 @@ export function NotificationCenter() {
                             setIsOpen(false);
                             router.push(getTrendSourceHref(item.data.trendKeyword!));
                           }}
-                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-medium bg-muted hover:bg-muted/80 text-foreground border border-border/60 transition-colors cursor-pointer"
+                          className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-medium bg-muted hover:bg-muted/80 text-foreground border border-border/60 transition-colors cursor-pointer"
                         >
-                          <TrendingUp className="h-3 w-3 text-amber-500" />
+                          <TrendingUp className="h-3.5 w-3.5 text-amber-500" />
                           <span>View Source</span>
                         </button>
                       )}
@@ -350,7 +354,7 @@ export function NotificationCenter() {
                 </div>
 
                 {/* Unread Dot & Actions */}
-                <div className="absolute top-3 right-3 flex items-center gap-1">
+                <div className="absolute top-3.5 right-3.5 flex items-center gap-1.5">
                   {!item.isSeen && (
                     <span className="h-2 w-2 rounded-full bg-violet-600 shadow-xs" title="Unread" />
                   )}
@@ -362,10 +366,10 @@ export function NotificationCenter() {
                           e.stopPropagation();
                           void markSeen(item._id);
                         }}
-                        className="p-1 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors"
+                        className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors"
                         title="Mark as read"
                       >
-                        <Check className="h-3 w-3" />
+                        <Check className="h-3.5 w-3.5" />
                       </button>
                     )}
                     <button
@@ -374,10 +378,10 @@ export function NotificationCenter() {
                         e.stopPropagation();
                         void dismiss(item._id);
                       }}
-                      className="p-1 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-md transition-colors"
+                      className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-md transition-colors"
                       title="Dismiss"
                     >
-                      <X className="h-3 w-3" />
+                      <X className="h-3.5 w-3.5" />
                     </button>
                   </div>
                 </div>
@@ -388,14 +392,14 @@ export function NotificationCenter() {
 
         {/* Footer */}
         {notifications.length > 0 && (
-          <div className="border-t border-border/40 bg-muted/20 px-3 py-2 flex items-center justify-between">
+          <div className="border-t border-border/40 bg-muted/20 px-4 py-2.5 flex items-center justify-between">
             <Button
               variant="ghost"
               size="sm"
               onClick={() => void dismissAll()}
-              className="h-7 text-xs px-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 cursor-pointer rounded-lg flex items-center gap-1"
+              className="h-8 text-xs px-2.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 cursor-pointer rounded-lg flex items-center gap-1.5"
             >
-              <Trash2 className="h-3 w-3" />
+              <Trash2 className="h-3.5 w-3.5" />
               <span>Clear all</span>
             </Button>
           </div>

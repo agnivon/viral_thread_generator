@@ -82,7 +82,7 @@ test("recordAndDistributeAlerts creates trendTracker records and dispatches aler
     });
     return u;
   });
-  const user2 = await t.mutation(async (ctx) => {
+  const _user2 = await t.mutation(async (ctx) => {
     const u = await ctx.db.insert("users", {});
     await ctx.db.insert("trendFilterSettings", {
       userId: u,

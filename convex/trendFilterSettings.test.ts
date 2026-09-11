@@ -323,7 +323,7 @@ test("recordAndDistributeAlerts respects individual user niche preferences", asy
     },
   ];
 
-  const dispatchResult = await t.mutation(
+  await t.mutation(
     internal.trendAlerts.recordAndDistributeAlerts,
     {
       trends: candidateTrends,

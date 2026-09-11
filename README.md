@@ -112,8 +112,8 @@ Dynamically routes tasks to specialized models optimized for cost, speed, and re
 | :--- | :--- | :--- | :--- |
 | **Web Scraping & Parsing** | Gemini 3.5 / 3.1 Flash-Lite | `0.10` | High-fidelity data extraction with zero hallucinations |
 | **Hook Strategy & Ideation** | Gemini 3.5 Flash-Lite / GPT-5.4 Mini | `0.80` | High creative variance & compelling psychological angles |
-| **Thread Writing** | Gemini 3.7 Flash / DeepSeek V4 Pro / GPT-5.4 | `0.80` | Narrative pacing, voice emulation & engaging prose |
-| **Virality Critique & Audit** | Gemini 3.7 Flash / DeepSeek V4 (High Reasoning) | `0.00` | Cold, analytical appraisal and structural diagnosis |
+| **Thread Writing** | Gemini 3.7 Flash / DeepSeek Flash / GPT-5.4 | `0.80` | Narrative pacing, voice emulation & engaging prose |
+| **Virality Critique & Audit** | Gemini 3.7 Flash / DeepSeek Flash (High Reasoning) | `0.00` | Cold, analytical appraisal and structural diagnosis |
 | **Context Research** | Gemini 3.5 Flash-Lite | `0.20` | Structured background dossier assembly |
 
 ---

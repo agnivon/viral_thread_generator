@@ -177,7 +177,7 @@ export default function KeywordDetailPage() {
   const visibleBreakdown = showAllBreakdown ? breakdownList : breakdownList.slice(0, 12);
 
   return (
-    <div className="flex-1 w-full bg-gradient-to-b from-background via-background/95 to-background/50 py-8 px-4 sm:px-6 lg:px-8">
+    <div className="flex-1 w-full bg-linear-to-b from-background via-background/95 to-background/50 py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Navigation & Breadcrumb */}
         <div>
@@ -192,7 +192,7 @@ export default function KeywordDetailPage() {
 
         {/* Google Trends KPI Hero Showcase */}
         <Card className="relative overflow-hidden bg-card/45 backdrop-blur-xs border-border/80 shadow-xs">
-          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-violet-600 via-indigo-600 to-cyan-500" />
+          <div className="absolute top-0 left-0 right-0 h-1 bg-linear-to-r from-violet-600 via-indigo-600 to-cyan-500" />
 
           <CardHeader className="p-5 sm:p-6 pb-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">

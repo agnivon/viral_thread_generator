@@ -157,7 +157,7 @@ function CreateThreadForm() {
 
         {/* Pre-seeded from Emerging Trend or News Article Banner */}
         {(urlTopic || urlUrl) && (
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-4 rounded-2xl bg-gradient-to-r from-violet-500/10 via-indigo-500/10 to-transparent border border-violet-500/30 shadow-xs">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-4 rounded-2xl bg-linear-to-r from-violet-500/10 via-indigo-500/10 to-transparent border border-violet-500/30 shadow-xs">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-xl bg-violet-500/20 text-violet-600 dark:text-violet-400 shrink-0">
                 {urlAgent === "news" ? <Sparkles className="w-4 h-4" /> : <TrendingUp className="w-4 h-4" />}

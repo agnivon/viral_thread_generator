@@ -31,7 +31,7 @@ export function HookSelectionScreen({
   return (
     <div className="relative min-h-screen bg-background overflow-hidden">
       {/* Background Mesh Decorative Gradients */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-[450px] bg-gradient-to-b from-violet-500/5 via-transparent to-transparent blur-3xl pointer-events-none -z-10" />
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-[450px] bg-linear-to-b from-violet-500/5 via-transparent to-transparent blur-3xl pointer-events-none -z-10" />
       <div className="absolute -top-40 -right-40 w-96 h-96 bg-indigo-500/5 rounded-full blur-3xl pointer-events-none -z-10" />
       <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-cyan-500/5 rounded-full blur-3xl pointer-events-none -z-10" />
 
@@ -50,7 +50,7 @@ export function HookSelectionScreen({
         {/* Header Section */}
         <div className="space-y-2 border-b border-border/30 pb-6">
           <h1 className="text-4xl font-extrabold tracking-tight">
-            <span className="bg-gradient-to-r from-violet-600 to-indigo-600 bg-clip-text text-transparent dark:from-violet-400 dark:to-indigo-400">
+            <span className="bg-linear-to-r from-violet-600 to-indigo-600 bg-clip-text text-transparent dark:from-violet-400 dark:to-indigo-400">
               Choose Your Hook
             </span>
           </h1>
@@ -92,7 +92,7 @@ export function HookSelectionScreen({
                     }`}
                   >
                     <div className="flex gap-4 items-start">
-                      <span className={`flex-shrink-0 h-6 w-6 rounded-full flex items-center justify-center text-xs font-black shadow-xs select-none transition-colors ${
+                      <span className={`shrink-0 h-6 w-6 rounded-full flex items-center justify-center text-xs font-black shadow-xs select-none transition-colors ${
                         isSelected
                           ? "bg-violet-600 text-white"
                           : "bg-muted text-muted-foreground group-hover:bg-violet-100 group-hover:text-violet-800 dark:group-hover:bg-violet-950 dark:group-hover:text-violet-300"
@@ -117,7 +117,7 @@ export function HookSelectionScreen({
                         </span>
                       </div>
                       {isSelected && (
-                        <CheckCircle2 className="w-5 h-5 text-violet-500 flex-shrink-0" />
+                        <CheckCircle2 className="w-5 h-5 text-violet-500 shrink-0" />
                       )}
                     </div>
                   </div>
@@ -170,7 +170,7 @@ export function HookSelectionScreen({
                 <Button
                   onClick={onConfirmHook}
                   disabled={isResuming || !editedHookText.trim()}
-                  className="w-full sm:w-auto sm:min-w-[280px] rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white font-bold py-6 shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 cursor-pointer"
+                  className="w-full sm:w-auto sm:min-w-[280px] rounded-xl bg-linear-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white font-bold py-6 shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 cursor-pointer"
                   size="lg"
                 >
                   {isResuming ? (

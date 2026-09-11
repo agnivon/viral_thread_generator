@@ -17,7 +17,7 @@ export function ViralityCard({ score }: ViralityCardProps) {
       <CardContent className="pt-2">
         <div className="space-y-4">
           <div className="flex items-end justify-between">
-            <span className="text-4xl font-black text-foreground bg-gradient-to-r from-violet-600 to-indigo-600 bg-clip-text text-transparent dark:from-violet-400 dark:to-indigo-400">
+            <span className="text-4xl font-black text-foreground bg-linear-to-r from-violet-600 to-indigo-600 bg-clip-text text-transparent dark:from-violet-400 dark:to-indigo-400">
               {score}
             </span>
             <span className="text-xs text-muted-foreground pb-1 font-semibold">out of 100</span>
@@ -26,10 +26,10 @@ export function ViralityCard({ score }: ViralityCardProps) {
             <div
               className={`h-full rounded-full transition-all duration-500 ${
                 score >= 85
-                  ? 'bg-gradient-to-r from-emerald-500 to-teal-500'
+                  ? 'bg-linear-to-r from-emerald-500 to-teal-500'
                   : score >= 70
-                    ? 'bg-gradient-to-r from-amber-500 to-yellow-500'
-                    : 'bg-gradient-to-r from-rose-500 to-red-500'
+                    ? 'bg-linear-to-r from-amber-500 to-yellow-500'
+                    : 'bg-linear-to-r from-rose-500 to-red-500'
               }`}
               style={{ width: `${score}%` }}
             />

@@ -123,7 +123,7 @@ export function RegenerateDialog({
           <Button
             onClick={handleSubmit}
             disabled={isRegenerating}
-            className="rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white font-semibold px-6 shadow-md hover:shadow-lg transition-all duration-300"
+            className="rounded-xl bg-linear-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white font-semibold px-6 shadow-md hover:shadow-lg transition-all duration-300"
           >
             {isRegenerating ? (
               <>

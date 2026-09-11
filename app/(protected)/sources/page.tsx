@@ -187,14 +187,14 @@ export default function SourcesPage() {
   const isLoading = !mounted || isGoogleLoading;
 
   return (
-    <div className="flex-1 w-full bg-gradient-to-b from-background via-background/95 to-background/50 py-10 px-4 sm:px-6 lg:px-8">
+    <div className="flex-1 w-full bg-linear-to-b from-background via-background/95 to-background/50 py-10 px-4 sm:px-6 lg:px-8">
       <div className="max-w-6xl mx-auto space-y-8">
         {/* Header Section */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-border/30 pb-6">
           <div className="space-y-1.5">
             <div className="flex items-center gap-2.5">
               <h1 className="text-4xl font-extrabold tracking-tight">
-                <span className="bg-gradient-to-r from-violet-600 via-indigo-600 to-cyan-500 bg-clip-text text-transparent dark:from-violet-400 dark:via-indigo-400 dark:to-cyan-400">
+                <span className="bg-linear-to-r from-violet-600 via-indigo-600 to-cyan-500 bg-clip-text text-transparent dark:from-violet-400 dark:via-indigo-400 dark:to-cyan-400">
                   Sources
                 </span>
               </h1>
@@ -377,7 +377,7 @@ export default function SourcesPage() {
                 >
                   <Card className="w-full relative overflow-hidden bg-card/45 backdrop-blur-xs border-border/80 hover:border-violet-500/40 hover:shadow-md transition-all duration-200 p-5 sm:p-6">
                     {/* Left Accent Bar on Hover */}
-                    <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b from-violet-500 to-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+                    <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-linear-to-b from-violet-500 to-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
 
                     <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
                       {/* Left: Rank, Title, and Related Query Chips */}

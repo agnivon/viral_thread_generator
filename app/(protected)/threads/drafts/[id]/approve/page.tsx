@@ -206,7 +206,7 @@ export default function ApproveDraftPage() {
     return (
       <div className="relative min-h-screen flex flex-col items-center justify-center bg-background overflow-hidden p-4">
         {/* Background Mesh Decorative Gradients */}
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-[400px] bg-gradient-to-b from-violet-500/10 via-transparent to-transparent blur-3xl pointer-events-none -z-10" />
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-[400px] bg-linear-to-b from-violet-500/10 via-transparent to-transparent blur-3xl pointer-events-none -z-10" />
         <div className="flex flex-col items-center gap-4 text-center">
           <Loader2 className="h-10 w-10 animate-spin text-violet-600 dark:text-violet-400" />
           <p className="text-muted-foreground font-semibold animate-pulse">Loading thread draft...</p>
@@ -218,7 +218,7 @@ export default function ApproveDraftPage() {
   if (state === null) {
     return (
       <div className="relative min-h-screen flex flex-col items-center justify-center bg-background overflow-hidden p-4">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-[400px] bg-gradient-to-b from-violet-500/10 via-transparent to-transparent blur-3xl pointer-events-none -z-10" />
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-[400px] bg-linear-to-b from-violet-500/10 via-transparent to-transparent blur-3xl pointer-events-none -z-10" />
         <Card className="max-w-md w-full border-border/80 bg-card/45 backdrop-blur-xs shadow-xs rounded-2xl">
           <CardHeader>
             <CardTitle className="text-destructive font-black">Draft Not Found</CardTitle>
@@ -227,7 +227,7 @@ export default function ApproveDraftPage() {
           <CardContent>
             <Link
               href="/threads/create"
-              className={`${buttonVariants({ className: "w-full" })} rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white font-semibold py-6 shadow-md hover:shadow-lg transition-all duration-300`}
+              className={`${buttonVariants({ className: "w-full" })} rounded-xl bg-linear-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white font-semibold py-6 shadow-md hover:shadow-lg transition-all duration-300`}
             >
               Create a New Thread
             </Link>
@@ -264,7 +264,7 @@ export default function ApproveDraftPage() {
   if (genStatus === "processing" || genStatus === "queued") {
     return (
       <div className="relative min-h-[50vh] flex flex-col items-center justify-center bg-background overflow-hidden p-4">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-[300px] bg-gradient-to-b from-violet-500/10 via-transparent to-transparent blur-3xl pointer-events-none -z-10" />
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-[300px] bg-linear-to-b from-violet-500/10 via-transparent to-transparent blur-3xl pointer-events-none -z-10" />
         <div className="flex flex-col items-center gap-4 text-center">
           <Loader2 className="h-10 w-10 animate-spin text-violet-600 dark:text-violet-400" />
           <p className="text-muted-foreground font-semibold animate-pulse">This thread draft is {genStatus === "queued" ? "queued for generation" : "generating"}. Please wait...</p>
@@ -276,7 +276,7 @@ export default function ApproveDraftPage() {
   if (genStatus === "failed") {
     return (
       <div className="relative min-h-screen flex flex-col items-center justify-center bg-background overflow-hidden p-4">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-[400px] bg-gradient-to-b from-rose-500/10 via-transparent to-transparent blur-3xl pointer-events-none -z-10" />
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-[400px] bg-linear-to-b from-rose-500/10 via-transparent to-transparent blur-3xl pointer-events-none -z-10" />
         <Card className="max-w-lg w-full border-border/80 bg-card/60 backdrop-blur-md shadow-xl rounded-2xl border-rose-500/20">
           <CardHeader className="space-y-2 pb-4">
             <div className="w-12 h-12 rounded-2xl bg-destructive/10 text-destructive flex items-center justify-center mb-1">
@@ -312,7 +312,7 @@ export default function ApproveDraftPage() {
                     {hasCopied ? "Copied" : "Copy"}
                   </button>
                 </div>
-                <p className="text-xs font-mono text-muted-foreground break-words leading-relaxed max-h-40 overflow-y-auto pr-1">
+                <p className="text-xs font-mono text-muted-foreground wrap-break-word leading-relaxed max-h-40 overflow-y-auto pr-1">
                   {state.failure_reason}
                 </p>
               </div>
@@ -322,7 +322,7 @@ export default function ApproveDraftPage() {
               <Button
                 onClick={handleRetry}
                 disabled={isRetrying}
-                className="w-full sm:flex-1 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white font-semibold py-5 shadow-md cursor-pointer transition-all"
+                className="w-full sm:flex-1 rounded-xl bg-linear-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white font-semibold py-5 shadow-md cursor-pointer transition-all"
               >
                 {isRetrying ? (
                   <>
@@ -350,7 +350,7 @@ export default function ApproveDraftPage() {
   return (
     <div className="relative min-h-screen bg-background overflow-hidden">
       {/* Background Mesh Decorative Gradients */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-[450px] bg-gradient-to-b from-violet-500/5 via-transparent to-transparent blur-3xl pointer-events-none -z-10" />
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-[450px] bg-linear-to-b from-violet-500/5 via-transparent to-transparent blur-3xl pointer-events-none -z-10" />
       <div className="absolute -top-40 -right-40 w-96 h-96 bg-indigo-500/5 rounded-full blur-3xl pointer-events-none -z-10" />
       <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-cyan-500/5 rounded-full blur-3xl pointer-events-none -z-10" />
 
@@ -370,7 +370,7 @@ export default function ApproveDraftPage() {
         <div className="flex flex-col md:flex-row md:items-start justify-between gap-6 border-b border-border/30 pb-6">
           <div className="min-w-0 flex-1 space-y-1">
             <h1 className="text-4xl font-extrabold tracking-tight">
-              <span className="bg-gradient-to-r from-violet-600 to-indigo-600 bg-clip-text text-transparent dark:from-violet-400 dark:to-indigo-400">
+              <span className="bg-linear-to-r from-violet-600 to-indigo-600 bg-clip-text text-transparent dark:from-violet-400 dark:to-indigo-400">
                 Review Thread Draft
               </span>
             </h1>
@@ -454,7 +454,7 @@ export default function ApproveDraftPage() {
                 <p className="text-sm font-semibold text-rose-700 dark:text-rose-300">
                   Publication to Meta Threads Failed
                 </p>
-                <p className="text-xs text-muted-foreground font-mono break-words leading-relaxed">
+                <p className="text-xs text-muted-foreground font-mono wrap-break-word leading-relaxed">
                   {state.publication_error || "The Threads API rejected the publishing request. Please verify your Threads connection, permissions, or image URLs."}
                 </p>
               </div>
@@ -513,7 +513,7 @@ export default function ApproveDraftPage() {
                         size="sm"
                         disabled={isPublishing || isRegenerating}
                         onClick={() => setIsEditingPosts(false)}
-                        className="rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white font-semibold py-4 shadow-sm cursor-pointer"
+                        className="rounded-xl bg-linear-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white font-semibold py-4 shadow-sm cursor-pointer"
                       >
                         Keep Edits
                       </Button>
@@ -568,7 +568,7 @@ export default function ApproveDraftPage() {
           <div className="space-y-6">
             <div className="flex flex-col gap-2">
               <Button
-                className="w-full rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white font-bold py-6 shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 cursor-pointer"
+                className="w-full rounded-xl bg-linear-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white font-bold py-6 shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 cursor-pointer"
                 size="lg"
                 disabled={isPublishing || isRegenerating || state.is_published || state.publication_status === "publishing" || state.publication_status === "queued"}
                 onClick={handlePublish}

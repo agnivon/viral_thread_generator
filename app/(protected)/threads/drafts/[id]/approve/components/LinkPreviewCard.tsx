@@ -84,7 +84,7 @@ export function LinkPreviewCard({ url }: LinkPreviewCardProps) {
     >
       <div className="flex items-stretch min-h-[96px]">
         {/* Visual Preview Side - Always left aligned, fixed width */}
-        <div className="w-24 sm:w-28 flex-shrink-0 relative overflow-hidden flex items-center justify-center border-r border-border/40 bg-muted/20">
+        <div className="w-24 sm:w-28 shrink-0 relative overflow-hidden flex items-center justify-center border-r border-border/40 bg-muted/20">
           {loading ? (
             <div className="absolute inset-0 bg-muted/30 animate-pulse flex items-center justify-center">
               <Globe className="w-6 h-6 text-muted-foreground/45 animate-spin" />
@@ -109,7 +109,7 @@ export function LinkPreviewCard({ url }: LinkPreviewCardProps) {
               )}
             </>
           ) : (
-            <div className={`absolute inset-0 bg-gradient-to-br ${gradientClass} flex items-center justify-center`}>
+            <div className={`absolute inset-0 bg-linear-to-br ${gradientClass} flex items-center justify-center`}>
               {hostname ? (
                 <img
                   src={`https://www.google.com/s2/favicons?domain=${hostname}&sz=64`}
@@ -123,7 +123,7 @@ export function LinkPreviewCard({ url }: LinkPreviewCardProps) {
                 <Globe className="w-7 h-7 text-muted-foreground/60 z-10" />
               )}
               {/* Subtle grid pattern inside preview */}
-              <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.05)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.05)_1px,transparent_1px)] bg-[size:14px_24px] pointer-events-none" />
+              <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.05)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.05)_1px,transparent_1px)] bg-size-[14px_24px] pointer-events-none" />
             </div>
           )}
         </div>
@@ -131,7 +131,7 @@ export function LinkPreviewCard({ url }: LinkPreviewCardProps) {
         {/* Content Details Side */}
         <div className="p-3 sm:p-4 flex-1 min-w-0 flex flex-col justify-center gap-0.5">
           <div className="flex items-center gap-1 text-muted-foreground text-[10px] font-bold uppercase tracking-wider min-w-0">
-            <Globe className="w-3 h-3 text-violet-500 flex-shrink-0" />
+            <Globe className="w-3 h-3 text-violet-500 shrink-0" />
             <span className="truncate">{hostname}</span>
           </div>
           <h4 className="text-xs font-bold text-foreground truncate group-hover/card:text-violet-600 dark:group-hover/card:text-violet-400 transition-colors">

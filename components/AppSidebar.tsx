@@ -34,11 +34,11 @@ export function AppSidebar() {
     <Sidebar className="border-r border-border/50">
       <SidebarHeader className="p-6 border-b border-border/30 bg-muted/10">
         <Link href="/dashboard" className="flex items-center gap-2.5 group">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-violet-600 to-indigo-600 text-white shadow-sm group-hover:scale-105 transition-transform duration-300">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-linear-to-br from-violet-600 to-indigo-600 text-white shadow-sm group-hover:scale-105 transition-transform duration-300">
             <Sparkles className="h-5 w-5" />
           </div>
           <div className="flex flex-col">
-            <span className="font-extrabold tracking-tight text-sm leading-none bg-gradient-to-r from-violet-600 to-indigo-600 bg-clip-text text-transparent dark:from-violet-400 dark:to-indigo-400">
+            <span className="font-extrabold tracking-tight text-sm leading-none bg-linear-to-r from-violet-600 to-indigo-600 bg-clip-text text-transparent dark:from-violet-400 dark:to-indigo-400">
               Viral Thread Gen
             </span>
             <span className="text-[10px] text-muted-foreground mt-1 font-semibold uppercase tracking-wider">

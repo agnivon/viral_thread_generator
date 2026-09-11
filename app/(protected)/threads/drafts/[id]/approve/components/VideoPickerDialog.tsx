@@ -40,7 +40,7 @@ export function VideoPickerDialog({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-md animate-in fade-in duration-200">
       <div className="relative w-full max-w-2xl overflow-hidden border border-border/80 bg-card/90 backdrop-blur-lg rounded-2xl shadow-xl p-6 space-y-6 flex flex-col max-h-[85vh]">
-        <div className="space-y-2 flex-shrink-0">
+        <div className="space-y-2 shrink-0">
           <h2 className="text-xl font-bold flex items-center gap-2 text-foreground">
             <Video className="w-5 h-5 text-violet-500" />
             Attach Video for Post {activeVideoPickerIdx + 1}
@@ -52,7 +52,7 @@ export function VideoPickerDialog({
 
         <div className="overflow-y-auto pr-1 space-y-6 flex-1">
           {/* Custom Video URL Input */}
-          <div className="p-4 bg-muted/20 border border-border/40 rounded-xl space-y-3 flex-shrink-0">
+          <div className="p-4 bg-muted/20 border border-border/40 rounded-xl space-y-3 shrink-0">
             <div className="flex items-center justify-between">
               <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider block">
                 Custom Video URL
@@ -124,7 +124,7 @@ export function VideoPickerDialog({
           )}
         </div>
 
-        <div className="flex items-center justify-end gap-3 pt-2 border-t border-border/30 flex-shrink-0">
+        <div className="flex items-center justify-end gap-3 pt-2 border-t border-border/30 shrink-0">
           {currentVideo && (
             <Button
               type="button"

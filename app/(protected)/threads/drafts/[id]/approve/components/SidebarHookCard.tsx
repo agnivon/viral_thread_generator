@@ -34,7 +34,7 @@ export function SidebarHookCard({ selectedHook, coreHooks }: SidebarHookCardProp
               {coreHooks.map((hook, i) => (
                 <li key={i} className="text-xs text-muted-foreground bg-muted/30 p-3 rounded-lg border border-border/40 flex flex-col gap-1 leading-relaxed">
                   <div className="flex items-start gap-2">
-                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-violet-400 mt-1.5 flex-shrink-0" />
+                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-violet-400 mt-1.5 shrink-0" />
                     <span>{hook}</span>
                   </div>
                   <span className="text-[9px] text-muted-foreground/80 font-medium self-end select-none">

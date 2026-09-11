@@ -57,7 +57,7 @@ function formatRelativeTime(timestamp: number): string {
 function getNotificationIcon(kind: string) {
   if (kind === "emerging_trend_alert") {
     return (
-      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500/20 to-violet-500/20 text-amber-500 dark:text-amber-400 border border-amber-500/30 shadow-xs">
+      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-linear-to-br from-amber-500/20 to-violet-500/20 text-amber-500 dark:text-amber-400 border border-amber-500/30 shadow-xs">
         <TrendingUp className="h-4 w-4 text-amber-500" />
       </div>
     );
@@ -151,7 +151,7 @@ export function NotificationCenter() {
       >
         <Bell className="h-4 w-4" />
         {unseenCount > 0 && (
-          <span className="absolute -top-1 -right-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-gradient-to-r from-violet-600 to-indigo-600 px-1 text-[10px] font-bold text-white shadow-xs animate-in zoom-in-50">
+          <span className="absolute -top-1 -right-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-linear-to-r from-violet-600 to-indigo-600 px-1 text-[10px] font-bold text-white shadow-xs animate-in zoom-in-50">
             {unseenCount > 9 ? "9+" : unseenCount}
           </span>
         )}

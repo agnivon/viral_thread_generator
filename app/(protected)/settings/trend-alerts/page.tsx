@@ -720,7 +720,7 @@ export default function TrendAlertsSettingsPage() {
         <Button
           onClick={handleSave}
           disabled={isSaving}
-          className="rounded-xl px-6 bg-gradient-to-r from-violet-600 to-indigo-600 text-white font-semibold cursor-pointer shadow-md hover:shadow-lg transition-all"
+          className="rounded-xl px-6 bg-linear-to-r from-violet-600 to-indigo-600 text-white font-semibold cursor-pointer shadow-md hover:shadow-lg transition-all"
         >
           {isSaving ? (
             <span className="flex items-center gap-2">

@@ -30,7 +30,7 @@ export default function SettingsLayout({
       {/* Header Section */}
       <div className="space-y-1.5 border-b border-border/30 pb-5">
         <h1 className="text-4xl font-extrabold tracking-tight">
-          <span className="bg-gradient-to-r from-violet-600 via-indigo-600 to-cyan-500 bg-clip-text text-transparent dark:from-violet-400 dark:via-indigo-400 dark:to-cyan-400">
+          <span className="bg-linear-to-r from-violet-600 via-indigo-600 to-cyan-500 bg-clip-text text-transparent dark:from-violet-400 dark:via-indigo-400 dark:to-cyan-400">
             Settings
           </span>
         </h1>

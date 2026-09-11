@@ -27,7 +27,7 @@ export default function LandingPage() {
   return (
     <div className="relative min-h-screen flex flex-col items-center justify-center bg-background overflow-hidden px-4 py-16 sm:px-6 lg:px-8">
       {/* Background Mesh Decorative Gradients */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-[400px] bg-gradient-to-b from-violet-500/10 via-transparent to-transparent blur-3xl pointer-events-none -z-10" />
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-[400px] bg-linear-to-b from-violet-500/10 via-transparent to-transparent blur-3xl pointer-events-none -z-10" />
       <div className="absolute -top-40 -right-40 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none -z-10" />
       <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none -z-10" />
 
@@ -40,7 +40,7 @@ export default function LandingPage() {
           
           {/* Main Hero Header */}
           <h1 className="text-5xl font-black tracking-tight sm:text-7xl">
-            <span className="bg-gradient-to-r from-violet-600 via-indigo-600 to-cyan-500 bg-clip-text text-transparent dark:from-violet-400 dark:via-indigo-400 dark:to-cyan-400 leading-none block pb-2">
+            <span className="bg-linear-to-r from-violet-600 via-indigo-600 to-cyan-500 bg-clip-text text-transparent dark:from-violet-400 dark:via-indigo-400 dark:to-cyan-400 leading-none block pb-2">
               Viral Thread Generator
             </span>
           </h1>
@@ -53,7 +53,7 @@ export default function LandingPage() {
         <div className="flex flex-col sm:flex-row justify-center gap-4 pt-2">
           <Link 
             href="/login" 
-            className={`${buttonVariants({ size: "lg" })} rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white font-semibold py-6 px-8 shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 group cursor-pointer`}
+            className={`${buttonVariants({ size: "lg" })} rounded-xl bg-linear-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white font-semibold py-6 px-8 shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 group cursor-pointer`}
           >
             Start Generating Now
             <ChevronRight className="w-4 h-4 ml-1 group-hover:translate-x-0.5 transition-transform" />
@@ -69,7 +69,7 @@ export default function LandingPage() {
                 key={idx} 
                 className="group relative overflow-hidden p-6 rounded-2xl border border-border/80 bg-card/40 backdrop-blur-xs hover:border-violet-500/30 hover:shadow-lg hover:-translate-y-1 transition-all duration-300"
               >
-                <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-violet-600 to-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                <div className="absolute top-0 left-0 w-full h-[3px] bg-linear-to-r from-violet-600 to-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                 <div className={`inline-flex items-center justify-center p-3 rounded-xl ${feature.color} mb-4 group-hover:scale-105 transition-transform duration-300`}>
                   <Icon className="w-5 h-5" />
                 </div>

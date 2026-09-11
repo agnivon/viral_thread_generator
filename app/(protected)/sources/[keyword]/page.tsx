@@ -636,12 +636,12 @@ export default function KeywordDetailPage() {
                   </div>
                 )}
 
-                <div className="pt-2 flex flex-col sm:flex-row gap-2">
+                <div className="pt-2 flex flex-col gap-2.5">
                   <a
                     href={selectedArticle.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl text-xs font-semibold py-2.5 border border-border/80 hover:bg-muted/50 text-foreground transition-all cursor-pointer bg-card"
+                    className="w-full inline-flex items-center justify-center gap-2 rounded-xl text-xs font-semibold py-2.5 border border-border/80 hover:bg-muted/50 text-foreground transition-all cursor-pointer bg-card"
                   >
                     View Original Article
                     <ExternalLink className="w-3.5 h-3.5" />
@@ -652,7 +652,7 @@ export default function KeywordDetailPage() {
                     )}&guidance=${encodeURIComponent(
                       `Focus on key takeaways and developments from ${selectedArticle.mediaCompany || "this coverage"} regarding ${displayKeyword}. Article headline: "${selectedArticle.title}".`
                     )}`}
-                    className="flex-1"
+                    className="w-full"
                   >
                     <Button
                       size="sm"

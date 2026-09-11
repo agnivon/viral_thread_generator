@@ -120,6 +120,10 @@ Convex agent skills for common tasks can be installed by running
 
 ## 9. React Hook Form & Validation Standards
 
+- **Mandatory Usage for Complex Forms**:
+  - **Always use `react-hook-form`** for complex forms—defined as any form containing multiple interdependent fields, dynamic lists/arrays (e.g. multi-post thread editors), multi-step wizard flows, schema-validated payloads, or integrations with dialogs and custom Radix/Shadcn UI controls.
+  - Never manage complex or multi-field form state using fragmented `useState` hooks or manual change-handler sprawl.
+  - Trivial single-field inputs (such as an isolated search bar or quick toggle) may use minimal local state, but all structured data-entry flows MUST use `react-hook-form`.
 - **Schema-Driven Form Validation**:
   - Pair `react-hook-form` with `zod` and `@hookform/resolvers/zod` when managing structured multi-field form inputs.
 - **Controlled Component Boundaries**:

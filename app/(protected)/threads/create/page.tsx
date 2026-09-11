@@ -5,6 +5,8 @@ import { useAction } from "convex/react";
 import { useMutation } from "@tanstack/react-query";
 import { api } from "@/convex/_generated/api";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useForm, useFieldArray, Controller, useWatch, Control, UseFormRegister, FieldErrors, UseFormSetValue } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,20 +15,265 @@ import { Plus, Trash2, Loader2, Sparkles, Link as LinkIcon, HelpCircle, Trending
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  createThreadsFormSchema,
+  createDefaultEntry,
+  type CreateThreadsFormData,
+} from "./schema";
 
-type EntryType = {
-  url?: string;
-  topic?: string;
-  description?: string;
-  guidance: string;
-  manual_hook_selection: boolean;
-  search_query_generation: boolean;
-  agent: "news" | "social_media" | "topic";
-};
+interface ThreadEntryCardProps {
+  index: number;
+  control: Control<CreateThreadsFormData>;
+  register: UseFormRegister<CreateThreadsFormData>;
+  setValue: UseFormSetValue<CreateThreadsFormData>;
+  errors: FieldErrors<CreateThreadsFormData>;
+  isLoading: boolean;
+  canRemove: boolean;
+  onRemove: () => void;
+}
+
+function ThreadEntryCard({
+  index,
+  control,
+  register,
+  setValue,
+  errors,
+  isLoading,
+  canRemove,
+  onRemove,
+}: ThreadEntryCardProps) {
+  const currentAgent = useWatch({
+    control,
+    name: `entries.${index}.agent`,
+  });
+
+  const entryErrors = errors.entries?.[index];
+
+  return (
+    <Card 
+      className="group relative overflow-hidden bg-card/40 backdrop-blur-xs border-border/80 hover:border-violet-500/30 hover:shadow-lg transition-all duration-300"
+    >
+      {/* Accent Highlight Line on Card Hover */}
+      <div className="absolute top-0 left-0 w-1 h-full bg-linear-to-b from-violet-600 to-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+      
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4 border-b border-border/30 bg-muted/20 px-6 py-4">
+        <div className="flex items-center gap-3">
+          <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-violet-100 text-xs font-bold text-violet-800 dark:bg-violet-950 dark:text-violet-300">
+            {String(index + 1).padStart(2, "0")}
+          </span>
+          <CardTitle className="text-base font-bold text-foreground">
+            Thread Source Entry
+          </CardTitle>
+        </div>
+        {canRemove && (
+          <Button 
+            type="button" 
+            variant="ghost" 
+            size="icon" 
+            onClick={onRemove}
+            disabled={isLoading}
+            className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors cursor-pointer"
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        )}
+      </CardHeader>
+      
+      <CardContent className="p-5 space-y-5">
+        {/* Content URL Input / Topic Input */}
+        {currentAgent !== "topic" ? (
+          <div className="space-y-1.5">
+            <Label 
+              htmlFor={`entries.${index}.url`} 
+              className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5"
+            >
+              <LinkIcon className="w-3.5 h-3.5 text-indigo-500" /> Content URL
+            </Label>
+            <Input
+              id={`entries.${index}.url`}
+              type="url"
+              placeholder="https://example.com/my-awesome-post"
+              disabled={isLoading}
+              {...register(`entries.${index}.url`)}
+              className="w-full bg-background/50 border-border/80 focus-visible:ring-violet-500/30 focus-visible:border-violet-500 rounded-lg transition-all"
+            />
+            {entryErrors?.url && (
+              <p className="text-xs font-medium text-destructive mt-1">
+                {entryErrors.url.message}
+              </p>
+            )}
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Label 
+                htmlFor={`entries.${index}.topic`} 
+                className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-indigo-500" /> Topic
+              </Label>
+              <Input
+                id={`entries.${index}.topic`}
+                type="text"
+                placeholder="e.g. The history of artificial intelligence"
+                disabled={isLoading}
+                {...register(`entries.${index}.topic`)}
+                className="w-full bg-background/50 border-border/80 focus-visible:ring-violet-500/30 focus-visible:border-violet-500 rounded-lg transition-all"
+              />
+              {entryErrors?.topic && (
+                <p className="text-xs font-medium text-destructive mt-1">
+                  {entryErrors.topic.message}
+                </p>
+              )}
+            </div>
+            <div className="space-y-1.5">
+              <Label 
+                htmlFor={`entries.${index}.description`} 
+                className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5"
+              >
+                <HelpCircle className="w-3.5 h-3.5 text-indigo-500" /> Topic Description (Optional)
+              </Label>
+              <textarea
+                id={`entries.${index}.description`}
+                placeholder="Add any specific context or angles you want the agent to focus on when researching this topic..."
+                disabled={isLoading}
+                {...register(`entries.${index}.description`)}
+                className="flex min-h-15 w-full rounded-lg border border-border/80 bg-background/50 px-3 py-2 text-sm shadow-xs placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-violet-500 focus-visible:border-violet-500 disabled:cursor-not-allowed disabled:opacity-50 resize-none transition-all"
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Agent Selection */}
+        <div className="space-y-2">
+          <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+            <Sparkles className="w-3.5 h-3.5 text-indigo-500" /> Choose Agent Role
+          </Label>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <button
+              type="button"
+              onClick={() => setValue(`entries.${index}.agent`, "news", { shouldValidate: true })}
+              disabled={isLoading}
+              className={`flex flex-col items-center justify-center p-3.5 rounded-xl border transition-all duration-300 text-center cursor-pointer ${
+                currentAgent === "news" || !currentAgent
+                  ? "border-violet-500 bg-violet-500/5 ring-1 ring-violet-500/50"
+                  : "border-border/80 bg-background/40 hover:border-violet-500/30 hover:bg-muted/10"
+              }`}
+            >
+              <span className="text-xs font-bold text-foreground">News Editor</span>
+              <span className="text-[10px] text-muted-foreground mt-1">Factual, journalistic layout</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setValue(`entries.${index}.agent`, "social_media", { shouldValidate: true })}
+              disabled={isLoading}
+              className={`flex flex-col items-center justify-center p-3.5 rounded-xl border transition-all duration-300 text-center cursor-pointer ${
+                currentAgent === "social_media"
+                  ? "border-violet-500 bg-violet-500/5 ring-1 ring-violet-500/50"
+                  : "border-border/80 bg-background/40 hover:border-violet-500/30 hover:bg-muted/10"
+              }`}
+            >
+              <span className="text-xs font-bold text-foreground">Social Specialist</span>
+              <span className="text-[10px] text-muted-foreground mt-1">Punchy, hook-focused copy</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setValue(`entries.${index}.agent`, "topic", { shouldValidate: true })}
+              disabled={isLoading}
+              className={`flex flex-col items-center justify-center p-3.5 rounded-xl border transition-all duration-300 text-center cursor-pointer ${
+                currentAgent === "topic"
+                  ? "border-violet-500 bg-violet-500/5 ring-1 ring-violet-500/50"
+                  : "border-border/80 bg-background/40 hover:border-violet-500/30 hover:bg-muted/10"
+              }`}
+            >
+              <span className="text-xs font-bold text-foreground">Topic Expert</span>
+              <span className="text-[10px] text-muted-foreground mt-1">Deep dives from scratch</span>
+            </button>
+          </div>
+        </div>
+
+        {/* AI Guidance Textarea */}
+        <div className="space-y-1.5">
+          <Label 
+            htmlFor={`entries.${index}.guidance`} 
+            className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-violet-500" /> AI Guidance / Instructions (Optional)
+          </Label>
+          <textarea
+            id={`entries.${index}.guidance`}
+            placeholder="e.g., Focus on technical details, adopt an enthusiastic tone, or structure with numbered steps."
+            disabled={isLoading}
+            {...register(`entries.${index}.guidance`)}
+            className="flex min-h-20 w-full rounded-lg border border-border/80 bg-background/50 px-3 py-2 text-sm shadow-xs placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-violet-500 focus-visible:border-violet-500 disabled:cursor-not-allowed disabled:opacity-50 resize-none transition-all"
+          />
+          <p className="text-[11px] text-muted-foreground flex items-center gap-1">
+            <HelpCircle className="w-3.5 h-3.5 text-muted-foreground/75" /> Set tone instructions, specific callouts, or layout requirements for the generator.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+          {/* Choose Hooks Manually Checkbox */}
+          <div className="flex items-start space-x-3 bg-muted/10 p-3 rounded-lg border border-border/30 hover:border-violet-500/30 transition-colors">
+            <Controller
+              control={control}
+              name={`entries.${index}.manual_hook_selection`}
+              render={({ field }) => (
+                <Checkbox
+                  id={`manual-hook-${index}`}
+                  checked={field.value}
+                  onCheckedChange={field.onChange}
+                  disabled={isLoading}
+                />
+              )}
+            />
+            <div className="grid gap-1.5 leading-none">
+              <Label
+                htmlFor={`manual-hook-${index}`}
+                className="text-sm font-semibold leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-75 cursor-pointer text-foreground"
+              >
+                Choose hooks manually
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                Pause the pipeline to choose and edit your hook.
+              </p>
+            </div>
+          </div>
+
+          {/* Auto-generate Image & Video Search Queries Checkbox */}
+          <div className="flex items-start space-x-3 bg-muted/10 p-3 rounded-lg border border-border/30 hover:border-violet-500/30 transition-colors">
+            <Controller
+              control={control}
+              name={`entries.${index}.search_query_generation`}
+              render={({ field }) => (
+                <Checkbox
+                  id={`search-query-gen-${index}`}
+                  checked={field.value}
+                  onCheckedChange={field.onChange}
+                  disabled={isLoading}
+                />
+              )}
+            />
+            <div className="grid gap-1.5 leading-none">
+              <Label
+                htmlFor={`search-query-gen-${index}`}
+                className="text-sm font-semibold leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-75 cursor-pointer text-foreground"
+              >
+                Auto-generate media queries
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                Generate visual search queries for images and videos based on the thread.
+              </p>
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
 function CreateThreadForm() {
   const searchParams = useSearchParams();
@@ -42,17 +289,36 @@ function CreateThreadForm() {
       ? "topic"
       : "news";
 
-  const [entries, setEntries] = useState<EntryType[]>([
-    {
-      url: urlUrl,
-      topic: urlTopic,
-      description: urlDescription,
-      guidance: urlGuidance,
-      manual_hook_selection: Boolean(urlTopic || urlUrl),
-      search_query_generation: Boolean(urlTopic || urlUrl),
-      agent: urlAgent,
+  const {
+    control,
+    register,
+    handleSubmit,
+    setValue,
+    reset,
+    formState: { errors },
+  } = useForm<CreateThreadsFormData>({
+    resolver: zodResolver(createThreadsFormSchema),
+    defaultValues: {
+      entries: [
+        createDefaultEntry({
+          url: urlUrl,
+          topic: urlTopic,
+          description: urlDescription,
+          guidance: urlGuidance,
+          agent: urlAgent,
+          manual_hook_selection: false,
+          search_query_generation: false,
+        }),
+      ],
     },
-  ]);
+    mode: "onTouched",
+  });
+
+  const { fields, append, remove } = useFieldArray({
+    control,
+    name: "entries",
+  });
+
   const enqueueThreadGeneration = useAction(api.actions.threadsActions.enqueueThreadGeneration);
   const router = useRouter();
 
@@ -85,66 +351,47 @@ function CreateThreadForm() {
 
   useEffect(() => {
     if (urlTopic || urlUrl) {
-      setEntries([
-        {
-          url: urlUrl,
-          topic: urlTopic,
-          description: urlDescription,
-          guidance: urlGuidance,
-          manual_hook_selection: true,
-          search_query_generation: true,
-          agent: urlAgent,
-        },
-      ]);
+      reset({
+        entries: [
+          createDefaultEntry({
+            url: urlUrl,
+            topic: urlTopic,
+            description: urlDescription,
+            guidance: urlGuidance,
+            agent: urlAgent,
+            manual_hook_selection: false,
+            search_query_generation: false,
+          }),
+        ],
+      });
     }
-  }, [urlTopic, urlUrl, urlDescription, urlGuidance, urlAgent]);
+  }, [urlTopic, urlUrl, urlDescription, urlGuidance, urlAgent, reset]);
 
   const handleAddEntry = () => {
-    setEntries([...entries, { url: "", topic: "", description: "", guidance: "", manual_hook_selection: false, search_query_generation: false, agent: "news" }]);
+    append(createDefaultEntry());
   };
 
-  const handleRemoveEntry = (index: number) => {
-    setEntries(entries.filter((_, i) => i !== index));
-  };
-
-  const handleChange = (
-    index: number,
-    field: keyof EntryType,
-    value: string | boolean
-  ) => {
-    const newEntries = [...entries];
-    newEntries[index] = { ...newEntries[index], [field]: value } as EntryType;
-    setEntries(newEntries);
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const validEntries = entries.filter((entry) => {
-      if (entry.agent === "topic") return (entry.topic || "").trim() !== "";
-      return (entry.url || "").trim() !== "";
-    });
-    if (validEntries.length === 0) return;
-
+  const onSubmit = (data: CreateThreadsFormData) => {
     setError(null);
 
-    const requests = validEntries.map((entry) => {
+    const requests = data.entries.map((entry) => {
       const input_field =
         entry.agent === "topic"
           ? {
               agent: "topic" as const,
-              topic: entry.topic || "",
+              topic: (entry.topic || "").trim(),
               ...(entry.description?.trim() ? { description: entry.description.trim() } : {}),
             }
           : {
               agent: entry.agent as "news" | "social_media",
-              url: entry.url || "",
+              url: (entry.url || "").trim(),
             };
 
       return {
         input_field,
-        guidance: entry.guidance || undefined,
-        manual_hook_selection: entry.manual_hook_selection,
-        search_query_generation: entry.search_query_generation,
+        guidance: entry.guidance?.trim() || undefined,
+        manual_hook_selection: Boolean(entry.manual_hook_selection),
+        search_query_generation: Boolean(entry.search_query_generation),
       };
     });
 
@@ -204,7 +451,9 @@ function CreateThreadForm() {
               size="sm"
               onClick={() => {
                 router.replace("/threads/create");
-                setEntries([{ url: "", topic: "", description: "", guidance: "", manual_hook_selection: false, search_query_generation: false, agent: "news" }]);
+                reset({
+                  entries: [createDefaultEntry()],
+                });
               }}
               className="text-xs text-muted-foreground hover:text-foreground h-7 px-2.5 cursor-pointer shrink-0"
             >
@@ -213,215 +462,22 @@ function CreateThreadForm() {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-8">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
           
           {/* Entries Container */}
           <div className="space-y-6">
-            {entries.map((entry, index) => (
-              <Card 
-                key={index} 
-                className="group relative overflow-hidden bg-card/40 backdrop-blur-xs border-border/80 hover:border-violet-500/30 hover:shadow-lg transition-all duration-300"
-              >
-                {/* Accent Highlight Line on Card Hover */}
-                <div className="absolute top-0 left-0 w-1 h-full bg-linear-to-b from-violet-600 to-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4 border-b border-border/30 bg-muted/20 px-6 py-4">
-                  <div className="flex items-center gap-3">
-                    <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-violet-100 text-xs font-bold text-violet-800 dark:bg-violet-950 dark:text-violet-300">
-                      {String(index + 1).padStart(2, '0')}
-                    </span>
-                    <CardTitle className="text-base font-bold text-foreground">
-                      Thread Source Entry
-                    </CardTitle>
-                  </div>
-                  {entries.length > 1 && (
-                    <Button 
-                      type="button" 
-                      variant="ghost" 
-                      size="icon" 
-                      onClick={() => handleRemoveEntry(index)}
-                      disabled={isLoading}
-                      className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors cursor-pointer"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  )}
-                </CardHeader>
-                
-                <CardContent className="p-5 space-y-5">
-                  {/* Content URL Input / Topic Input */}
-                  {entry.agent !== "topic" ? (
-                    <div className="space-y-1.5">
-                      <Label 
-                        htmlFor={`url-${index}`} 
-                        className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5"
-                      >
-                        <LinkIcon className="w-3.5 h-3.5 text-indigo-500" /> Content URL
-                      </Label>
-                      <Input
-                        id={`url-${index}`}
-                        type="url"
-                        placeholder="https://example.com/my-awesome-post"
-                        value={entry.url || ""}
-                        onChange={(e) => handleChange(index, "url", e.target.value)}
-                        disabled={isLoading}
-                        required
-                        className="w-full bg-background/50 border-border/80 focus-visible:ring-violet-500/30 focus-visible:border-violet-500 rounded-lg transition-all"
-                      />
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      <div className="space-y-1.5">
-                        <Label 
-                          htmlFor={`topic-${index}`} 
-                          className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5"
-                        >
-                          <Sparkles className="w-3.5 h-3.5 text-indigo-500" /> Topic
-                        </Label>
-                        <Input
-                          id={`topic-${index}`}
-                          type="text"
-                          placeholder="e.g. The history of artificial intelligence"
-                          value={entry.topic || ""}
-                          onChange={(e) => handleChange(index, "topic", e.target.value)}
-                          disabled={isLoading}
-                          required
-                          className="w-full bg-background/50 border-border/80 focus-visible:ring-violet-500/30 focus-visible:border-violet-500 rounded-lg transition-all"
-                        />
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label 
-                          htmlFor={`description-${index}`} 
-                          className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5"
-                        >
-                          <HelpCircle className="w-3.5 h-3.5 text-indigo-500" /> Topic Description (Optional)
-                        </Label>
-                        <textarea
-                          id={`description-${index}`}
-                          placeholder="Add any specific context or angles you want the agent to focus on when researching this topic..."
-                          value={entry.description || ""}
-                          onChange={(e) => handleChange(index, "description", e.target.value)}
-                          disabled={isLoading}
-                          className="flex min-h-15 w-full rounded-lg border border-border/80 bg-background/50 px-3 py-2 text-sm shadow-xs placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-violet-500 focus-visible:border-violet-500 disabled:cursor-not-allowed disabled:opacity-50 resize-none transition-all"
-                        />
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Agent Selection */}
-                  <div className="space-y-2">
-                    <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                      <Sparkles className="w-3.5 h-3.5 text-indigo-500" /> Choose Agent Role
-                    </Label>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                      <button
-                        type="button"
-                        onClick={() => handleChange(index, "agent", "news")}
-                        disabled={isLoading}
-                        className={`flex flex-col items-center justify-center p-3.5 rounded-xl border transition-all duration-300 text-center cursor-pointer ${
-                          entry.agent === "news" || !entry.agent
-                            ? "border-violet-500 bg-violet-500/5 ring-1 ring-violet-500/50"
-                            : "border-border/80 bg-background/40 hover:border-violet-500/30 hover:bg-muted/10"
-                        }`}
-                      >
-                        <span className="text-xs font-bold text-foreground">News Editor</span>
-                        <span className="text-[10px] text-muted-foreground mt-1">Factual, journalistic layout</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleChange(index, "agent", "social_media")}
-                        disabled={isLoading}
-                        className={`flex flex-col items-center justify-center p-3.5 rounded-xl border transition-all duration-300 text-center cursor-pointer ${
-                          entry.agent === "social_media"
-                            ? "border-violet-500 bg-violet-500/5 ring-1 ring-violet-500/50"
-                            : "border-border/80 bg-background/40 hover:border-violet-500/30 hover:bg-muted/10"
-                        }`}
-                      >
-                        <span className="text-xs font-bold text-foreground">Social Specialist</span>
-                        <span className="text-[10px] text-muted-foreground mt-1">Punchy, hook-focused copy</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleChange(index, "agent", "topic")}
-                        disabled={isLoading}
-                        className={`flex flex-col items-center justify-center p-3.5 rounded-xl border transition-all duration-300 text-center cursor-pointer ${
-                          entry.agent === "topic"
-                            ? "border-violet-500 bg-violet-500/5 ring-1 ring-violet-500/50"
-                            : "border-border/80 bg-background/40 hover:border-violet-500/30 hover:bg-muted/10"
-                        }`}
-                      >
-                        <span className="text-xs font-bold text-foreground">Topic Expert</span>
-                        <span className="text-[10px] text-muted-foreground mt-1">Deep dives from scratch</span>
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* AI Guidance Textarea */}
-                  <div className="space-y-1.5">
-                    <Label 
-                      htmlFor={`guidance-${index}`} 
-                      className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5"
-                    >
-                      <Sparkles className="w-3.5 h-3.5 text-violet-500" /> AI Guidance / Instructions (Optional)
-                    </Label>
-                    <textarea
-                      id={`guidance-${index}`}
-                      placeholder="e.g., Focus on technical details, adopt an enthusiastic tone, or structure with numbered steps."
-                      value={entry.guidance}
-                      onChange={(e) => handleChange(index, "guidance", e.target.value)}
-                      disabled={isLoading}
-                      className="flex min-h-20 w-full rounded-lg border border-border/80 bg-background/50 px-3 py-2 text-sm shadow-xs placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-violet-500 focus-visible:border-violet-500 disabled:cursor-not-allowed disabled:opacity-50 resize-none transition-all"
-                    />
-                    <p className="text-[11px] text-muted-foreground flex items-center gap-1">
-                      <HelpCircle className="w-3.5 h-3.5 text-muted-foreground/75" /> Set tone instructions, specific callouts, or layout requirements for the generator.
-                    </p>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-                    {/* Choose Hooks Manually Checkbox */}
-                    <div className="flex items-start space-x-3 bg-muted/10 p-3 rounded-lg border border-border/30 hover:border-violet-500/30 transition-colors">
-                      <Checkbox
-                        id={`manual-hook-${index}`}
-                        checked={entry.manual_hook_selection}
-                        onCheckedChange={(checked) => handleChange(index, "manual_hook_selection", !!checked)}
-                        disabled={isLoading}
-                      />
-                      <div className="grid gap-1.5 leading-none">
-                        <Label
-                          htmlFor={`manual-hook-${index}`}
-                          className="text-sm font-semibold leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-75 cursor-pointer text-foreground"
-                        >
-                          Choose hooks manually
-                        </Label>
-                        <p className="text-xs text-muted-foreground">
-                          Pause the pipeline to choose and edit your hook.
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Auto-generate Image & Video Search Queries Checkbox */}
-                    <div className="flex items-start space-x-3 bg-muted/10 p-3 rounded-lg border border-border/30 hover:border-violet-500/30 transition-colors">
-                      <Checkbox
-                        id={`search-query-gen-${index}`}
-                        checked={entry.search_query_generation}
-                        onCheckedChange={(checked) => handleChange(index, "search_query_generation", !!checked)}
-                        disabled={isLoading}
-                      />
-                      <div className="grid gap-1.5 leading-none">
-                        <Label
-                          htmlFor={`search-query-gen-${index}`}
-                          className="text-sm font-semibold leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-75 cursor-pointer text-foreground"
-                        >
-                          Auto-generate media queries
-                        </Label>
-                        <p className="text-xs text-muted-foreground">
-                          Generate visual search queries for images and videos based on the thread.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+            {fields.map((field, index) => (
+              <ThreadEntryCard
+                key={field.id}
+                index={index}
+                control={control}
+                register={register}
+                setValue={setValue}
+                errors={errors}
+                isLoading={isLoading}
+                canRemove={fields.length > 1}
+                onRemove={() => remove(index)}
+              />
             ))}
           </div>
 
@@ -453,10 +509,7 @@ function CreateThreadForm() {
               type="submit" 
               size="lg"
               className="w-full sm:w-auto sm:min-w-60 rounded-xl bg-linear-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white font-semibold py-6 shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 cursor-pointer"
-              disabled={isLoading || entries.every(e => {
-                if (e.agent === "topic") return !(e.topic || "").trim();
-                return !(e.url || "").trim();
-              })}
+              disabled={isLoading}
             >
               {isLoading ? (
                 <span className="flex items-center justify-center gap-2">
@@ -466,7 +519,7 @@ function CreateThreadForm() {
               ) : (
                 <span className="flex items-center justify-center gap-2">
                   <Sparkles className="h-4 w-4" />
-                  Generate {entries.length === 1 ? "1 Thread" : `${entries.length} Threads`}
+                  Generate {fields.length === 1 ? "1 Thread" : `${fields.length} Threads`}
                 </span>
               )}
             </Button>

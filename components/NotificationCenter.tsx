@@ -300,19 +300,20 @@ export function NotificationCenter() {
                 {getNotificationIcon(item.kind)}
 
                 {/* Content */}
-                <div className="flex-1 min-w-0 pr-7 space-y-1">
-                  <div className="flex items-baseline justify-between gap-1.5">
+                <div className="flex-1 min-w-0 pr-20 sm:pr-24 space-y-1">
+                  <div className="min-w-0 w-full overflow-hidden">
                     <h4
                       className={cn(
-                        "text-sm leading-snug truncate",
+                        "text-sm leading-snug truncate block w-full",
                         !item.isSeen ? "font-bold text-foreground" : "font-medium text-foreground/80"
                       )}
+                      title={item.data.title || "Notification"}
                     >
                       {item.data.title || "Notification"}
                     </h4>
                   </div>
                   {item.data.body && (
-                    <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
+                    <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed break-words">
                       {item.data.body}
                     </p>
                   )}
@@ -354,11 +355,11 @@ export function NotificationCenter() {
                 </div>
 
                 {/* Unread Dot & Actions */}
-                <div className="absolute top-3.5 right-3.5 flex items-center gap-1.5">
+                <div className="absolute top-4 right-4 flex items-center gap-1.5 shrink-0 z-10">
                   {!item.isSeen && (
-                    <span className="h-2 w-2 rounded-full bg-violet-600 shadow-xs" title="Unread" />
+                    <span className="h-2 w-2 rounded-full bg-violet-600 shadow-xs shrink-0" title="Unread" />
                   )}
-                  <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
+                  <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 shrink-0 bg-background/80 backdrop-blur-xs rounded-md">
                     {!item.isSeen && (
                       <button
                         type="button"
@@ -366,7 +367,7 @@ export function NotificationCenter() {
                           e.stopPropagation();
                           void markSeen(item._id);
                         }}
-                        className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors"
+                        className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors cursor-pointer"
                         title="Mark as read"
                       >
                         <Check className="h-3.5 w-3.5" />
@@ -378,7 +379,7 @@ export function NotificationCenter() {
                         e.stopPropagation();
                         void dismiss(item._id);
                       }}
-                      className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-md transition-colors"
+                      className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-md transition-colors cursor-pointer"
                       title="Dismiss"
                     >
                       <X className="h-3.5 w-3.5" />

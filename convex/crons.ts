@@ -1,6 +1,5 @@
 import { cronJobs } from "convex/server";
 import { internal } from "./_generated/api";
-import { isTrendCronEnabled } from "./lib/env";
 
 const crons = cronJobs();
 
@@ -21,15 +20,13 @@ crons.interval(
 );
 
 // Scan real-time Google Trends every 15 minutes to detect emerging trends and alert users
-// Disabled in development environments to conserve resources and avoid extraneous dev notifications
-if (isTrendCronEnabled()) {
-  crons.interval(
-    "detect-emerging-real-time-trends-15-min",
-    { minutes: 15 },
-    internal.actions.trendAlertActions.detectAndNotifyEmergingTrendsCron,
-    {}
-  );
-}
+// Execution is gated inside detectAndNotifyEmergingTrendsCron to skip in development environments
+crons.interval(
+  "detect-emerging-real-time-trends-15-min",
+  { minutes: 15 },
+  internal.actions.trendAlertActions.detectAndNotifyEmergingTrendsCron,
+  {}
+);
 
 // Crons configuration
 export default crons;

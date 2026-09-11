@@ -22,7 +22,12 @@ describe("env utilities", () => {
     expect(isDev({ NODE_ENV: "test" })).toBe(true);
   });
 
-  it("correctly identifies production environment", () => {
+  it("correctly identifies dev environment by explicit flags", () => {
+    expect(isDev({ CONVEX_ENV: "dev" })).toBe(true);
+    expect(isDev({ IS_DEV: "true" })).toBe(true);
+  });
+
+  it("correctly identifies production environment with prod flags", () => {
     const prodEnv = {
       CONVEX_DEPLOYMENT: "prod:my-deployment-99",
       NODE_ENV: "production",
@@ -31,6 +36,22 @@ describe("env utilities", () => {
     expect(isDev(prodEnv)).toBe(false);
     expect(useDev(prodEnv)).toBe(false);
     expect(isProduction(prodEnv)).toBe(true);
+  });
+
+  it("correctly identifies Convex Cloud production environment without NODE_ENV or CONVEX_DEPLOYMENT", () => {
+    const convexCloudProdEnv = {
+      THREADS_REDIRECT_URI: "https://mock-production.convex.site/auth",
+      CLOUDFLARE_TURNSTILE_SECRET: "mock_turnstile_secret_key_for_testing",
+    };
+    expect(isDev(convexCloudProdEnv)).toBe(false);
+    expect(isProduction(convexCloudProdEnv)).toBe(true);
+    expect(isTrendCronEnabled(convexCloudProdEnv)).toBe(true);
+  });
+
+  it("defaults bare environment without dev indicators to production", () => {
+    expect(isDev({})).toBe(false);
+    expect(isProduction({})).toBe(true);
+    expect(isTrendCronEnabled({})).toBe(true);
   });
 
   describe("isTrendCronEnabled", () => {

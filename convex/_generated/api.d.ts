@@ -14,6 +14,7 @@ import type * as actions_newsdataActions from "../actions/newsdataActions.js";
 import type * as actions_setupActions from "../actions/setupActions.js";
 import type * as actions_threadsActions from "../actions/threadsActions.js";
 import type * as actions_tokensActions from "../actions/tokensActions.js";
+import type * as actions_trendAlertActions from "../actions/trendAlertActions.js";
 import type * as auth from "../auth.js";
 import type * as clearAuth from "../clearAuth.js";
 import type * as crons from "../crons.js";
@@ -46,6 +47,7 @@ import type * as lib_currents_news_api from "../lib/currents_news/api.js";
 import type * as lib_firebase_index from "../lib/firebase/index.js";
 import type * as lib_jina_api from "../lib/jina/api.js";
 import type * as lib_newsdata_api from "../lib/newsdata/api.js";
+import type * as lib_nicheClassifier from "../lib/nicheClassifier.js";
 import type * as lib_threads_api from "../lib/threads/api.js";
 import type * as lib_workpool_index from "../lib/workpool/index.js";
 import type * as migrations from "../migrations.js";
@@ -56,6 +58,8 @@ import type * as notifications_client from "../notifications/client.js";
 import type * as notifications_onComplete from "../notifications/onComplete.js";
 import type * as queries_threadsQueries from "../queries/threadsQueries.js";
 import type * as queries_tokensQueries from "../queries/tokensQueries.js";
+import type * as trendAlerts from "../trendAlerts.js";
+import type * as trendFilterSettings from "../trendFilterSettings.js";
 
 import type {
   ApiFromModules,
@@ -70,6 +74,7 @@ declare const fullApi: ApiFromModules<{
   "actions/setupActions": typeof actions_setupActions;
   "actions/threadsActions": typeof actions_threadsActions;
   "actions/tokensActions": typeof actions_tokensActions;
+  "actions/trendAlertActions": typeof actions_trendAlertActions;
   auth: typeof auth;
   clearAuth: typeof clearAuth;
   crons: typeof crons;
@@ -102,6 +107,7 @@ declare const fullApi: ApiFromModules<{
   "lib/firebase/index": typeof lib_firebase_index;
   "lib/jina/api": typeof lib_jina_api;
   "lib/newsdata/api": typeof lib_newsdata_api;
+  "lib/nicheClassifier": typeof lib_nicheClassifier;
   "lib/threads/api": typeof lib_threads_api;
   "lib/workpool/index": typeof lib_workpool_index;
   migrations: typeof migrations;
@@ -112,6 +118,8 @@ declare const fullApi: ApiFromModules<{
   "notifications/onComplete": typeof notifications_onComplete;
   "queries/threadsQueries": typeof queries_threadsQueries;
   "queries/tokensQueries": typeof queries_tokensQueries;
+  trendAlerts: typeof trendAlerts;
+  trendFilterSettings: typeof trendFilterSettings;
 }>;
 
 /**

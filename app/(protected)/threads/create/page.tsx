@@ -1,14 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Trash2, Loader2, Sparkles, Link as LinkIcon, HelpCircle } from "lucide-react";
+import { Plus, Trash2, Loader2, Sparkles, Link as LinkIcon, HelpCircle, TrendingUp } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -27,13 +27,52 @@ type EntryType = {
   agent: "news" | "social_media" | "topic";
 };
 
-export default function CreateThreadPage() {
-  const [entries, setEntries] = useState<EntryType[]>([{ url: "", topic: "", description: "", guidance: "", manual_hook_selection: false, search_query_generation: false, agent: "news" }]);
+function CreateThreadForm() {
+  const searchParams = useSearchParams();
+  const urlTopic = searchParams.get("topic") || "";
+  const urlDescription = searchParams.get("description") || "";
+  const urlUrl = searchParams.get("url") || "";
+  const urlGuidance = searchParams.get("guidance") || "";
+  const rawAgent = searchParams.get("agent");
+  const urlAgent: "news" | "social_media" | "topic" =
+    rawAgent === "news" || rawAgent === "social_media" || rawAgent === "topic"
+      ? rawAgent
+      : urlTopic
+      ? "topic"
+      : "news";
+
+  const [entries, setEntries] = useState<EntryType[]>([
+    {
+      url: urlUrl,
+      topic: urlTopic,
+      description: urlDescription,
+      guidance: urlGuidance,
+      manual_hook_selection: Boolean(urlTopic),
+      search_query_generation: Boolean(urlTopic),
+      agent: urlAgent,
+    },
+  ]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
+
   const enqueueThreadGeneration = useAction(api.actions.threadsActions.enqueueThreadGeneration);
   const router = useRouter();
+
+  useEffect(() => {
+    if (urlTopic || urlUrl) {
+      setEntries([
+        {
+          url: urlUrl,
+          topic: urlTopic,
+          description: urlDescription,
+          guidance: urlGuidance,
+          manual_hook_selection: true,
+          search_query_generation: true,
+          agent: urlAgent,
+        },
+      ]);
+    }
+  }, [urlTopic, urlUrl, urlDescription, urlGuidance, urlAgent]);
 
   const handleAddEntry = () => {
     setEntries([...entries, { url: "", topic: "", description: "", guidance: "", manual_hook_selection: false, search_query_generation: false, agent: "news" }]);
@@ -115,6 +154,37 @@ export default function CreateThreadPage() {
             Batch generate high-performance Threads sequences from articles, blog posts, or videos.
           </p>
         </div>
+
+        {/* Pre-seeded from Emerging Trend Banner */}
+        {urlTopic && (
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-4 rounded-2xl bg-gradient-to-r from-violet-500/10 via-indigo-500/10 to-transparent border border-violet-500/30 shadow-xs">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-xl bg-violet-500/20 text-violet-600 dark:text-violet-400 shrink-0">
+                <TrendingUp className="w-4 h-4" />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-foreground capitalize">
+                  Pre-seeded from Emerging Trend Alert: <span className="text-violet-600 dark:text-violet-400">{urlTopic}</span>
+                </p>
+                <p className="text-[11px] text-muted-foreground">
+                  Context and velocity were loaded automatically. Review angles below and generate.
+                </p>
+              </div>
+            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                router.replace("/threads/create");
+                setEntries([{ url: "", topic: "", description: "", guidance: "", manual_hook_selection: false, search_query_generation: false, agent: "news" }]);
+              }}
+              className="text-xs text-muted-foreground hover:text-foreground h-7 px-2.5 cursor-pointer shrink-0"
+            >
+              Reset to Blank
+            </Button>
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-8">
           
@@ -377,5 +447,20 @@ export default function CreateThreadPage() {
         </form>
       </div>
     </div>
+  );
+}
+
+export default function CreateThreadPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex-1 w-full py-20 px-4 flex items-center justify-center text-muted-foreground">
+          <Loader2 className="w-6 h-6 animate-spin text-violet-500 mr-2" />
+          <span className="text-sm font-medium">Loading thread creator...</span>
+        </div>
+      }
+    >
+      <CreateThreadForm />
+    </Suspense>
   );
 }

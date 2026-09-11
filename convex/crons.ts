@@ -19,5 +19,13 @@ crons.interval(
   { retentionDays: 7 }
 );
 
+// Scan real-time Google Trends every 15 minutes to detect emerging trends and alert users
+crons.interval(
+  "detect-emerging-real-time-trends-15-min",
+  { minutes: 15 },
+  internal.actions.trendAlertActions.detectAndNotifyEmergingTrendsCron,
+  {}
+);
+
 // Crons configuration
 export default crons;

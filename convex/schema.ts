@@ -118,6 +118,9 @@ export default defineSchema(
         href: v.optional(v.string()),
         error: v.optional(v.string()),
         postIds: v.optional(v.array(v.string())),
+        trendKeyword: v.optional(v.string()),
+        traffic: v.optional(v.number()),
+        growthRate: v.optional(v.number()),
       }),
       source: v.optional(v.object({
         type: v.string(),
@@ -135,6 +138,34 @@ export default defineSchema(
       .index("by_userId_unseen", ["userId", "isDismissed", "isSeen"])
       .index("by_userId_dedupe", ["userId", "dedupeKey"])
       .index("by_dismissed_at", ["isDismissed", "dismissedAt"]),
+    trendTracker: defineTable({
+      keyword: v.string(),
+      geo: v.string(),
+      traffic: v.number(),
+      trafficGrowthRate: v.number(),
+      startedAtMs: v.number(),
+      firstSeenAt: v.number(),
+      lastEvaluatedAt: v.number(),
+      emergenceScore: v.number(),
+      tier: v.string(),
+      notifiedAt: v.optional(v.number()),
+      relatedKeywords: v.optional(v.array(v.string())),
+    })
+      .index("by_keyword_geo", ["keyword", "geo"])
+      .index("by_last_evaluated", ["lastEvaluatedAt"]),
+    trendFilterSettings: defineTable({
+      userId: v.id("users"),
+      enabled: v.boolean(),
+      minGrowthRate: v.number(),
+      selectedNiches: v.array(v.string()),
+      whitelistKeywords: v.array(v.string()),
+      blacklistKeywords: v.array(v.string()),
+      desktopPushEnabled: v.boolean(),
+      quietHoursEnabled: v.boolean(),
+      quietHoursStart: v.optional(v.string()),
+      quietHoursEnd: v.optional(v.string()),
+      updatedAt: v.number(),
+    }).index("by_userId", ["userId"]),
   },
   // If you ever get an error about schema mismatch
   // between your data and your schema, and you cannot

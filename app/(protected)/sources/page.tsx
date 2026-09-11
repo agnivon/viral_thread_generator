@@ -7,7 +7,8 @@ import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { api } from "@/convex/_generated/api";
-import { useAction } from "convex/react";
+import { useAction, useQuery as useConvexQuery } from "convex/react";
+import { matchesUserPreferences } from "@/convex/lib/nicheClassifier";
 import {
   ChevronRight,
   Clock,
@@ -15,6 +16,7 @@ import {
   Newspaper,
   RefreshCw,
   Search,
+  Sparkles,
   TrendingUp,
   X,
 } from "lucide-react";
@@ -98,9 +100,11 @@ export default function SourcesPage() {
 
   const [keywordSearch, setKeywordSearch] = useState<string>("");
   const [sortMode, setSortMode] = useState<SortMode>("relevance");
+  const [onlyMyNiches, setOnlyMyNiches] = useState<boolean>(false);
   const [currentPage, setCurrentPage] = useState<number>(1);
   const pageSize = 50;
 
+  const userSettings = useConvexQuery(api.trendFilterSettings.getSettings);
   const getTrendingKeywordsAction = useAction(api.actions.googleTrendsNewsActions.getTrendingKeywords);
 
   const {
@@ -127,6 +131,21 @@ export default function SourcesPage() {
   // Filter and sort keywords
   const filteredKeywords = useMemo(() => {
     let result = googleKeywords;
+    if (onlyMyNiches && userSettings) {
+      result = result.filter((item) =>
+        matchesUserPreferences(
+          {
+            keyword: item.keyword,
+            trafficGrowthRate: item.trafficGrowthRate ?? 0,
+            relatedKeywords: item.relatedKeywords,
+          },
+          {
+            ...userSettings,
+            enabled: true, // evaluate filtering rules for sources view regardless of notification master toggle
+          }
+        )
+      );
+    }
     if (keywordSearch.trim()) {
       const term = keywordSearch.trim().toLowerCase();
       result = result.filter(
@@ -150,12 +169,12 @@ export default function SourcesPage() {
       }
       return 0;
     });
-  }, [googleKeywords, keywordSearch, sortMode]);
+  }, [googleKeywords, keywordSearch, sortMode, onlyMyNiches, userSettings]);
 
-  // Reset page when search or sort changes
-  useMemo(() => {
+  // Reset page when search, sort, or niche filter changes
+  useEffect(() => {
     setCurrentPage(1);
-  }, [keywordSearch, sortMode]);
+  }, [keywordSearch, sortMode, onlyMyNiches]);
 
   // Pagination for page size 50
   const totalPages = Math.max(1, Math.ceil(filteredKeywords.length / pageSize));
@@ -227,9 +246,26 @@ export default function SourcesPage() {
             )}
           </div>
 
-          {/* Sort Buttons */}
-          <div className="flex items-center gap-1 text-xs font-medium bg-background/60 p-1 rounded-xl border border-border/50 self-start sm:self-auto">
-            <span className="text-[11px] text-muted-foreground px-2 hidden md:inline font-semibold">Sort:</span>
+          <div className="flex items-center gap-2 flex-wrap self-start sm:self-auto">
+            {/* My Niches Toggle Button */}
+            <button
+              type="button"
+              onClick={() => setOnlyMyNiches(!onlyMyNiches)}
+              className={`py-1.5 px-3 rounded-xl text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 border ${
+                onlyMyNiches
+                  ? "bg-violet-600 text-white border-violet-600 shadow-xs"
+                  : "bg-background/60 text-muted-foreground border-border/50 hover:bg-muted/40 hover:text-foreground"
+              }`}
+              title="Filter by your configured niches and keywords in Settings"
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>My Niches</span>
+              {onlyMyNiches && <span className="h-1.5 w-1.5 rounded-full bg-white ml-0.5" />}
+            </button>
+
+            {/* Sort Buttons */}
+            <div className="flex items-center gap-1 text-xs font-medium bg-background/60 p-1 rounded-xl border border-border/50">
+              <span className="text-[11px] text-muted-foreground px-2 hidden md:inline font-semibold">Sort:</span>
             <button
               type="button"
               onClick={() => setSortMode("relevance")}
@@ -276,6 +312,7 @@ export default function SourcesPage() {
             </button>
           </div>
         </div>
+      </div>
 
         {/* Full-Width Keyword Cards List */}
         <div className="space-y-3.5 w-full">

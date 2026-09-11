@@ -14,19 +14,7 @@ export default function AccessTokensPage() {
   });
 
   return (
-    <div className="container mx-auto px-4 py-12 max-w-4xl space-y-10">
-      {/* Header Section */}
-      <div className="space-y-2 border-b border-border/30 pb-6">
-        <h1 className="text-4xl font-extrabold tracking-tight">
-          <span className="bg-linear-to-r from-violet-600 to-indigo-600 bg-clip-text text-transparent dark:from-violet-400 dark:to-indigo-400">
-            Access Tokens
-          </span>
-        </h1>
-        <p className="text-muted-foreground text-sm sm:text-base">
-          Manage your external platform credentials and API connections securely.
-        </p>
-      </div>
-
+    <div className="space-y-6">
       <Card className="group relative overflow-hidden bg-card/45 backdrop-blur-xs border-border/80 hover:border-violet-500/30 hover:shadow-lg transition-all duration-300">
         {/* Accent Highlight Line on Card Hover */}
         <div className="absolute top-0 left-0 w-1 h-full bg-linear-to-b from-violet-600 to-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />

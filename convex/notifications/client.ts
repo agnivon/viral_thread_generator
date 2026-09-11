@@ -6,7 +6,8 @@ export type NotificationKind =
   | "thread_hook_selection_required"
   | "thread_generation_failed"
   | "thread_publication_success"
-  | "thread_publication_failed";
+  | "thread_publication_failed"
+  | "emerging_trend_alert";
 
 export interface NotificationPayloadData {
   threadId?: string;
@@ -15,6 +16,9 @@ export interface NotificationPayloadData {
   href?: string;
   error?: string;
   postIds?: string[];
+  trendKeyword?: string;
+  traffic?: number;
+  growthRate?: number;
 }
 
 export interface CreateNotificationArgs {

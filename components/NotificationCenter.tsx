@@ -13,6 +13,7 @@ import {
   Trash2,
   ExternalLink,
   Laptop,
+  TrendingUp,
 } from "lucide-react";
 import {
   Popover,
@@ -49,6 +50,13 @@ function formatRelativeTime(timestamp: number): string {
 }
 
 function getNotificationIcon(kind: string) {
+  if (kind === "emerging_trend_alert") {
+    return (
+      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500/20 to-violet-500/20 text-amber-500 dark:text-amber-400 border border-amber-500/30 shadow-xs">
+        <TrendingUp className="h-4 w-4 text-amber-500" />
+      </div>
+    );
+  }
   if (kind === "thread_hook_selection_required") {
     return (
       <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400">
@@ -270,13 +278,18 @@ export function NotificationCenter() {
                       {item.data.body}
                     </p>
                   )}
-                  <div className="flex items-center gap-2 pt-0.5">
+                  <div className="flex items-center gap-2 pt-0.5 flex-wrap">
                     <span className="text-[10px] text-muted-foreground/70 font-medium">
                       {formatRelativeTime(item.createdAt)}
                     </span>
+                    {item.kind === "emerging_trend_alert" && (
+                      <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                        ⚡ Emerging Trend
+                      </span>
+                    )}
                     {item.data.href && (
-                      <span className="inline-flex items-center gap-0.5 text-[10px] text-violet-600 dark:text-violet-400 font-semibold group-hover:underline">
-                        View <ExternalLink className="h-2.5 w-2.5" />
+                      <span className="inline-flex items-center gap-0.5 text-[10px] text-violet-600 dark:text-violet-400 font-semibold group-hover:underline ml-auto">
+                        {item.kind === "emerging_trend_alert" ? "Draft Thread" : "View"} <ExternalLink className="h-2.5 w-2.5" />
                       </span>
                     )}
                   </div>

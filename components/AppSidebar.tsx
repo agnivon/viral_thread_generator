@@ -27,7 +27,7 @@ export function AppSidebar() {
     { name: "Create", href: "/threads/create", icon: PenSquare },
     { name: "Sources", href: "/sources", icon: Globe },
     { name: "Drafts", href: "/threads/drafts", icon: FileText },
-    { name: "Settings", href: "/settings/access-tokens", icon: Settings },
+    { name: "Settings", href: "/settings/trend-alerts", icon: Settings },
   ];
 
   return (

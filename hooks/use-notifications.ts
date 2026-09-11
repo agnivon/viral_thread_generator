@@ -15,6 +15,9 @@ export interface NotificationPayload {
   error?: string;
   postIds?: string[];
   href?: string;
+  trendKeyword?: string;
+  traffic?: number;
+  growthRate?: number;
 }
 
 export type NotificationKind =
@@ -22,7 +25,8 @@ export type NotificationKind =
   | "thread_hook_selection_required"
   | "thread_generation_failed"
   | "thread_publication_success"
-  | "thread_publication_failed";
+  | "thread_publication_failed"
+  | "emerging_trend_alert";
 
 export interface AppNotificationItem {
   _id: Id<"notifications">;

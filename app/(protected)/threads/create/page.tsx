@@ -2,6 +2,7 @@
 
 import { useState, useEffect, Suspense } from "react";
 import { useAction } from "convex/react";
+import { useMutation } from "@tanstack/react-query";
 import { api } from "@/convex/_generated/api";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -52,11 +53,35 @@ function CreateThreadForm() {
       agent: urlAgent,
     },
   ]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
   const enqueueThreadGeneration = useAction(api.actions.threadsActions.enqueueThreadGeneration);
   const router = useRouter();
+
+  const [error, setError] = useState<string | null>(null);
+
+  const createMutation = useMutation({
+    mutationFn: async (payload: {
+      requests: Array<{
+        input_field:
+          | { agent: "topic"; topic: string; description?: string }
+          | { agent: "news" | "social_media"; url: string };
+        guidance?: string;
+        manual_hook_selection?: boolean;
+        search_query_generation?: boolean;
+      }>;
+    }) => {
+      return await enqueueThreadGeneration(payload);
+    },
+    onSuccess: () => {
+      router.push("/threads/drafts");
+    },
+    onError: (err: unknown) => {
+      console.error("Failed to enqueue thread generation:", err);
+      const message = err instanceof Error ? err.message : "Failed to start thread generation. Please try again.";
+      setError(message);
+    },
+  });
+
+  const isLoading = createMutation.isPending;
 
   useEffect(() => {
     if (urlTopic || urlUrl) {
@@ -92,7 +117,7 @@ function CreateThreadForm() {
     setEntries(newEntries);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const validEntries = entries.filter((entry) => {
       if (entry.agent === "topic") return (entry.topic || "").trim() !== "";
@@ -100,40 +125,30 @@ function CreateThreadForm() {
     });
     if (validEntries.length === 0) return;
 
-    setIsLoading(true);
     setError(null);
 
-    try {
-      // Trigger thread generation enqueuing
-      await enqueueThreadGeneration({ 
-        requests: validEntries.map(entry => {
-          const input_field = entry.agent === "topic"
-            ? {
-                agent: "topic" as const,
-                topic: entry.topic || "",
-                ...(entry.description?.trim() ? { description: entry.description.trim() } : {}),
-              }
-            : {
-                agent: entry.agent as "news" | "social_media",
-                url: entry.url || "",
-              };
+    const requests = validEntries.map((entry) => {
+      const input_field =
+        entry.agent === "topic"
+          ? {
+              agent: "topic" as const,
+              topic: entry.topic || "",
+              ...(entry.description?.trim() ? { description: entry.description.trim() } : {}),
+            }
+          : {
+              agent: entry.agent as "news" | "social_media",
+              url: entry.url || "",
+            };
 
-          return {
-            input_field,
-            guidance: entry.guidance || undefined,
-            manual_hook_selection: entry.manual_hook_selection,
-            search_query_generation: entry.search_query_generation,
-          };
-        }) 
-      });
-      // Redirect to drafts list page
-      router.push("/threads/drafts");
-    } catch (err: unknown) {
-      console.error("Failed to enqueue thread generation:", err);
-      const message = err instanceof Error ? err.message : "Failed to start thread generation. Please try again.";
-      setError(message);
-      setIsLoading(false);
-    }
+      return {
+        input_field,
+        guidance: entry.guidance || undefined,
+        manual_hook_selection: entry.manual_hook_selection,
+        search_query_generation: entry.search_query_generation,
+      };
+    });
+
+    createMutation.mutate({ requests });
   };
 
   return (

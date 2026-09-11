@@ -47,11 +47,8 @@ export interface KeywordItem {
   articleKeys?: [number, string, string][];
 }
 
-export const sourcesQueryKeys = {
-  all: ["news"] as const,
-  bySourceKeyword: (sourceId: string, keyword: string) => ["news", sourceId, keyword] as const,
-  keywords: (sourceId: string) => ["keywords", sourceId] as const,
-};
+import { sourcesQueryKeys } from "@/lib/query-keys";
+export { sourcesQueryKeys };
 
 // --- Google Trends Formatter Utilities ---
 

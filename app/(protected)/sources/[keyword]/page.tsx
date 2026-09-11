@@ -27,7 +27,9 @@ import { api } from "@/convex/_generated/api";
 import { useAction } from "convex/react";
 import {
   AlertCircle,
+  ArrowDown,
   ArrowLeft,
+  ArrowUp,
   Calendar,
   ChevronDown,
   ChevronUp,
@@ -44,10 +46,10 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
+import { sourcesQueryKeys } from "@/lib/query-keys";
 import {
   Article,
   KeywordItem,
-  sourcesQueryKeys,
   formatSearchVolume,
   formatGrowthRate,
   formatStartedAgo,
@@ -64,6 +66,7 @@ export default function KeywordDetailPage() {
 
   const [selectedArticle, setSelectedArticle] = useState<Article | null>(null);
   const [articleFilter, setArticleFilter] = useState<string>("");
+  const [dateSortOrder, setDateSortOrder] = useState<"newest" | "oldest">("newest");
   const [activeQueryChip, setActiveQueryChip] = useState<string>("");
   const [showAllBreakdown, setShowAllBreakdown] = useState<boolean>(false);
 
@@ -77,8 +80,12 @@ export default function KeywordDetailPage() {
     refetch: refetchKeywords,
   } = useQuery<KeywordItem[]>({
     queryKey: sourcesQueryKeys.keywords("googleTrends"),
-    queryFn: async () => await getTrendingKeywordsAction({}),
+    queryFn: async (): Promise<KeywordItem[]> => {
+      const result = await getTrendingKeywordsAction({});
+      return result ?? [];
+    },
     staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
   });
 
   const currentKeywordObj = useMemo(() => {
@@ -103,6 +110,8 @@ export default function KeywordDetailPage() {
     return `/threads/create?topic=${encodeURIComponent(topic)}&description=${encodeURIComponent(desc)}&agent=topic`;
   }, [displayKeyword, currentKeywordObj]);
 
+  const hasArticleKeys = Boolean(currentKeywordObj?.articleKeys && currentKeywordObj.articleKeys.length > 0);
+
   // Fetch articles linked to this keyword directly from Google Trends
   const {
     data: articles = [],
@@ -111,16 +120,18 @@ export default function KeywordDetailPage() {
     refetch: refetchArticles,
     isFetching: isArticlesFetching,
   } = useQuery<Article[]>({
-    queryKey: sourcesQueryKeys.bySourceKeyword("googleTrends", keywordSlug),
+    queryKey: sourcesQueryKeys.bySourceKeyword("googleTrends", keywordSlug, hasArticleKeys),
     queryFn: async (): Promise<Article[]> => {
       const kw = currentKeywordObj?.keyword || decodeURIComponent(keywordSlug);
-      return await fetchArticlesAction({
+      const results = await fetchArticlesAction({
         keyword: kw,
         articleKeys: currentKeywordObj?.articleKeys,
       });
+      return results ?? [];
     },
     enabled: Boolean(keywordSlug),
     staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
   });
 
   const handleSync = async () => {
@@ -150,9 +161,9 @@ export default function KeywordDetailPage() {
     }
   };
 
-  // Filter articles based on text search or selected breakdown query chip
+  // Filter and sort articles based on text search, query chip, and published date
   const filteredArticles = useMemo(() => {
-    let list = articles;
+    let list = [...articles];
     if (activeQueryChip) {
       const chipLower = activeQueryChip.toLowerCase();
       list = list.filter(
@@ -169,8 +180,26 @@ export default function KeywordDetailPage() {
           a.description.toLowerCase().includes(filterLower)
       );
     }
+
+    const getTimestamp = (a: Article): number => {
+      if (typeof a.published_at === "number" && !isNaN(a.published_at)) {
+        return a.published_at;
+      }
+      if (a.published) {
+        const parsed = new Date(a.published).getTime();
+        if (!isNaN(parsed)) return parsed;
+      }
+      return 0;
+    };
+
+    list.sort((a, b) => {
+      const timeA = getTimestamp(a);
+      const timeB = getTimestamp(b);
+      return dateSortOrder === "newest" ? timeB - timeA : timeA - timeB;
+    });
+
     return list;
-  }, [articles, activeQueryChip, articleFilter]);
+  }, [articles, activeQueryChip, articleFilter, dateSortOrder]);
 
   const growthInfo = formatGrowthRate(currentKeywordObj?.trafficGrowthRate);
   const breakdownList = currentKeywordObj?.relatedKeywords || [];
@@ -381,22 +410,58 @@ export default function KeywordDetailPage() {
               </CardDescription>
             </div>
 
-            <div className="relative max-w-xs w-full">
-              <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground/60" />
-              <Input
-                placeholder="Filter articles..."
-                value={articleFilter}
-                onChange={(e) => setArticleFilter(e.target.value)}
-                className="h-8 pl-8 text-xs bg-background/60 border-border/60 rounded-lg"
-              />
-              {articleFilter && (
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 w-full sm:w-auto">
+              {/* Date Sort Controls */}
+              <div className="flex items-center gap-1 bg-background/60 p-1 rounded-xl border border-border/60 text-xs shrink-0 self-start sm:self-auto shadow-2xs">
+                <span className="text-[11px] font-semibold text-muted-foreground px-1.5 hidden md:inline-flex items-center gap-1">
+                  <Calendar className="w-3 h-3 text-muted-foreground/70" />
+                  Date:
+                </span>
                 <button
-                  onClick={() => setArticleFilter("")}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer"
+                  type="button"
+                  onClick={() => setDateSortOrder("newest")}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all cursor-pointer flex items-center gap-1 ${
+                    dateSortOrder === "newest"
+                      ? "bg-violet-600 text-white font-bold shadow-xs"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
+                  }`}
+                  title="Sort Newest First"
                 >
-                  <X className="w-3 h-3" />
+                  <ArrowDown className="w-3 h-3" />
+                  <span>Newest</span>
                 </button>
-              )}
+                <button
+                  type="button"
+                  onClick={() => setDateSortOrder("oldest")}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all cursor-pointer flex items-center gap-1 ${
+                    dateSortOrder === "oldest"
+                      ? "bg-violet-600 text-white font-bold shadow-xs"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
+                  }`}
+                  title="Sort Oldest First"
+                >
+                  <ArrowUp className="w-3 h-3" />
+                  <span>Oldest</span>
+                </button>
+              </div>
+
+              <div className="relative max-w-xs w-full">
+                <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground/60" />
+                <Input
+                  placeholder="Filter articles..."
+                  value={articleFilter}
+                  onChange={(e) => setArticleFilter(e.target.value)}
+                  className="h-8 pl-8 text-xs bg-background/60 border-border/60 rounded-lg"
+                />
+                {articleFilter && (
+                  <button
+                    onClick={() => setArticleFilter("")}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                )}
+              </div>
             </div>
           </CardHeader>
 
@@ -437,8 +502,22 @@ export default function KeywordDetailPage() {
                       <TableHead className="p-3 font-bold text-xs uppercase tracking-wider text-muted-foreground/80 w-[25%]">
                         Source
                       </TableHead>
-                      <TableHead className="p-3 font-bold text-xs uppercase tracking-wider text-muted-foreground/80 w-[15%]">
-                        Published
+                      <TableHead className="p-3 font-bold text-xs uppercase tracking-wider text-muted-foreground/80 w-[18%]">
+                        <button
+                          type="button"
+                          onClick={() => setDateSortOrder((prev) => (prev === "newest" ? "oldest" : "newest"))}
+                          className="inline-flex items-center gap-1.5 hover:text-foreground transition-colors cursor-pointer group focus-visible:outline-none"
+                          title={`Sort by published date (${dateSortOrder === "newest" ? "currently newest first" : "currently oldest first"}). Click to toggle.`}
+                        >
+                          <span>Published</span>
+                          <span className="p-0.5 rounded bg-muted/60 text-violet-600 dark:text-violet-400 group-hover:bg-violet-500/10">
+                            {dateSortOrder === "newest" ? (
+                              <ArrowDown className="w-3 h-3" />
+                            ) : (
+                              <ArrowUp className="w-3 h-3" />
+                            )}
+                          </span>
+                        </button>
                       </TableHead>
                       <TableHead className="p-3 font-bold text-xs uppercase tracking-wider text-muted-foreground/80 w-[10%] text-right">
                         Link

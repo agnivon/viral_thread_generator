@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { useQuery as useConvexQuery, useMutation as useConvexMutation, useAction } from "convex/react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { api } from "@/convex/_generated/api";
 import { toast } from "sonner";
 import {
@@ -32,19 +32,8 @@ import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { ActiveTrend } from "@/convex/actions/googleTrendsNewsActions";
 import { classifyTrendNiches, matchesUserPreferences } from "@/convex/lib/nicheClassifier";
-import { sourcesQueryKeys } from "@/app/(protected)/sources/page";
-
-export const trendAlertsQueryKeys = {
-  all: ["trendAlerts"] as const,
-  settings: () => ["trendAlerts", "settings"] as const,
-  liveTrends: (_geo: string = "US") => sourcesQueryKeys.keywords("googleTrends"),
-  preview: (filters: {
-    minGrowthRate: number;
-    selectedNiches: string[];
-    whitelistKeywords: string[];
-    blacklistKeywords: string[];
-  }) => ["trendAlerts", "preview", filters] as const,
-};
+import { sourcesQueryKeys, trendAlertsQueryKeys } from "@/lib/query-keys";
+export { trendAlertsQueryKeys };
 
 const NICHE_ICONS: Record<string, React.ElementType> = {
   tech_ai: Bot,
@@ -58,12 +47,12 @@ const NICHE_ICONS: Record<string, React.ElementType> = {
 };
 
 export default function TrendAlertsSettingsPage() {
-  const queryClient = useQueryClient();
   const settings = useConvexQuery(api.trendFilterSettings.getSettings);
   const nichesList = useConvexQuery(api.trendFilterSettings.getNichesList);
   const updateSettingsConvex = useConvexMutation(api.trendFilterSettings.updateSettings);
   const getTrendingKeywordsAction = useAction(api.actions.googleTrendsNewsActions.getTrendingKeywords);
 
+  const [isSaving, setIsSaving] = useState<boolean>(false);
   const [enabled, setEnabled] = useState<boolean>(false);
   const [minGrowthRate, setMinGrowthRate] = useState<number>(150);
   const [selectedNiches, setSelectedNiches] = useState<string[]>([]);
@@ -91,11 +80,12 @@ export default function TrendAlertsSettingsPage() {
     refetch: refetchLiveTrends,
   } = useQuery<ActiveTrend[]>({
     queryKey: trendAlertsQueryKeys.liveTrends("US"),
-    queryFn: async () => {
+    queryFn: async (): Promise<ActiveTrend[]> => {
       const results = await getTrendingKeywordsAction({ geo: "US" });
       return results ?? [];
     },
     staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
   });
 
   // Compute live matching trends synchronously from TanStack Query cached trends
@@ -158,30 +148,28 @@ export default function TrendAlertsSettingsPage() {
     blacklistKeywords,
   ]);
 
-  // TanStack Query: Mutation for saving trend filter preferences
-  const { mutate: saveSettings, isPending: isSaving } = useMutation({
-    mutationFn: async (payload: {
-      enabled: boolean;
-      minGrowthRate: number;
-      selectedNiches: string[];
-      whitelistKeywords: string[];
-      blacklistKeywords: string[];
-      desktopPushEnabled?: boolean;
-      quietHoursEnabled?: boolean;
-    }) => {
-      return await updateSettingsConvex(payload);
-    },
-    onSuccess: () => {
+  // Direct Convex mutation handler for saving trend filter preferences
+  const saveSettings = async (payload: {
+    enabled: boolean;
+    minGrowthRate: number;
+    selectedNiches: string[];
+    whitelistKeywords: string[];
+    blacklistKeywords: string[];
+    desktopPushEnabled?: boolean;
+    quietHoursEnabled?: boolean;
+  }) => {
+    try {
+      setIsSaving(true);
+      await updateSettingsConvex(payload);
       toast.success("Trend alert preferences saved successfully!");
-      void queryClient.invalidateQueries({
-        queryKey: trendAlertsQueryKeys.all,
-      });
-    },
-    onError: (err: Error) => {
+    } catch (err: unknown) {
       console.error("Failed to save settings:", err);
-      toast.error(err.message || "Failed to save settings. Please try again.");
-    },
-  });
+      const message = err instanceof Error ? err.message : "Failed to save settings. Please try again.";
+      toast.error(message);
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   const handleToggleNiche = (nicheId: string) => {
     setSelectedNiches((prev) =>

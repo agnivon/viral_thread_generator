@@ -2,15 +2,19 @@ import { useQuery } from "@tanstack/react-query";
 import { useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { ExternalLink, Globe } from "lucide-react";
+import { linkPreviewKeys } from "@/lib/query-keys";
+
+export interface UrlMetadata {
+  title: string;
+  description: string;
+  image: string;
+}
 
 interface LinkPreviewCardProps {
   url: string;
 }
 
-export const linkPreviewKeys = {
-  all: ["urlMetadata"] as const,
-  byUrl: (url: string) => ["urlMetadata", url] as const,
-};
+export { linkPreviewKeys };
 
 export function LinkPreviewCard({ url }: LinkPreviewCardProps) {
   const fetchMetadata = useAction(api.actions.threadsActions.getUrlMetadata);
@@ -45,14 +49,16 @@ export function LinkPreviewCard({ url }: LinkPreviewCardProps) {
   }
 
   // Fetch OpenGraph metadata via TanStack Query and Convex Action
-  const { data: metadata, isLoading: loading } = useQuery({
+  const { data: metadata, isLoading: loading } = useQuery<UrlMetadata | null>({
     queryKey: linkPreviewKeys.byUrl(url),
-    queryFn: async () => {
+    queryFn: async (): Promise<UrlMetadata | null> => {
       if (!url || !url.startsWith("http")) return null;
-      return await fetchMetadata({ url });
+      const result = await fetchMetadata({ url });
+      return result ?? null;
     },
     enabled: Boolean(url && url.startsWith("http")),
     staleTime: 1000 * 60 * 10, // Cache for 10 minutes
+    gcTime: 1000 * 60 * 15, // Retain in cache for 15 minutes (>= staleTime)
   });
 
   // Use OpenGraph data if loaded, otherwise fallback to parsed title/desc

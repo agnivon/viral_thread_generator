@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { usePaginatedQuery, useAction } from "convex/react";
+import { useMutation } from "@tanstack/react-query";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -38,9 +39,41 @@ export default function DraftsPage() {
   const retryGeneration = useAction(api.actions.threadsActions.enqueueThreadRetry);
 
   const [selectedDrafts, setSelectedDrafts] = useState<Set<Id<"threadDrafts">>>(new Set());
-  const [isPublishing, setIsPublishing] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
   const [retryingIds, setRetryingIds] = useState<Set<Id<"threadDrafts">>>(new Set());
+
+  const bulkPublishMutation = useMutation({
+    mutationFn: async (validIds: Id<"threadDrafts">[]) => {
+      return await enqueuePublication({ requests: validIds.map((id) => ({ id })) });
+    },
+    onSuccess: (_, validIds) => {
+      toast.success(`Publication queued for ${validIds.length} threads!`);
+      setSelectedDrafts(new Set());
+    },
+    onError: (err: unknown) => {
+      console.error("Failed to publish:", err);
+      const message = err instanceof Error ? err.message : "Unknown error";
+      toast.error(`Failed to publish: ${message}`);
+    },
+  });
+
+  const bulkDeleteMutation = useMutation({
+    mutationFn: async (idsToDelete: Id<"threadDrafts">[]) => {
+      await Promise.all(idsToDelete.map((id) => deleteDraft({ id })));
+      return idsToDelete;
+    },
+    onSuccess: (idsToDelete) => {
+      toast.success(`Successfully deleted ${idsToDelete.length} thread draft(s).`);
+      setSelectedDrafts(new Set());
+    },
+    onError: (err: unknown) => {
+      console.error("Failed to delete:", err);
+      const message = err instanceof Error ? err.message : "Unknown error";
+      toast.error(`Failed to delete: ${message}`);
+    },
+  });
+
+  const isPublishing = bulkPublishMutation.isPending;
+  const isDeleting = bulkDeleteMutation.isPending;
 
   const handleRetry = async (id: Id<"threadDrafts">) => {
     try {
@@ -83,7 +116,7 @@ export default function DraftsPage() {
     }
   };
 
-  const handleBulkPublish = async () => {
+  const handleBulkPublish = () => {
     const validIds = Array.from(selectedDrafts).filter(id => {
       const draft = drafts.find(d => d._id === id);
       return draft && !draft.is_published && draft.publication_status !== "publishing" && draft.publication_status !== "queued" && (draft.generation_status ?? "success") === "success";
@@ -94,21 +127,10 @@ export default function DraftsPage() {
       return;
     }
 
-    try {
-      setIsPublishing(true);
-      await enqueuePublication({ requests: validIds.map(id => ({ id })) });
-      toast.success(`Publication queued for ${validIds.length} threads!`);
-      setSelectedDrafts(new Set());
-    } catch (err: unknown) {
-      console.error(err);
-      const message = err instanceof Error ? err.message : "Unknown error";
-      toast.error(`Failed to publish: ${message}`);
-    } finally {
-      setIsPublishing(false);
-    }
+    bulkPublishMutation.mutate(validIds);
   };
 
-  const handleBulkDelete = async () => {
+  const handleBulkDelete = () => {
     if (selectedDrafts.size === 0) return;
 
     const confirmDelete = window.confirm(
@@ -116,23 +138,8 @@ export default function DraftsPage() {
     );
     if (!confirmDelete) return;
 
-    try {
-      setIsDeleting(true);
-      const idsToDelete = Array.from(selectedDrafts);
-
-      await Promise.all(
-        idsToDelete.map((id) => deleteDraft({ id }))
-      );
-
-      toast.success(`Successfully deleted ${idsToDelete.length} thread draft(s).`);
-      setSelectedDrafts(new Set());
-    } catch (err: unknown) {
-      console.error(err);
-      const message = err instanceof Error ? err.message : "Unknown error";
-      toast.error(`Failed to delete: ${message}`);
-    } finally {
-      setIsDeleting(false);
-    }
+    const idsToDelete = Array.from(selectedDrafts);
+    bulkDeleteMutation.mutate(idsToDelete);
   };
 
   const formatDate = (timestamp: number) => {

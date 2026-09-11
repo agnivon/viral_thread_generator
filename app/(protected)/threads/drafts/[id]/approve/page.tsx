@@ -40,9 +40,6 @@ export default function ApproveDraftPage() {
   const retryGeneration = useAction(api.actions.threadsActions.enqueueThreadRetry);
   const resumeAction = useAction(api.actions.threadsActions.enqueueThreadResume);
 
-  const [isPublishing, setIsPublishing] = useState(false);
-  const [isRegenerating, setIsRegenerating] = useState(false);
-  const [isRetrying, setIsRetrying] = useState(false);
   const [hasCopied, setHasCopied] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
@@ -117,11 +114,73 @@ export default function ApproveDraftPage() {
       toast.success("Generation resumed! The thread draft is being generated.");
       router.push("/threads/drafts");
     },
-    onError: (err: Error) => {
+    onError: (err: unknown) => {
       console.error("Failed to resume generation:", err);
-      toast.error(`Failed to resume: ${err.message || "Unknown error"}`);
-    }
+      const message = err instanceof Error ? err.message : "Unknown error";
+      toast.error(`Failed to resume: ${message}`);
+    },
   });
+
+  const publishMutation = useMutation({
+    mutationFn: async (payload: {
+      requests: Array<{
+        id: Id<"threadDrafts">;
+        modified_thread?: string[];
+        images?: Record<string, string>;
+        videos?: Record<string, string>;
+      }>;
+    }) => {
+      return await enqueuePublication(payload);
+    },
+    onSuccess: () => {
+      toast.success("Publication queued! The thread is being published to Threads.");
+      setIsEditingPosts(false);
+    },
+    onError: (err: unknown) => {
+      console.error("Failed to publish:", err);
+      const message = err instanceof Error ? err.message : "Unknown error";
+      toast.error(`Failed to publish: ${message}`);
+    },
+  });
+
+  const regenerateMutation = useMutation({
+    mutationFn: async (payload: {
+      ids: Id<"threadDrafts">[];
+      guidance?: string;
+      manual_hook_selection?: boolean;
+      search_query_generation?: boolean;
+    }) => {
+      return await enqueueRegeneration(payload);
+    },
+    onSuccess: () => {
+      toast.success("Regeneration queued! The thread is being regenerated.");
+      setIsDialogOpen(false);
+      router.push("/threads/drafts");
+    },
+    onError: (err: unknown) => {
+      console.error("Failed to regenerate:", err);
+      const message = err instanceof Error ? err.message : "Unknown error";
+      toast.error(`Failed to regenerate: ${message}`);
+    },
+  });
+
+  const retryMutation = useMutation({
+    mutationFn: async (payload: { ids: Id<"threadDrafts">[] }) => {
+      return await retryGeneration(payload);
+    },
+    onSuccess: () => {
+      toast.success("Thread generation retry enqueued!");
+    },
+    onError: (err: unknown) => {
+      console.error("Failed to retry generation:", err);
+      const message = err instanceof Error ? err.message : "Unknown error";
+      toast.error(`Failed to retry generation: ${message}`);
+    },
+  });
+
+  const isPublishing = publishMutation.isPending;
+  const isRegenerating = regenerateMutation.isPending;
+  const isRetrying = retryMutation.isPending;
 
   const handleConfirmHook = async () => {
     if (!editedHookText.trim()) {
@@ -130,76 +189,50 @@ export default function ApproveDraftPage() {
     }
     resumeMutation.mutate({
       recordId: id,
-      selected_hook: editedHookText.trim()
+      selected_hook: editedHookText.trim(),
     });
   };
 
-  const handlePublish = async () => {
-    try {
-      setIsPublishing(true);
+  const handlePublish = () => {
+    const formValues = getValues();
+    const currentPosts = (formValues.posts || []).map((p) => p.content);
 
-      const formValues = getValues();
-      const currentPosts = (formValues.posts || []).map(p => p.content);
+    // Validate 500-character limit
+    const tooLongIndex = currentPosts.findIndex((p) => p.length > 500);
+    if (tooLongIndex !== -1) {
+      toast.error(`Post ${tooLongIndex + 1} exceeds the 500 character limit! Please shorten it.`);
+      return;
+    }
 
-      // Validate 500-character limit
-      const tooLongIndex = currentPosts.findIndex(p => p.length > 500);
-      if (tooLongIndex !== -1) {
-        toast.error(`Post ${tooLongIndex + 1} exceeds the 500 character limit! Please shorten it.`);
-        setIsPublishing(false);
-        return;
-      }
-
-      // Determine if modified
-      let isModified = false;
-      if (state && state.thread_draft) {
-        if (currentPosts.length !== state.thread_draft.length) {
-          isModified = true;
-        } else {
-          for (let i = 0; i < currentPosts.length; i++) {
-            if (currentPosts[i] !== state.thread_draft[i]) {
-              isModified = true;
-              break;
-            }
+    // Determine if modified
+    let isModified = false;
+    if (state && state.thread_draft) {
+      if (currentPosts.length !== state.thread_draft.length) {
+        isModified = true;
+      } else {
+        for (let i = 0; i < currentPosts.length; i++) {
+          if (currentPosts[i] !== state.thread_draft[i]) {
+            isModified = true;
+            break;
           }
         }
       }
-
-      await enqueuePublication({
-        requests: [
-          {
-            id,
-            modified_thread: isModified ? currentPosts : undefined,
-            images: Object.keys(selectedImages).length > 0 ? selectedImages : undefined,
-            videos: Object.keys(selectedVideos).length > 0 ? selectedVideos : undefined,
-          }
-        ]
-      });
-
-      toast.success("Publication queued! The thread is being published to Threads.");
-      setIsEditingPosts(false);
-    } catch (e: unknown) {
-      console.error(e);
-      const message = e instanceof Error ? e.message : "Unknown error";
-      toast.error(`Failed to publish: ${message}`);
-    } finally {
-      setIsPublishing(false);
     }
+
+    publishMutation.mutate({
+      requests: [
+        {
+          id,
+          modified_thread: isModified ? currentPosts : undefined,
+          images: Object.keys(selectedImages).length > 0 ? selectedImages : undefined,
+          videos: Object.keys(selectedVideos).length > 0 ? selectedVideos : undefined,
+        },
+      ],
+    });
   };
 
-
-
-  const handleRetry = async () => {
-    try {
-      setIsRetrying(true);
-      await retryGeneration({ ids: [id] });
-      toast.success("Thread generation retry enqueued!");
-    } catch (err: unknown) {
-      console.error(err);
-      const message = err instanceof Error ? err.message : "Unknown error";
-      toast.error(`Failed to retry generation: ${message}`);
-    } finally {
-      setIsRetrying(false);
-    }
+  const handleRetry = () => {
+    retryMutation.mutate({ ids: [id] });
   };
 
   if (state === undefined) {
@@ -637,25 +670,13 @@ export default function ApproveDraftPage() {
         initialSearchQueryGeneration={state?.search_query_generation || false}
         isRegenerating={isRegenerating}
         onClose={() => setIsDialogOpen(false)}
-        onRegenerate={async (guidance, manualHook, searchQueryGeneration) => {
-          try {
-            setIsRegenerating(true);
-            setIsDialogOpen(false);
-            await enqueueRegeneration({
-              ids: [id],
-              guidance: guidance.trim() || undefined,
-              manual_hook_selection: manualHook,
-              search_query_generation: searchQueryGeneration,
-            });
-            toast.success("Regeneration queued! The thread is being regenerated.");
-            router.push("/threads/drafts");
-          } catch (e: unknown) {
-            console.error(e);
-            const message = e instanceof Error ? e.message : "Unknown error";
-            toast.error(`Failed to regenerate: ${message}`);
-          } finally {
-            setIsRegenerating(false);
-          }
+        onRegenerate={(guidance, manualHook, searchQueryGeneration) => {
+          regenerateMutation.mutate({
+            ids: [id],
+            guidance: guidance.trim() || undefined,
+            manual_hook_selection: manualHook,
+            search_query_generation: searchQueryGeneration,
+          });
         }}
       />
 

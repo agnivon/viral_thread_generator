@@ -76,7 +76,7 @@ export default function KeywordDetailPage() {
     refetch: refetchKeywords,
   } = useQuery<KeywordItem[]>({
     queryKey: sourcesQueryKeys.keywords("googleTrends"),
-    queryFn: async () => (await getTrendingKeywordsAction({})) as KeywordItem[],
+    queryFn: async () => await getTrendingKeywordsAction({}),
     staleTime: 5 * 60 * 1000,
   });
 
@@ -104,10 +104,10 @@ export default function KeywordDetailPage() {
     queryKey: sourcesQueryKeys.bySourceKeyword("googleTrends", keywordSlug),
     queryFn: async (): Promise<Article[]> => {
       const kw = currentKeywordObj?.keyword || decodeURIComponent(keywordSlug);
-      return (await fetchArticlesAction({
+      return await fetchArticlesAction({
         keyword: kw,
         articleKeys: currentKeywordObj?.articleKeys,
-      })) as Article[];
+      });
     },
     enabled: Boolean(keywordSlug),
     staleTime: 5 * 60 * 1000,

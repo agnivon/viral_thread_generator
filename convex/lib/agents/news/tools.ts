@@ -89,7 +89,7 @@ export const TopicContextExpanderTool = tool(
       const response = await client.search(query, {
         searchDepth: "basic",
         includeAnswer: false,
-        topic: topic as "general" | "news" | undefined,
+        topic,
         days: days,
         maxResults: maxResults,
         includeDomains: includeDomains,
@@ -124,7 +124,7 @@ export const ContentAuthenticityCheckerTool = tool(
       const response = await client.search(query, {
         searchDepth: "advanced",
         includeAnswer: true,
-        topic: topic as "general" | "news" | undefined,
+        topic,
         days: days,
         maxResults: maxResults,
         includeDomains: includeDomains,
@@ -162,7 +162,7 @@ export const BackgroundDossierTool = tool(
       const response = await client.search(query, {
         searchDepth: "advanced",
         includeAnswer: true,
-        topic: topic as "general" | "news" | undefined,
+        topic,
         days: days,
         maxResults: maxResults,
         includeDomains: includeDomains,

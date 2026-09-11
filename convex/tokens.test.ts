@@ -4,7 +4,7 @@ import { convexTest } from "convex-test";
 import { expect, test, vi, afterEach, beforeEach } from "vitest";
 import { internal } from "./_generated/api";
 import schema from "./schema";
-import { ThreadsAuthAPI } from "./lib/threads/api";
+import { ThreadsAuthAPI } from "./lib/threads/api.js";
 import http from "./http";
 import { auth } from "./auth";
 

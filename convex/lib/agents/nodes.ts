@@ -56,15 +56,17 @@ export const VisualKeywordStrategistNode = async (
   }
 
   if (parse_success && result?.structuredResponse) {
-    return {
-      search_queries: result.structuredResponse as SearchQueriesType,
-    };
-  } else {
-    console.warn("VisualKeywordStrategistNode output failed");
-    return {
-      search_queries: undefined
-    };
+    const parsed = SearchQueriesSchema.safeParse(result.structuredResponse);
+    if (parsed.success) {
+      return {
+        search_queries: parsed.data,
+      };
+    }
   }
+  console.warn("VisualKeywordStrategistNode output failed");
+  return {
+    search_queries: undefined
+  };
 };
 
 export const OptimizedSearchQuerySchema = z.object({
@@ -114,13 +116,15 @@ export const SearchQueryOptimizerNode = async (
   }
 
   if (parse_success && result?.structuredResponse) {
-    return {
-      optimized_query: (result.structuredResponse as OptimizedSearchQueryType).optimized_query,
-    };
-  } else {
-    console.warn("SearchQueryOptimizerNode output failed");
-    return {
-      optimized_query: undefined
-    };
+    const parsed = OptimizedSearchQuerySchema.safeParse(result.structuredResponse);
+    if (parsed.success) {
+      return {
+        optimized_query: parsed.data.optimized_query,
+      };
+    }
   }
+  console.warn("SearchQueryOptimizerNode output failed");
+  return {
+    optimized_query: undefined
+  };
 };

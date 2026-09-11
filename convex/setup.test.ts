@@ -4,7 +4,7 @@ import { convexTest } from "convex-test";
 import { expect, test, vi } from "vitest";
 import { internal } from "./_generated/api";
 import schema from "./schema";
-import { checkpointSaver } from "./lib/agents/news/graph";
+import { checkpointSaver } from "./lib/agents/news/graph.js";
 
 const modules = import.meta.glob("./**/*.ts");
 

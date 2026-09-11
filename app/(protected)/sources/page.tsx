@@ -114,7 +114,7 @@ export default function SourcesPage() {
     isFetching: isGoogleFetching,
   } = useQuery<KeywordItem[]>({
     queryKey: sourcesQueryKeys.keywords("googleTrends"),
-    queryFn: async () => (await getTrendingKeywordsAction({})) as KeywordItem[],
+    queryFn: async () => await getTrendingKeywordsAction({}),
     staleTime: 5 * 60 * 1000,
   });
 

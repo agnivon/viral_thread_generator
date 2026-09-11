@@ -16,7 +16,7 @@ export const TavilySearchTool = tool(
       const response = await client.search(query, {
         searchDepth: "advanced",
         includeAnswer: true,
-        topic: topic as "general" | "news" | undefined,
+        topic,
         days: days,
         maxResults: maxResults,
         includeDomains: includeDomains,

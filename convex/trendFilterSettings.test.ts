@@ -8,7 +8,7 @@ import { api, internal } from "./_generated/api";
 import {
   classifyTrendNiches,
   matchesUserPreferences,
-} from "./lib/nicheClassifier";
+} from "./lib/nicheClassifier.js";
 
 const modules = import.meta.glob("./**/*.ts");
 

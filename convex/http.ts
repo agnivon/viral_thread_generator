@@ -2,7 +2,7 @@ import { httpRouter } from "convex/server";
 import { httpAction } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { Id } from "./_generated/dataModel";
-import { ThreadsAuthAPI } from "./lib/threads/api";
+import { ThreadsAuthAPI } from "./lib/threads/api.js";
 import { auth } from "./auth";
 
 const http = httpRouter();
@@ -27,8 +27,10 @@ async function verifyState(stateStr: string, secret: string): Promise<Id<"users"
     const data = encoder.encode(dataToSign);
     
     // Convert hex string back to Uint8Array
+    const hexMatches = signatureHex.match(/.{1,2}/g);
+    if (!hexMatches) return null;
     const sigBytes = new Uint8Array(
-      signatureHex.match(/.{1,2}/g)!.map(byte => parseInt(byte, 16))
+      hexMatches.map(byte => parseInt(byte, 16))
     );
     
     const key = await crypto.subtle.importKey(

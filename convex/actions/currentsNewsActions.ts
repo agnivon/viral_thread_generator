@@ -7,11 +7,11 @@ import { v } from "convex/values";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { z } from "zod";
 import { action, internalAction } from "../_generated/server";
-import { googleGemini3FlashPreviewT00Key1, googleGemini3FlashPreviewT00Key2 } from "../lib/agents/models";
-import { NEWS_SCORER_PROMPT } from "../lib/agents/news/prompts";
-import { SearchQueryOptimizerNode } from "../lib/agents/nodes";
-import { CurrentsAPI } from "../lib/currents_news/api";
-import { db } from "../lib/firebase";
+import { googleGemini3FlashPreviewT00Key1, googleGemini3FlashPreviewT00Key2 } from "../lib/agents/models.js";
+import { NEWS_SCORER_PROMPT } from "../lib/agents/news/prompts.js";
+import { SearchQueryOptimizerNode } from "../lib/agents/nodes.js";
+import { CurrentsAPI } from "../lib/currents_news/api.js";
+import { db } from "../lib/firebase/index.js";
 
 export const fetchAndStoreLatestNews = internalAction({
   args: {},

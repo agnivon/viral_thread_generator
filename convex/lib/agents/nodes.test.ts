@@ -72,6 +72,33 @@ test("SearchQueryOptimizerNode - returns undefined when invocation fails", async
   expect(result.optimized_query).toBeUndefined();
 });
 
+test("VisualKeywordStrategistNode - returns undefined when structuredResponse fails schema validation", async () => {
+  vi.spyOn(agentUtils, "invokeWithFallbacks").mockResolvedValue({
+    structuredResponse: { invalid_field: "wrong structure" },
+  });
+
+  const result = await VisualKeywordStrategistNode({
+    thread_draft: ["Thread post"],
+  });
+
+  expect(result.search_queries).toBeUndefined();
+});
+
+test("SearchQueryOptimizerNode - returns undefined when structuredResponse fails schema validation", async () => {
+  vi.spyOn(agentUtils, "invokeWithFallbacks").mockResolvedValue({
+    structuredResponse: { not_optimized_query: 12345 },
+  });
+
+  const result = await SearchQueryOptimizerNode({
+    keyword: "AI agents",
+    relatedKeywords: ["coding"],
+    traffic: 1000,
+    trafficGrowthRate: 10,
+  });
+
+  expect(result.optimized_query).toBeUndefined();
+});
+
 test("All flash-lite and OpenAI models have no token limits (maxOutputTokens / maxTokens are undefined)", async () => {
   const {
     googleGemini31FlashLiteT01Key1,

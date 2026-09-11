@@ -29,6 +29,16 @@ export interface GoogleTrendArticle {
   mediaCompany?: string;
 }
 
+export function isValidArticleKey(k: unknown): k is [number, string, string] {
+  return (
+    Array.isArray(k) &&
+    k.length === 3 &&
+    typeof k[0] === "number" &&
+    typeof k[1] === "string" &&
+    typeof k[2] === "string"
+  );
+}
+
 /**
  * Fetches real-time trending keywords directly via @alkalisummer/google-trends-js on-demand.
  * Zero database storage - returns trends in natural Google Trends relevance rank order.
@@ -77,7 +87,7 @@ export const getTrendingKeywords = action({
         startedAtMs: activeDate.getTime(),
         isActive: true,
         relatedKeywords: Array.isArray(item.relatedKeywords) ? item.relatedKeywords.map(String) : [],
-        articleKeys: Array.isArray(item.articleKeys) ? item.articleKeys : [],
+        articleKeys: Array.isArray(item.articleKeys) ? item.articleKeys.filter(isValidArticleKey) : [],
         rank: trends.length + 1,
       });
     }
@@ -93,7 +103,7 @@ export const getTrendingKeywords = action({
 export const fetchArticlesForKeyword = action({
   args: {
     keyword: v.string(),
-    articleKeys: v.optional(v.array(v.any())),
+    articleKeys: v.optional(v.array(v.array(v.union(v.number(), v.string())))),
   },
   handler: async (ctx, args): Promise<GoogleTrendArticle[]> => {
     const userId = await getAuthUserId(ctx);
@@ -101,7 +111,7 @@ export const fetchArticlesForKeyword = action({
       throw new Error("Unauthorized");
     }
 
-    let rawKeys = args.articleKeys || [];
+    let rawKeys: unknown[] = args.articleKeys || [];
     if (rawKeys.length === 0 && args.keyword) {
       try {
         const trendsRes = await googleTrends.realTimeTrends({ geo: "US", trendingHours: 24 });
@@ -113,7 +123,7 @@ export const fetchArticlesForKeyword = action({
             return itemSlug === targetSlug || itemKeyword === args.keyword.toLowerCase();
           });
           if (matchingTrend && Array.isArray(matchingTrend.articleKeys)) {
-            rawKeys = matchingTrend.articleKeys;
+            rawKeys = matchingTrend.articleKeys.filter(isValidArticleKey);
           }
         }
       } catch (err) {
@@ -121,12 +131,13 @@ export const fetchArticlesForKeyword = action({
       }
     }
 
-    if (rawKeys.length === 0) {
+    const validKeys = rawKeys.filter(isValidArticleKey);
+    if (validKeys.length === 0) {
       return [];
     }
 
     const response = await googleTrends.trendingArticles({
-      articleKeys: rawKeys as [number, string, string][],
+      articleKeys: validKeys,
       articleCount: 20,
     });
 

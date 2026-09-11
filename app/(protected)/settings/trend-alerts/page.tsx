@@ -93,7 +93,7 @@ export default function TrendAlertsSettingsPage() {
     queryKey: trendAlertsQueryKeys.liveTrends("US"),
     queryFn: async () => {
       const results = await getTrendingKeywordsAction({ geo: "US" });
-      return (results as ActiveTrend[]) ?? [];
+      return results ?? [];
     },
     staleTime: 5 * 60 * 1000,
   });

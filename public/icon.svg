@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <!-- Background Gradient -->
+    <linearGradient id="bg-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0a0812" />
+      <stop offset="100%" stop-color="#141124" />
+    </linearGradient>
+
+    <!-- Super Bright and Vibrant Brand Gradient -->
+    <linearGradient id="brand-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#8b5cf6" />   <!-- Bright Violet -->
+      <stop offset="50%" stop-color="#6366f1" />  <!-- Bright Indigo -->
+      <stop offset="100%" stop-color="#06b6d4" /> <!-- Bright Cyan -->
+    </linearGradient>
+    
+    <!-- Mask for cutting out the lightning bolt from the bubble -->
+    <mask id="bubble-mask">
+      <!-- White keeps the shape -->
+      <rect x="0" y="0" width="512" height="512" fill="#ffffff" />
+      <!-- Black cuts out the lightning bolt -->
+      <polygon points="256,135 315,225 270,225 295,325 205,215 250,215" fill="#000000" />
+    </mask>
+  </defs>
+
+  <!-- Clean, solid background squircle -->
+  <rect width="512" height="512" rx="128" fill="url(#bg-grad)" />
+
+  <!-- Masked Speech Bubble -->
+  <g mask="url(#bubble-mask)">
+    <!-- Main Bubble Circle -->
+    <circle cx="256" cy="240" r="135" fill="url(#brand-gradient)" />
+    <!-- Speech Bubble Tail -->
+    <path d="M 175,325 L 130,365 L 210,345 Z" fill="url(#brand-gradient)" />
+  </g>
+
+  <!-- Elegant 4-point Sparks -->
+  <!-- Top-Right Spark -->
+  <path d="M 375,85 Q 375,110 400,110 Q 375,110 375,135 Q 375,110 350,110 Q 375,110 375,85 Z" fill="#ffffff" />
+  
+  <!-- Smaller Left Spark -->
+  <path d="M 125,125 Q 125,140 140,140 Q 125,140 125,155 Q 125,140 110,140 Q 125,140 125,125 Z" fill="#a5f3fc" opacity="0.85" />
+</svg>

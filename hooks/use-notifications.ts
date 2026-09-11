@@ -313,12 +313,44 @@ export function useNotifications() {
     }
   }, [isActive]);
 
+  const sendTestNotification = useCallback(() => {
+    if (typeof window === "undefined" || !("Notification" in window)) {
+      toast.error("Desktop notifications are not supported in your browser.");
+      return false;
+    }
+
+    if (window.Notification.permission !== "granted") {
+      toast.error("Desktop notifications are not enabled. Please grant permission first.");
+      return false;
+    }
+
+    try {
+      const testNotification = new window.Notification("Viral Thread Generator", {
+        body: "⚡ Desktop notifications are functional! You will receive native alerts when new trends emerge.",
+        icon: "/icon.svg",
+      });
+
+      testNotification.onclick = () => {
+        window.focus();
+        testNotification.close();
+      };
+
+      toast.success("Test desktop notification dispatched!");
+      return true;
+    } catch (err) {
+      console.error("Failed to trigger desktop notification:", err);
+      toast.error("Failed to display desktop notification. Check browser permissions.");
+      return false;
+    }
+  }, []);
+
   return {
     notifications,
     unseenCount: unseenCount ?? 0,
     isLoading: rawNotifications === undefined,
     permission,
     requestPermission,
+    sendTestNotification,
     markSeen,
     markAllSeen,
     dismiss,

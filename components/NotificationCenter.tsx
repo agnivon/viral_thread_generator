@@ -107,6 +107,7 @@ export function NotificationCenter() {
     unseenCount,
     permission,
     requestPermission,
+    sendTestNotification,
     markSeen,
     markAllSeen,
     dismiss,
@@ -144,39 +145,39 @@ export function NotificationCenter() {
         render={
           <button
             type="button"
+            className="relative p-2 text-muted-foreground hover:text-foreground hover:bg-muted/80 rounded-xl transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             aria-label="Open notifications"
-            className="relative flex h-9 w-9 items-center justify-center rounded-xl border border-border/80 bg-background/80 text-muted-foreground transition-all duration-200 hover:bg-muted/60 hover:text-foreground focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-violet-500/50 cursor-pointer"
-          />
+          >
+            <Bell className="h-5 w-5" />
+            {unseenCount > 0 && (
+              <span className="absolute top-1.5 right-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-bold text-white shadow-xs animate-in zoom-in-50">
+                {unseenCount > 9 ? "9+" : unseenCount}
+              </span>
+            )}
+          </button>
         }
-      >
-        <Bell className="h-4 w-4" />
-        {unseenCount > 0 && (
-          <span className="absolute -top-1 -right-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-linear-to-r from-violet-600 to-indigo-600 px-1 text-[10px] font-bold text-white shadow-xs animate-in zoom-in-50">
-            {unseenCount > 9 ? "9+" : unseenCount}
-          </span>
-        )}
-      </PopoverTrigger>
+      />
 
       <PopoverContent
         align="end"
         sideOffset={8}
-        className="w-80 sm:w-96 p-0 border-border/80 bg-card/95 backdrop-blur-md shadow-xl rounded-2xl overflow-hidden"
+        className="w-[380px] sm:w-[420px] p-0 shadow-2xl border-border/60 rounded-2xl bg-card/95 backdrop-blur-xl z-50 overflow-hidden"
       >
         {/* Header */}
         <div className="flex items-center justify-between border-b border-border/40 px-4 py-3 bg-muted/20">
           <div className="flex items-center gap-2">
-            <h3 className="text-sm font-bold tracking-tight text-foreground">Notifications</h3>
+            <h3 className="text-sm font-bold text-foreground">Notifications</h3>
             {unseenCount > 0 && (
-              <span className="rounded-full bg-violet-500/10 px-2 py-0.5 text-[10px] font-semibold text-violet-600 dark:text-violet-400">
-                {unseenCount} unread
+              <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-violet-500/10 text-violet-600 dark:text-violet-400 border border-violet-500/20">
+                {unseenCount} new
               </span>
             )}
           </div>
           <div className="flex items-center gap-1">
             {unseenCount > 0 && (
               <Button
-                variant="ghost"
                 size="sm"
+                variant="ghost"
                 onClick={() => void markAllSeen()}
                 className="h-7 text-xs px-2 text-muted-foreground hover:text-foreground cursor-pointer rounded-lg flex items-center gap-1"
                 title="Mark all as read"
@@ -200,7 +201,7 @@ export function NotificationCenter() {
                   Get notified in background
                 </p>
                 <p className="text-[11px] leading-relaxed">
-                  Enable desktop alerts so you never miss completed thread drafts when working in other tabs.
+                  Enable desktop alerts so you never miss emerging trends and drafts when working in other tabs.
                 </p>
                 <Button
                   size="sm"
@@ -212,6 +213,30 @@ export function NotificationCenter() {
                 </Button>
               </div>
             </div>
+          </div>
+        )}
+
+        {permission === "granted" && (
+          <div className="border-b border-border/40 bg-emerald-500/5 px-4 py-2 text-xs flex items-center justify-between">
+            <span className="flex items-center gap-1.5 text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              Desktop alerts active
+            </span>
+            <button
+              type="button"
+              onClick={() => void sendTestNotification()}
+              className="text-[11px] text-violet-600 dark:text-violet-400 hover:underline font-semibold cursor-pointer"
+            >
+              Send test alert
+            </button>
+          </div>
+        )}
+
+        {permission === "denied" && (
+          <div className="border-b border-border/40 bg-amber-500/5 px-4 py-2 text-xs text-amber-600 dark:text-amber-400">
+            <p className="text-[11px] leading-snug">
+              Desktop alerts are blocked by your browser. Enable notifications in your browser address bar to receive background alerts.
+            </p>
           </div>
         )}
 

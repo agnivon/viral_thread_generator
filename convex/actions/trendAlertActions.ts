@@ -122,7 +122,7 @@ export interface ProcessEmergingTrendsResult {
 async function processEmergingTrends(
   ctx: ActionCtx,
   geo: string = "US",
-  maxCandidates: number = 10
+  maxCandidates: number = 30
 ): Promise<ProcessEmergingTrendsResult> {
   const response = await googleTrends.realTimeTrends({
     geo,
@@ -216,7 +216,7 @@ export const detectAndNotifyEmergingTrends = action({
     maxCandidates: v.optional(v.number()),
   },
   handler: async (ctx, args): Promise<ProcessEmergingTrendsResult> => {
-    return await processEmergingTrends(ctx, args.geo || "US", args.maxCandidates || 10);
+    return await processEmergingTrends(ctx, args.geo || "US", args.maxCandidates || 30);
   },
 });
 
@@ -234,6 +234,6 @@ export const detectAndNotifyEmergingTrendsCron = internalAction({
       return { candidateCount: 0, dispatched: 0 };
     }
 
-    return await processEmergingTrends(ctx, "US", 10);
+    return await processEmergingTrends(ctx, "US", 30);
   },
 });

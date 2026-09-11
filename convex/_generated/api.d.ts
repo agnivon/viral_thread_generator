@@ -9,6 +9,7 @@
  */
 
 import type * as actions_currentsNewsActions from "../actions/currentsNewsActions.js";
+import type * as actions_googleTrendsNewsActions from "../actions/googleTrendsNewsActions.js";
 import type * as actions_newsdataActions from "../actions/newsdataActions.js";
 import type * as actions_setupActions from "../actions/setupActions.js";
 import type * as actions_threadsActions from "../actions/threadsActions.js";
@@ -64,6 +65,7 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   "actions/currentsNewsActions": typeof actions_currentsNewsActions;
+  "actions/googleTrendsNewsActions": typeof actions_googleTrendsNewsActions;
   "actions/newsdataActions": typeof actions_newsdataActions;
   "actions/setupActions": typeof actions_setupActions;
   "actions/threadsActions": typeof actions_threadsActions;

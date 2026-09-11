@@ -1,54 +1,48 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-  SheetFooter,
-} from "@/components/ui/sheet";
+import { Input } from "@/components/ui/input";
 import { api } from "@/convex/_generated/api";
 import { useAction } from "convex/react";
-import { AlertCircle, Calendar, ExternalLink, Globe, RefreshCw, Sparkles, TrendingUp } from "lucide-react";
+import {
+  ChevronRight,
+  Clock,
+  Globe,
+  Newspaper,
+  RefreshCw,
+  Search,
+  TrendingUp,
+  X,
+} from "lucide-react";
 import { toast } from "sonner";
-import { useInfiniteQuery, useMutation, useQuery, useQueryClient, type InfiniteData } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 
-interface Article {
+export interface Article {
   id: string;
   title: string;
   description: string;
   url: string;
-  category: string[];
+  image?: string;
+  category?: string[];
   published: string;
   published_at?: number;
-  virality_score?: number;
-  overall_critique?: string;
-  hook_potential_analysis?: string;
+  mediaCompany?: string;
 }
 
-interface KeywordItem {
+export interface KeywordItem {
   id: string;
   keyword: string;
-}
-
-interface NewsPageResult {
-  page: Article[];
-  isDone: boolean;
-  continueCursor: string | null;
+  traffic?: number;
+  trafficGrowthRate?: number;
+  rank?: number;
+  isActive?: boolean;
+  startedAtMs?: number;
+  relatedKeywords?: string[];
+  articleKeys?: [number, string, string][];
 }
 
 export const sourcesQueryKeys = {
@@ -57,595 +51,430 @@ export const sourcesQueryKeys = {
   keywords: (sourceId: string) => ["keywords", sourceId] as const,
 };
 
-interface SourceDataGridProps {
-  sourceId: string;
-  getLatestNewsAction: (args: { keyword: string; cursor?: string; numItems?: number }) => Promise<NewsPageResult>;
-  evaluateArticleAction: (args: { keyword: string; id: string }) => Promise<Partial<Article> & { id: string }>;
-  items: KeywordItem[];
-  isKeywordsLoading?: boolean;
+// --- Google Trends Formatter Utilities ---
+
+export function formatSearchVolume(traffic?: number): string {
+  if (!traffic || traffic <= 0) return "<10K";
+  if (traffic >= 1_000_000) {
+    const millions = traffic / 1_000_000;
+    return `${millions % 1 === 0 ? millions.toFixed(0) : millions.toFixed(1)}M+`;
+  }
+  if (traffic >= 1_000) {
+    return `${Math.round(traffic / 1_000)}K+`;
+  }
+  return `${traffic}+`;
 }
 
-function SourceDataGrid({
-  sourceId,
-  getLatestNewsAction,
-  evaluateArticleAction,
-  items,
-  isKeywordsLoading = false,
-}: SourceDataGridProps) {
+export function formatGrowthRate(rate?: number): { text: string; isBreakout: boolean } {
+  if (!rate || rate <= 0) return { text: "Spike", isBreakout: false };
+  if (rate >= 1000) return { text: "+1,000%", isBreakout: true };
+  return { text: `+${rate.toLocaleString()}%`, isBreakout: false };
+}
+
+export function formatStartedAgo(startedAtMs?: number): string {
+  if (!startedAtMs || startedAtMs <= 0) return "Recently started";
+  const now = Date.now();
+  const diffMs = Math.max(0, now - startedAtMs);
+  const diffMinutes = Math.floor(diffMs / (1000 * 60));
+  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+  if (diffMinutes < 60) {
+    return diffMinutes <= 1 ? "Started just now" : `Started ${diffMinutes}m ago`;
+  }
+  if (diffHours < 24) {
+    return diffHours === 1 ? "Started 1 hour ago" : `Started ${diffHours} hours ago`;
+  }
+  return diffDays === 1 ? "Started 1 day ago" : `Started ${diffDays} days ago`;
+}
+
+type SortMode = "relevance" | "traffic" | "growth" | "recent";
+
+export default function SourcesPage() {
   const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
-  const queryClient = useQueryClient();
-  const [selectedArticle, setSelectedArticle] = useState<Article | null>(null);
-  const [scoringIds, setScoringIds] = useState<Record<string, boolean>>({});
-  const [selectedKeyword, setSelectedKeyword] = useState<string>("");
-
   useEffect(() => {
-    if (items.length > 0 && !selectedKeyword) {
-      setSelectedKeyword(items[0].id);
-    }
-  }, [items, selectedKeyword]);
+    setMounted(true);
+  }, []);
 
-  const handleScoreArticle = async (articleId: string) => {
-    setScoringIds((prev) => ({ ...prev, [articleId]: true }));
-    try {
-      await evaluateMutation.mutateAsync(articleId);
-    } catch (_err) {
-      // Handled in mutate callbacks
-    } finally {
-      setScoringIds((prev) => {
-        const next = { ...prev };
-        delete next[articleId];
-        return next;
-      });
-    }
-  };
+  const [keywordSearch, setKeywordSearch] = useState<string>("");
+  const [sortMode, setSortMode] = useState<SortMode>("relevance");
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const pageSize = 50;
 
-  const evaluateMutation = useMutation<Partial<Article> & { id: string }, Error, string>({
-    mutationFn: async (articleId: string) => {
-      return await evaluateArticleAction({ keyword: selectedKeyword, id: articleId });
-    },
-    onSuccess: (updatedArticle) => {
-      // Update infinite query cache with the newly scored article
-      queryClient.setQueryData<InfiniteData<NewsPageResult>>(
-        sourcesQueryKeys.bySourceKeyword(sourceId, selectedKeyword),
-        (oldData) => {
-          if (!oldData) return oldData;
-          return {
-            ...oldData,
-            pages: oldData.pages.map((page) => ({
-              ...page,
-              page: page.page.map((article) =>
-                article.id === updatedArticle.id
-                  ? { ...article, ...updatedArticle }
-                  : article
-              ),
-            })),
-          };
-        }
-      );
-      toast.success("Article evaluated and scored successfully!");
-    },
-    onError: (err: Error) => {
-      console.error("Evaluation error:", err);
-      toast.error(err.message || "Failed to evaluate article.");
-    },
-  });
+  const getTrendingKeywordsAction = useAction(api.actions.googleTrendsNewsActions.getTrendingKeywords);
 
   const {
-    data,
-    isLoading,
-    error,
-    fetchNextPage,
-    hasNextPage,
-    isFetching,
-    refetch,
-    isFetchingNextPage,
-  } = useInfiniteQuery({
-    queryKey: sourcesQueryKeys.bySourceKeyword(sourceId, selectedKeyword),
-    queryFn: async ({ pageParam }): Promise<NewsPageResult> => {
-      if (!selectedKeyword) return { page: [], isDone: true, continueCursor: null };
-      return await getLatestNewsAction({ keyword: selectedKeyword, cursor: pageParam, numItems: 30 });
-    },
-    enabled: Boolean(selectedKeyword),
-    initialPageParam: undefined as string | undefined,
-    getNextPageParam: (lastPage: NewsPageResult) => {
-      return lastPage?.isDone ? undefined : (lastPage?.continueCursor || undefined);
-    },
+    data: googleKeywords = [],
+    isLoading: isGoogleLoading,
+    refetch: refetchKeywords,
+    isFetching: isGoogleFetching,
+  } = useQuery<KeywordItem[]>({
+    queryKey: sourcesQueryKeys.keywords("googleTrends"),
+    queryFn: async () => (await getTrendingKeywordsAction({})) as KeywordItem[],
+    staleTime: 5 * 60 * 1000,
   });
 
-  const handleSync = async () => {
-    if (!selectedKeyword) return;
+  const handleRefresh = async () => {
     try {
-      await refetch();
-      toast.success("News refreshed successfully!");
+      await refetchKeywords();
+      toast.success("Google Trends refreshed successfully!");
     } catch (err) {
-      console.error("Error refreshing news:", err);
-      toast.error("Failed to refresh news.");
+      console.error("Error refreshing Google Trends:", err);
+      toast.error("Failed to refresh Google Trends.");
     }
   };
 
-  const formatDate = (dateStr: string) => {
-    if (!dateStr) return "N/A";
-    try {
-      const date = new Date(dateStr);
-      if (isNaN(date.getTime())) return dateStr;
-      return date.toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-      });
-    } catch (_e) {
-      return dateStr;
+  // Filter and sort keywords
+  const filteredKeywords = useMemo(() => {
+    let result = googleKeywords;
+    if (keywordSearch.trim()) {
+      const term = keywordSearch.trim().toLowerCase();
+      result = result.filter(
+        (item) =>
+          item.keyword.toLowerCase().includes(term) ||
+          item.relatedKeywords?.some((rq) => rq.toLowerCase().includes(term))
+      );
     }
-  };
+    return [...result].sort((a, b) => {
+      if (sortMode === "relevance") {
+        return (a.rank ?? 999) - (b.rank ?? 999);
+      }
+      if (sortMode === "traffic") {
+        return (b.traffic ?? 0) - (a.traffic ?? 0);
+      }
+      if (sortMode === "growth") {
+        return (b.trafficGrowthRate ?? 0) - (a.trafficGrowthRate ?? 0);
+      }
+      if (sortMode === "recent") {
+        return (b.startedAtMs ?? 0) - (a.startedAtMs ?? 0);
+      }
+      return 0;
+    });
+  }, [googleKeywords, keywordSearch, sortMode]);
 
-  const articles = data?.pages.flatMap((page) => page?.page || []) ?? [];
-  const activeArticle = articles.find((a) => a.id === selectedArticle?.id) || selectedArticle;
-  const isRefreshing = isFetching && !isFetchingNextPage;
+  // Reset page when search or sort changes
+  useMemo(() => {
+    setCurrentPage(1);
+  }, [keywordSearch, sortMode]);
 
-  const currentKeywordObj = items.find(i => i.id === selectedKeyword);
-  const displayKeyword = currentKeywordObj ? currentKeywordObj.keyword : selectedKeyword;
+  // Pagination for page size 50
+  const totalPages = Math.max(1, Math.ceil(filteredKeywords.length / pageSize));
+  const paginatedKeywords = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredKeywords.slice(start, start + pageSize);
+  }, [filteredKeywords, currentPage, pageSize]);
+
+  // Safe loading flag ensuring SSR output matches client initial hydration
+  const isLoading = !mounted || isGoogleLoading;
 
   return (
-    <div className="flex flex-col lg:flex-row gap-6 mt-6 min-h-[600px]">
-      
-      {/* Left Sidebar - Keywords */}
-      <div className="lg:w-1/4 flex flex-col gap-4">
-        <div className="flex items-center gap-2 px-1">
-          <TrendingUp className="w-5 h-5 text-violet-500" />
-          <h2 className="text-lg font-bold text-foreground">Trending Topics</h2>
-        </div>
-        <Card className="bg-card/45 backdrop-blur-xs border-border/80 flex flex-col h-[600px] overflow-hidden">
-          <div className="flex-1 overflow-y-auto p-3 space-y-2">
-            {isKeywordsLoading ? (
-              <div className="space-y-3 p-2">
-                {[1, 2, 3, 4, 5].map((i) => (
-                  <Skeleton key={i} className="h-12 w-full rounded-xl opacity-50" />
-                ))}
-              </div>
-            ) : items.length === 0 ? (
-              <div className="p-8 flex flex-col items-center justify-center text-center space-y-3 opacity-60">
-                <Globe className="w-8 h-8 text-muted-foreground" />
-                <p className="text-sm font-medium text-muted-foreground">No trending topics found.</p>
-              </div>
-            ) : (
-              items.map((item) => {
-                const isSelected = selectedKeyword === item.id;
-                return (
-                  <button
-                    key={item.id}
-                    onClick={() => setSelectedKeyword(item.id)}
-                    className={`w-full text-left px-4 py-3.5 rounded-xl text-sm font-semibold transition-all duration-200 border cursor-pointer ${
-                      isSelected
-                        ? "bg-violet-600 border-violet-600 text-white shadow-md ring-1 ring-violet-500/30"
-                        : "bg-transparent border-transparent text-muted-foreground hover:bg-muted/50 hover:text-foreground"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="truncate pr-2 capitalize leading-tight">{item.keyword}</span>
-                      {isSelected && (
-                        <div className="w-1.5 h-1.5 shrink-0 rounded-full bg-white animate-pulse" />
-                      )}
-                    </div>
-                  </button>
-                );
-              })
-            )}
+    <div className="flex-1 w-full bg-gradient-to-b from-background via-background/95 to-background/50 py-10 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-6xl mx-auto space-y-8">
+        {/* Header Section */}
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-border/30 pb-6">
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-2.5">
+              <h1 className="text-4xl font-extrabold tracking-tight">
+                <span className="bg-gradient-to-r from-violet-600 via-indigo-600 to-cyan-500 bg-clip-text text-transparent dark:from-violet-400 dark:via-indigo-400 dark:to-cyan-400">
+                  Sources
+                </span>
+              </h1>
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 shadow-xs">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+                </span>
+                <span suppressHydrationWarning>{googleKeywords.length} Live Trends</span>
+              </span>
+            </div>
+            <p className="text-muted-foreground text-sm sm:text-base">
+              Real-time Google Trends search interest and verified news coverage synced on-demand.
+            </p>
           </div>
-          <div className="p-4 border-t border-border/30 bg-muted/10">
+
+          <div className="flex items-center gap-3 shrink-0">
             <Button
               variant="outline"
               size="sm"
-              onClick={handleSync}
-              disabled={mounted ? (!selectedKeyword || isLoading || isRefreshing) : true}
-              className="w-full justify-center rounded-xl border-border/80 hover:bg-muted/50 flex items-center gap-2 cursor-pointer transition-colors"
+              onClick={handleRefresh}
+              disabled={!mounted ? false : (isGoogleLoading || isGoogleFetching)}
+              className="rounded-xl border-border/80 hover:bg-muted/50 cursor-pointer flex items-center gap-2 text-xs font-semibold"
             >
-              <RefreshCw className={`w-4 h-4 ${mounted && isRefreshing ? "animate-spin" : ""}`} />
-              Sync Selected
+              <RefreshCw className={`w-3.5 h-3.5 ${mounted && isGoogleFetching ? "animate-spin" : ""}`} />
+              Refresh Feed
             </Button>
-          </div>
-        </Card>
-      </div>
-
-      {/* Right Area - Articles */}
-      <div className="lg:w-3/4 flex flex-col">
-        <Card className="flex-1 flex flex-col relative overflow-hidden bg-card/45 backdrop-blur-xs border-border/80 hover:border-violet-500/10 transition-all duration-300">
-          {/* Accent Highlight Line on Card Hover */}
-          <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-violet-600 to-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-
-          <CardHeader className="px-6 py-5 border-b border-border/30 bg-muted/10">
-            <CardTitle className="text-xl font-bold tracking-tight text-foreground flex items-center gap-2">
-              Articles for "{displayKeyword ? <span className="capitalize text-violet-500">{displayKeyword}</span> : '...'}"
-            </CardTitle>
-            <CardDescription className="text-xs sm:text-sm text-muted-foreground">
-              The latest news fetched and stored from {sourceId === "currents" ? "Currents API" : "NewsData API"}.
-            </CardDescription>
-          </CardHeader>
-
-          <CardContent className="p-0 flex-1 flex flex-col min-h-[400px]">
-            {isLoading && selectedKeyword ? (
-              <div className="p-6 space-y-4">
-                {[1, 2, 3, 4, 5].map((i) => (
-                  <div key={i} className="flex gap-4 items-center">
-                    <Skeleton className="h-6 w-1/4 rounded-md" />
-                    <Skeleton className="h-6 w-1/2 rounded-md" />
-                    <Skeleton className="h-6 w-1/12 rounded-md" />
-                    <Skeleton className="h-6 w-1/12 rounded-md" />
-                  </div>
-                ))}
-              </div>
-            ) : error ? (
-              <div className="flex flex-col items-center justify-center flex-1 p-12 text-center space-y-4">
-                <div className="p-3 bg-destructive/10 rounded-full text-destructive">
-                  <AlertCircle className="w-6 h-6" />
-                </div>
-                <p className="text-sm font-medium text-foreground">Failed to fetch news from Firestore.</p>
-                <Button
-                  variant="outline"
-                  onClick={() => refetch()}
-                  className="rounded-xl border-border/80 hover:bg-muted/50 cursor-pointer"
-                >
-                  Try Again
-                </Button>
-              </div>
-            ) : (
-              <div className="overflow-x-auto flex-1">
-                <Table>
-                  <TableHeader className="bg-muted/20 border-b border-border/30">
-                    <TableRow className="hover:bg-transparent">
-                      <TableHead className="p-3 font-bold text-xs uppercase tracking-wider text-muted-foreground/80 w-[20%]">Title</TableHead>
-                      <TableHead className="p-3 font-bold text-xs uppercase tracking-wider text-muted-foreground/80 w-[35%]">Description</TableHead>
-                      <TableHead className="p-3 font-bold text-xs uppercase tracking-wider text-muted-foreground/80 w-[10%]">Category</TableHead>
-                      <TableHead className="p-3 font-bold text-xs uppercase tracking-wider text-muted-foreground/80 w-[15%]">Published</TableHead>
-                      <TableHead className="p-3 font-bold text-xs uppercase tracking-wider text-muted-foreground/80 w-[15%]">Score</TableHead>
-                      <TableHead className="p-3 font-bold text-xs uppercase tracking-wider text-muted-foreground/80 w-[5%] text-right">Link</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {articles.length === 0 ? (
-                      <TableRow className="hover:bg-transparent border-0">
-                        <TableCell colSpan={6} className="p-16 text-center">
-                          <div className="flex flex-col items-center justify-center space-y-4">
-                            <div className="p-4 bg-muted rounded-full text-muted-foreground/60">
-                              <Globe className="w-8 h-8" />
-                            </div>
-                            <h3 className="text-lg font-semibold text-foreground">No Articles Found</h3>
-                            <p className="text-xs sm:text-sm text-muted-foreground max-w-sm mx-auto leading-relaxed text-center">
-                              {selectedKeyword 
-                                ? "We couldn't find any articles synced to Firestore for this keyword." 
-                                : "Please select a trending keyword from the sidebar."}
-                            </p>
-                            {selectedKeyword && (
-                              <Button
-                                onClick={handleSync}
-                                className="rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 text-white font-semibold cursor-pointer"
-                              >
-                                <RefreshCw className="w-4 h-4 mr-2" /> Sync This Topic
-                              </Button>
-                            )}
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      articles.map((article: Article) => (
-                        <TableRow
-                          key={article.id}
-                          className="border-b border-border/30 hover:bg-muted/25 transition-colors duration-150"
-                        >
-                          <TableCell className="p-3 align-top whitespace-normal min-w-[200px] font-semibold text-foreground leading-snug">
-                            {article.title}
-                          </TableCell>
-                          <TableCell className="p-3 align-top whitespace-normal min-w-[280px] text-muted-foreground text-xs leading-relaxed">
-                            {article.description || <span className="italic text-muted-foreground/50">No description provided.</span>}
-                          </TableCell>
-                          <TableCell className="p-3 align-top whitespace-normal min-w-[100px]">
-                            <div className="flex flex-wrap gap-1">
-                              {article.category && article.category.length > 0 ? (
-                                article.category.map((cat: string, idx: number) => (
-                                  <span
-                                    key={idx}
-                                    className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold bg-violet-500/10 text-violet-600 dark:text-violet-400 border border-violet-500/20 shadow-xs"
-                                  >
-                                    {cat}
-                                  </span>
-                                ))
-                              ) : (
-                                <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold bg-muted text-muted-foreground border border-border">
-                                  general
-                                </span>
-                              )}
-                            </div>
-                          </TableCell>
-                          <TableCell className="p-3 align-top whitespace-nowrap text-xs text-muted-foreground">
-                            <div className="flex items-center gap-1.5 mt-0.5">
-                              <Calendar className="w-3.5 h-3.5 text-muted-foreground/60" />
-                              <span>{formatDate(article.published)}</span>
-                            </div>
-                          </TableCell>
-                          <TableCell className="p-3 align-top whitespace-normal min-w-[140px]">
-                            <div className="flex flex-col gap-2">
-                              {article.virality_score !== undefined && article.virality_score !== null ? (
-                                <div className="flex flex-col gap-1">
-                                  <button
-                                    onClick={() => setSelectedArticle(article)}
-                                    className={`inline-flex items-center justify-center rounded-full px-2.5 py-0.5 text-[11px] font-bold w-fit shadow-xs hover:scale-105 active:scale-95 transition-all cursor-pointer ${article.virality_score >= 85
-                                        ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400"
-                                        : article.virality_score >= 70
-                                          ? "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400"
-                                          : "bg-rose-100 text-rose-800 dark:bg-rose-900/30 dark:text-rose-400"
-                                      }`}
-                                    title="Click to view overall critique"
-                                  >
-                                    {article.virality_score} / 100
-                                  </button>
-                                  <button
-                                    onClick={() => setSelectedArticle(article)}
-                                    className="text-[10px] text-violet-600 dark:text-violet-400 hover:underline text-left font-medium flex items-center gap-0.5 mt-0.5 cursor-pointer"
-                                  >
-                                    Read Critique &rarr;
-                                  </button>
-                                </div>
-                              ) : (
-                                <span className="text-xs text-muted-foreground/50 italic">Not evaluated</span>
-                              )}
-
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleScoreArticle(article.id)}
-                                disabled={!!scoringIds[article.id]}
-                                className="rounded-lg text-xs py-1 h-7 border border-border/80 hover:bg-violet-500/5 hover:text-violet-600 dark:hover:text-violet-400 hover:border-violet-500/20 cursor-pointer flex items-center gap-1.5 w-full justify-center transition-all"
-                              >
-                                {scoringIds[article.id] ? (
-                                  <>
-                                    <RefreshCw className="w-3 h-3 animate-spin" />
-                                    Scoring...
-                                  </>
-                                ) : (
-                                  <>
-                                    <Sparkles className="w-3 h-3" />
-                                    {article.virality_score !== undefined && article.virality_score !== null ? "Re-Score" : "Score"}
-                                  </>
-                                )}
-                              </Button>
-                            </div>
-                          </TableCell>
-                          <TableCell className="p-3 align-top text-right">
-                            <a
-                              href={article.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center justify-center p-2 rounded-xl bg-violet-500/5 hover:bg-violet-500/10 text-violet-600 dark:text-violet-400 hover:text-violet-700 transition-all border border-violet-500/10 hover:border-violet-500/30"
-                              title="Open original article"
-                            >
-                              <ExternalLink className="w-4 h-4" />
-                            </a>
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-
-            {hasNextPage && !isLoading && !error && articles.length > 0 && (
-              <div className="flex justify-center p-6 border-t border-border/30 bg-muted/5 mt-auto">
-                <Button
-                  variant="outline"
-                  onClick={() => fetchNextPage()}
-                  disabled={isFetchingNextPage}
-                  className="rounded-xl border-border/80 hover:bg-muted/50 cursor-pointer flex items-center gap-2"
-                >
-                  {isFetchingNextPage ? (
-                    <>
-                      <RefreshCw className="w-4 h-4 animate-spin" />
-                      Loading...
-                    </>
-                  ) : (
-                    "Load More Articles"
-                  )}
-                </Button>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      <Sheet open={!!selectedArticle} onOpenChange={(open) => !open && setSelectedArticle(null)}>
-        {activeArticle && (
-          <SheetContent className="w-full sm:max-w-md p-6 overflow-y-auto bg-card/95 backdrop-blur-md border-l border-border/30">
-            <SheetHeader className="p-0 pb-5 border-b border-border/30">
-              <div className="flex items-center gap-2 mb-2">
-                {activeArticle.category && activeArticle.category.length > 0 ? (
-                  activeArticle.category.map((cat: string, idx: number) => (
-                    <span
-                      key={idx}
-                      className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-semibold bg-violet-500/10 text-violet-600 dark:text-violet-400 border border-violet-500/20"
-                    >
-                      {cat}
-                    </span>
-                  ))
-                ) : (
-                  <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-[10px] font-semibold bg-muted text-muted-foreground border border-border">
-                    general
-                  </span>
-                )}
-              </div>
-              <SheetTitle className="text-xl font-bold tracking-tight text-foreground leading-snug">
-                {activeArticle.title}
-              </SheetTitle>
-              <SheetDescription className="text-xs text-muted-foreground mt-1 flex items-center gap-1.5">
-                <Calendar className="w-3.5 h-3.5" />
-                {formatDate(activeArticle.published)}
-              </SheetDescription>
-            </SheetHeader>
-
-            <div className="mt-6 space-y-6">
-              {activeArticle.virality_score !== undefined && activeArticle.virality_score !== null && (
-                <div className="space-y-3">
-                  <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider select-none">Virality Rating</h4>
-                  <div className="p-4 rounded-2xl bg-muted/30 border border-border/30 space-y-3">
-                    <div className="flex items-end justify-between">
-                      <span className="text-3xl font-black text-foreground bg-gradient-to-r from-violet-600 to-indigo-600 bg-clip-text text-transparent dark:from-violet-400 dark:to-indigo-400">
-                        {activeArticle.virality_score} <span className="text-sm font-semibold text-muted-foreground">/ 100</span>
-                      </span>
-                      <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${activeArticle.virality_score >= 85
-                          ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400"
-                          : activeArticle.virality_score >= 70
-                            ? "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400"
-                            : "bg-rose-100 text-rose-800 dark:bg-rose-900/30 dark:text-rose-400"
-                        }`}>
-                        {activeArticle.virality_score >= 85
-                          ? "High Virality"
-                          : activeArticle.virality_score >= 70
-                            ? "Moderate"
-                            : "Low Potential"}
-                      </span>
-                    </div>
-                    <div className="w-full bg-muted/50 rounded-full h-2 overflow-hidden border border-border/40">
-                      <div
-                        className={`h-full rounded-full transition-all duration-500 ${activeArticle.virality_score >= 85
-                            ? "bg-gradient-to-r from-emerald-500 to-teal-500"
-                            : activeArticle.virality_score >= 70
-                              ? "bg-gradient-to-r from-amber-500 to-yellow-500"
-                              : "bg-gradient-to-r from-rose-500 to-red-500"
-                          }`}
-                        style={{ width: `${activeArticle.virality_score}%` }}
-                      />
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {activeArticle.overall_critique && (
-                <div className="space-y-2">
-                  <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider select-none">AI Critique</h4>
-                  <div className="p-4.5 rounded-2xl bg-amber-500/5 border border-amber-500/10 text-amber-950 dark:text-amber-100 text-sm leading-relaxed italic pl-4 border-l-4 border-l-amber-500/40">
-                    "{activeArticle.overall_critique}"
-                  </div>
-                </div>
-              )}
-
-              {activeArticle.hook_potential_analysis && (
-                <div className="space-y-2">
-                  <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider select-none">Hook Potential Analysis</h4>
-                  <div className="p-4 rounded-2xl bg-muted/20 border border-border/30 text-sm leading-relaxed text-foreground/90 whitespace-pre-wrap font-medium">
-                    {activeArticle.hook_potential_analysis}
-                  </div>
-                </div>
-              )}
-
-              <div className="pt-2">
-                <a
-                  href={activeArticle.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="w-full inline-flex items-center justify-center gap-2 rounded-xl text-sm font-semibold py-3 border border-border/80 hover:bg-muted/50 text-foreground transition-all cursor-pointer"
-                >
-                  View Original Article
-                  <ExternalLink className="w-4 h-4" />
-                </a>
-              </div>
-            </div>
-
-            <SheetFooter className="p-0 pt-6 border-t border-border/30 mt-6 flex flex-row gap-3 justify-end">
-              <Button
-                variant="outline"
-                onClick={() => setSelectedArticle(null)}
-                className="rounded-xl border-border/80 hover:bg-muted/50 cursor-pointer text-xs"
-              >
-                Close
-              </Button>
-              <Button
-                onClick={() => handleScoreArticle(activeArticle.id)}
-                disabled={!!scoringIds[activeArticle.id]}
-                className="rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white font-semibold text-xs cursor-pointer flex items-center gap-1.5"
-              >
-                {scoringIds[activeArticle.id] ? (
-                  <>
-                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                    Scoring...
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="w-3.5 h-3.5" />
-                    Re-Score
-                  </>
-                )}
-              </Button>
-            </SheetFooter>
-          </SheetContent>
-        )}
-      </Sheet>
-    </div>
-  );
-}
-
-export default function SourcesPage() {
-  const getLatestCurrents = useAction(api.actions.currentsNewsActions.getLatestNewsFromFirestore);
-  const evaluateCurrents = useAction(api.actions.currentsNewsActions.evaluateNewsArticle);
-  const getAvailableKeywordsCurrents = useAction(api.actions.currentsNewsActions.getAvailableKeywords);
-
-  const getLatestNewsdata = useAction(api.actions.newsdataActions.getLatestNewsFromFirestore);
-  const evaluateNewsdata = useAction(api.actions.newsdataActions.evaluateNewsArticle);
-  const getAvailableKeywordsNewsdata = useAction(api.actions.newsdataActions.getAvailableKeywords);
-
-  const { data: currentsKeywords = [], isLoading: isCurrentsLoading } = useQuery<KeywordItem[]>({
-    queryKey: sourcesQueryKeys.keywords("currents"),
-    queryFn: async () => (await getAvailableKeywordsCurrents({})) as KeywordItem[],
-  });
-
-  const { data: newsdataKeywords = [], isLoading: isNewsdataLoading } = useQuery<KeywordItem[]>({
-    queryKey: sourcesQueryKeys.keywords("newsdata"),
-    queryFn: async () => (await getAvailableKeywordsNewsdata({})) as KeywordItem[],
-  });
-
-  return (
-    <div className="flex-1 w-full bg-gradient-to-b from-background via-background/95 to-background/50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-7xl mx-auto space-y-8">
-        {/* Header Section */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-border/30 pb-6">
-          <div className="space-y-2">
-            <h1 className="text-4xl font-extrabold tracking-tight">
-              <span className="bg-gradient-to-r from-violet-600 via-indigo-600 to-cyan-500 bg-clip-text text-transparent dark:from-violet-400 dark:via-indigo-400 dark:to-cyan-400">
-                Sources
-              </span>
-            </h1>
-            <p className="text-muted-foreground text-sm sm:text-base">
-              Manage and view news content sources synced to your workspace by trending topic.
-            </p>
           </div>
         </div>
 
-        <Tabs defaultValue="currents" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 max-w-[400px]">
-            <TabsTrigger value="currents">Currents API</TabsTrigger>
-            <TabsTrigger value="newsdata">NewsData API</TabsTrigger>
-          </TabsList>
-          
-          <TabsContent value="currents" className="mt-4 focus-visible:outline-none focus-visible:ring-0">
-            <SourceDataGrid
-              sourceId="currents"
-              getLatestNewsAction={getLatestCurrents}
-              evaluateArticleAction={evaluateCurrents}
-              items={currentsKeywords}
-              isKeywordsLoading={isCurrentsLoading}
+        {/* Filter and Sort Control Bar */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-card/45 backdrop-blur-xs p-3.5 rounded-2xl border border-border/80 shadow-xs">
+          {/* Search Input */}
+          <div className="relative flex-1 max-w-md">
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground/60" />
+            <Input
+              placeholder="Search active trends or related queries..."
+              value={keywordSearch}
+              onChange={(e) => setKeywordSearch(e.target.value)}
+              className="h-9 pl-9 text-xs sm:text-sm bg-background/60 border-border/60 focus-visible:ring-violet-500/30 rounded-xl"
             />
-          </TabsContent>
-          
-          <TabsContent value="newsdata" className="mt-4 focus-visible:outline-none focus-visible:ring-0">
-            <SourceDataGrid
-              sourceId="newsdata"
-              getLatestNewsAction={getLatestNewsdata}
-              evaluateArticleAction={evaluateNewsdata}
-              items={newsdataKeywords}
-              isKeywordsLoading={isNewsdataLoading}
-            />
-          </TabsContent>
-        </Tabs>
+            {keywordSearch && (
+              <button
+                onClick={() => setKeywordSearch("")}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+
+          {/* Sort Buttons */}
+          <div className="flex items-center gap-1 text-xs font-medium bg-background/60 p-1 rounded-xl border border-border/50 self-start sm:self-auto">
+            <span className="text-[11px] text-muted-foreground px-2 hidden md:inline font-semibold">Sort:</span>
+            <button
+              type="button"
+              onClick={() => setSortMode("relevance")}
+              className={`py-1.5 px-3 rounded-lg text-xs transition-all cursor-pointer ${
+                sortMode === "relevance"
+                  ? "bg-violet-600 text-white font-bold shadow-xs"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
+              }`}
+            >
+              Relevance
+            </button>
+            <button
+              type="button"
+              onClick={() => setSortMode("traffic")}
+              className={`py-1.5 px-3 rounded-lg text-xs transition-all cursor-pointer ${
+                sortMode === "traffic"
+                  ? "bg-violet-600 text-white font-bold shadow-xs"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
+              }`}
+            >
+              Volume
+            </button>
+            <button
+              type="button"
+              onClick={() => setSortMode("growth")}
+              className={`py-1.5 px-3 rounded-lg text-xs transition-all cursor-pointer ${
+                sortMode === "growth"
+                  ? "bg-violet-600 text-white font-bold shadow-xs"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
+              }`}
+            >
+              Spike %
+            </button>
+            <button
+              type="button"
+              onClick={() => setSortMode("recent")}
+              className={`py-1.5 px-3 rounded-lg text-xs transition-all cursor-pointer ${
+                sortMode === "recent"
+                  ? "bg-violet-600 text-white font-bold shadow-xs"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
+              }`}
+            >
+              Recent
+            </button>
+          </div>
+        </div>
+
+        {/* Full-Width Keyword Cards List */}
+        <div className="space-y-3.5 w-full">
+          {isLoading ? (
+            <div className="space-y-3.5">
+              {[1, 2, 3, 4, 5, 6].map((i) => (
+                <Card key={i} className="p-6 bg-card/45 border-border/80">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="space-y-2 flex-1">
+                      <div className="flex items-center gap-2">
+                        <Skeleton className="h-5 w-12 rounded" />
+                        <Skeleton className="h-6 w-48 rounded" />
+                      </div>
+                      <div className="flex gap-2">
+                        <Skeleton className="h-5 w-24 rounded-full" />
+                        <Skeleton className="h-5 w-20 rounded-full" />
+                      </div>
+                    </div>
+                    <div className="flex gap-3">
+                      <Skeleton className="h-10 w-24 rounded-xl" />
+                      <Skeleton className="h-10 w-24 rounded-xl" />
+                    </div>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          ) : filteredKeywords.length === 0 ? (
+            <Card className="p-16 text-center bg-card/45 border-border/80">
+              <div className="flex flex-col items-center justify-center space-y-3">
+                <div className="p-4 bg-muted rounded-full text-muted-foreground/60">
+                  <Globe className="w-8 h-8" />
+                </div>
+                <h3 className="text-lg font-semibold text-foreground">No Trends Found</h3>
+                <p className="text-xs sm:text-sm text-muted-foreground max-w-sm mx-auto leading-relaxed">
+                  {keywordSearch
+                    ? "No trending topics matched your search filter."
+                    : "No active Google Trends found right now. Try refreshing the feed."}
+                </p>
+                {keywordSearch && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setKeywordSearch("")}
+                    className="rounded-xl mt-2 text-xs"
+                  >
+                    Clear Search
+                  </Button>
+                )}
+              </div>
+            </Card>
+          ) : (
+            paginatedKeywords.map((item, idx) => {
+              const itemGrowth = formatGrowthRate(item.trafficGrowthRate);
+              const displayRank = item.rank ?? ((currentPage - 1) * pageSize + idx + 1);
+              const articleCount = item.articleKeys?.length || 0;
+
+              return (
+                <Link
+                  key={item.id}
+                  href={`/sources/${encodeURIComponent(item.id)}`}
+                  className="block w-full group focus-visible:outline-none"
+                >
+                  <Card className="w-full relative overflow-hidden bg-card/45 backdrop-blur-xs border-border/80 hover:border-violet-500/40 hover:shadow-md transition-all duration-200 p-5 sm:p-6">
+                    {/* Left Accent Bar on Hover */}
+                    <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b from-violet-500 to-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+
+                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
+                      {/* Left: Rank, Title, and Related Query Chips */}
+                      <div className="space-y-2.5 flex-1 min-w-0">
+                        <div className="flex items-center gap-2.5 flex-wrap">
+                          <span className="text-xs font-mono font-black px-2 py-0.5 rounded-md bg-violet-500/10 text-violet-600 dark:text-violet-400 border border-violet-500/25">
+                            #{displayRank}
+                          </span>
+                          <span className="relative flex h-2 w-2">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+                          </span>
+                          <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground capitalize group-hover:text-violet-600 dark:group-hover:text-violet-400 transition-colors">
+                            {item.keyword}
+                          </h2>
+                        </div>
+
+                        {/* Related Queries Chips */}
+                        {item.relatedKeywords && item.relatedKeywords.length > 0 && (
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="text-[11px] text-muted-foreground font-medium mr-1">Trending queries:</span>
+                            {item.relatedKeywords.slice(0, 4).map((query, qIdx) => (
+                              <span
+                                key={qIdx}
+                                className="inline-flex items-center text-[11px] px-2 py-0.5 rounded-md bg-muted/50 text-muted-foreground border border-border/60"
+                              >
+                                {query}
+                              </span>
+                            ))}
+                            {item.relatedKeywords.length > 4 && (
+                              <span className="text-[10px] text-muted-foreground/70 font-medium">
+                                +{item.relatedKeywords.length - 4} more
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Right: Metrics Badges & CTA */}
+                      <div className="flex items-center justify-between lg:justify-end gap-3 sm:gap-4 shrink-0 flex-wrap pt-2 lg:pt-0 border-t border-border/30 lg:border-t-0">
+                        {/* Search Volume */}
+                        <div className="flex flex-col items-start lg:items-end">
+                          <span className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wider">
+                            Volume
+                          </span>
+                          <span className="text-base sm:text-lg font-black font-mono text-foreground">
+                            {formatSearchVolume(item.traffic)}
+                          </span>
+                        </div>
+
+                        {/* Volume Spike / Growth Rate */}
+                        <div className="flex flex-col items-start lg:items-end">
+                          <span className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wider">
+                            Spike
+                          </span>
+                          <span className="inline-flex items-center gap-0.5 text-xs sm:text-sm font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20">
+                            <TrendingUp className="w-3 h-3" />
+                            {itemGrowth.text}
+                          </span>
+                        </div>
+
+                        {/* Timeline */}
+                        <div className="flex flex-col items-start lg:items-end hidden sm:flex">
+                          <span className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wider">
+                            Timeline
+                          </span>
+                          <span suppressHydrationWarning className="inline-flex items-center gap-1 text-xs text-muted-foreground font-medium">
+                            <Clock className="w-3 h-3 text-muted-foreground/60" />
+                            {formatStartedAgo(item.startedAtMs)}
+                          </span>
+                        </div>
+
+                        {/* Article Count */}
+                        {articleCount > 0 && (
+                          <div className="flex flex-col items-start lg:items-end hidden md:flex">
+                            <span className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wider">
+                              Coverage
+                            </span>
+                            <span className="inline-flex items-center gap-1 text-xs text-violet-600 dark:text-violet-400 font-medium">
+                              <Newspaper className="w-3 h-3 text-violet-500" />
+                              {articleCount} {articleCount === 1 ? "story" : "stories"}
+                            </span>
+                          </div>
+                        )}
+
+                        {/* CTA Arrow */}
+                        <div className="inline-flex items-center gap-1 pl-2 text-xs font-semibold text-violet-600 dark:text-violet-400 group-hover:translate-x-1 transition-transform">
+                          <span>View Details</span>
+                          <ChevronRight className="w-4 h-4" />
+                        </div>
+                      </div>
+                    </div>
+                  </Card>
+                </Link>
+              );
+            })
+          )}
+        </div>
+
+        {/* Footer with Page Size 50 Pagination Controls */}
+        {filteredKeywords.length > 0 && (
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 border-t border-border/30 text-xs text-muted-foreground">
+            <div>
+              Showing {Math.min(filteredKeywords.length, (currentPage - 1) * pageSize + 1)}-
+              {Math.min(filteredKeywords.length, currentPage * pageSize)} of {filteredKeywords.length} trends (page size 50)
+            </div>
+
+            {totalPages > 1 && (
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={currentPage <= 1}
+                  className="rounded-xl text-xs h-8 px-3"
+                >
+                  Previous
+                </Button>
+                <span className="font-semibold text-foreground px-2">
+                  Page {currentPage} of {totalPages}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={currentPage >= totalPages}
+                  className="rounded-xl text-xs h-8 px-3"
+                >
+                  Next
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

@@ -127,10 +127,6 @@ export const recordAndDistributeAlerts = internalMutation({
 
       const body = `${volText} searches • ${growthText} spike • Started ${timeAgoText}.${queriesContext}`;
 
-      const description = `Emerging trend '${item.keyword}' with high search velocity (${volText} searches, ${growthText} growth, started ${timeAgoText}).${queriesContext}`;
-
-      const href = `/threads/create?topic=${encodeURIComponent(item.keyword)}&description=${encodeURIComponent(description)}&agent=topic`;
-
       // 3. Dispatch notification to active users whose filter settings match this trend
       for (const userSettings of enabledSettings) {
         const isMatch = matchesUserPreferences(
@@ -158,7 +154,6 @@ export const recordAndDistributeAlerts = internalMutation({
           data: {
             title,
             body,
-            href,
             trendKeyword: item.keyword,
             traffic: item.traffic,
             growthRate: item.trafficGrowthRate,

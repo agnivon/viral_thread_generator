@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { convexAuthNextjsToken } from "@convex-dev/auth/nextjs/server";
+import { isProduction } from "@/lib/env";
 
 function getUserIdFromToken(token: string): string | null {
   try {
@@ -72,7 +73,7 @@ export async function initiateThreadsAuth() {
   // Store the state in an HTTP-only, secure cookie that expires in 1 hour
   (await cookies()).set("threads_oauth_state", state, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure: isProduction(),
     path: "/",
     maxAge: 3600,
   });

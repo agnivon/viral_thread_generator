@@ -38,6 +38,7 @@ import {
   Radio,
   RefreshCw,
   Search,
+  Sparkles,
   TrendingUp,
   X,
 } from "lucide-react";
@@ -87,11 +88,20 @@ export default function KeywordDetailPage() {
       keywords.find((k) => k.id.toLowerCase() === decoded) ||
       keywords.find((k) => k.keyword.toLowerCase().trim() === decoded) ||
       keywords.find((k) => k.id.toLowerCase().replace(/[^a-z0-9]+/g, "-") === decoded) ||
+      keywords.find((k) => k.keyword.toLowerCase().replace(/[^a-z0-9]+/g, "-") === decoded) ||
       null
     );
   }, [keywords, keywordSlug]);
 
   const displayKeyword = currentKeywordObj?.keyword || decodeURIComponent(keywordSlug).replace(/-/g, " ");
+
+  const createThreadHref = useMemo(() => {
+    const topic = displayKeyword;
+    const desc = currentKeywordObj?.relatedKeywords?.length
+      ? `Explore emerging developments and insights on ${topic}. Related queries: ${currentKeywordObj.relatedKeywords.slice(0, 3).join(", ")}.`
+      : `Explore emerging developments and insights on ${topic}.`;
+    return `/threads/create?topic=${encodeURIComponent(topic)}&description=${encodeURIComponent(desc)}&agent=topic`;
+  }, [displayKeyword, currentKeywordObj]);
 
   // Fetch articles linked to this keyword directly from Google Trends
   const {
@@ -224,6 +234,15 @@ export default function KeywordDetailPage() {
                   <RefreshCw className={`w-3.5 h-3.5 ${mounted && isArticlesFetching ? "animate-spin" : ""}`} />
                   Refresh
                 </Button>
+                <Link href={createThreadHref}>
+                  <Button
+                    size="sm"
+                    className="rounded-xl bg-violet-600 hover:bg-violet-700 text-white cursor-pointer text-xs flex items-center gap-1.5 shadow-xs"
+                  >
+                    <Sparkles className="w-3.5 h-3.5" />
+                    <span>Create Thread</span>
+                  </Button>
+                </Link>
               </div>
             </div>
 
@@ -538,16 +557,32 @@ export default function KeywordDetailPage() {
                   </div>
                 )}
 
-                <div className="pt-2">
+                <div className="pt-2 flex flex-col sm:flex-row gap-2">
                   <a
                     href={selectedArticle.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="w-full inline-flex items-center justify-center gap-2 rounded-xl text-sm font-semibold py-3 border border-border/80 hover:bg-muted/50 text-foreground transition-all cursor-pointer bg-card"
+                    className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl text-xs font-semibold py-2.5 border border-border/80 hover:bg-muted/50 text-foreground transition-all cursor-pointer bg-card"
                   >
                     View Original Article
-                    <ExternalLink className="w-4 h-4" />
+                    <ExternalLink className="w-3.5 h-3.5" />
                   </a>
+                  <Link
+                    href={`/threads/create?url=${encodeURIComponent(selectedArticle.url)}&agent=news&topic=${encodeURIComponent(
+                      displayKeyword
+                    )}&guidance=${encodeURIComponent(
+                      `Focus on key takeaways and developments from ${selectedArticle.mediaCompany || "this coverage"} regarding ${displayKeyword}. Article headline: "${selectedArticle.title}".`
+                    )}`}
+                    className="flex-1"
+                  >
+                    <Button
+                      size="sm"
+                      className="w-full rounded-xl bg-violet-600 hover:bg-violet-700 text-white cursor-pointer text-xs py-2.5 h-auto flex items-center justify-center gap-1.5 shadow-xs"
+                    >
+                      <Sparkles className="w-3.5 h-3.5" />
+                      <span>Draft with News Editor</span>
+                    </Button>
+                  </Link>
                 </div>
               </div>
 

@@ -20,6 +20,14 @@ export interface NotificationPayload {
   growthRate?: number;
 }
 
+export function getTrendSourceHref(keyword: string): string {
+  const slug = keyword
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "");
+  return `/sources/${encodeURIComponent(slug || keyword)}`;
+}
+
 export type NotificationKind =
   | "thread_generation_success"
   | "thread_hook_selection_required"
@@ -206,18 +214,22 @@ export function useNotifications() {
       const title = item.data.title || "Notification";
       const body = item.data.body;
       const href = item.data.href;
+      const sourceHref = item.data.trendKeyword
+        ? getTrendSourceHref(item.data.trendKeyword)
+        : undefined;
       const isSuccess = item.kind.includes("success");
       const isFailure = item.kind.includes("failed");
 
       const handleNotificationClick = () => {
-        if (href) {
-          if (isExternalUrl(href)) {
-            window.open(href, "_blank", "noopener,noreferrer");
+        void markSeen(item._id);
+        const targetUrl = item.kind === "emerging_trend_alert" ? sourceHref : href;
+        if (targetUrl) {
+          if (isExternalUrl(targetUrl)) {
+            window.open(targetUrl, "_blank", "noopener,noreferrer");
           } else {
-            router.push(href);
+            router.push(targetUrl);
           }
         }
-        void markSeen(item._id);
       };
 
       if (isInactive) {
@@ -230,10 +242,11 @@ export function useNotifications() {
           document.title = `(${currentCount}) ${originalTitleRef.current || "Viral Thread Generator"}`;
         }
       } else {
-        // Mark as read immediately upon displaying in-app toast when window is visible and in focus
-        void markSeen(item._id);
+        // Do NOT automatically mark seen upon toast display so unread badge/count is visible!
+        // Notification is marked seen when user clicks toast action, notification item, or mark all as read.
 
         const handleToastClick = () => {
+          void markSeen(item._id);
           if (href) {
             if (isExternalUrl(href)) {
               window.open(href, "_blank", "noopener,noreferrer");
@@ -244,7 +257,20 @@ export function useNotifications() {
         };
 
         // Display in-app toast when window is active
-        if (isSuccess) {
+        if (item.kind === "emerging_trend_alert") {
+          toast.info(title, {
+            description: body,
+            action: sourceHref
+              ? {
+                  label: "View Source",
+                  onClick: () => {
+                    void markSeen(item._id);
+                    router.push(sourceHref);
+                  },
+                }
+              : undefined,
+          });
+        } else if (isSuccess) {
           toast.success(title, {
             description: body,
             action: href

@@ -159,8 +159,7 @@ test("recordAndDistributeAlerts creates trendTracker records and dispatches aler
   expect(breakoutNotif?.data.growthRate).toBe(1000);
   expect(breakoutNotif?.kind).toBe("emerging_trend_alert");
   expect(breakoutNotif?.data.title).toContain("⚡ Breakout Trend");
-  expect(breakoutNotif?.data.href).toContain("/threads/create?topic=Gemma%204%20Launch");
-  expect(breakoutNotif?.data.href).toContain("&agent=topic");
+  expect(breakoutNotif?.data.href).toBeUndefined();
 
   // Re-running the exact same candidate trends within the cycle should be deduplicated (0 new notifications)
   const res2 = await t.mutation(internal.trendAlerts.recordAndDistributeAlerts, {
@@ -220,3 +219,20 @@ test("pruneStaleTrendTrackers removes trackers older than 48 hours", async () =>
   expect(remaining).toHaveLength(1);
   expect(remaining[0].keyword).toBe("Recent Trend");
 });
+
+test("detectAndNotifyEmergingTrendsCron skips execution in development environment", async () => {
+  const t = convexTest(schema, modules);
+
+  const prevDeployment = process.env.CONVEX_DEPLOYMENT;
+  try {
+    process.env.CONVEX_DEPLOYMENT = "dev:test-deployment";
+    const result = await t.action(
+      internal.actions.trendAlertActions.detectAndNotifyEmergingTrendsCron,
+      {}
+    );
+    expect(result).toEqual({ candidateCount: 0, dispatched: 0 });
+  } finally {
+    process.env.CONVEX_DEPLOYMENT = prevDeployment;
+  }
+});
+

@@ -31,13 +31,13 @@ function CreateThreadForm() {
   const searchParams = useSearchParams();
   const urlTopic = searchParams.get("topic") || "";
   const urlDescription = searchParams.get("description") || "";
-  const urlUrl = searchParams.get("url") || "";
+  const urlUrl = searchParams.get("url") || searchParams.get("sourceUrl") || "";
   const urlGuidance = searchParams.get("guidance") || "";
   const rawAgent = searchParams.get("agent");
   const urlAgent: "news" | "social_media" | "topic" =
     rawAgent === "news" || rawAgent === "social_media" || rawAgent === "topic"
       ? rawAgent
-      : urlTopic
+      : urlTopic && !urlUrl
       ? "topic"
       : "news";
 
@@ -47,8 +47,8 @@ function CreateThreadForm() {
       topic: urlTopic,
       description: urlDescription,
       guidance: urlGuidance,
-      manual_hook_selection: Boolean(urlTopic),
-      search_query_generation: Boolean(urlTopic),
+      manual_hook_selection: Boolean(urlTopic || urlUrl),
+      search_query_generation: Boolean(urlTopic || urlUrl),
       agent: urlAgent,
     },
   ]);
@@ -155,19 +155,31 @@ function CreateThreadForm() {
           </p>
         </div>
 
-        {/* Pre-seeded from Emerging Trend Banner */}
-        {urlTopic && (
+        {/* Pre-seeded from Emerging Trend or News Article Banner */}
+        {(urlTopic || urlUrl) && (
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-4 rounded-2xl bg-gradient-to-r from-violet-500/10 via-indigo-500/10 to-transparent border border-violet-500/30 shadow-xs">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-xl bg-violet-500/20 text-violet-600 dark:text-violet-400 shrink-0">
-                <TrendingUp className="w-4 h-4" />
+                {urlAgent === "news" ? <Sparkles className="w-4 h-4" /> : <TrendingUp className="w-4 h-4" />}
               </div>
               <div>
                 <p className="text-xs font-bold text-foreground capitalize">
-                  Pre-seeded from Emerging Trend Alert: <span className="text-violet-600 dark:text-violet-400">{urlTopic}</span>
+                  {urlAgent === "news" ? (
+                    <>
+                      Pre-seeded Article for News Editor:{" "}
+                      <span className="text-violet-600 dark:text-violet-400">{urlTopic || "Article Source"}</span>
+                    </>
+                  ) : (
+                    <>
+                      Pre-seeded from Emerging Trend Alert:{" "}
+                      <span className="text-violet-600 dark:text-violet-400">{urlTopic}</span>
+                    </>
+                  )}
                 </p>
                 <p className="text-[11px] text-muted-foreground">
-                  Context and velocity were loaded automatically. Review angles below and generate.
+                  {urlAgent === "news"
+                    ? "Article URL and News Editor mode pre-selected. Review guidance below and generate."
+                    : "Context and velocity were loaded automatically. Review angles below and generate."}
                 </p>
               </div>
             </div>

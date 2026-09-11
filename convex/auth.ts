@@ -1,6 +1,7 @@
 import { Password } from "@convex-dev/auth/providers/Password";
 import { ConvexCredentials, ConvexCredentialsUserConfig } from "@convex-dev/auth/providers/ConvexCredentials";
 import { convexAuth } from "@convex-dev/auth/server";
+import { isProduction } from "./lib/env";
 
 interface ProviderWithOptions {
   options: ConvexCredentialsUserConfig;
@@ -16,11 +17,11 @@ const customPasswordProvider = ConvexCredentials({
     // 1. Extract the custom token passed from your client-side form
     const token = typeof params.token === "string" ? params.token : undefined;
     const turnstileSecret = process.env.CLOUDFLARE_TURNSTILE_SECRET;
-    const isProduction = process.env.NODE_ENV === "production";
+    const isProd = isProduction();
 
     // Allow bypassing Turnstile verification in non-production environments or when Turnstile secret is not set
     if (!token) {
-      if (!isProduction || !turnstileSecret) {
+      if (!isProd || !turnstileSecret) {
         console.warn("Turnstile token missing in non-production environment; bypassing verification.");
         return basePasswordOptions.authorize(params, ctx);
       }

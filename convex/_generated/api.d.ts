@@ -44,6 +44,7 @@ import type * as lib_agents_topic_tools from "../lib/agents/topic/tools.js";
 import type * as lib_agents_utils from "../lib/agents/utils.js";
 import type * as lib_brave_api from "../lib/brave/api.js";
 import type * as lib_currents_news_api from "../lib/currents_news/api.js";
+import type * as lib_env from "../lib/env.js";
 import type * as lib_firebase_index from "../lib/firebase/index.js";
 import type * as lib_jina_api from "../lib/jina/api.js";
 import type * as lib_newsdata_api from "../lib/newsdata/api.js";
@@ -104,6 +105,7 @@ declare const fullApi: ApiFromModules<{
   "lib/agents/utils": typeof lib_agents_utils;
   "lib/brave/api": typeof lib_brave_api;
   "lib/currents_news/api": typeof lib_currents_news_api;
+  "lib/env": typeof lib_env;
   "lib/firebase/index": typeof lib_firebase_index;
   "lib/jina/api": typeof lib_jina_api;
   "lib/newsdata/api": typeof lib_newsdata_api;

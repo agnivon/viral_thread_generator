@@ -4,6 +4,7 @@ import googleTrends from "@alkalisummer/google-trends-js";
 import { v } from "convex/values";
 import { action, internalAction, ActionCtx } from "../_generated/server";
 import { internal } from "../_generated/api";
+import { isTrendCronEnabled } from "../lib/env";
 
 export interface EvaluatedTrend {
   keyword: string;
@@ -221,10 +222,18 @@ export const detectAndNotifyEmergingTrends = action({
 
 /**
  * Internal action triggered on a scheduled interval by Convex Crons.
+ * Bypasses execution in development environments.
  */
 export const detectAndNotifyEmergingTrendsCron = internalAction({
   args: {},
   handler: async (ctx): Promise<ProcessEmergingTrendsResult> => {
+    if (!isTrendCronEnabled()) {
+      console.log(
+        "[trendAlertActions] Emerging trend detection cron skipped in development environment."
+      );
+      return { candidateCount: 0, dispatched: 0 };
+    }
+
     return await processEmergingTrends(ctx, "US", 10);
   },
 });

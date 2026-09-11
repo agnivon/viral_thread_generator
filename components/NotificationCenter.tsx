@@ -21,7 +21,12 @@ import {
   PopoverContent,
 } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
-import { useNotifications, AppNotificationItem, isExternalUrl } from "@/hooks/use-notifications";
+import {
+  useNotifications,
+  AppNotificationItem,
+  isExternalUrl,
+  getTrendSourceHref,
+} from "@/hooks/use-notifications";
 import { cn } from "@/lib/utils";
 
 function formatRelativeTime(timestamp: number): string {
@@ -119,12 +124,16 @@ export function NotificationCenter() {
     if (!item.isSeen) {
       void markSeen(item._id);
     }
-    if (item.data.href) {
-      if (isExternalUrl(item.data.href)) {
-        window.open(item.data.href, "_blank", "noopener,noreferrer");
+    const targetUrl =
+      item.kind === "emerging_trend_alert"
+        ? (item.data.trendKeyword ? getTrendSourceHref(item.data.trendKeyword) : undefined)
+        : item.data.href;
+    if (targetUrl) {
+      if (isExternalUrl(targetUrl)) {
+        window.open(targetUrl, "_blank", "noopener,noreferrer");
       } else {
         setIsOpen(false);
-        router.push(item.data.href);
+        router.push(targetUrl);
       }
     }
   };
@@ -283,16 +292,36 @@ export function NotificationCenter() {
                       {formatRelativeTime(item.createdAt)}
                     </span>
                     {item.kind === "emerging_trend_alert" && (
-                      <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
                         ⚡ Emerging Trend
                       </span>
                     )}
-                    {item.data.href && (
+                    {item.kind !== "emerging_trend_alert" && item.data.href && (
                       <span className="inline-flex items-center gap-0.5 text-[10px] text-violet-600 dark:text-violet-400 font-semibold group-hover:underline ml-auto">
-                        {item.kind === "emerging_trend_alert" ? "Draft Thread" : "View"} <ExternalLink className="h-2.5 w-2.5" />
+                        View <ExternalLink className="h-2.5 w-2.5" />
                       </span>
                     )}
                   </div>
+
+                  {item.kind === "emerging_trend_alert" && (
+                    <div className="flex items-center gap-2 pt-1.5">
+                      {item.data.trendKeyword && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (!item.isSeen) void markSeen(item._id);
+                            setIsOpen(false);
+                            router.push(getTrendSourceHref(item.data.trendKeyword!));
+                          }}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-medium bg-muted hover:bg-muted/80 text-foreground border border-border/60 transition-colors cursor-pointer"
+                        >
+                          <TrendingUp className="h-3 w-3 text-amber-500" />
+                          <span>View Source</span>
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {/* Unread Dot & Actions */}

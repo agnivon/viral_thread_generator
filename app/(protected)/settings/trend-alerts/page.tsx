@@ -39,17 +39,13 @@ import {
   type NicheDefinition,
 } from "@/convex/lib/nicheClassifier";
 import { trendAlertsQueryKeys } from "@/lib/query-keys";
+import {
+  trendAlertsSchema,
+  DEFAULT_TREND_ALERTS_VALUES,
+  isSettingsFormChanged,
+  type TrendAlertsFormData,
+} from "./schema";
 export { trendAlertsQueryKeys };
-
-const trendAlertsSchema = z.object({
-  enabled: z.boolean(),
-  minGrowthRate: z.number().min(0),
-  selectedNiches: z.array(z.string()),
-  whitelistKeywords: z.array(z.string()),
-  blacklistKeywords: z.array(z.string()),
-});
-
-type TrendAlertsFormData = z.infer<typeof trendAlertsSchema>;
 
 const NICHE_ICONS: Record<string, React.ElementType> = {
   tech_ai: Bot,
@@ -699,16 +695,27 @@ function LiveRulePreviewSection({
 interface StickySaveFooterProps {
   control: Control<TrendAlertsFormData>;
   isSaving: boolean;
+  isFormChanged: boolean;
   onSave: () => void;
 }
 
-function StickySaveFooter({ control, isSaving, onSave }: StickySaveFooterProps) {
+function StickySaveFooter({
+  control,
+  isSaving,
+  isFormChanged,
+  onSave,
+}: StickySaveFooterProps) {
   const enabled = useWatch({ control, name: "enabled" }) ?? false;
 
   return (
     <div className="flex items-center justify-between p-4 rounded-2xl bg-card/80 backdrop-blur-md border border-border/80 sticky bottom-4 shadow-xl">
       <div className="text-xs text-muted-foreground">
-        {enabled ? (
+        {isFormChanged ? (
+          <span className="text-amber-600 dark:text-amber-400 font-semibold flex items-center gap-1.5">
+            <span className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
+            Unsaved changes — click save to apply.
+          </span>
+        ) : enabled ? (
           <span className="text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1">
             <Check className="w-3.5 h-3.5" /> Notifications will fire when matching trends emerge.
           </span>
@@ -722,8 +729,13 @@ function StickySaveFooter({ control, isSaving, onSave }: StickySaveFooterProps) 
       <Button
         type="button"
         onClick={onSave}
-        disabled={isSaving}
-        className="rounded-xl px-6 bg-linear-to-r from-violet-600 to-indigo-600 text-white font-semibold cursor-pointer shadow-md hover:shadow-lg transition-all"
+        disabled={!isFormChanged || isSaving}
+        className={cn(
+          "rounded-xl px-6 font-semibold transition-all",
+          isFormChanged && !isSaving
+            ? "bg-linear-to-r from-violet-600 to-indigo-600 text-white cursor-pointer shadow-md hover:shadow-lg"
+            : "bg-muted text-muted-foreground cursor-not-allowed opacity-50 shadow-none hover:shadow-none"
+        )}
       >
         {isSaving ? (
           <span className="flex items-center gap-2">
@@ -751,20 +763,21 @@ export default function TrendAlertsSettingsPage() {
 
   const form = useForm<TrendAlertsFormData>({
     resolver: zodResolver(trendAlertsSchema),
-    defaultValues: {
-      enabled: false,
-      minGrowthRate: 150,
-      selectedNiches: [],
-      whitelistKeywords: [],
-      blacklistKeywords: [],
-    },
+    defaultValues: DEFAULT_TREND_ALERTS_VALUES,
   });
 
-  const { control, handleSubmit, reset, setValue, getValues } = form;
+  const {
+    control,
+    handleSubmit,
+    reset,
+    setValue,
+    getValues,
+    formState: { isDirty },
+  } = form;
 
-  // Sync state from server settings
+  // Sync state from server settings whenever server data arrives and form is clean
   useEffect(() => {
-    if (settings) {
+    if (settings && !isDirty) {
       reset({
         enabled: settings.enabled ?? false,
         minGrowthRate: settings.minGrowthRate ?? 150,
@@ -773,7 +786,10 @@ export default function TrendAlertsSettingsPage() {
         blacklistKeywords: settings.blacklistKeywords ?? [],
       });
     }
-  }, [settings, reset]);
+  }, [settings, reset, isDirty]);
+
+  // Form is changed if react-hook-form isDirty or if user has uncommitted draft tag text
+  const isFormChanged = isSettingsFormChanged(isDirty, newWhitelistTag, newBlacklistTag);
 
   // TanStack Query: Fetch & cache active Google Trends keywords
   const {
@@ -790,29 +806,6 @@ export default function TrendAlertsSettingsPage() {
     staleTime: 5 * 60 * 1000,
     gcTime: 10 * 60 * 1000,
   });
-
-  // Direct Convex mutation handler for saving trend filter preferences
-  const saveSettings = async (payload: {
-    enabled: boolean;
-    minGrowthRate: number;
-    selectedNiches: string[];
-    whitelistKeywords: string[];
-    blacklistKeywords: string[];
-    desktopPushEnabled?: boolean;
-    quietHoursEnabled?: boolean;
-  }) => {
-    try {
-      setIsSaving(true);
-      await updateSettingsConvex(payload);
-      toast.success("Trend alert preferences saved successfully!");
-    } catch (err: unknown) {
-      console.error("Failed to save settings:", err);
-      const message = err instanceof Error ? err.message : "Failed to save settings. Please try again.";
-      toast.error(message);
-    } finally {
-      setIsSaving(false);
-    }
-  };
 
   const handleAddWhitelistTag = () => {
     const raw = newWhitelistTag.trim().toLowerCase();
@@ -876,13 +869,29 @@ export default function TrendAlertsSettingsPage() {
       setNewBlacklistTag("");
     }
 
-    await saveSettings({
+    const payload = {
       enabled: data.enabled,
       minGrowthRate: data.minGrowthRate,
       selectedNiches: data.selectedNiches,
       whitelistKeywords: finalWhitelist,
       blacklistKeywords: finalBlacklist,
-    });
+    };
+
+    try {
+      setIsSaving(true);
+      await updateSettingsConvex(payload);
+      reset(payload);
+      toast.success("Trend alert preferences saved successfully!");
+    } catch (err: unknown) {
+      console.error("Failed to save settings:", err);
+      const message =
+        err instanceof Error
+          ? err.message
+          : "Failed to save settings. Please try again.";
+      toast.error(message);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   if (!settings || !nichesList) {
@@ -919,6 +928,7 @@ export default function TrendAlertsSettingsPage() {
       <StickySaveFooter
         control={control}
         isSaving={isSaving}
+        isFormChanged={isFormChanged}
         onSave={handleSubmit(onSubmit)}
       />
     </form>

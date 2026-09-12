@@ -3,6 +3,11 @@
 import { BaseChatModel } from "@langchain/core/language_models/chat_models";
 import { RunnableConfig } from "@langchain/core/runnables";
 import { createAgent } from "langchain";
+import {
+  modelCircuitBreaker,
+  getModelIdentity,
+  attachModelIdentity,
+} from "./circuitBreaker.js";
 
 export interface AgentConfig {
   tools?: Parameters<typeof createAgent>[0]["tools"];
@@ -16,7 +21,7 @@ export type AgentCandidate =
 
 /**
  * Builds an array of identical agents configured with different fallback models,
- * preserving any custom per-model timeout overrides.
+ * preserving any custom per-model timeout overrides and ModelIdentity metadata.
  * @param models Array of Chat models or model objects with custom timeouts.
  * @param config The shared tools, prompt, and response schema.
  */
@@ -24,13 +29,21 @@ export function buildAgents(models: AgentCandidate[], config: AgentConfig) {
   return models.map((candidate) => {
     const model = "runnable" in candidate ? candidate.runnable : candidate;
     const timeout = "timeout" in candidate ? candidate.timeout : undefined;
+    const identity = getModelIdentity(candidate);
     const agent = createAgent({
       model,
       tools: config.tools || [],
       systemPrompt: config.systemPrompt,
       responseFormat: config.responseFormat,
     });
-    return timeout !== undefined ? { runnable: agent, timeout } : agent;
+    if (identity) {
+      attachModelIdentity(agent, identity);
+    }
+    const result = timeout !== undefined ? { runnable: agent, timeout } : agent;
+    if (identity && timeout !== undefined) {
+      attachModelIdentity(result, identity);
+    }
+    return result;
   });
 }
 
@@ -43,13 +56,19 @@ export type FallbackCandidate<RunInput = any, RunOutput = any> =
   | { runnable: FallbackRunnable<RunInput, RunOutput>; timeout?: number };
 
 /**
- * Helper to bind a custom timeout to a specific model or agent in a fallback chain.
+ * Helper to bind a custom timeout to a specific model or agent in a fallback chain,
+ * preserving ModelIdentity metadata.
  */
 export function withTimeout<T extends FallbackRunnable<any, any> | BaseChatModel>(
   target: T,
   timeoutMs: number
 ): { runnable: T; timeout: number } {
-  return { runnable: target, timeout: timeoutMs };
+  const result = { runnable: target, timeout: timeoutMs };
+  const identity = getModelIdentity(target);
+  if (identity) {
+    attachModelIdentity(result, identity);
+  }
+  return result;
 }
 
 /**
@@ -69,8 +88,62 @@ export async function invokeWithFallbacks<RunInput = any, RunOutput = any>(
   const { timeout: defaultTimeoutMs, signal: parentSignal, ...restConfig } = options ?? {};
   let lastError: unknown;
 
+  // Check if all candidates are currently tripped; if so, fail open to avoid total deadlock
+  const allTripped =
+    runnables.length > 0 &&
+    runnables.every((candidate) => {
+      const identity = getModelIdentity(candidate);
+      return identity && !modelCircuitBreaker.isAvailable(identity).available;
+    });
+
+  if (allTripped) {
+    console.warn(
+      `[CircuitBreaker] All ${runnables.length} fallback candidates are currently tripped. Failing open to allow trial probe.`
+    );
+  }
+
+  const inFlightFailedKeys = new Set<string>();
+  const inFlightFailedModels = new Set<string>();
+  const inFlightFailedKeyModels = new Set<string>();
+
   for (let i = 0; i < runnables.length; i++) {
     const candidate = runnables[i];
+    const identity = getModelIdentity(candidate);
+
+    // 1. Circuit breaker check (bypassed if all candidates in the list are tripped)
+    if (!allTripped && identity) {
+      const cbStatus = modelCircuitBreaker.isAvailable(identity);
+      if (!cbStatus.available) {
+        console.warn(
+          `[CircuitBreaker] Skipping candidate at index ${i} (${identity.modelId} on ${identity.keyGroup}): ${cbStatus.reason}`
+        );
+        continue;
+      }
+    }
+
+    // 2. In-flight fast-skipping (0ms overhead if key, model, or key_model combination already failed in current invocation)
+    if (identity) {
+      const keyModelKey = `${identity.keyGroup}::${identity.modelId}`;
+      if (inFlightFailedKeyModels.has(keyModelKey)) {
+        console.warn(
+          `[Agent Fallback] Fast-skipping candidate at index ${i} (${identity.modelId} on ${identity.keyGroup}): Model+Key combination already failed in current attempt.`
+        );
+        continue;
+      }
+      if (inFlightFailedKeys.has(identity.keyGroup)) {
+        console.warn(
+          `[Agent Fallback] Fast-skipping candidate at index ${i} (${identity.modelId} on ${identity.keyGroup}): Key already failed in current attempt.`
+        );
+        continue;
+      }
+      if (inFlightFailedModels.has(identity.modelId)) {
+        console.warn(
+          `[Agent Fallback] Fast-skipping candidate at index ${i} (${identity.modelId} on ${identity.keyGroup}): Model already failed in current attempt.`
+        );
+        continue;
+      }
+    }
+
     const runnable = "runnable" in candidate ? candidate.runnable : candidate;
     const effectiveTimeout =
       "timeout" in candidate && candidate.timeout !== undefined ? candidate.timeout : defaultTimeoutMs;
@@ -118,10 +191,24 @@ export async function invokeWithFallbacks<RunInput = any, RunOutput = any>(
       }
 
       const result = await attemptPromise;
+      if (identity) {
+        modelCircuitBreaker.recordSuccess(identity);
+      }
       return result;
     } catch (e) {
       console.warn(`[Agent Fallback] Model at index ${i} failed/timed out. Trying next...`, e);
       lastError = e;
+
+      if (identity) {
+        const classification = modelCircuitBreaker.recordFailure(identity, e);
+        if (classification.skipScope === "key_model") {
+          inFlightFailedKeyModels.add(`${identity.keyGroup}::${identity.modelId}`);
+        } else if (classification.skipScope === "key") {
+          inFlightFailedKeys.add(identity.keyGroup);
+        } else if (classification.skipScope === "model") {
+          inFlightFailedModels.add(identity.modelId);
+        }
+      }
     } finally {
       if (timeoutTimer) {
         clearTimeout(timeoutTimer);

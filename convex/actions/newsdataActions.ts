@@ -12,11 +12,13 @@ import { NEWS_SCORER_PROMPT } from "../lib/agents/news/prompts.js";
 import { SearchQueryOptimizerNode } from "../lib/agents/nodes.js";
 import { db } from "../lib/firebase/index.js";
 import { NewsDataAPI } from "../lib/newsdata/api.js";
+import { modelCircuitBreaker } from "../lib/agents/circuitBreaker.js";
 
 export const fetchAndStoreLatestNews = internalAction({
   args: {},
-  handler: async () => {
-    const apiKey = process.env.NEWSDATA_API_KEY;
+  handler: async (ctx) => {
+    return await modelCircuitBreaker.runWithContext(ctx, async () => {
+      const apiKey = process.env.NEWSDATA_API_KEY;
     if (!apiKey) {
       throw new Error("NEWSDATA_API_KEY environment variable not set");
     }
@@ -198,6 +200,7 @@ export const fetchAndStoreLatestNews = internalAction({
     }
 
     console.log(`Successfully stored a total of ${totalStored} new news articles across all keywords.`);
+    });
   },
 });
 

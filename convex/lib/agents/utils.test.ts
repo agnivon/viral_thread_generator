@@ -251,3 +251,133 @@ test("normalizeResearchDossier - handles empty, null, or undefined values gracef
   expect(normalizeResearchDossier("   ")).toBe("");
 });
 
+test("invokeWithFallbacks - fast-skips matching key_model combination when candidate fails with 429, allowing different model on same key", async () => {
+  const { attachModelIdentity, modelCircuitBreaker } = await import("./circuitBreaker");
+  modelCircuitBreaker.reset();
+
+  const model1Key1: FallbackRunnable = {
+    invoke: vi.fn().mockRejectedValue({ status: 429, message: "Resource exhausted" }),
+  };
+  attachModelIdentity(model1Key1, { provider: "google", keyGroup: "GOOGLE_API_KEY", modelId: "gemini-3.8-flash" });
+
+  const model1Key1Dup: FallbackRunnable = {
+    invoke: vi.fn().mockResolvedValue({ text: "should not be called" }),
+  };
+  attachModelIdentity(model1Key1Dup, { provider: "google", keyGroup: "GOOGLE_API_KEY", modelId: "gemini-3.8-flash" });
+
+  const model2Key1: FallbackRunnable = {
+    invoke: vi.fn().mockResolvedValue({ text: "key 1 model 2 success" }),
+  };
+  attachModelIdentity(model2Key1, { provider: "google", keyGroup: "GOOGLE_API_KEY", modelId: "gemini-3.7-flash" });
+
+  const result = await invokeWithFallbacks([model1Key1, model1Key1Dup, model2Key1], { prompt: "test" });
+
+  expect(result).toEqual({ text: "key 1 model 2 success" });
+  expect(model1Key1.invoke).toHaveBeenCalledTimes(1);
+  expect(model1Key1Dup.invoke).not.toHaveBeenCalled(); // Fast-skipped in-flight!
+  expect(model2Key1.invoke).toHaveBeenCalledTimes(1); // Same key but different model succeeded!
+});
+
+test("invokeWithFallbacks - fast-skips matching key_model combination when candidate fails with 503, allowing different model on same key", async () => {
+  const { attachModelIdentity, modelCircuitBreaker } = await import("./circuitBreaker");
+  modelCircuitBreaker.reset();
+
+  const model1Key1: FallbackRunnable = {
+    invoke: vi.fn().mockRejectedValue({ status: 503, message: "The model is overloaded." }),
+  };
+  attachModelIdentity(model1Key1, { provider: "google", keyGroup: "GOOGLE_API_KEY", modelId: "gemini-3.8-flash" });
+
+  const model1Key1Dup: FallbackRunnable = {
+    invoke: vi.fn().mockResolvedValue({ text: "should not be called" }),
+  };
+  attachModelIdentity(model1Key1Dup, { provider: "google", keyGroup: "GOOGLE_API_KEY", modelId: "gemini-3.8-flash" });
+
+  const model2Key1: FallbackRunnable = {
+    invoke: vi.fn().mockResolvedValue({ text: "key 1 model 2 recovered" }),
+  };
+  attachModelIdentity(model2Key1, { provider: "google", keyGroup: "GOOGLE_API_KEY", modelId: "gemini-3.7-flash" });
+
+  const result = await invokeWithFallbacks([model1Key1, model1Key1Dup, model2Key1], { prompt: "test" });
+
+  expect(result).toEqual({ text: "key 1 model 2 recovered" });
+  expect(model1Key1.invoke).toHaveBeenCalledTimes(1);
+  expect(model1Key1Dup.invoke).not.toHaveBeenCalled(); // Fast-skipped in-flight!
+  expect(model2Key1.invoke).toHaveBeenCalledTimes(1); // Same key but different model succeeded!
+});
+
+test("invokeWithFallbacks - fast-skips entire key when candidate fails with 401/403 auth error", async () => {
+  const { attachModelIdentity, modelCircuitBreaker } = await import("./circuitBreaker");
+  modelCircuitBreaker.reset();
+
+  const model1Key1: FallbackRunnable = {
+    invoke: vi.fn().mockRejectedValue({ status: 401, message: "API key invalid" }),
+  };
+  attachModelIdentity(model1Key1, { provider: "google", keyGroup: "GOOGLE_API_KEY", modelId: "gemini-3.8-flash" });
+
+  const model2Key1: FallbackRunnable = {
+    invoke: vi.fn().mockResolvedValue({ text: "should not be called" }),
+  };
+  attachModelIdentity(model2Key1, { provider: "google", keyGroup: "GOOGLE_API_KEY", modelId: "gemini-3.7-flash" });
+
+  const model1Key2: FallbackRunnable = {
+    invoke: vi.fn().mockResolvedValue({ text: "key 2 success" }),
+  };
+  attachModelIdentity(model1Key2, { provider: "google", keyGroup: "GOOGLE_API_KEY2", modelId: "gemini-3.8-flash" });
+
+  const result = await invokeWithFallbacks([model1Key1, model2Key1, model1Key2], { prompt: "test" });
+
+  expect(result).toEqual({ text: "key 2 success" });
+  expect(model1Key1.invoke).toHaveBeenCalledTimes(1);
+  expect(model2Key1.invoke).not.toHaveBeenCalled(); // Fast-skipped because 401 trips whole key!
+  expect(model1Key2.invoke).toHaveBeenCalledTimes(1);
+});
+
+test("invokeWithFallbacks - skips model only on 500 server error, trying different model on same key", async () => {
+  const { attachModelIdentity, modelCircuitBreaker } = await import("./circuitBreaker");
+  modelCircuitBreaker.reset();
+
+  const gemini38Key1: FallbackRunnable = {
+    invoke: vi.fn().mockRejectedValue({ status: 500, message: "Internal Server Error" }),
+  };
+  attachModelIdentity(gemini38Key1, { provider: "google", keyGroup: "GOOGLE_API_KEY", modelId: "gemini-3.8-flash" });
+
+  const gemini38Key2: FallbackRunnable = {
+    invoke: vi.fn().mockResolvedValue({ text: "should be skipped due to same model" }),
+  };
+  attachModelIdentity(gemini38Key2, { provider: "google", keyGroup: "GOOGLE_API_KEY2", modelId: "gemini-3.8-flash" });
+
+  const gemini37Key1: FallbackRunnable = {
+    invoke: vi.fn().mockResolvedValue({ text: "gemini 3.7 on key 1 success" }),
+  };
+  attachModelIdentity(gemini37Key1, { provider: "google", keyGroup: "GOOGLE_API_KEY", modelId: "gemini-3.7-flash" });
+
+  const result = await invokeWithFallbacks([gemini38Key1, gemini38Key2, gemini37Key1], { prompt: "test" });
+
+  expect(result).toEqual({ text: "gemini 3.7 on key 1 success" });
+  expect(gemini38Key1.invoke).toHaveBeenCalledTimes(1);
+  expect(gemini38Key2.invoke).not.toHaveBeenCalled(); // gemini-3.8-flash skipped!
+  expect(gemini37Key1.invoke).toHaveBeenCalledTimes(1); // gemini-3.7-flash on Key 1 succeeded!
+});
+
+test("invokeWithFallbacks - fails open when all candidates in fallback array are tripped", async () => {
+  const { attachModelIdentity, modelCircuitBreaker } = await import("./circuitBreaker");
+  modelCircuitBreaker.reset();
+
+  const candidate1: FallbackRunnable = {
+    invoke: vi.fn().mockResolvedValue({ text: "trial probe success" }),
+  };
+  attachModelIdentity(candidate1, { provider: "google", keyGroup: "GOOGLE_API_KEY", modelId: "gemini-3.8-flash" });
+
+  // Pre-trip the key
+  modelCircuitBreaker.recordFailure(
+    { provider: "google", keyGroup: "GOOGLE_API_KEY", modelId: "gemini-3.8-flash" },
+    { status: 429, message: "Quota exceeded" }
+  );
+
+  // Even though candidate1 is tripped, all candidates in array are tripped, so it fails open
+  const result = await invokeWithFallbacks([candidate1], { prompt: "test" });
+  expect(result).toEqual({ text: "trial probe success" });
+  expect(candidate1.invoke).toHaveBeenCalledTimes(1);
+});
+
+

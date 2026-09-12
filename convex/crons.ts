@@ -28,5 +28,13 @@ crons.interval(
   {}
 );
 
+// Clean up expired model circuit breaker trips hourly
+crons.interval(
+  "cleanup-expired-circuit-breaker-trips-hourly",
+  { hours: 1 },
+  internal.circuitBreaker.cleanupExpiredTrips,
+  {}
+);
+
 // Crons configuration
 export default crons;

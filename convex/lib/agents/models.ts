@@ -3,19 +3,29 @@ import { ChatGoogle } from "@langchain/google";
 import { ChatOpenRouter } from "@langchain/openrouter";
 import { ChatOpenAI } from "@langchain/openai";
 import { ChatDeepSeek } from "@langchain/deepseek";
+import { attachModelIdentity } from "./circuitBreaker.js";
 
 type GoogleOverrides = Omit<NonNullable<ConstructorParameters<typeof ChatGoogle>[0]>, "model" | "modelName" | "temperature" | "maxRetries" | "apiKey">;
 type OpenAIOverrides = Omit<NonNullable<ConstructorParameters<typeof ChatOpenAI>[0]>, "model" | "modelName" | "temperature" | "maxRetries" | "apiKey">;
 type DeepSeekOverrides = Omit<NonNullable<ConstructorParameters<typeof ChatDeepSeek>[0]>, "model" | "modelName" | "temperature" | "maxRetries" | "apiKey">;
 
 const createGoogleModel = (model: string, temperature: number, apiKeyEnv: string, overrides: GoogleOverrides = {}) =>
-  new ChatGoogle({ model, temperature, maxRetries: 3, apiKey: process.env[apiKeyEnv], ...overrides });
+  attachModelIdentity(
+    new ChatGoogle({ model, temperature, maxRetries: 0, apiKey: process.env[apiKeyEnv], ...overrides }),
+    { provider: "google", keyGroup: apiKeyEnv, modelId: model }
+  );
 
 const createOpenAIModel = (model: string, temperature: number, overrides: OpenAIOverrides = {}) =>
-  new ChatOpenAI({ model, temperature, maxRetries: 3, apiKey: process.env.OPENAI_API_KEY, ...overrides });
+  attachModelIdentity(
+    new ChatOpenAI({ model, temperature, maxRetries: 0, apiKey: process.env.OPENAI_API_KEY, ...overrides }),
+    { provider: "openai", keyGroup: "OPENAI_API_KEY", modelId: model }
+  );
 
 const createDeepSeekModel = (model: string, temperature: number, overrides: DeepSeekOverrides = {}) =>
-  new ChatDeepSeek({ model, temperature, maxRetries: 3, apiKey: process.env.DEEPSEEK_API_KEY, ...overrides });
+  attachModelIdentity(
+    new ChatDeepSeek({ model, temperature, maxRetries: 0, apiKey: process.env.DEEPSEEK_API_KEY, ...overrides }),
+    { provider: "deepseek", keyGroup: "DEEPSEEK_API_KEY", modelId: model }
+  );
 
 // ScraperNode Models
 export const googleGemini31FlashLiteT01Key1 = createGoogleModel("gemini-3.1-flash-lite", 0.1, "GOOGLE_API_KEY");
@@ -23,12 +33,15 @@ export const googleGemini31FlashLiteT01Key2 = createGoogleModel("gemini-3.1-flas
 export const googleGemini35FlashLiteT01Key1 = createGoogleModel("gemini-3.5-flash-lite", 0.1, "GOOGLE_API_KEY");
 export const googleGemini35FlashLiteT01Key2 = createGoogleModel("gemini-3.5-flash-lite", 0.1, "GOOGLE_API_KEY2");
 export const openAiGpt54MiniT01 = createOpenAIModel("gpt-5.4-mini", 0.1);
-export const openRouterFreeT01 = new ChatOpenRouter({
-  model: "openrouter/free",
-  temperature: 0.1,
-  maxRetries: 3,
-  apiKey: process.env.OPENROUTER_API_KEY,
-});
+export const openRouterFreeT01 = attachModelIdentity(
+  new ChatOpenRouter({
+    model: "openrouter/free",
+    temperature: 0.1,
+    maxRetries: 0,
+    apiKey: process.env.OPENROUTER_API_KEY,
+  }),
+  { provider: "openrouter", keyGroup: "OPENROUTER_API_KEY", modelId: "openrouter/free" }
+);
 
 // HookStrategistNode Models
 export const googleGemini31FlashLiteT08Key1 = createGoogleModel("gemini-3.1-flash-lite", 0.8, "GOOGLE_API_KEY");
@@ -36,12 +49,15 @@ export const googleGemini31FlashLiteT08Key2 = createGoogleModel("gemini-3.1-flas
 export const googleGemini35FlashLiteT08Key1 = createGoogleModel("gemini-3.5-flash-lite", 0.8, "GOOGLE_API_KEY");
 export const googleGemini35FlashLiteT08Key2 = createGoogleModel("gemini-3.5-flash-lite", 0.8, "GOOGLE_API_KEY2");
 export const openAiGpt54MiniT08 = createOpenAIModel("gpt-5.4-mini", 0.8);
-export const openRouterFreeT08 = new ChatOpenRouter({
-  model: "openrouter/free",
-  temperature: 0.8,
-  maxRetries: 3,
-  apiKey: process.env.OPENROUTER_API_KEY,
-});
+export const openRouterFreeT08 = attachModelIdentity(
+  new ChatOpenRouter({
+    model: "openrouter/free",
+    temperature: 0.8,
+    maxRetries: 0,
+    apiKey: process.env.OPENROUTER_API_KEY,
+  }),
+  { provider: "openrouter", keyGroup: "OPENROUTER_API_KEY", modelId: "openrouter/free" }
+);
 
 // ThreadWriterNode Models
 export const googleGemini38FlashT08Key1 = createGoogleModel("gemini-3.8-flash", 0.8, "GOOGLE_API_KEY");

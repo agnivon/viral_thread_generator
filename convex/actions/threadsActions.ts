@@ -12,6 +12,7 @@ import { NewsThreadFactoryGraph } from "../lib/agents/news/graph.js";
 import { SocialMediaThreadFactoryGraph } from "../lib/agents/social_media/graph.js";
 import { TopicThreadFactoryGraph } from "../lib/agents/topic/graph.js";
 import { ThreadsAPI } from "../lib/threads/api.js";
+import { modelCircuitBreaker } from "../lib/agents/circuitBreaker.js";
 import { generationPool, publicationPool } from "../lib/workpool/index.js";
 
 async function requireAuthUserId(ctx: ActionCtx): Promise<Id<"users">> {
@@ -139,22 +140,24 @@ async function runGraphWithLifecycle(
   agent: string,
   runner: (graph: ReturnType<typeof getGraph>) => Promise<Record<string, unknown>>
 ): Promise<{ recordId: Id<"threadDrafts"> }> {
-  try {
-    const graph = getGraph(agent);
-    const finalState = await runner(graph);
-    console.log(
-      `[runGraphWithLifecycle] Graph finished for ${recordId}. Iterations: ${String(finalState.iterations)}, Approved: ${String(finalState.is_approved)}`
-    );
-    return await handleGraphCompletion(ctx, recordId, finalState, agent);
-  } catch (e) {
-    const failure_reason = formatErrorMessage(e);
-    await ctx.runMutation(internal.mutations.threadsMutations.updateThreadDraft, {
-      id: recordId,
-      generation_status: "failed",
-      failure_reason,
-    });
-    throw e;
-  }
+  return await modelCircuitBreaker.runWithContext(ctx, async () => {
+    try {
+      const graph = getGraph(agent);
+      const finalState = await runner(graph);
+      console.log(
+        `[runGraphWithLifecycle] Graph finished for ${recordId}. Iterations: ${String(finalState.iterations)}, Approved: ${String(finalState.is_approved)}`
+      );
+      return await handleGraphCompletion(ctx, recordId, finalState, agent);
+    } catch (e) {
+      const failure_reason = formatErrorMessage(e);
+      await ctx.runMutation(internal.mutations.threadsMutations.updateThreadDraft, {
+        id: recordId,
+        generation_status: "failed",
+        failure_reason,
+      });
+      throw e;
+    }
+  });
 }
 
 async function restartGraphFromScratch(

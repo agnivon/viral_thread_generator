@@ -166,6 +166,16 @@ export default defineSchema(
       quietHoursEnd: v.optional(v.string()),
       updatedAt: v.number(),
     }).index("by_userId", ["userId"]),
+    circuitBreaker: defineTable({
+      type: v.union(v.literal("key"), v.literal("model"), v.literal("key_model")),
+      target: v.string(),
+      trippedUntil: v.number(),
+      reason: v.string(),
+      category: v.string(),
+      updatedAt: v.number(),
+    })
+      .index("by_type_target", ["type", "target"])
+      .index("by_trippedUntil", ["trippedUntil"]),
   },
   // If you ever get an error about schema mismatch
   // between your data and your schema, and you cannot

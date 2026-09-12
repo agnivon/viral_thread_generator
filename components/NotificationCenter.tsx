@@ -163,7 +163,7 @@ export function NotificationCenter() {
       <PopoverContent
         align="end"
         sideOffset={8}
-        className="w-[calc(100vw-2rem)] sm:w-[480px] md:w-[500px] p-0 shadow-2xl border-border/60 rounded-2xl bg-card/95 backdrop-blur-xl z-50 overflow-hidden"
+        className="w-[calc(100vw-1.25rem)] sm:w-[480px] md:w-[500px] p-0 shadow-2xl border-border/60 rounded-2xl bg-card/95 backdrop-blur-xl z-50 overflow-hidden"
       >
         {/* Header */}
         <div className="flex items-center justify-between border-b border-border/40 px-4 sm:px-5 py-3.5 bg-muted/20">
@@ -291,7 +291,7 @@ export function NotificationCenter() {
                 key={item._id}
                 onClick={() => handleNotificationClick(item)}
                 className={cn(
-                  "group relative flex items-start gap-3.5 p-4 transition-colors cursor-pointer text-left",
+                  "group relative flex items-start gap-3 sm:gap-3.5 p-3.5 sm:p-4 transition-colors cursor-pointer text-left",
                   !item.isSeen
                     ? "bg-violet-500/5 hover:bg-violet-500/10"
                     : "hover:bg-muted/40"
@@ -301,11 +301,11 @@ export function NotificationCenter() {
                 {getNotificationIcon(item.kind)}
 
                 {/* Content */}
-                <div className="flex-1 min-w-0 pr-20 sm:pr-24 space-y-1">
-                  <div className="min-w-0 w-full overflow-hidden">
+                <div className="flex-1 min-w-0 pr-9 sm:pr-16 space-y-1">
+                  <div className="min-w-0 w-full">
                     <h4
                       className={cn(
-                        "text-sm leading-snug truncate block w-full",
+                        "text-sm leading-snug break-words",
                         !item.isSeen ? "font-bold text-foreground" : "font-medium text-foreground/80"
                       )}
                       title={item.data.title || "Notification"}
@@ -356,7 +356,7 @@ export function NotificationCenter() {
                 </div>
 
                 {/* Unread Dot & Actions */}
-                <div className="absolute top-4 right-4 flex items-center gap-1.5 shrink-0 z-10">
+                <div className="absolute top-3.5 right-3.5 sm:top-4 sm:right-4 flex items-center gap-1.5 shrink-0 z-10">
                   {!item.isSeen && (
                     <span className="h-2 w-2 rounded-full bg-violet-600 shadow-xs shrink-0" title="Unread" />
                   )}

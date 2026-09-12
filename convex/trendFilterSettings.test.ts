@@ -48,6 +48,31 @@ test("classifyTrendNiches maps keywords to appropriate creator niches", () => {
   expect(
     classifyTrendNiches("saas startup raises seed round", ["founder", "venture capital"])
   ).toContain("business_startups");
+
+  expect(
+    classifyTrendNiches("mets vs yankees", ["mets - yankees", "cody bellinger"])
+  ).toContain("sports");
+  expect(
+    classifyTrendNiches("mets vs yankees", ["mets - yankees", "cody bellinger"])
+  ).not.toContain("gaming");
+
+  expect(
+    classifyTrendNiches("phillies vs braves", ["braves game", "phillies game today"])
+  ).toContain("sports");
+  expect(
+    classifyTrendNiches("phillies vs braves", ["braves game", "phillies game today"])
+  ).not.toContain("gaming");
+
+  expect(
+    classifyTrendNiches("ben shelton", ["frances tiafoe", "us open tennis"])
+  ).toContain("sports");
+
+  expect(
+    classifyTrendNiches("xbox game pass", ["xbox", "video games"])
+  ).toContain("gaming");
+  expect(
+    classifyTrendNiches("xbox game pass", ["xbox", "video games"])
+  ).not.toContain("sports");
 });
 
 test("matchesUserPreferences enforces master toggle, blacklist, whitelist, and niche filters", () => {
@@ -188,6 +213,70 @@ test("matchesUserPreferences enforces master toggle, blacklist, whitelist, and n
       blacklistKeywords: ["war"], // Blacklist "war"
     })
   ).toBe(true);
+
+  // 11. Strict sports exclusion: User deselected sports, so sports trend is blocked even if co-classified or contains "game"
+  const baseballTrend = {
+    keyword: "mets vs yankees",
+    trafficGrowthRate: 800,
+    relatedKeywords: ["cody bellinger", "yankees", "braves game today"],
+  };
+  expect(
+    matchesUserPreferences(baseballTrend, {
+      enabled: true,
+      minGrowthRate: 150,
+      selectedNiches: ["entertainment", "gaming", "tech_ai"], // Sports is DESELECTED
+      whitelistKeywords: [],
+      blacklistKeywords: [],
+    })
+  ).toBe(false);
+
+  // 12. Non-sports trend in gaming niche matches when gaming is selected
+  const videoGameTrend = {
+    keyword: "xbox game pass",
+    trafficGrowthRate: 500,
+    relatedKeywords: ["xbox", "video games"],
+  };
+  expect(
+    matchesUserPreferences(videoGameTrend, {
+      enabled: true,
+      minGrowthRate: 150,
+      selectedNiches: ["entertainment", "gaming", "tech_ai"],
+      whitelistKeywords: [],
+      blacklistKeywords: [],
+    })
+  ).toBe(true);
+
+  // 13. Tech comparison with "vs" is classified as tech_ai and NOT sports, so it is delivered even when sports is deselected
+  const techComparisonTrend = {
+    keyword: "claude vs gpt-4o",
+    trafficGrowthRate: 600,
+    relatedKeywords: ["ai model comparison", "anthropic", "openai"],
+  };
+  expect(
+    matchesUserPreferences(techComparisonTrend, {
+      enabled: true,
+      minGrowthRate: 150,
+      selectedNiches: ["tech_ai"], // Sports is DESELECTED
+      whitelistKeywords: [],
+      blacklistKeywords: [],
+    })
+  ).toBe(true);
+
+  // 14. Unknown team head-to-head match via fallback is classified as sports and suppressed when sports is deselected
+  const unknownMatchupTrend = {
+    keyword: "necaxa vs mazatlan",
+    trafficGrowthRate: 400,
+    relatedKeywords: ["live score", "highlights"],
+  };
+  expect(
+    matchesUserPreferences(unknownMatchupTrend, {
+      enabled: true,
+      minGrowthRate: 150,
+      selectedNiches: ["tech_ai", "business_startups"], // Sports is DESELECTED
+      whitelistKeywords: [],
+      blacklistKeywords: [],
+    })
+  ).toBe(false);
 });
 
 test("getSettings and updateSettings CRUD operations work with sensible defaults", async () => {

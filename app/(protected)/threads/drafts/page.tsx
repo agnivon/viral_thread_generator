@@ -152,28 +152,174 @@ export default function DraftsPage() {
     });
   };
 
+  type DraftItem = (typeof drafts)[number];
+
+  const renderStatusBadge = (draft: DraftItem) => {
+    const genStatus = draft.generation_status ?? "success";
+    if (genStatus === "queued") {
+      return (
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg bg-orange-500/10 text-orange-600 dark:text-orange-400">
+          <ClockIcon className="w-3 h-3" /> Queued
+        </span>
+      );
+    }
+    if (genStatus === "processing") {
+      return (
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 animate-pulse">
+          <UpdateIcon className="w-3 h-3 animate-spin" /> Generating
+        </span>
+      );
+    }
+    if (genStatus === "hook selection") {
+      return (
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg bg-indigo-500/10 text-indigo-600 dark:text-indigo-400">
+          <Sparkles className="w-3 h-3 text-indigo-500" /> Hook Selection
+        </span>
+      );
+    }
+    if (genStatus === "failed") {
+      return (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger
+              render={<span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg bg-destructive/10 text-destructive cursor-help hover:bg-destructive/15 transition-colors" />}
+            >
+              <CrossCircledIcon className="w-3 h-3 shrink-0" /> Failed
+            </TooltipTrigger>
+            <TooltipContent side="top" className="max-w-xs p-3 text-xs bg-popover text-popover-foreground border border-border shadow-xl rounded-xl space-y-1.5">
+              <div className="font-semibold text-destructive flex items-center gap-1.5 text-xs">
+                <AlertCircle className="w-3.5 h-3.5 shrink-0" /> Generation Error
+              </div>
+              <p className="text-muted-foreground text-[11px] leading-relaxed wrap-break-word font-mono line-clamp-4">
+                {draft.failure_reason || "AI agent generation failed after trying all fallback models."}
+              </p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      );
+    }
+    if (draft.publication_status === "queued") {
+      return (
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg bg-orange-500/10 text-orange-600 dark:text-orange-400">
+          <ClockIcon className="w-3 h-3" /> Queued
+        </span>
+      );
+    }
+    if (draft.publication_status === "publishing") {
+      return (
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 animate-pulse">
+          <UpdateIcon className="w-3 h-3 animate-spin" /> Publishing
+        </span>
+      );
+    }
+    if (draft.publication_status === "failed") {
+      return (
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger
+              render={<span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg bg-rose-500/10 text-rose-600 dark:text-rose-400 cursor-help hover:bg-rose-500/15 transition-colors" />}
+            >
+              <CrossCircledIcon className="w-3 h-3 shrink-0" /> Publish Failed
+            </TooltipTrigger>
+            <TooltipContent side="top" className="max-w-xs p-3 text-xs bg-popover text-popover-foreground border border-border shadow-xl rounded-xl space-y-1.5">
+              <div className="font-semibold text-rose-500 flex items-center gap-1.5 text-xs">
+                <AlertCircle className="w-3.5 h-3.5 shrink-0" /> Publication Error
+              </div>
+              <p className="text-muted-foreground text-[11px] leading-relaxed wrap-break-word font-mono line-clamp-4">
+                {draft.publication_error || "Failed to publish to Threads. Please verify your Threads connection and permissions."}
+              </p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      );
+    }
+    if (draft.is_published) {
+      return (
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400">
+          <CheckCircledIcon className="w-3 h-3" /> Published
+        </span>
+      );
+    }
+    if (draft.is_approved) {
+      return (
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg bg-green-500/10 text-green-600 dark:text-green-400">
+          <CheckCircledIcon className="w-3 h-3" /> Approved
+        </span>
+      );
+    }
+    return (
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg bg-muted text-muted-foreground">
+        <FileTextIcon className="w-3 h-3" /> Pending Review
+      </span>
+    );
+  };
+
+  const renderActionButtons = (draft: DraftItem, fullWidthMobile = false) => {
+    const genStatus = draft.generation_status ?? "success";
+    if (genStatus === "failed") {
+      return (
+        <Button
+          size="sm"
+          variant="destructive"
+          className={`rounded-lg bg-rose-500 hover:bg-rose-600 text-white cursor-pointer justify-center ${fullWidthMobile ? "w-full py-2.5 text-xs" : "w-24"}`}
+          onClick={() => handleRetry(draft._id)}
+          disabled={retryingIds.has(draft._id)}
+        >
+          {retryingIds.has(draft._id) ? (
+            <>
+              <Loader2 className="w-3.5 h-3.5 animate-spin mr-1 inline" /> Retrying
+            </>
+          ) : (
+            "Retry"
+          )}
+        </Button>
+      );
+    }
+    if (genStatus === "queued" || genStatus === "processing") {
+      return (
+        <Button
+          size="sm"
+          variant="outline"
+          disabled
+          className={`rounded-lg text-muted-foreground border-border/60 justify-center opacity-70 cursor-not-allowed ${fullWidthMobile ? "w-full py-2.5 text-xs" : "w-24"}`}
+        >
+          <Loader2 className="w-3.5 h-3.5 animate-spin mr-1 inline" />
+          {genStatus === "queued" ? "Queued" : "Working"}
+        </Button>
+      );
+    }
+    return (
+      <Link
+        href={`/threads/drafts/${draft._id}/approve`}
+        className={`${buttonVariants({ variant: "outline", size: "sm" })} rounded-lg hover:bg-violet-600/5 hover:text-violet-600 dark:hover:bg-violet-500/5 dark:hover:text-violet-400 border-border/80 hover:border-violet-500/30 transition-all duration-200 cursor-pointer justify-center ${fullWidthMobile ? "w-full py-2.5 text-xs font-semibold" : "w-24"}`}
+      >
+        Review
+      </Link>
+    );
+  };
+
   const isLoadingInitial = status === "LoadingFirstPage";
 
   return (
-    <div className="container mx-auto px-4 py-12 max-w-7xl space-y-8">
+    <div className="container mx-auto px-4 py-8 sm:py-12 max-w-7xl space-y-6 sm:space-y-8">
       {/* Header Section */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-border/30 pb-6">
         <div className="space-y-1">
-          <h1 className="text-4xl font-extrabold tracking-tight">
+          <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight">
             <span className="bg-linear-to-r from-violet-600 to-indigo-600 bg-clip-text text-transparent dark:from-violet-400 dark:to-indigo-400">
               Thread Drafts
             </span>
           </h1>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-xs sm:text-sm text-muted-foreground">
             Manage, evaluate, and publish your generated thread sequences.
           </p>
         </div>
         {selectedDrafts.size > 0 && (
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5 flex-wrap w-full sm:w-auto">
             <Button
               onClick={handleBulkPublish}
               disabled={isPublishing || isDeleting || publishableDraftsCount === 0}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-linear-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white font-semibold shadow-md hover:shadow-lg transition-all duration-300 cursor-pointer disabled:opacity-50"
+              className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-linear-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white font-semibold shadow-md hover:shadow-lg transition-all duration-300 cursor-pointer disabled:opacity-50 text-xs sm:text-sm"
             >
               {isPublishing ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
               Publish ({publishableDraftsCount})
@@ -182,7 +328,7 @@ export default function DraftsPage() {
               onClick={handleBulkDelete}
               disabled={isPublishing || isDeleting}
               variant="destructive"
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-linear-to-r from-rose-600 to-red-600 hover:from-rose-700 hover:to-red-700 text-white font-semibold shadow-md hover:shadow-lg transition-all duration-300 cursor-pointer disabled:opacity-50"
+              className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-linear-to-r from-rose-600 to-red-600 hover:from-rose-700 hover:to-red-700 text-white font-semibold shadow-md hover:shadow-lg transition-all duration-300 cursor-pointer disabled:opacity-50 text-xs sm:text-sm"
             >
               {isDeleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <TrashIcon className="w-4 h-4" />}
               Delete ({selectedDrafts.size})
@@ -208,7 +354,109 @@ export default function DraftsPage() {
         </div>
       ) : (
         <>
-          <div className="overflow-x-auto border border-border/80 rounded-xl bg-card/45 backdrop-blur-xs shadow-xs w-full">
+          {/* Mobile Select All Bar */}
+          <div className="md:hidden flex items-center justify-between px-4 py-3 bg-card/60 backdrop-blur-xs rounded-xl border border-border/80 text-xs">
+            <label className="flex items-center gap-2.5 font-semibold text-foreground cursor-pointer">
+              <Checkbox
+                checked={drafts.length > 0 && selectedDrafts.size === drafts.length}
+                onCheckedChange={toggleAll}
+                disabled={drafts.length === 0 || isPublishing || isDeleting}
+                aria-label="Select all drafts"
+                className="border-muted-foreground/45 data-[state=checked]:bg-violet-600 data-[state=checked]:border-violet-600"
+              />
+              <span>Select All ({drafts.length})</span>
+            </label>
+            {selectedDrafts.size > 0 && (
+              <span className="text-violet-600 dark:text-violet-400 font-bold">
+                {selectedDrafts.size} selected
+              </span>
+            )}
+          </div>
+
+          {/* Mobile Card List */}
+          <div className="md:hidden space-y-3">
+            {drafts.map((draft) => {
+              const inputField = draft.input_field;
+              const isTopic = inputField?.agent === "topic";
+              const title = !inputField
+                ? "Unknown Source"
+                : inputField.agent === "topic"
+                ? inputField.topic
+                : inputField.url;
+              const externalUrl = !isTopic && title.startsWith("http") ? title : `https://${title}`;
+              const genStatus = draft.generation_status ?? "success";
+              const isSelected = selectedDrafts.has(draft._id);
+
+              return (
+                <div
+                  key={draft._id}
+                  className={`p-4 rounded-xl border transition-all duration-200 bg-card/45 backdrop-blur-xs shadow-xs space-y-3.5 ${
+                    isSelected
+                      ? "border-violet-500/80 bg-violet-500/5 ring-1 ring-violet-500/30"
+                      : "border-border/80 hover:border-violet-500/30"
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-start gap-3 min-w-0 flex-1">
+                      <Checkbox
+                        checked={isSelected}
+                        onCheckedChange={() => toggleSelection(draft._id)}
+                        disabled={isPublishing || isDeleting}
+                        aria-label={`Select ${title}`}
+                        className="mt-1 border-muted-foreground/45 data-[state=checked]:bg-violet-600 data-[state=checked]:border-violet-600"
+                      />
+                      <div className="min-w-0 flex-1">
+                        {isTopic ? (
+                          <p className="font-semibold text-foreground text-sm truncate" title={title}>
+                            {title}
+                          </p>
+                        ) : (
+                          <a
+                            href={externalUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="hover:text-violet-600 dark:hover:text-violet-400 hover:underline flex items-center gap-1.5 font-semibold text-foreground text-sm transition-colors truncate"
+                            title={title}
+                          >
+                            <span className="truncate">{title}</span>
+                            <ExternalLinkIcon className="w-3.5 h-3.5 shrink-0 text-muted-foreground" />
+                          </a>
+                        )}
+                        <p className="text-[11px] text-muted-foreground mt-0.5 font-medium">
+                          {formatDate(draft._creationTime)}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-2 pt-2 border-t border-border/40 text-xs">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {renderStatusBadge(draft)}
+                      {genStatus === "success" && draft.virality_score !== undefined && (
+                        <span
+                          className={`px-2 py-0.5 rounded-full text-xs font-bold ${
+                            draft.virality_score >= 85
+                              ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400"
+                              : draft.virality_score >= 70
+                              ? "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400"
+                              : "bg-rose-100 text-rose-800 dark:bg-rose-900/30 dark:text-rose-400"
+                          }`}
+                        >
+                          Virality: {draft.virality_score}
+                        </span>
+                      )}
+                    </div>
+                    <div className="shrink-0">
+                      {renderActionButtons(draft)}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Desktop Table View */}
+          <div className="hidden md:block overflow-x-auto border border-border/80 rounded-xl bg-card/45 backdrop-blur-xs shadow-xs w-full">
             <table className="w-full text-sm text-left border-collapse min-w-162.5">
               <thead className="bg-muted/30 text-muted-foreground/80 text-xs font-bold uppercase border-b border-border/50">
                 <tr>
@@ -269,75 +517,7 @@ export default function DraftsPage() {
                         )}
                       </td>
                       <td className="px-4 py-4.5">
-                        {genStatus === "queued" ? (
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg bg-orange-500/10 text-orange-600 dark:text-orange-400">
-                            <ClockIcon className="w-3 h-3" /> Queued
-                          </span>
-                        ) : genStatus === "processing" ? (
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 animate-pulse">
-                            <UpdateIcon className="w-3 h-3 animate-spin" /> Generating
-                          </span>
-                        ) : genStatus === "hook selection" ? (
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg bg-indigo-500/10 text-indigo-600 dark:text-indigo-400">
-                            <Sparkles className="w-3 h-3 text-indigo-500" /> Hook Selection
-                          </span>
-                        ) : genStatus === "failed" ? (
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger
-                                render={<span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg bg-destructive/10 text-destructive cursor-help hover:bg-destructive/15 transition-colors" />}
-                              >
-                                <CrossCircledIcon className="w-3 h-3 shrink-0" /> Failed
-                              </TooltipTrigger>
-                              <TooltipContent side="top" className="max-w-xs p-3 text-xs bg-popover text-popover-foreground border border-border shadow-xl rounded-xl space-y-1.5">
-                                <div className="font-semibold text-destructive flex items-center gap-1.5 text-xs">
-                                  <AlertCircle className="w-3.5 h-3.5 shrink-0" /> Generation Error
-                                </div>
-                                <p className="text-muted-foreground text-[11px] leading-relaxed wrap-break-word font-mono line-clamp-4">
-                                  {draft.failure_reason || "AI agent generation failed after trying all fallback models."}
-                                </p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                        ) : draft.publication_status === "queued" ? (
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg bg-orange-500/10 text-orange-600 dark:text-orange-400">
-                            <ClockIcon className="w-3 h-3" /> Queued
-                          </span>
-                        ) : draft.publication_status === "publishing" ? (
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400 animate-pulse">
-                            <UpdateIcon className="w-3 h-3 animate-spin" /> Publishing
-                          </span>
-                        ) : draft.publication_status === "failed" ? (
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger
-                                render={<span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg bg-rose-500/10 text-rose-600 dark:text-rose-400 cursor-help hover:bg-rose-500/15 transition-colors" />}
-                              >
-                                <CrossCircledIcon className="w-3 h-3 shrink-0" /> Publish Failed
-                              </TooltipTrigger>
-                              <TooltipContent side="top" className="max-w-xs p-3 text-xs bg-popover text-popover-foreground border border-border shadow-xl rounded-xl space-y-1.5">
-                                <div className="font-semibold text-rose-500 flex items-center gap-1.5 text-xs">
-                                  <AlertCircle className="w-3.5 h-3.5 shrink-0" /> Publication Error
-                                </div>
-                                <p className="text-muted-foreground text-[11px] leading-relaxed wrap-break-word font-mono line-clamp-4">
-                                  {draft.publication_error || "Failed to publish to Threads. Please verify your Threads connection and permissions."}
-                                </p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                        ) : draft.is_published ? (
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400">
-                            <CheckCircledIcon className="w-3 h-3" /> Published
-                          </span>
-                        ) : draft.is_approved ? (
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg bg-green-500/10 text-green-600 dark:text-green-400">
-                            <CheckCircledIcon className="w-3 h-3" /> Approved
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg bg-muted text-muted-foreground">
-                            <FileTextIcon className="w-3 h-3" /> Pending Review
-                          </span>
-                        )}
+                        {renderStatusBadge(draft)}
                       </td>
                       <td className="px-4 py-4.5 text-center">
                         {genStatus === "success" && draft.virality_score !== undefined ? (
@@ -359,40 +539,7 @@ export default function DraftsPage() {
                         </span>
                       </td>
                       <td className="px-4 py-4.5 text-right">
-                        {genStatus === "failed" ? (
-                          <Button 
-                            size="sm" 
-                            variant="destructive" 
-                            className="rounded-lg bg-rose-500 hover:bg-rose-600 text-white cursor-pointer w-24 justify-center"
-                            onClick={() => handleRetry(draft._id)}
-                            disabled={retryingIds.has(draft._id)}
-                          >
-                            {retryingIds.has(draft._id) ? (
-                              <>
-                                <Loader2 className="w-3.5 h-3.5 animate-spin mr-1 inline" /> Retrying
-                              </>
-                            ) : (
-                              "Retry"
-                            )}
-                          </Button>
-                        ) : genStatus === "queued" || genStatus === "processing" ? (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            disabled
-                            className="rounded-lg text-muted-foreground border-border/60 w-24 justify-center opacity-70 cursor-not-allowed"
-                          >
-                            <Loader2 className="w-3.5 h-3.5 animate-spin mr-1 inline" />
-                            {genStatus === "queued" ? "Queued" : "Working"}
-                          </Button>
-                        ) : (
-                          <Link
-                            href={`/threads/drafts/${draft._id}/approve`}
-                            className={`${buttonVariants({ variant: "outline", size: "sm" })} rounded-lg hover:bg-violet-600/5 hover:text-violet-600 dark:hover:bg-violet-500/5 dark:hover:text-violet-400 border-border/80 hover:border-violet-500/30 transition-all duration-200 cursor-pointer w-24 justify-center`}
-                          >
-                            Review
-                          </Link>
-                        )}
+                        {renderActionButtons(draft)}
                       </td>
                     </tr>
                   );

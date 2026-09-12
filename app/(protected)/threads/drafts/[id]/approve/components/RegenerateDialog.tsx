@@ -42,10 +42,10 @@ export function RegenerateDialog({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="relative w-full max-w-lg overflow-hidden border border-border/80 bg-card/90 backdrop-blur-lg rounded-2xl shadow-xl p-6 space-y-6">
-        <div className="space-y-2">
-          <h2 className="text-xl font-bold flex items-center gap-2 text-foreground">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-background/80 backdrop-blur-md animate-in fade-in duration-200">
+      <div className="relative w-full max-w-lg overflow-hidden border border-border/80 bg-card/90 backdrop-blur-lg rounded-2xl shadow-xl p-4 sm:p-6 space-y-4 sm:space-y-6">
+        <div className="space-y-1.5 sm:space-y-2">
+          <h2 className="text-lg sm:text-xl font-bold flex items-center gap-2 text-foreground">
             <Sparkles className="w-5 h-5 text-violet-500" />
             Regenerate Thread
           </h2>
@@ -111,19 +111,19 @@ export function RegenerateDialog({
           </div>
         </div>
 
-        <div className="flex items-center justify-end gap-3 pt-2">
+        <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2.5 sm:gap-3 pt-2">
           <Button
             variant="outline"
             onClick={onClose}
             disabled={isRegenerating}
-            className="rounded-xl border-border px-5"
+            className="w-full sm:w-auto rounded-xl border-border px-5 cursor-pointer py-2.5"
           >
             Cancel
           </Button>
           <Button
             onClick={handleSubmit}
             disabled={isRegenerating}
-            className="rounded-xl bg-linear-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white font-semibold px-6 shadow-md hover:shadow-lg transition-all duration-300"
+            className="w-full sm:w-auto rounded-xl bg-linear-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white font-semibold px-6 py-2.5 shadow-md hover:shadow-lg transition-all duration-300 cursor-pointer"
           >
             {isRegenerating ? (
               <>

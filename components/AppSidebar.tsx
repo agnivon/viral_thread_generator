@@ -11,6 +11,7 @@ import {
   SidebarMenuItem,
   SidebarHeader,
   SidebarFooter,
+  useSidebar,
 } from "@/components/ui/sidebar";
 import { Home, FileText, Settings, LogOut, Sparkles, Globe, PenSquare } from "lucide-react";
 import Link from "next/link";
@@ -21,6 +22,13 @@ import { Button } from "./ui/button";
 export function AppSidebar() {
   const { signOut } = useAuthActions();
   const pathname = usePathname();
+  const { isMobile, setOpenMobile } = useSidebar();
+
+  const handleNavClick = () => {
+    if (isMobile) {
+      setOpenMobile(false);
+    }
+  };
 
   const navigation = [
     { name: "Dashboard", href: "/dashboard", icon: Home },
@@ -33,7 +41,7 @@ export function AppSidebar() {
   return (
     <Sidebar className="border-r border-border/50">
       <SidebarHeader className="p-6 border-b border-border/30 bg-muted/10">
-        <Link href="/dashboard" className="flex items-center gap-2.5 group">
+        <Link href="/dashboard" onClick={handleNavClick} className="flex items-center gap-2.5 group">
           <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-linear-to-br from-violet-600 to-indigo-600 text-white shadow-sm group-hover:scale-105 transition-transform duration-300">
             <Sparkles className="h-5 w-5" />
           </div>
@@ -62,7 +70,7 @@ export function AppSidebar() {
                   <SidebarMenuItem key={item.name}>
                     <SidebarMenuButton
                       isActive={isActive}
-                      render={<Link href={item.href} />}
+                      render={<Link href={item.href} onClick={handleNavClick} />}
                       className={`rounded-xl px-3 py-2.5 transition-all duration-200 cursor-pointer ${
                         isActive
                           ? "bg-violet-600/10 text-violet-600 dark:bg-violet-500/10 dark:text-violet-400 font-semibold shadow-xs"
@@ -84,7 +92,10 @@ export function AppSidebar() {
         <Button 
           variant="ghost" 
           className="w-full justify-start text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-xl py-5 transition-all duration-250 cursor-pointer" 
-          onClick={() => signOut()}
+          onClick={() => {
+            handleNavClick();
+            signOut();
+          }}
         >
           <LogOut className="mr-2 h-4 w-4" />
           <span className="text-sm font-medium">Sign Out</span>

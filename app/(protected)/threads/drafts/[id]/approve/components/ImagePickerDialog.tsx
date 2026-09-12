@@ -41,10 +41,10 @@ export function ImagePickerDialog({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="relative w-full max-w-2xl overflow-hidden border border-border/80 bg-card/90 backdrop-blur-lg rounded-2xl shadow-xl p-6 space-y-6 flex flex-col max-h-[85vh]">
-        <div className="space-y-2 shrink-0">
-          <h2 className="text-xl font-bold flex items-center gap-2 text-foreground">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-background/80 backdrop-blur-md animate-in fade-in duration-200">
+      <div className="relative w-full max-w-2xl overflow-hidden border border-border/80 bg-card/90 backdrop-blur-lg rounded-2xl shadow-xl p-4 sm:p-6 space-y-4 sm:space-y-6 flex flex-col max-h-[85vh]">
+        <div className="space-y-1.5 sm:space-y-2 shrink-0">
+          <h2 className="text-lg sm:text-xl font-bold flex items-center gap-2 text-foreground">
             <ImageIcon className="w-5 h-5 text-violet-500" />
             Select Image for Post {activeImagePickerIdx + 1}
           </h2>
@@ -59,13 +59,13 @@ export function ImagePickerDialog({
             <button
               type="button"
               onClick={() => setShowCustomInput(true)}
-              className="w-full py-4 border border-dashed border-border hover:border-violet-500 hover:text-violet-600 dark:hover:text-violet-400 hover:bg-violet-500/5 rounded-xl flex items-center justify-center gap-2 text-xs font-semibold text-muted-foreground transition-all duration-300 cursor-pointer"
+              className="w-full py-3.5 sm:py-4 border border-dashed border-border hover:border-violet-500 hover:text-violet-600 dark:hover:text-violet-400 hover:bg-violet-500/5 rounded-xl flex items-center justify-center gap-2 text-xs font-semibold text-muted-foreground transition-all duration-300 cursor-pointer"
             >
               <Link className="w-4 h-4 text-violet-500" />
               Provide a Custom Image URL
             </button>
           ) : (
-            <div className="p-4 bg-muted/20 border border-border/40 rounded-xl space-y-3 shrink-0 animate-in fade-in slide-in-from-top-2 duration-300">
+            <div className="p-3.5 sm:p-4 bg-muted/20 border border-border/40 rounded-xl space-y-3 shrink-0 animate-in fade-in slide-in-from-top-2 duration-300">
               <div className="flex items-center justify-between">
                 <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider block">
                   Custom Image URL
@@ -81,7 +81,7 @@ export function ImagePickerDialog({
                   Cancel
                 </button>
               </div>
-              <div className="flex gap-2">
+              <div className="flex flex-col sm:flex-row gap-2">
                 <input
                   type="url"
                   placeholder="https://example.com/image.jpg"
@@ -93,13 +93,13 @@ export function ImagePickerDialog({
                       handleApplyCustomImage();
                     }
                   }}
-                  className="flex-1 h-8 text-xs bg-background text-foreground px-3 rounded-lg border border-border focus:border-violet-500/50 focus:ring-1 focus:ring-violet-500/50 focus:outline-none"
+                  className="w-full sm:flex-1 h-9 sm:h-8 text-xs bg-background text-foreground px-3 rounded-lg border border-border focus:border-violet-500/50 focus:ring-1 focus:ring-violet-500/50 focus:outline-none"
                 />
                 <Button
                   type="button"
                   onClick={handleApplyCustomImage}
                   disabled={!customImageUrl.trim()}
-                  className="h-8 rounded-lg bg-violet-600 hover:bg-violet-700 text-white font-semibold px-4 cursor-pointer text-xs shrink-0"
+                  className="w-full sm:w-auto h-9 sm:h-8 rounded-lg bg-violet-600 hover:bg-violet-700 text-white font-semibold px-4 cursor-pointer text-xs shrink-0"
                 >
                   Apply
                 </Button>
@@ -181,7 +181,7 @@ export function ImagePickerDialog({
           )}
         </div>
 
-        <div className="flex items-center justify-end gap-3 pt-2 border-t border-border/30 shrink-0">
+        <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2.5 sm:gap-3 pt-2 border-t border-border/30 shrink-0">
           {selectedImages[activeImagePickerIdx.toString()] && (
             <Button
               type="button"
@@ -190,7 +190,7 @@ export function ImagePickerDialog({
                 onDeselectImage(activeImagePickerIdx);
                 handleClose();
               }}
-              className="rounded-xl border-red-500/30 text-red-600 hover:bg-red-500/5 hover:border-red-500/50 px-5 mr-auto font-semibold"
+              className="w-full sm:w-auto rounded-xl border-red-500/30 text-red-600 hover:bg-red-500/5 hover:border-red-500/50 px-5 sm:mr-auto font-semibold cursor-pointer py-2.5"
             >
               Deselect Image
             </Button>
@@ -198,7 +198,7 @@ export function ImagePickerDialog({
           <Button
             variant="outline"
             onClick={handleClose}
-            className="rounded-xl border-border px-5"
+            className="w-full sm:w-auto rounded-xl border-border px-5 cursor-pointer py-2.5"
           >
             Close
           </Button>

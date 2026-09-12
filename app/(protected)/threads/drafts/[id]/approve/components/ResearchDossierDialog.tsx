@@ -92,8 +92,8 @@ export function ResearchDossierDialog({ researchContext }: ResearchDossierDialog
         View Research Dossier
       </DialogTrigger>
       <DialogContent className="w-[95vw] sm:max-w-4xl md:max-w-5xl lg:max-w-6xl max-h-[85vh] p-0 overflow-hidden bg-card/95 backdrop-blur-md flex flex-col rounded-2xl border border-border/30 shadow-2xl">
-        <DialogHeader className="p-6 pb-4 border-b border-border/30 shrink-0 bg-muted/10">
-          <DialogTitle className="text-xl font-bold tracking-tight text-foreground leading-snug flex items-center gap-2">
+        <DialogHeader className="p-4 sm:p-6 pb-3 sm:pb-4 border-b border-border/30 shrink-0 bg-muted/10">
+          <DialogTitle className="text-lg sm:text-xl font-bold tracking-tight text-foreground leading-snug flex items-center gap-2">
             <FileText className="w-5 h-5 text-violet-500" />
             Research Dossier
           </DialogTitle>
@@ -102,7 +102,7 @@ export function ResearchDossierDialog({ researchContext }: ResearchDossierDialog
           </DialogDescription>
         </DialogHeader>
         
-        <div className="flex-1 overflow-y-auto p-6 scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
           <div className="prose prose-sm md:prose-base dark:prose-invert prose-violet max-w-none text-foreground/90 font-medium">
             <ReactMarkdown>
               {content}

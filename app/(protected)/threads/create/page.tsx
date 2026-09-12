@@ -59,7 +59,7 @@ function ThreadEntryCard({
       {/* Accent Highlight Line on Card Hover */}
       <div className="absolute top-0 left-0 w-1 h-full bg-linear-to-b from-violet-600 to-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
       
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4 border-b border-border/30 bg-muted/20 px-6 py-4">
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4 border-b border-border/30 bg-muted/20 px-4 sm:px-6 py-4">
         <div className="flex items-center gap-3">
           <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-violet-100 text-xs font-bold text-violet-800 dark:bg-violet-950 dark:text-violet-300">
             {String(index + 1).padStart(2, "0")}
@@ -73,16 +73,17 @@ function ThreadEntryCard({
             type="button" 
             variant="ghost" 
             size="icon" 
+            aria-label="Remove entry"
             onClick={onRemove}
             disabled={isLoading}
-            className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors cursor-pointer"
+            className="h-9 w-9 sm:h-8 sm:w-8 min-h-9 min-w-9 sm:min-h-8 sm:min-w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors cursor-pointer"
           >
             <Trash2 className="h-4 w-4" />
           </Button>
         )}
       </CardHeader>
       
-      <CardContent className="p-5 space-y-5">
+      <CardContent className="p-4 sm:p-5 space-y-5">
         {/* Content URL Input / Topic Input */}
         {currentAgent !== "topic" ? (
           <div className="space-y-1.5">
@@ -399,8 +400,8 @@ function CreateThreadForm() {
   };
 
   return (
-    <div className="flex-1 w-full bg-linear-to-b from-background via-background/95 to-background/50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-3xl mx-auto space-y-10">
+    <div className="flex-1 w-full bg-linear-to-b from-background via-background/95 to-background/50 py-8 sm:py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-3xl mx-auto space-y-8 sm:space-y-10">
         
         {/* Header Section */}
         <div className="text-center space-y-4">
@@ -455,7 +456,7 @@ function CreateThreadForm() {
                   entries: [createDefaultEntry()],
                 });
               }}
-              className="text-xs text-muted-foreground hover:text-foreground h-7 px-2.5 cursor-pointer shrink-0"
+              className="text-xs text-muted-foreground hover:text-foreground h-8 px-3 cursor-pointer shrink-0 self-end sm:self-auto"
             >
               Reset to Blank
             </Button>

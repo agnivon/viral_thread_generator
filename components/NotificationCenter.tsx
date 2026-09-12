@@ -166,9 +166,9 @@ export function NotificationCenter() {
         className="w-[calc(100vw-2rem)] sm:w-[480px] md:w-[500px] p-0 shadow-2xl border-border/60 rounded-2xl bg-card/95 backdrop-blur-xl z-50 overflow-hidden"
       >
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-border/40 px-5 py-3.5 bg-muted/20">
-          <div className="flex items-center gap-2.5">
-            <h3 className="text-base font-bold text-foreground">Notifications</h3>
+        <div className="flex items-center justify-between border-b border-border/40 px-4 sm:px-5 py-3.5 bg-muted/20">
+          <div className="flex items-center gap-2">
+            <h3 className="text-sm sm:text-base font-bold text-foreground">Notifications</h3>
             {unseenCount > 0 && (
               <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-violet-500/10 text-violet-600 dark:text-violet-400 border border-violet-500/20">
                 {unseenCount} new
@@ -181,11 +181,12 @@ export function NotificationCenter() {
                 size="sm"
                 variant="ghost"
                 onClick={() => void markAllSeen()}
-                className="h-8 text-xs px-2.5 text-muted-foreground hover:text-foreground cursor-pointer rounded-lg flex items-center gap-1.5"
+                className="h-8 text-xs px-2 sm:px-2.5 text-muted-foreground hover:text-foreground cursor-pointer rounded-lg flex items-center gap-1.5"
                 title="Mark all as read"
               >
                 <CheckCheck className="h-4 w-4" />
-                <span>Mark all read</span>
+                <span className="hidden min-[380px]:inline">Mark all read</span>
+                <span className="min-[380px]:hidden text-[11px]">Read all</span>
               </Button>
             )}
           </div>
@@ -359,7 +360,7 @@ export function NotificationCenter() {
                   {!item.isSeen && (
                     <span className="h-2 w-2 rounded-full bg-violet-600 shadow-xs shrink-0" title="Unread" />
                   )}
-                  <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 shrink-0 bg-background/80 backdrop-blur-xs rounded-md">
+                  <div className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity flex items-center gap-1 shrink-0 bg-background/80 backdrop-blur-xs rounded-md">
                     {!item.isSeen && (
                       <button
                         type="button"

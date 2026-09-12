@@ -708,7 +708,7 @@ function StickySaveFooter({
   const enabled = useWatch({ control, name: "enabled" }) ?? false;
 
   return (
-    <div className="flex items-center justify-between p-4 rounded-2xl bg-card/80 backdrop-blur-md border border-border/80 sticky bottom-4 shadow-xl">
+    <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 p-4 rounded-2xl bg-card/90 backdrop-blur-md border border-border/80 sticky bottom-4 shadow-xl">
       <div className="text-xs text-muted-foreground">
         {isFormChanged ? (
           <span className="text-amber-600 dark:text-amber-400 font-semibold flex items-center gap-1.5">
@@ -731,18 +731,18 @@ function StickySaveFooter({
         onClick={onSave}
         disabled={!isFormChanged || isSaving}
         className={cn(
-          "rounded-xl px-6 font-semibold transition-all",
+          "w-full sm:w-auto rounded-xl px-6 py-2.5 font-semibold transition-all",
           isFormChanged && !isSaving
             ? "bg-linear-to-r from-violet-600 to-indigo-600 text-white cursor-pointer shadow-md hover:shadow-lg"
             : "bg-muted text-muted-foreground cursor-not-allowed opacity-50 shadow-none hover:shadow-none"
         )}
       >
         {isSaving ? (
-          <span className="flex items-center gap-2">
+          <span className="flex items-center justify-center gap-2">
             <Loader2 className="w-4 h-4 animate-spin" /> Saving...
           </span>
         ) : (
-          <span className="flex items-center gap-2">
+          <span className="flex items-center justify-center gap-2">
             <Save className="w-4 h-4" /> Save Preferences
           </span>
         )}

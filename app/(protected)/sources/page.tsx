@@ -223,15 +223,15 @@ export default function SourcesPage() {
         </div>
 
         {/* Filter and Sort Control Bar */}
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-card/45 backdrop-blur-xs p-3.5 rounded-2xl border border-border/80 shadow-xs">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-card/45 backdrop-blur-xs p-3 sm:p-3.5 rounded-2xl border border-border/80 shadow-xs">
           {/* Search Input */}
-          <div className="relative flex-1 max-w-md">
+          <div className="relative flex-1 w-full sm:max-w-md">
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground/60" />
             <Input
               placeholder="Search active trends or related queries..."
               value={keywordSearch}
               onChange={(e) => setKeywordSearch(e.target.value)}
-              className="h-9 pl-9 text-xs sm:text-sm bg-background/60 border-border/60 focus-visible:ring-violet-500/30 rounded-xl"
+              className="h-9 pl-9 text-xs sm:text-sm bg-background/60 border-border/60 focus-visible:ring-violet-500/30 rounded-xl w-full"
             />
             {keywordSearch && (
               <button
@@ -243,12 +243,12 @@ export default function SourcesPage() {
             )}
           </div>
 
-          <div className="flex items-center gap-2 flex-wrap self-start sm:self-auto">
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0 w-full sm:w-auto scrollbar-none">
             {/* My Niches Toggle Button */}
             <button
               type="button"
               onClick={() => setOnlyMyNiches(!onlyMyNiches)}
-              className={`py-1.5 px-3 rounded-xl text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 border ${
+              className={`py-1.5 px-3 rounded-xl text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 border shrink-0 ${
                 onlyMyNiches
                   ? "bg-violet-600 text-white border-violet-600 shadow-xs"
                   : "bg-background/60 text-muted-foreground border-border/50 hover:bg-muted/40 hover:text-foreground"
@@ -261,55 +261,55 @@ export default function SourcesPage() {
             </button>
 
             {/* Sort Buttons */}
-            <div className="flex items-center gap-1 text-xs font-medium bg-background/60 p-1 rounded-xl border border-border/50">
-              <span className="text-[11px] text-muted-foreground px-2 hidden md:inline font-semibold">Sort:</span>
-            <button
-              type="button"
-              onClick={() => setSortMode("relevance")}
-              className={`py-1.5 px-3 rounded-lg text-xs transition-all cursor-pointer ${
-                sortMode === "relevance"
-                  ? "bg-violet-600 text-white font-bold shadow-xs"
-                  : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
-              }`}
-            >
-              Relevance
-            </button>
-            <button
-              type="button"
-              onClick={() => setSortMode("traffic")}
-              className={`py-1.5 px-3 rounded-lg text-xs transition-all cursor-pointer ${
-                sortMode === "traffic"
-                  ? "bg-violet-600 text-white font-bold shadow-xs"
-                  : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
-              }`}
-            >
-              Volume
-            </button>
-            <button
-              type="button"
-              onClick={() => setSortMode("growth")}
-              className={`py-1.5 px-3 rounded-lg text-xs transition-all cursor-pointer ${
-                sortMode === "growth"
-                  ? "bg-violet-600 text-white font-bold shadow-xs"
-                  : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
-              }`}
-            >
-              Spike %
-            </button>
-            <button
-              type="button"
-              onClick={() => setSortMode("recent")}
-              className={`py-1.5 px-3 rounded-lg text-xs transition-all cursor-pointer ${
-                sortMode === "recent"
-                  ? "bg-violet-600 text-white font-bold shadow-xs"
-                  : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
-              }`}
-            >
-              Recent
-            </button>
+            <div className="flex items-center gap-1 text-xs font-medium bg-background/60 p-1 rounded-xl border border-border/50 shrink-0">
+              <span className="text-[11px] text-muted-foreground px-2 hidden sm:inline font-semibold">Sort:</span>
+              <button
+                type="button"
+                onClick={() => setSortMode("relevance")}
+                className={`py-1.5 px-2.5 sm:px-3 rounded-lg text-xs transition-all cursor-pointer ${
+                  sortMode === "relevance"
+                    ? "bg-violet-600 text-white font-bold shadow-xs"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
+                }`}
+              >
+                Relevance
+              </button>
+              <button
+                type="button"
+                onClick={() => setSortMode("traffic")}
+                className={`py-1.5 px-2.5 sm:px-3 rounded-lg text-xs transition-all cursor-pointer ${
+                  sortMode === "traffic"
+                    ? "bg-violet-600 text-white font-bold shadow-xs"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
+                }`}
+              >
+                Volume
+              </button>
+              <button
+                type="button"
+                onClick={() => setSortMode("growth")}
+                className={`py-1.5 px-2.5 sm:px-3 rounded-lg text-xs transition-all cursor-pointer ${
+                  sortMode === "growth"
+                    ? "bg-violet-600 text-white font-bold shadow-xs"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
+                }`}
+              >
+                Spike %
+              </button>
+              <button
+                type="button"
+                onClick={() => setSortMode("recent")}
+                className={`py-1.5 px-2.5 sm:px-3 rounded-lg text-xs transition-all cursor-pointer ${
+                  sortMode === "recent"
+                    ? "bg-violet-600 text-white font-bold shadow-xs"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
+                }`}
+              >
+                Recent
+              </button>
+            </div>
           </div>
         </div>
-      </div>
 
         {/* Full-Width Keyword Cards List */}
         <div className="space-y-3.5 w-full">

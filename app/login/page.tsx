@@ -69,7 +69,7 @@ export default function LoginPage() {
         {/* Accent Highlight Line on Card Hover */}
         <div className="absolute top-0 left-0 w-1 h-full bg-linear-to-b from-violet-600 to-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
-        <CardHeader className="space-y-3 pb-6 text-center border-b border-border/30 bg-muted/10">
+        <CardHeader className="p-4 sm:p-6 space-y-3 pb-4 sm:pb-6 text-center border-b border-border/30 bg-muted/10">
           <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-xl bg-linear-to-br from-violet-600 to-indigo-600 text-white shadow-xs">
             <Sparkles className="h-5 w-5" />
           </div>
@@ -83,7 +83,7 @@ export default function LoginPage() {
           </div>
         </CardHeader>
         
-        <CardContent className="p-6">
+        <CardContent className="p-4 sm:p-6">
           <form className="flex flex-col gap-5" onSubmit={handleSubmit}>
             
             {/* Email Input */}
@@ -129,7 +129,7 @@ export default function LoginPage() {
             
             {/* Turnstile CAPTCHA */}
             {siteKey && (
-              <div className="flex justify-center my-1">
+              <div className="w-full overflow-x-auto flex justify-center my-1 py-1">
                 <Turnstile
                   ref={turnstileRef}
                   siteKey={siteKey}

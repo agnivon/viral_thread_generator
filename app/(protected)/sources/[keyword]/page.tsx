@@ -491,71 +491,130 @@ export default function KeywordDetailPage() {
                   Try Again
                 </Button>
               </div>
+            ) : filteredArticles.length === 0 ? (
+              <div className="flex flex-col items-center justify-center flex-1 p-12 text-center space-y-3">
+                <div className="p-4 bg-muted rounded-full text-muted-foreground/60">
+                  <Globe className="w-8 h-8" />
+                </div>
+                <h3 className="text-base font-semibold text-foreground">No Articles Found</h3>
+                <p className="text-xs text-muted-foreground max-w-sm mx-auto leading-relaxed text-center">
+                  {activeQueryChip || articleFilter
+                    ? "No articles matched the search query filter."
+                    : "No articles returned by Google Trends for this active trend."}
+                </p>
+                {(activeQueryChip || articleFilter) && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setActiveQueryChip("");
+                      setArticleFilter("");
+                    }}
+                    className="rounded-xl mt-2 text-xs"
+                  >
+                    Clear Filter
+                  </Button>
+                )}
+              </div>
             ) : (
-              <div className="overflow-x-auto flex-1">
-                <Table>
-                  <TableHeader className="bg-muted/20 border-b border-border/30">
-                    <TableRow className="hover:bg-transparent">
-                      <TableHead className="p-3 font-bold text-xs uppercase tracking-wider text-muted-foreground/80 w-[50%]">
-                        Article Title
-                      </TableHead>
-                      <TableHead className="p-3 font-bold text-xs uppercase tracking-wider text-muted-foreground/80 w-[25%]">
-                        Source
-                      </TableHead>
-                      <TableHead className="p-3 font-bold text-xs uppercase tracking-wider text-muted-foreground/80 w-[18%]">
-                        <button
-                          type="button"
-                          onClick={() => setDateSortOrder((prev) => (prev === "newest" ? "oldest" : "newest"))}
-                          className="inline-flex items-center gap-1.5 hover:text-foreground transition-colors cursor-pointer group focus-visible:outline-none"
-                          title={`Sort by published date (${dateSortOrder === "newest" ? "currently newest first" : "currently oldest first"}). Click to toggle.`}
-                        >
-                          <span>Published</span>
-                          <span className="p-0.5 rounded bg-muted/60 text-violet-600 dark:text-violet-400 group-hover:bg-violet-500/10">
-                            {dateSortOrder === "newest" ? (
-                              <ArrowDown className="w-3 h-3" />
-                            ) : (
-                              <ArrowUp className="w-3 h-3" />
-                            )}
-                          </span>
-                        </button>
-                      </TableHead>
-                      <TableHead className="p-3 font-bold text-xs uppercase tracking-wider text-muted-foreground/80 w-[10%] text-right">
-                        Link
-                      </TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredArticles.length === 0 ? (
-                      <TableRow className="hover:bg-transparent border-0">
-                        <TableCell colSpan={4} className="p-16 text-center">
-                          <div className="flex flex-col items-center justify-center space-y-3">
-                            <div className="p-4 bg-muted rounded-full text-muted-foreground/60">
-                              <Globe className="w-8 h-8" />
+              <>
+                {/* Mobile Article Cards List */}
+                <div className="md:hidden divide-y divide-border/30">
+                  {filteredArticles.map((article: Article) => {
+                    const sourceName = article.mediaCompany || article.description.replace(/^Source:\s*/i, "") || "Google News";
+                    return (
+                      <div
+                        key={article.id}
+                        className="p-4 space-y-3 hover:bg-muted/15 transition-colors cursor-pointer"
+                        onClick={() => setSelectedArticle(article)}
+                      >
+                        <div className="space-y-1.5">
+                          <div className="flex items-center justify-between gap-2 text-xs">
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-muted/70 text-muted-foreground border border-border/50 text-[11px] font-medium truncate max-w-[60%]">
+                              {sourceName}
+                            </span>
+                            <div className="flex items-center gap-1 text-muted-foreground text-[11px] shrink-0">
+                              <Calendar className="w-3 h-3 text-muted-foreground/60" />
+                              <span suppressHydrationWarning>{formatDate(article.published)}</span>
                             </div>
-                            <h3 className="text-base font-semibold text-foreground">No Articles Found</h3>
-                            <p className="text-xs text-muted-foreground max-w-sm mx-auto leading-relaxed text-center">
-                              {activeQueryChip || articleFilter
-                                ? "No articles matched the search query filter."
-                                : "No articles returned by Google Trends for this active trend."}
-                            </p>
-                            {(activeQueryChip || articleFilter) && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => {
-                                  setActiveQueryChip("");
-                                  setArticleFilter("");
-                                }}
-                                className="rounded-xl mt-2 text-xs"
-                              >
-                                Clear Filter
-                              </Button>
-                            )}
                           </div>
-                        </TableCell>
+                          <h4 className="font-semibold text-sm text-foreground leading-snug hover:text-violet-600 transition-colors">
+                            {article.title}
+                          </h4>
+                        </div>
+
+                        <div className="flex items-center justify-between gap-2 pt-1">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedArticle(article);
+                            }}
+                            className="text-xs h-8 rounded-lg text-muted-foreground hover:text-foreground cursor-pointer"
+                          >
+                            Preview Detail
+                          </Button>
+                          <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                            <a
+                              href={article.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center justify-center h-8 w-8 rounded-lg border border-border/80 hover:bg-muted/80 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                              title="Read Original Article"
+                              aria-label="Read Original Article"
+                            >
+                              <ExternalLink className="w-3.5 h-3.5" />
+                            </a>
+                            <Link
+                              href={`/threads/create?url=${encodeURIComponent(article.url)}&topic=${encodeURIComponent(article.title)}&agent=news`}
+                              className="inline-flex items-center gap-1 px-3 h-8 rounded-lg bg-violet-600 hover:bg-violet-700 text-white font-semibold text-xs transition-colors shadow-xs cursor-pointer"
+                            >
+                              <Sparkles className="w-3 h-3" />
+                              <span>Create</span>
+                            </Link>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Desktop Table View */}
+                <div className="hidden md:block overflow-x-auto flex-1">
+                  <Table>
+                    <TableHeader className="bg-muted/20 border-b border-border/30">
+                      <TableRow className="hover:bg-transparent">
+                        <TableHead className="p-3 font-bold text-xs uppercase tracking-wider text-muted-foreground/80 w-[50%]">
+                          Article Title
+                        </TableHead>
+                        <TableHead className="p-3 font-bold text-xs uppercase tracking-wider text-muted-foreground/80 w-[25%]">
+                          Source
+                        </TableHead>
+                        <TableHead className="p-3 font-bold text-xs uppercase tracking-wider text-muted-foreground/80 w-[18%]">
+                          <button
+                            type="button"
+                            onClick={() => setDateSortOrder((prev) => (prev === "newest" ? "oldest" : "newest"))}
+                            className="inline-flex items-center gap-1.5 hover:text-foreground transition-colors cursor-pointer group focus-visible:outline-none"
+                            title={`Sort by published date (${dateSortOrder === "newest" ? "currently newest first" : "currently oldest first"}). Click to toggle.`}
+                          >
+                            <span>Published</span>
+                            <span className="p-0.5 rounded bg-muted/60 text-violet-600 dark:text-violet-400 group-hover:bg-violet-500/10">
+                              {dateSortOrder === "newest" ? (
+                                <ArrowDown className="w-3 h-3" />
+                              ) : (
+                                <ArrowUp className="w-3 h-3" />
+                              )}
+                            </span>
+                          </button>
+                        </TableHead>
+                        <TableHead className="p-3 font-bold text-xs uppercase tracking-wider text-muted-foreground/80 w-[10%] text-right">
+                          Link
+                        </TableHead>
                       </TableRow>
-                    ) : (
-                      filteredArticles.map((article: Article) => (
+                    </TableHeader>
+                    <TableBody>
+                      {filteredArticles.map((article: Article) => (
                         <TableRow
                           key={article.id}
                           onClick={() => setSelectedArticle(article)}
@@ -594,11 +653,11 @@ export default function KeywordDetailPage() {
                             </a>
                           </TableCell>
                         </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </>
             )}
           </CardContent>
         </Card>

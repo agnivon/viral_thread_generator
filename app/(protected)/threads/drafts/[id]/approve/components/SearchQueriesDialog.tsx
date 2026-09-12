@@ -37,7 +37,7 @@ export function SearchQueriesDialog({ searchQueries }: SearchQueriesDialogProps)
         View Search Queries
       </DialogTrigger>
       <DialogContent className="w-[95vw] sm:max-w-3xl md:max-w-4xl lg:max-w-5xl max-h-[85vh] p-0 overflow-hidden bg-card/95 backdrop-blur-md flex flex-col rounded-2xl border border-border/30 shadow-2xl">
-        <DialogHeader className="p-6 pb-4 border-b border-border/30 shrink-0 bg-muted/10">
+        <DialogHeader className="p-4 sm:p-6 pb-4 border-b border-border/30 shrink-0 bg-muted/10">
           <DialogTitle className="text-xl font-bold tracking-tight text-foreground leading-snug flex items-center gap-2">
             <ImagePlus className="w-5 h-5 text-violet-500" />
             Generated Visual Search Queries
@@ -47,7 +47,7 @@ export function SearchQueriesDialog({ searchQueries }: SearchQueriesDialogProps)
           </DialogDescription>
         </DialogHeader>
         
-        <div className="flex-1 overflow-y-auto p-6 scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent space-y-8">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent space-y-8">
           
           {/* Hero Query Section */}
           <div className="space-y-3">

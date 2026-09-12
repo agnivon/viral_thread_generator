@@ -387,7 +387,7 @@ export default function ApproveDraftPage() {
       <div className="absolute -top-40 -right-40 w-96 h-96 bg-indigo-500/5 rounded-full blur-3xl pointer-events-none -z-10" />
       <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-cyan-500/5 rounded-full blur-3xl pointer-events-none -z-10" />
 
-      <div className="container max-w-5xl mx-auto py-12 px-4 space-y-8">
+      <div className="container max-w-5xl mx-auto py-8 sm:py-12 px-4 space-y-8 pb-24 md:pb-12">
         {/* Navigation Link */}
         <div className="flex items-center gap-2">
           <Link
@@ -533,20 +533,20 @@ export default function ApproveDraftPage() {
           {/* Main Draft Content */}
           <div className="md:col-span-2 space-y-6">
             <Card className="border-border/80 bg-card/45 backdrop-blur-xs shadow-xs rounded-2xl overflow-hidden">
-              <CardHeader className="border-b border-border/30 pb-4 flex flex-row items-center justify-between space-y-0">
+              <CardHeader className="border-b border-border/30 p-4 sm:p-6 pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 space-y-0">
                 <div>
                   <CardTitle className="text-xl font-bold">Draft Posts</CardTitle>
                   <CardDescription>Review the generated thread sequence.</CardDescription>
                 </div>
                 {state.thread_draft && state.thread_draft.length > 0 && (
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
                     {isEditingPosts && (
                       <Button
                         variant="default"
                         size="sm"
                         disabled={isPublishing || isRegenerating}
                         onClick={() => setIsEditingPosts(false)}
-                        className="rounded-xl bg-linear-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white font-semibold py-4 shadow-sm cursor-pointer"
+                        className="rounded-xl bg-linear-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white font-semibold py-4 px-4 shadow-sm cursor-pointer flex-1 sm:flex-initial"
                       >
                         Keep Edits
                       </Button>
@@ -562,7 +562,7 @@ export default function ApproveDraftPage() {
                           setIsEditingPosts(true);
                         }
                       }}
-                      className="rounded-xl border-border hover:bg-violet-600/5 hover:text-violet-600 dark:hover:bg-violet-500/5 dark:hover:text-violet-400 hover:border-violet-500/30 transition-all duration-200 cursor-pointer"
+                      className="rounded-xl border-border hover:bg-violet-600/5 hover:text-violet-600 dark:hover:bg-violet-500/5 dark:hover:text-violet-400 hover:border-violet-500/30 transition-all duration-200 cursor-pointer flex-1 sm:flex-initial"
                     >
                       {isEditingPosts ? "Discard" : "Edit Posts"}
                     </Button>
@@ -720,6 +720,43 @@ export default function ApproveDraftPage() {
         }}
         onClose={() => setActiveVideoPickerIdx(null)}
       />
+
+      {/* Mobile Sticky Action Bar */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 p-3 bg-background/90 backdrop-blur-lg border-t border-border/60 shadow-2xl flex items-center gap-2">
+        <Button
+          className="flex-1 rounded-xl bg-linear-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white font-bold py-5 shadow-md cursor-pointer text-sm"
+          disabled={isPublishing || isRegenerating || state.is_published || state.publication_status === "publishing" || state.publication_status === "queued"}
+          onClick={handlePublish}
+        >
+          {isPublishing || state.publication_status === "publishing" || state.publication_status === "queued" ? (
+            <>
+              <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> {state.publication_status === "queued" ? "Queued..." : "Publishing..."}
+            </>
+          ) : state.is_published ? (
+            "Published"
+          ) : (
+            "Publish Thread"
+          )}
+        </Button>
+        <Button
+          variant="outline"
+          className="rounded-xl border-border/80 text-foreground font-semibold py-5 px-3.5 hover:bg-violet-600/5 hover:text-violet-600 dark:hover:bg-violet-500/5 dark:hover:text-violet-400 hover:border-violet-500/30 transition-all cursor-pointer text-sm shrink-0"
+          disabled={isPublishing || isRegenerating || state.is_published || state.publication_status === "publishing" || state.publication_status === "queued" || state.generation_status === "processing" || state.generation_status === "queued"}
+          onClick={() => {
+            setIsDialogOpen(true);
+          }}
+        >
+          {isRegenerating ? (
+            <>
+              <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> ...
+            </>
+          ) : (
+            <>
+              <Sparkles className="mr-1.5 h-3.5 w-3.5 text-violet-500" /> Regenerate
+            </>
+          )}
+        </Button>
+      </div>
     </div>
   );
 }

@@ -1,6 +1,6 @@
 /**
  * Environment detection utilities for Convex functions, actions, and crons.
- * Provides unified `isDev` / `useDev` / `isProduction` checks across the codebase.
+ * Provides unified `isDev` / `isProduction` checks across the codebase.
  */
 
 /**
@@ -54,11 +54,6 @@ export function isDev(env: EnvDictionary = process.env): boolean {
   // Default to false (production) in cloud runtime when no dev indicators are present
   return false;
 }
-
-/**
- * Alias for `isDev` to support the `useDev` convention across modules.
- */
-export const useDev = isDev;
 
 /**
  * Returns true if running in a production deployment.

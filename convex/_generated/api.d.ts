@@ -51,7 +51,6 @@ import type * as lib_clients_jina from "../lib/clients/jina.js";
 import type * as lib_clients_newsdata from "../lib/clients/newsdata.js";
 import type * as lib_clients_threads from "../lib/clients/threads.js";
 import type * as lib_env from "../lib/env.js";
-import type * as lib_nicheClassifier from "../lib/nicheClassifier.js";
 import type * as lib_trends_index from "../lib/trends/index.js";
 import type * as lib_trends_nicheClassifier from "../lib/trends/nicheClassifier.js";
 import type * as lib_workpool from "../lib/workpool.js";
@@ -114,7 +113,6 @@ declare const fullApi: ApiFromModules<{
   "lib/clients/newsdata": typeof lib_clients_newsdata;
   "lib/clients/threads": typeof lib_clients_threads;
   "lib/env": typeof lib_env;
-  "lib/nicheClassifier": typeof lib_nicheClassifier;
   "lib/trends/index": typeof lib_trends_index;
   "lib/trends/nicheClassifier": typeof lib_trends_nicheClassifier;
   "lib/workpool": typeof lib_workpool;

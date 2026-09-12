@@ -27,7 +27,9 @@ describe("threadsAuth server action", () => {
     process.env.THREADS_APP_ID = "test-app-id";
     process.env.THREADS_REDIRECT_URI = "https://example.convex.site/auth";
     process.env.THREADS_APP_SECRET = "test-app-secret-key-123456";
-    vi.mocked(cookies).mockResolvedValue(mockCookieStore as any);
+    vi.mocked(cookies).mockResolvedValue(
+      mockCookieStore as unknown as Awaited<ReturnType<typeof cookies>>
+    );
   });
 
   afterEach(() => {

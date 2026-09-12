@@ -4,7 +4,7 @@ import { getFirestore } from 'firebase-admin/firestore';
 
 if (!getApps().length) {
   const serviceAccountStr = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
-  let credential;
+  let credential: ReturnType<typeof cert> | undefined;
   let parsedProjectId: string | undefined;
 
   if (serviceAccountStr) {

@@ -16,11 +16,6 @@ export function isDev(): boolean {
 }
 
 /**
- * Alias for isDev.
- */
-export const useDev = isDev;
-
-/**
  * Returns true if the app is running in production mode.
  */
 export function isProduction(): boolean {

@@ -130,7 +130,7 @@ async function processEmergingTrends(
   });
 
   if (response.error || !response.data) {
-    console.error("Error from googleTrends.realTimeTrends in trendAlertActions:", response.error);
+    console.error("Error from googleTrends.realTimeTrends in trendAlerts:", response.error);
     return { candidateCount: 0, dispatched: 0 };
   }
 

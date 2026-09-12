@@ -41,25 +41,25 @@ export interface WebSearchApiResponse {
       page_age?: string;
       extra_snippets?: string[];
       deep_results?: {
-        buttons?: any[];
-        links?: any[];
+        buttons?: unknown[];
+        links?: unknown[];
       };
-      schemas?: any[];
-      product?: any;
-      recipe?: any;
-      article?: any;
-      book?: any;
-      software?: any;
-      rating?: any;
-      faq?: any;
-      movie?: any;
-      video?: any;
-      location?: any;
-      qa?: any;
-      creative_work?: any;
-      music_recording?: any;
-      organization?: any;
-      review?: any;
+      schemas?: unknown[];
+      product?: unknown;
+      recipe?: unknown;
+      article?: unknown;
+      book?: unknown;
+      software?: unknown;
+      rating?: unknown;
+      faq?: unknown;
+      movie?: unknown;
+      video?: unknown;
+      location?: unknown;
+      qa?: unknown;
+      creative_work?: unknown;
+      music_recording?: unknown;
+      organization?: unknown;
+      review?: unknown;
       content_type?: string;
       fetched_content_timestamp?: number;
     }>;
@@ -69,8 +69,8 @@ export interface WebSearchApiResponse {
   mixed?: {
     type: string;
     main: Array<{ type: string; index?: number; all?: boolean }>;
-    top: Array<any>;
-    side: Array<any>;
+    top: Array<unknown>;
+    side: Array<unknown>;
   };
   discussions?: {
     results: Array<{
@@ -82,11 +82,11 @@ export interface WebSearchApiResponse {
       };
     }>;
   };
-  faq?: { results: any[] };
-  news?: { results: any[] };
-  videos?: { results: any[] };
-  infobox?: { results: any[] };
-  locations?: { results: any[] };
+  faq?: { results: unknown[] };
+  news?: { results: unknown[] };
+  videos?: { results: unknown[] };
+  infobox?: { results: unknown[] };
+  locations?: { results: unknown[] };
   rich?: {
     hint?: {
       vertical?: string;
@@ -288,13 +288,13 @@ export interface BraveChatCompletionOptions {
   /** The maximum number of tokens to generate in the completion. */
   max_completion_tokens?: number;
   /** Set of key-value pairs that you can attach to an object. */
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   /** Optional integer for deterministic sampling. */
   seed?: number;
   /** Whether to stream back partial progress. */
   stream?: boolean;
   /** Search options for the web search backing the answers. */
-  web_search_options?: Record<string, any>;
+  web_search_options?: Record<string, unknown>;
   /** Country code to bias the search results. */
   country?: string;
   /** Language to use for the response. */
@@ -333,7 +333,12 @@ export class BraveSearchAPI {
     this.apiKey = key;
   }
 
-  private async request<T>(endpoint: string, params: Record<string, any> = {}, method = 'GET', body?: any): Promise<T> {
+  private async request<T>(
+    endpoint: string,
+    params: Record<string, unknown> | object = {},
+    method = 'GET',
+    body?: unknown
+  ): Promise<T> {
     const url = new URL(`${this.baseUrl}${endpoint}`);
     
     if (method === 'GET') {

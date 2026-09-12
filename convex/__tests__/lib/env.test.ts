@@ -1,10 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { isDev, useDev, isProduction, isTrendCronEnabled } from "../../lib/env";
+import { isDev, isProduction, isTrendCronEnabled } from "../../lib/env";
 
 describe("env utilities", () => {
   it("correctly identifies dev environment by CONVEX_DEPLOYMENT", () => {
     expect(isDev({ CONVEX_DEPLOYMENT: "dev:my-project-123", NODE_ENV: "production" })).toBe(true);
-    expect(useDev({ CONVEX_DEPLOYMENT: "dev:my-project-123", NODE_ENV: "production" })).toBe(true);
   });
 
   it("correctly identifies dev environment by localhost SITE_URL", () => {
@@ -34,7 +33,6 @@ describe("env utilities", () => {
       SITE_URL: "https://my-deployment.convex.site",
     };
     expect(isDev(prodEnv)).toBe(false);
-    expect(useDev(prodEnv)).toBe(false);
     expect(isProduction(prodEnv)).toBe(true);
   });
 

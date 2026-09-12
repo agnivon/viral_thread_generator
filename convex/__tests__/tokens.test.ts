@@ -3,6 +3,8 @@
 import { convexTest } from "convex-test";
 import { expect, test, vi, afterEach, beforeEach } from "vitest";
 import { api, internal } from "../_generated/api";
+import { ActionCtx } from "../_generated/server";
+import { FunctionReference } from "convex/server";
 import schema from "../schema";
 import { ThreadsAuthAPI } from "../lib/clients/threads.js";
 import http from "../http";
@@ -311,21 +313,28 @@ test("http action /auth callback", async () => {
 
   // Mock Action Context mapping actions to convex-test operations
   const mockCtx = {
-    runQuery: (ref: any, args: any) => t.query(ref, args),
-    runMutation: (ref: any, args: any) => t.mutation(ref, args),
-    runAction: (ref: any, args: any) => t.action(ref, args),
-  } as any;
+    runQuery: (ref: FunctionReference<"query">, args?: Record<string, unknown>) =>
+      t.query(ref, args),
+    runMutation: (ref: FunctionReference<"mutation">, args?: Record<string, unknown>) =>
+      t.mutation(ref, args),
+    runAction: (ref: FunctionReference<"action">, args?: Record<string, unknown>) =>
+      t.action(ref, args),
+  } as unknown as ActionCtx;
+
+  type RouteHandlerWrapper = {
+    _handler: (ctx: ActionCtx, req: Request) => Promise<Response>;
+  };
 
   // 1. Check response when code is missing (should fail with 400)
   const reqNoCode = new Request(`https://intent-cuttlefish-35.convex.site/auth?state=${encodeURIComponent(signedState)}`);
-  const resNoCode = await (route![0] as any)._handler(mockCtx, reqNoCode);
+  const resNoCode = await (route![0] as unknown as RouteHandlerWrapper)._handler(mockCtx, reqNoCode);
   expect(resNoCode.status).toBe(400);
   const htmlNoCode = await resNoCode.text();
   expect(htmlNoCode).toContain("Authorization Failed");
 
   // 2. Check response when code is provided (should succeed with 200 after stripping #_)
   const reqWithCode = new Request(`https://intent-cuttlefish-35.convex.site/auth?code=mock-auth-code%23_&state=${encodeURIComponent(signedState)}`);
-  const resWithCode = await (route![0] as any)._handler(mockCtx, reqWithCode);
+  const resWithCode = await (route![0] as unknown as RouteHandlerWrapper)._handler(mockCtx, reqWithCode);
   expect(resWithCode.status).toBe(200);
   const htmlWithCode = await resWithCode.text();
   expect(htmlWithCode).toContain("Authorization Successful");

@@ -29,14 +29,14 @@ import {
 
 export default function DraftsPage() {
   const { results: drafts, status, loadMore } = usePaginatedQuery(
-    api.queries.threadsQueries.getPaginatedThreadDrafts,
+    api.threads.getPaginatedThreadDrafts,
     {},
     { initialNumItems: 10 }
   );
 
-  const enqueuePublication = useAction(api.actions.threadsActions.enqueueThreadPublication);
-  const deleteDraft = useAction(api.actions.threadsActions.deleteThreadDraft);
-  const retryGeneration = useAction(api.actions.threadsActions.enqueueThreadRetry);
+  const enqueuePublication = useAction(api.actions.threads.enqueueThreadPublication);
+  const deleteDraft = useAction(api.actions.threads.deleteThreadDraft);
+  const retryGeneration = useAction(api.actions.threads.enqueueThreadRetry);
 
   const [selectedDrafts, setSelectedDrafts] = useState<Set<Id<"threadDrafts">>>(new Set());
   const [retryingIds, setRetryingIds] = useState<Set<Id<"threadDrafts">>>(new Set());

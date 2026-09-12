@@ -72,7 +72,7 @@ Convex agent skills for common tasks can be installed by running
 ## 5. Testing & Quality Assurance
 
 - **Audit & Update Existing Tests for Feature Changes**:
-  - When refactoring or updating existing features, search for associated tests (`convex/**/*.test.ts`, `*.test.ts`, `*.spec.tsx`).
+  - When refactoring or updating existing features, search for associated tests (`convex/__tests__/**/*.test.ts`, `hooks/__tests__/**/*.test.ts`, `*.test.ts`, `*.spec.tsx`).
   - Update assertions and mocks to match modified contracts without silencing or skipping tests.
 - **Proactively Add Tests for New Features**:
   - Write automated tests covering happy paths, critical edge cases, and failure modes.
@@ -135,4 +135,25 @@ Convex agent skills for common tasks can be installed by running
 - **Clean Form Resetting & Default Values**:
   - Always provide complete `defaultValues` matching the form data shape.
   - When syncing server data (e.g. thread draft loading), call `reset(newData)` inside an effect with proper dependency tracking.
+
+---
+
+## 10. Hygienic File Structure & Architecture Standards
+
+- **Convex Domain Cohesion at Root**:
+  - Keep domain queries and mutations for a specific table together in unified domain modules at `convex/` root (e.g. `convex/threads.ts`, `convex/tokens.ts`, `convex/trendAlerts.ts`).
+  - **Never create fragmented `queries/` and `mutations/` folders**: Splitting queries and mutations into role-based subdirectories introduces verbosity, naming stutter (`api.queries.threadsQueries`), and doubles the number of files needed to manage a single entity.
+- **Convex Action Naming & Placement**:
+  - Convex actions requiring the Node.js runtime (`"use node";`), LangChain agents, or external network calls must live in `convex/actions/`.
+  - **No Redundant Suffixes**: Never append `*Actions.ts` to action files. Use clean, canonical domain names (`convex/actions/threads.ts`, `convex/actions/googleTrends.ts`, `convex/actions/tokens.ts`).
+- **Consolidated External Service Clients**:
+  - All third-party REST, scraping, or SDK clients must be placed directly under `convex/lib/clients/` (e.g. `threads.ts`, `brave.ts`, `jina.ts`, `currents.ts`, `newsdata.ts`, `firebase.ts`).
+  - **No Redundant Single-File Directories**: Never create isolated, single-file subdirectories for a service client (e.g. do not create `convex/lib/brave/api.ts` or `convex/lib/jina/api.ts`).
+  - **No Unsafe Barrel Exports Bridging Runtimes**: Avoid barrel files in `convex/lib/clients/` that combine Node-only modules (like `firebase.ts`) with V8 modules, as this triggers bundler conflicts in Convex's default runtime.
+- **Strict Test File Isolation**:
+  - **No Test Files in Production Source Folders**: Never place `.test.ts`, `.spec.ts`, or test mock files directly in `convex/` root, `convex/actions/`, `convex/lib/`, or `hooks/`.
+  - **Private Underscore Folders for Convex Tests**: All Convex tests must reside inside `convex/__tests__/` (e.g. `convex/__tests__/actions/`, `convex/__tests__/agents/`, `convex/__tests__/lib/`, `convex/__tests__/`). Directories prefixed with an underscore are strictly private and ignored by Convex API route generation.
+  - **Frontend Hook Tests**: Isolated custom hook tests must reside in `hooks/__tests__/`.
+- **Zero Orphaned or Lingering Artifacts**:
+  - When refactoring, moving, or consolidating code, immediately delete obsolete directories, old files, and dead re-exports. Never leave lingering or deprecated duplicates in the tree.
 

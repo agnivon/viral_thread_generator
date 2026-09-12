@@ -70,8 +70,8 @@ export default function KeywordDetailPage() {
   const [activeQueryChip, setActiveQueryChip] = useState<string>("");
   const [showAllBreakdown, setShowAllBreakdown] = useState<boolean>(false);
 
-  const getTrendingKeywordsAction = useAction(api.actions.googleTrendsNewsActions.getTrendingKeywords);
-  const fetchArticlesAction = useAction(api.actions.googleTrendsNewsActions.fetchArticlesForKeyword);
+  const getTrendingKeywordsAction = useAction(api.actions.googleTrends.getTrendingKeywords);
+  const fetchArticlesAction = useAction(api.actions.googleTrends.fetchArticlesForKeyword);
 
   // Fetch all keywords on-demand (cached for fast transitions & back/forward)
   const {

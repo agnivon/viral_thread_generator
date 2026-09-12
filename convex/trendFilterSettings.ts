@@ -6,7 +6,7 @@ import {
   classifyTrendNiches,
   matchesUserPreferences,
   TrendFilterSettingsInput,
-} from "./lib/nicheClassifier.js";
+} from "./lib/trends/nicheClassifier.js";
 
 async function requireAuthUserId(ctx: QueryCtx | MutationCtx) {
   const userId = await getAuthUserId(ctx);

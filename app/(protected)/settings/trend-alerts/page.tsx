@@ -32,12 +32,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { ActiveTrend } from "@/convex/actions/googleTrendsNewsActions";
+import { ActiveTrend } from "@/convex/actions/googleTrends";
 import {
   classifyTrendNiches,
   matchesUserPreferences,
   type NicheDefinition,
-} from "@/convex/lib/nicheClassifier";
+} from "@/convex/lib/trends/nicheClassifier";
 import { trendAlertsQueryKeys } from "@/lib/query-keys";
 import {
   trendAlertsSchema,
@@ -755,7 +755,7 @@ export default function TrendAlertsSettingsPage() {
   const settings = useConvexQuery(api.trendFilterSettings.getSettings);
   const nichesList = useConvexQuery(api.trendFilterSettings.getNichesList);
   const updateSettingsConvex = useConvexMutation(api.trendFilterSettings.updateSettings);
-  const getTrendingKeywordsAction = useAction(api.actions.googleTrendsNewsActions.getTrendingKeywords);
+  const getTrendingKeywordsAction = useAction(api.actions.googleTrends.getTrendingKeywords);
 
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [newWhitelistTag, setNewWhitelistTag] = useState<string>("");

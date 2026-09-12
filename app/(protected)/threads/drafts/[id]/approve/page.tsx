@@ -34,11 +34,11 @@ export default function ApproveDraftPage() {
   const id = params.id as Id<"threadDrafts">;
   const router = useRouter();
 
-  const state = useQuery(api.queries.threadsQueries.getThreadDraft, { id });
-  const enqueuePublication = useAction(api.actions.threadsActions.enqueueThreadPublication);
-  const enqueueRegeneration = useAction(api.actions.threadsActions.enqueueThreadRegeneration);
-  const retryGeneration = useAction(api.actions.threadsActions.enqueueThreadRetry);
-  const resumeAction = useAction(api.actions.threadsActions.enqueueThreadResume);
+  const state = useQuery(api.threads.getThreadDraft, { id });
+  const enqueuePublication = useAction(api.actions.threads.enqueueThreadPublication);
+  const enqueueRegeneration = useAction(api.actions.threads.enqueueThreadRegeneration);
+  const retryGeneration = useAction(api.actions.threads.enqueueThreadRetry);
+  const resumeAction = useAction(api.actions.threads.enqueueThreadResume);
 
   const [hasCopied, setHasCopied] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);

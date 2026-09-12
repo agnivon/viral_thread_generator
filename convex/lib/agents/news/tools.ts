@@ -5,7 +5,7 @@ import { z } from "zod";
 import FirecrawlApp from "@mendable/firecrawl-js";
 import { tavily } from "@tavily/core";
 import "dotenv/config";
-import { JinaClient } from "../../jina/api.js";
+import { JinaClient } from "../../clients/jina.js";
 import { YoutubeTranscript } from "youtube-transcript-plus";
 
 // 1. WebScraperTool (Firecrawl API)

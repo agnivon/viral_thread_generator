@@ -5,7 +5,7 @@ import { z } from "zod";
 import { tavily } from "@tavily/core";
 import "dotenv/config";
 
-import { JinaClient } from "../../jina/api.js";
+import { JinaClient } from "../../clients/jina.js";
 import FirecrawlApp from "@mendable/firecrawl-js";
 import { validateThreadDraftContent } from "../tools.js";
 

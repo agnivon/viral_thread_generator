@@ -320,7 +320,7 @@ function CreateThreadForm() {
     name: "entries",
   });
 
-  const enqueueThreadGeneration = useAction(api.actions.threadsActions.enqueueThreadGeneration);
+  const enqueueThreadGeneration = useAction(api.actions.threads.enqueueThreadGeneration);
   const router = useRouter();
 
   const [error, setError] = useState<string | null>(null);

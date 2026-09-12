@@ -8,7 +8,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { Button } from "@/components/ui/button";
 
 export default function AccessTokensPage() {
-  const isThreadsConnected = useQuery(api.queries.tokensQueries.hasActiveToken, {
+  const isThreadsConnected = useQuery(api.tokens.hasActiveToken, {
     platform: "threads",
     type: "long lived",
   });

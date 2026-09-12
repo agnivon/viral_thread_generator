@@ -2,7 +2,7 @@ import { httpRouter } from "convex/server";
 import { httpAction } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { Id } from "./_generated/dataModel";
-import { ThreadsAuthAPI } from "./lib/threads/api.js";
+import { ThreadsAuthAPI } from "./lib/clients/threads.js";
 import { auth } from "./auth";
 
 const http = httpRouter();
@@ -118,13 +118,13 @@ http.route({
       );
 
       // 4. Delete existing tokens for the platform to avoid duplicates
-      await ctx.runMutation(internal.mutations.tokensMutations.deleteTokensByPlatform, {
+      await ctx.runMutation(internal.tokens.deleteTokensByPlatform, {
         platform: "threads",
         userId: userId,
       });
 
       // 5. Store both tokens singularly in the database
-      await ctx.runMutation(internal.mutations.tokensMutations.storeAuthToken, {
+      await ctx.runMutation(internal.tokens.storeAuthToken, {
         userId: userId,
         platformUserId: String(shortLivedData.user_id),
         platform: "threads",
@@ -134,7 +134,7 @@ http.route({
         expiresIn: 3600, // typically 1 hour
       });
 
-      await ctx.runMutation(internal.mutations.tokensMutations.storeAuthToken, {
+      await ctx.runMutation(internal.tokens.storeAuthToken, {
         userId: userId,
         platformUserId: String(shortLivedData.user_id),
         platform: "threads",

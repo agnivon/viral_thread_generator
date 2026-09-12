@@ -7,7 +7,7 @@ const crons = cronJobs();
 crons.interval(
   "refresh-all-threads-tokens-12-hourly",
   { hours: 12 },
-  internal.actions.tokensActions.refreshAllThreadsTokens,
+  internal.actions.tokens.refreshAllThreadsTokens,
   {}
 );
 
@@ -24,7 +24,7 @@ crons.interval(
 crons.interval(
   "detect-emerging-real-time-trends-15-min",
   { minutes: 15 },
-  internal.actions.trendAlertActions.detectAndNotifyEmergingTrendsCron,
+  internal.actions.trendAlerts.detectAndNotifyEmergingTrendsCron,
   {}
 );
 

@@ -2,7 +2,7 @@ import { v } from "convex/values";
 import { internalMutation, query, QueryCtx, MutationCtx } from "./_generated/server";
 import { notifications } from "./notifications/client";
 import { getAuthUserId } from "@convex-dev/auth/server";
-import { matchesUserPreferences } from "./lib/nicheClassifier.js";
+import { matchesUserPreferences } from "./lib/trends/nicheClassifier.js";
 
 export interface CandidateTrendPayload {
   keyword: string;

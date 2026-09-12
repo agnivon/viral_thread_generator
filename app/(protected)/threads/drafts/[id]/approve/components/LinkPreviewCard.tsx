@@ -17,7 +17,7 @@ interface LinkPreviewCardProps {
 export { linkPreviewKeys };
 
 export function LinkPreviewCard({ url }: LinkPreviewCardProps) {
-  const fetchMetadata = useAction(api.actions.threadsActions.getUrlMetadata);
+  const fetchMetadata = useAction(api.actions.threads.getUrlMetadata);
 
   let hostname = "";
   let cleanTitle = "";

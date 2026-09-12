@@ -8,7 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { api } from "@/convex/_generated/api";
 import { useAction, useQuery as useConvexQuery } from "convex/react";
-import { matchesUserPreferences } from "@/convex/lib/nicheClassifier";
+import { matchesUserPreferences } from "@/convex/lib/trends/nicheClassifier";
 import {
   ChevronRight,
   Clock,
@@ -102,7 +102,7 @@ export default function SourcesPage() {
   const pageSize = 50;
 
   const userSettings = useConvexQuery(api.trendFilterSettings.getSettings);
-  const getTrendingKeywordsAction = useAction(api.actions.googleTrendsNewsActions.getTrendingKeywords);
+  const getTrendingKeywordsAction = useAction(api.actions.googleTrends.getTrendingKeywords);
 
   const {
     data: googleKeywords = [],

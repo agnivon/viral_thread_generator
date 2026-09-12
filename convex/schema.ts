@@ -121,6 +121,8 @@ export default defineSchema(
         trendKeyword: v.optional(v.string()),
         traffic: v.optional(v.number()),
         growthRate: v.optional(v.number()),
+        trajectoryStatus: v.optional(v.string()),
+        acceleration: v.optional(v.number()),
       }),
       source: v.optional(v.object({
         type: v.string(),
@@ -150,6 +152,25 @@ export default defineSchema(
       tier: v.string(),
       notifiedAt: v.optional(v.number()),
       relatedKeywords: v.optional(v.array(v.string())),
+      velocityHistory: v.optional(
+        v.array(
+          v.object({
+            evaluatedAt: v.number(),
+            traffic: v.number(),
+            growthRate: v.number(),
+          })
+        )
+      ),
+      acceleration: v.optional(v.number()),
+      trajectoryStatus: v.optional(
+        v.union(
+          v.literal("surging"),
+          v.literal("steady"),
+          v.literal("decaying"),
+          v.literal("re_spiking")
+        )
+      ),
+      peakGrowthRate: v.optional(v.number()),
     })
       .index("by_keyword_geo", ["keyword", "geo"])
       .index("by_last_evaluated", ["lastEvaluatedAt"]),

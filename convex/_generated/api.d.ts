@@ -53,6 +53,7 @@ import type * as lib_clients_threads from "../lib/clients/threads.js";
 import type * as lib_env from "../lib/env.js";
 import type * as lib_trends_index from "../lib/trends/index.js";
 import type * as lib_trends_nicheClassifier from "../lib/trends/nicheClassifier.js";
+import type * as lib_trends_trajectory from "../lib/trends/trajectory.js";
 import type * as lib_workpool from "../lib/workpool.js";
 import type * as migrations from "../migrations.js";
 import type * as notifications from "../notifications.js";
@@ -115,6 +116,7 @@ declare const fullApi: ApiFromModules<{
   "lib/env": typeof lib_env;
   "lib/trends/index": typeof lib_trends_index;
   "lib/trends/nicheClassifier": typeof lib_trends_nicheClassifier;
+  "lib/trends/trajectory": typeof lib_trends_trajectory;
   "lib/workpool": typeof lib_workpool;
   migrations: typeof migrations;
   notifications: typeof notifications;

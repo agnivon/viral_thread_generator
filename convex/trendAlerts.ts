@@ -3,6 +3,7 @@ import { internalMutation, query, QueryCtx, MutationCtx } from "./_generated/ser
 import { notifications } from "./notifications/client";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { matchesUserPreferences } from "./lib/trends/nicheClassifier.js";
+import { computeTrajectory } from "./lib/trends/trajectory.js";
 
 export interface CandidateTrendPayload {
   keyword: string;
@@ -78,6 +79,23 @@ export const recordAndDistributeAlerts = internalMutation({
         )
         .first();
 
+      const stableStartMs = existingTracker?.startedAtMs ?? item.startedAtMs;
+
+      // 2. Compute time-series velocity trajectory, acceleration, and state
+      const trajectory = computeTrajectory({
+        currentTraffic: item.traffic,
+        currentGrowthRate: item.trafficGrowthRate,
+        startedAtMs: stableStartMs,
+        now,
+        existingHistory: existingTracker?.velocityHistory,
+        existingPeakGrowthRate: existingTracker?.peakGrowthRate,
+      });
+
+      const effectiveTier =
+        trajectory.trajectoryStatus === "re_spiking"
+          ? "breakout"
+          : (item.tier as "breakout" | "momentum");
+
       let trackerId;
       if (existingTracker) {
         trackerId = existingTracker._id;
@@ -86,9 +104,13 @@ export const recordAndDistributeAlerts = internalMutation({
           trafficGrowthRate: item.trafficGrowthRate,
           lastEvaluatedAt: now,
           emergenceScore: item.emergenceScore,
-          tier: item.tier,
+          tier: effectiveTier,
           relatedKeywords: item.relatedKeywords,
           notifiedAt: existingTracker.notifiedAt ?? now,
+          velocityHistory: trajectory.updatedHistory,
+          acceleration: trajectory.acceleration,
+          trajectoryStatus: trajectory.trajectoryStatus,
+          peakGrowthRate: trajectory.peakGrowthRate,
         });
       } else {
         trackerId = await ctx.db.insert("trendTracker", {
@@ -100,34 +122,55 @@ export const recordAndDistributeAlerts = internalMutation({
           firstSeenAt: now,
           lastEvaluatedAt: now,
           emergenceScore: item.emergenceScore,
-          tier: item.tier,
+          tier: effectiveTier,
           notifiedAt: now,
           relatedKeywords: item.relatedKeywords,
+          velocityHistory: trajectory.updatedHistory,
+          acceleration: trajectory.acceleration,
+          trajectoryStatus: trajectory.trajectoryStatus,
+          peakGrowthRate: trajectory.peakGrowthRate,
         });
       }
 
-      // 2. Prepare dedupe key and pre-seed href for 1-click thread creation
-      // Cycle dedupe key ensures each user receives at most one alert per trend spike cycle.
-      // Use existingTracker's original startedAtMs if available to maintain cycle stability across cron runs.
-      const stableStartMs = existingTracker?.startedAtMs ?? item.startedAtMs;
-      const cycleKey = `trend_${item.keyword.toLowerCase().trim()}_${stableStartMs}`;
+      // 3. Suppress real-time alert dispatch if trend is in decay mode
+      // (fading/peaked mature trends), preventing alert fatigue
+      if (trajectory.isSuppressedDueToDecay) {
+        continue;
+      }
+
+      // 4. Prepare dedupe key and alert copy
+      // For catalyst re-spikes, bucket by hour so a fresh alert fires even if an initial alert was sent
+      const hourBucket = Math.floor(now / (1000 * 60 * 60));
+      const cycleKey = trajectory.isCatalystReSpike
+        ? `trend_${item.keyword.toLowerCase().trim()}_respike_${hourBucket}`
+        : `trend_${item.keyword.toLowerCase().trim()}_${stableStartMs}`;
+
       const volText = formatVolumeLabel(item.traffic);
       const growthText = formatGrowthLabel(item.trafficGrowthRate);
       const timeAgoText = formatTimeAgo(stableStartMs);
-
-      const title =
-        item.tier === "breakout"
-          ? `⚡ Breakout Trend: ${item.keyword}`
-          : `🔥 Emerging Trend: ${item.keyword}`;
 
       const queriesContext =
         item.relatedKeywords.length > 0
           ? ` Related queries: ${item.relatedKeywords.slice(0, 3).join(", ")}.`
           : "";
 
-      const body = `${volText} searches • ${growthText} spike • Started ${timeAgoText}.${queriesContext}`;
+      let title: string;
+      let body: string;
 
-      // 3. Dispatch notification to active users whose filter settings match this trend
+      if (trajectory.isCatalystReSpike) {
+        title = `⚡ Catalyst Re-Spike: ${item.keyword}`;
+        const accelText =
+          trajectory.acceleration > 0 ? ` (+${trajectory.acceleration}%/h)` : "";
+        body = `${volText} searches • 2nd-wave catalyst surge (${growthText}${accelText}) • Started ${timeAgoText}.${queriesContext}`;
+      } else {
+        title =
+          effectiveTier === "breakout"
+            ? `⚡ Breakout Trend: ${item.keyword}`
+            : `🔥 Emerging Trend: ${item.keyword}`;
+        body = `${volText} searches • ${growthText} spike • Started ${timeAgoText}.${queriesContext}`;
+      }
+
+      // 5. Dispatch notification to active users whose filter settings match this trend
       for (const userSettings of enabledSettings) {
         const isMatch = matchesUserPreferences(
           {
@@ -157,6 +200,8 @@ export const recordAndDistributeAlerts = internalMutation({
             trendKeyword: item.keyword,
             traffic: item.traffic,
             growthRate: item.trafficGrowthRate,
+            trajectoryStatus: trajectory.trajectoryStatus,
+            acceleration: trajectory.acceleration,
           },
           dedupeKey: cycleKey,
         });

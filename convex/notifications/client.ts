@@ -19,6 +19,8 @@ export interface NotificationPayloadData {
   trendKeyword?: string;
   traffic?: number;
   growthRate?: number;
+  trajectoryStatus?: string;
+  acceleration?: number;
 }
 
 export interface CreateNotificationArgs {

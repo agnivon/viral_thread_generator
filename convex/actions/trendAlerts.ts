@@ -30,6 +30,7 @@ export function evaluateEmergence(
     startedAtMs: number;
     relatedKeywords: string[];
     rank: number;
+    acceleration?: number;
   },
   now: number = Date.now()
 ): { isEmerging: boolean; score: number; tier: "breakout" | "momentum" } {
@@ -83,14 +84,23 @@ export function evaluateEmergence(
     magnitudeScore = 0.45;
   }
 
-  const score = Number(
-    (
-      0.4 * velocityScore +
-      0.3 * recencyScore +
-      0.15 * clusterScore +
-      0.15 * magnitudeScore
-    ).toFixed(3)
-  );
+  let baseScore =
+    0.4 * velocityScore +
+    0.3 * recencyScore +
+    0.15 * clusterScore +
+    0.15 * magnitudeScore;
+
+  // Acceleration factor: positive acceleration boosts emergence score (+0.10);
+  // severe negative deceleration penalizes score (-0.15).
+  if (typeof item.acceleration === "number") {
+    if (item.acceleration >= 50) {
+      baseScore += 0.1;
+    } else if (item.acceleration <= -100) {
+      baseScore -= 0.15;
+    }
+  }
+
+  const score = Number(Math.max(0, Math.min(1.0, baseScore)).toFixed(3));
 
   // Inclusion rules (moderate momentum + breakout):
   // Started within the last 6 hours AND either E >= 0.45, growth >= 150%, or 1000 breakout
@@ -100,12 +110,17 @@ export function evaluateEmergence(
   const hasSubstantialVolume =
     item.traffic >= 20000 && item.trafficGrowthRate >= 100;
 
+  // If accelerating rapidly (>= 150%/h), consider it emerging even if older
+  const isRapidlyAccelerating = (item.acceleration ?? 0) >= 150;
+
   const isEmerging =
-    isWithinWindow &&
+    (isWithinWindow || isRapidlyAccelerating) &&
     (score >= 0.45 || hasModerateVelocity || hasSubstantialVolume);
 
   const tier: "breakout" | "momentum" =
-    score >= 0.75 || item.trafficGrowthRate >= 1000 ? "breakout" : "momentum";
+    score >= 0.75 || item.trafficGrowthRate >= 1000 || (item.acceleration ?? 0) >= 250
+      ? "breakout"
+      : "momentum";
 
   return { isEmerging, score, tier };
 }

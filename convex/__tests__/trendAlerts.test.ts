@@ -236,3 +236,221 @@ test("detectAndNotifyEmergingTrendsCron skips execution in development environme
   }
 });
 
+test("evaluateEmergence applies acceleration boost and deceleration penalty", () => {
+  const now = Date.now();
+  const baseItem = {
+    keyword: "accelerating trend",
+    traffic: 30000,
+    trafficGrowthRate: 180,
+    startedAtMs: now - 60 * 60 * 1000,
+    relatedKeywords: ["ai", "models"],
+    rank: 5,
+  };
+
+  const normalRes = evaluateEmergence(baseItem, now);
+  const boostedRes = evaluateEmergence({ ...baseItem, acceleration: 120 }, now);
+  const penalizedRes = evaluateEmergence({ ...baseItem, acceleration: -150 }, now);
+
+  expect(boostedRes.score).toBeGreaterThan(normalRes.score);
+  expect(penalizedRes.score).toBeLessThan(normalRes.score);
+});
+
+test("recordAndDistributeAlerts suppresses alerts for decaying trends while updating tracker", async () => {
+  const t = convexTest(schema, modules);
+  const now = Date.now();
+
+  const user = await t.mutation(async (ctx) => {
+    const u = await ctx.db.insert("users", {});
+    await ctx.db.insert("trendFilterSettings", {
+      userId: u,
+      enabled: true,
+      minGrowthRate: 100,
+      selectedNiches: ["tech_ai"],
+      whitelistKeywords: [],
+      blacklistKeywords: [],
+      desktopPushEnabled: true,
+      quietHoursEnabled: false,
+      updatedAt: now,
+    });
+    return u;
+  });
+
+  // Pre-seed an existing mature trend that peaked earlier
+  const startedAt = now - 3 * 60 * 60 * 1000; // 3 hours ago
+  await t.mutation(async (ctx) => {
+    await ctx.db.insert("trendTracker", {
+      keyword: "Fading Tech News",
+      geo: "US",
+      traffic: 45000,
+      trafficGrowthRate: 300,
+      startedAtMs: startedAt,
+      firstSeenAt: startedAt,
+      lastEvaluatedAt: now - 15 * 60 * 1000,
+      emergenceScore: 0.65,
+      tier: "momentum",
+      peakGrowthRate: 800,
+      velocityHistory: [
+        { evaluatedAt: startedAt + 30 * 60 * 1000, traffic: 30000, growthRate: 800 },
+        { evaluatedAt: now - 15 * 60 * 1000, traffic: 45000, growthRate: 300 },
+      ],
+      notifiedAt: startedAt,
+    });
+  });
+
+  // Candidate trend has decelerated sharply to +100% (decaying)
+  const decayingCandidate = [
+    {
+      keyword: "Fading Tech News",
+      geo: "US",
+      traffic: 46000,
+      trafficGrowthRate: 100, // Dropped from 800 peak to 100 (< 50% of peak, negative delta)
+      startedAtMs: startedAt,
+      emergenceScore: 0.45,
+      tier: "momentum" as const,
+      relatedKeywords: ["tech"],
+      rank: 10,
+    },
+  ];
+
+  const res = await t.mutation(internal.trendAlerts.recordAndDistributeAlerts, {
+    trends: decayingCandidate,
+  });
+
+  // Should NOT dispatch notification due to decay suppression
+  expect(res.notificationsDispatched).toBe(0);
+
+  // But trendTracker should be updated with decaying trajectory status
+  const tracker = await t.query(async (ctx) => {
+    return await ctx.db
+      .query("trendTracker")
+      .withIndex("by_keyword_geo", (q) =>
+        q.eq("keyword", "Fading Tech News").eq("geo", "US")
+      )
+      .first();
+  });
+
+  expect(tracker?.trajectoryStatus).toBe("decaying");
+  expect(tracker?.peakGrowthRate).toBe(800);
+  expect(tracker?.velocityHistory).toHaveLength(3);
+
+  // User notifications should remain empty
+  const notifs = await t.query(async (ctx) => {
+    return await ctx.db
+      .query("notifications")
+      .withIndex("by_userId", (q) => q.eq("userId", user))
+      .collect();
+  });
+  expect(notifs).toHaveLength(0);
+});
+
+test("recordAndDistributeAlerts dispatches 2nd-wave catalyst re-spike alerts with dedicated cycle key", async () => {
+  const t = convexTest(schema, modules);
+  const now = Date.now();
+
+  const user = await t.mutation(async (ctx) => {
+    const u = await ctx.db.insert("users", {});
+    await ctx.db.insert("trendFilterSettings", {
+      userId: u,
+      enabled: true,
+      minGrowthRate: 100,
+      selectedNiches: ["tech_ai"],
+      whitelistKeywords: [],
+      blacklistKeywords: [],
+      desktopPushEnabled: true,
+      quietHoursEnabled: false,
+      updatedAt: now,
+    });
+    return u;
+  });
+
+  const startedAt = now - 2 * 60 * 60 * 1000; // 2 hours ago
+
+  // Pre-seed an existing trend that had subsided to 120%
+  await t.mutation(async (ctx) => {
+    await ctx.db.insert("trendTracker", {
+      keyword: "Autonomous Agent Breakthrough",
+      geo: "US",
+      traffic: 30000,
+      trafficGrowthRate: 120,
+      startedAtMs: startedAt,
+      firstSeenAt: startedAt,
+      lastEvaluatedAt: now - 20 * 60 * 1000,
+      emergenceScore: 0.5,
+      tier: "momentum",
+      peakGrowthRate: 400,
+      velocityHistory: [
+        { evaluatedAt: startedAt + 15 * 60 * 1000, traffic: 20000, growthRate: 400 },
+        { evaluatedAt: now - 20 * 60 * 1000, traffic: 30000, growthRate: 120 },
+      ],
+      notifiedAt: startedAt,
+    });
+
+    // Also pre-seed the initial notification that the user already received earlier
+    await ctx.db.insert("notifications", {
+      userId: user,
+      kind: "emerging_trend_alert",
+      data: {
+        title: "🔥 Emerging Trend: Autonomous Agent Breakthrough",
+        body: "Initial alert",
+        trendKeyword: "Autonomous Agent Breakthrough",
+      },
+      dedupeKey: `trend_autonomous agent breakthrough_${startedAt}`,
+      isSeen: true,
+      isDismissed: false,
+      createdAt: startedAt,
+    });
+  });
+
+  // Sudden catalyst re-spike: growth jumps from 120 to 500 (+380% delta)
+  const respikeCandidate = [
+    {
+      keyword: "Autonomous Agent Breakthrough",
+      geo: "US",
+      traffic: 75000,
+      trafficGrowthRate: 500,
+      startedAtMs: startedAt,
+      emergenceScore: 0.85,
+      tier: "breakout" as const,
+      relatedKeywords: ["agentic ai", "benchmark", "autonomous"],
+      rank: 2,
+    },
+  ];
+
+  const res = await t.mutation(internal.trendAlerts.recordAndDistributeAlerts, {
+    trends: respikeCandidate,
+  });
+
+  // Re-spike notification SHOULD be dispatched
+  expect(res.notificationsDispatched).toBe(1);
+
+  // Check the notification content
+  const notifs = await t.query(async (ctx) => {
+    return await ctx.db
+      .query("notifications")
+      .withIndex("by_userId", (q) => q.eq("userId", user))
+      .collect();
+  });
+
+  // Now user has 2 notifications (initial + re-spike)
+  expect(notifs).toHaveLength(2);
+  const respikeNotif = notifs.find((n) => n.data.title.includes("⚡ Catalyst Re-Spike"));
+  expect(respikeNotif).toBeDefined();
+  expect(respikeNotif?.data.trajectoryStatus).toBe("re_spiking");
+  expect(respikeNotif?.data.acceleration).toBeGreaterThan(0);
+  expect(respikeNotif?.data.body).toContain("2nd-wave catalyst surge");
+
+  // Trend tracker is updated with re_spiking status
+  const tracker = await t.query(async (ctx) => {
+    return await ctx.db
+      .query("trendTracker")
+      .withIndex("by_keyword_geo", (q) =>
+        q.eq("keyword", "Autonomous Agent Breakthrough").eq("geo", "US")
+      )
+      .first();
+  });
+
+  expect(tracker?.trajectoryStatus).toBe("re_spiking");
+  expect(tracker?.tier).toBe("breakout");
+  expect(tracker?.peakGrowthRate).toBe(500);
+});
+

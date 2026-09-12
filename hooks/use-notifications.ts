@@ -18,6 +18,8 @@ export interface NotificationPayload {
   trendKeyword?: string;
   traffic?: number;
   growthRate?: number;
+  trajectoryStatus?: string;
+  acceleration?: number;
 }
 
 export function getTrendSourceHref(keyword: string): string {

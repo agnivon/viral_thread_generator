@@ -323,9 +323,31 @@ export function NotificationCenter() {
                       {formatRelativeTime(item.createdAt)}
                     </span>
                     {item.kind === "emerging_trend_alert" && (
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
-                        ⚡ Emerging Trend
-                      </span>
+                      <>
+                        {item.data.trajectoryStatus === "re_spiking" ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30">
+                            ⚡ Catalyst Re-Spike
+                          </span>
+                        ) : item.data.trajectoryStatus === "surging" ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
+                            🚀 Surging
+                          </span>
+                        ) : item.data.trajectoryStatus === "steady" ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/30">
+                            📈 Steady
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                            ⚡ Emerging Trend
+                          </span>
+                        )}
+                        {typeof item.data.acceleration === "number" &&
+                          item.data.acceleration > 50 && (
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10">
+                              +{Math.round(item.data.acceleration)}%/h
+                            </span>
+                          )}
+                      </>
                     )}
                     {item.kind !== "emerging_trend_alert" && item.data.href && (
                       <span className="inline-flex items-center gap-1 text-[11px] text-violet-600 dark:text-violet-400 font-semibold group-hover:underline ml-auto">

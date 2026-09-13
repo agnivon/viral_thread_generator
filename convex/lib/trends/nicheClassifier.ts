@@ -558,12 +558,196 @@ export const NICHE_KEYWORDS_TAXONOMY: Record<string, string[]> = {
     "tigres",
     "monterrey",
 
-    // Major College Programs in Athletics
+    // Major College Programs & Athletic Teams
     "mizzou",
     "nc state",
     "rutgers",
     "villanova",
     "louisville",
+    "lsu",
+    "lsu tigers",
+    "tennessee",
+    "tennessee vols",
+    "volunteers",
+    "vols",
+    "lady vols",
+    "la tech",
+    "louisiana tech",
+    "louisiana tech bulldogs",
+    "georgia tech",
+    "gerogia tech",
+    "ga tech",
+    "yellow jackets",
+    "texas tech",
+    "texas tech red raiders",
+    "red raiders",
+    "virginia tech",
+    "va tech",
+    "hokies",
+    "virginia tech hokies",
+    "tennessee tech",
+    "michigan tech",
+    "caltech",
+    "alabama",
+    "crimson tide",
+    "roll tide",
+    "bama",
+    "georgia bulldogs",
+    "uga",
+    "ohio state",
+    "buckeyes",
+    "osu",
+    "michigan wolverines",
+    "wolverines",
+    "penn state",
+    "nittany lions",
+    "notre dame",
+    "fighting irish",
+    "texas longhorns",
+    "longhorns",
+    "oklahoma sooners",
+    "sooners",
+    "florida gators",
+    "gators",
+    "clemson",
+    "clemson tigers",
+    "fsu",
+    "florida state",
+    "seminoles",
+    "noles",
+    "auburn",
+    "auburn tigers",
+    "war eagle",
+    "ole miss",
+    "rebels",
+    "mississippi state",
+    "kentucky wildcats",
+    "arkansas razorbacks",
+    "razorbacks",
+    "south carolina gamecocks",
+    "gamecocks",
+    "texas a&m",
+    "aggies",
+    "vanderbilt",
+    "vandy",
+    "oregon ducks",
+    "washington huskies",
+    "usc trojans",
+    "ucla bruins",
+    "wisconsin badgers",
+    "badgers",
+    "iowa hawkeyes",
+    "hawkeyes",
+    "nebraska cornhuskers",
+    "cornhuskers",
+    "michigan state",
+    "spartans",
+    "indiana hoosiers",
+    "hoosiers",
+    "illinois fighting illini",
+    "fighting illini",
+    "illini",
+    "purdue boilermakers",
+    "boilermakers",
+    "minnesota golden gophers",
+    "golden gophers",
+    "gophers",
+    "maryland terrapins",
+    "terrapins",
+    "terps",
+    "tar heels",
+    "unc",
+    "north carolina tar heels",
+    "blue devils",
+    "duke blue devils",
+    "uva",
+    "virginia cavaliers",
+    "wolfpack",
+    "pitt",
+    "pittsburgh panthers",
+    "syracuse orange",
+    "wake forest",
+    "demon deacons",
+    "smu mustangs",
+    "kansas jayhawks",
+    "jayhawks",
+    "kansas state",
+    "k-state",
+    "baylor",
+    "baylor bears",
+    "tcu",
+    "horned frogs",
+    "oklahoma state",
+    "west virginia",
+    "wvu",
+    "mountaineers",
+    "iowa state",
+    "cyclones",
+    "cincinnati bearcats",
+    "ucf",
+    "ucf knights",
+    "houston cougars",
+    "byu",
+    "byu cougars",
+    "utah utes",
+    "utes",
+    "colorado buffaloes",
+    "buffs",
+    "arizona wildcats",
+    "arizona state",
+    "asu",
+    "sun devils",
+    "uconn",
+    "uconn huskies",
+    "gonzaga",
+    "zags",
+    "creighton",
+    "bluejays",
+    "georgetown hoyas",
+    "hoyas",
+    "st johns",
+    "red storm",
+    "xavier",
+    "providence friars",
+    "seton hall",
+    "butler bulldogs",
+    "memphis tigers",
+    "tulane green wave",
+    "boise state",
+    "san diego state",
+    "sdsu",
+    "unlv",
+    "fresno state",
+    "app state",
+    "appalachian state",
+    "coastal carolina",
+    "jmu",
+    "james madison",
+    "liberty flames",
+    "marshall thundering herd",
+    "army black knights",
+    "navy midshipmen",
+    "air force falcons",
+    "college football",
+    "college basketball",
+    "cfb",
+    "cbb",
+    "fbs",
+    "fcs",
+    "ncaa",
+    "ncaa tournament",
+    "march madness",
+    "final four",
+    "sweet 16",
+    "elite 8",
+    "heisman",
+    "score",
+    "scores",
+    "game score",
+    "live score",
+    "box score",
+    "gymnastics",
+    "softball",
 
     // Star Athletes Across Disciplines
     "alcaraz",
@@ -699,21 +883,41 @@ function escapeRegex(str: string): string {
   return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+// Prefixes where "tech" represents a university/college sports team or non-software technician
+const COLLEGE_NON_TECH_PREFIXES =
+  "(?:la|louisiana|georgia|gerogia|ga|texas|virginia|va|tennessee|arkansas|michigan|indiana|florida|cal|vet|veterinary|radiology|rad|pharmacy|surgical|dental|nail)";
+
+const TECH_KEYWORD_REGEX = new RegExp(
+  `(?<!\\b${COLLEGE_NON_TECH_PREFIXES}\\s+)tech(?!\\s+(?:bulldogs|yellow jackets|hokies|red raiders))\\b`,
+  "i"
+);
+
 // Pre-compiled regex patterns per niche to avoid thousands of RegExp instantiations on each evaluation
 const COMPILED_NICHE_PATTERNS: Record<string, RegExp[]> = Object.fromEntries(
   Object.entries(NICHE_KEYWORDS_TAXONOMY).map(([nicheId, terms]) => [
     nicheId,
-    terms.map((term) =>
-      term.includes(" ")
+    terms.map((term) => {
+      if (nicheId === "tech_ai" && term === "tech") {
+        return TECH_KEYWORD_REGEX;
+      }
+      return term.includes(" ")
         ? new RegExp(`(?:^|\\s)${escapeRegex(term)}(?:$|\\s)`, "i")
-        : new RegExp(`\\b${escapeRegex(term)}\\b`, "i")
-    ),
+        : new RegExp(`\\b${escapeRegex(term)}\\b`, "i");
+    }),
   ])
 );
 
-// Matchup detection regex for sporting events (e.g. "mets vs yankees", "pumas - leon", "tiafoe vs shelton")
-const MATCHUP_PATTERN = /\b(?:[a-z0-9\s]+\s+(?:vs\.?|v\.?)\s+[a-z0-9\s]+|[a-z0-9\s]+\s+-\s+[a-z0-9\s]+)\b/i;
-const POLITICS_LEGAL_PATTERN = /\b(?:court|supreme court|lawsuit|judge|trial|verdict|debate|election|presidential|senate|congress)\b/i;
+// Matchup detection regex for sporting events (e.g. "mets vs yankees", "la tech vs lsu", "tennessee vs gerogia tech")
+const MATCHUP_PATTERN =
+  /\b(?:[a-z0-9\s]+\s+(?:vs\.?|v\.?)\s+[a-z0-9\s]+|[a-z0-9\s]+\s+-\s+[a-z0-9\s]+)\b/i;
+const POLITICS_LEGAL_PATTERN =
+  /\b(?:court|supreme court|lawsuit|judge|trial|verdict|debate|election|presidential|senate|congress)\b/i;
+const TECH_PRODUCT_COMPARISON_PATTERN =
+  /\b(?:claude|gpt|deepseek|gemini|openai|anthropic|llama|copilot|chatgpt|mistral|qwen|grok|nvidia|amd|intel|apple|google|microsoft|meta|linux|windows|ios|android|mac|pc|python|rust|golang|javascript|typescript|react|vue|angular|svelte|docker|kubernetes|aws|azure|gcp)\b/i;
+const CRYPTO_COMPARISON_PATTERN =
+  /\b(?:bitcoin|btc|ethereum|eth|solana|sol|xrp|doge|cardano|tether)\b/i;
+const GAMING_COMPARISON_PATTERN =
+  /\b(?:ps5|playstation|xbox|nintendo|switch|steam deck)\b/i;
 
 /**
  * Classifies a trend into one or more creator niches based on taxonomy matching.
@@ -734,17 +938,33 @@ export function classifyTrendNiches(
     }
   }
 
-  // Sports matchup fallback: if keyword or related terms represent a head-to-head match (X vs Y or X - Y)
-  // and is not a political debate or court trial, classify it into sports ONLY if no other niche has matched.
-  // This prevents tech/finance/entertainment comparisons (e.g. "Claude vs GPT-4o", "Bitcoin vs Ethereum")
-  // from being falsely tagged as sports.
-  if (matchedNiches.size === 0) {
-    const isMatchup =
-      MATCHUP_PATTERN.test(keyword) ||
-      relatedKeywords.some((rk) => MATCHUP_PATTERN.test(rk));
+  // Sports matchup evaluation:
+  // If the query represents a head-to-head match (X vs Y or X - Y), classify it as sports
+  // UNLESS it is an explicit political/legal debate or a recognized tech/crypto/gaming product comparison
+  // (e.g. "Claude vs GPT-4o", "Bitcoin vs Ethereum", "PS5 vs Xbox").
+  const isMatchup =
+    MATCHUP_PATTERN.test(keyword) ||
+    relatedKeywords.some((rk) => MATCHUP_PATTERN.test(rk));
 
-    if (isMatchup && !POLITICS_LEGAL_PATTERN.test(combinedText)) {
+  if (isMatchup) {
+    const isPolitics = POLITICS_LEGAL_PATTERN.test(combinedText);
+    const isTechComparison =
+      TECH_PRODUCT_COMPARISON_PATTERN.test(combinedText);
+    const isCryptoComparison = CRYPTO_COMPARISON_PATTERN.test(combinedText);
+    const isGamingComparison = GAMING_COMPARISON_PATTERN.test(combinedText);
+
+    const isNonSportsMatchup =
+      isPolitics ||
+      isTechComparison ||
+      isCryptoComparison ||
+      isGamingComparison;
+
+    if (!isNonSportsMatchup) {
       matchedNiches.add("sports");
+      // If a sports matchup was misattributed to tech_ai, purge it unless genuine tech comparison
+      if (matchedNiches.has("tech_ai") && !isTechComparison) {
+        matchedNiches.delete("tech_ai");
+      }
     }
   }
 

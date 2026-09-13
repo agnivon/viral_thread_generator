@@ -1,6 +1,7 @@
 "use node";
 
 import googleTrends from "@alkalisummer/google-trends-js";
+import { requireAuthUserId } from "./threads";
 import { v } from "convex/values";
 import { action, internalAction, ActionCtx } from "../_generated/server";
 import { internal } from "../_generated/api";
@@ -231,6 +232,7 @@ export const detectAndNotifyEmergingTrends = action({
     maxCandidates: v.optional(v.number()),
   },
   handler: async (ctx, args): Promise<ProcessEmergingTrendsResult> => {
+    await requireAuthUserId(ctx);
     return await processEmergingTrends(ctx, args.geo || "US", args.maxCandidates || 30);
   },
 });

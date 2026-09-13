@@ -15,6 +15,7 @@ Convex agent skills for common tasks can be installed by running
 - **Node Runtime in Actions**: Always add `"use node";` at the top of action files using Node.js modules or LangChain dependencies. Never add `"use node";` to files exporting queries or mutations.
 - **Safe Schema Evolution**: Do not introduce breaking schema modifications without a migration strategy. Use dry runs and proper backfills (`@convex-dev/migrations`) when modifying structure or data types.
 - **Server-Side Identity**: Derive authenticated identity strictly server-side via `ctx.auth.getUserIdentity()`. Never accept client-provided user IDs for authorization.
+- **Mandatory Endpoint & Action Authorization**: Never skip protection on Convex actions, queries, or mutations. Any endpoint performing outbound network requests, scraping, LLM invocations, or data reads/mutations must strictly enforce authenticated identity server-side (`await requireAuthUserId(ctx)` or `await getAuthUserId(ctx)`). If there is ANY doubt or ambiguity about whether an endpoint or route should be public or protected, **stop and question the user at every opportunity** instead of leaving it unprotected.
 
 <!-- convex-ai-end -->
 
@@ -51,6 +52,9 @@ Convex agent skills for common tasks can be installed by running
   - Treat `.env.example`, service modules, and configuration files as authoritative over external assumptions.
 - **Inspect Installed Package Versions**:
   - Check `package.json` to confirm versions (Next.js 16, React 19, Tailwind CSS v4, Convex 1.36+, TypeScript 6, Vitest 4) and utilize modern idioms rather than deprecated patterns.
+- **Next.js 16 Middleware Standard (`proxy.ts`)**:
+  - In Next.js 16, the legacy `middleware.ts` file convention is deprecated in favor of `proxy.ts`.
+  - **Always maintain `proxy.ts`** at the project root (never `middleware.ts`) for edge routing, Convex Auth action proxying (`/api/auth`), and session cookie lifecycle management. Never rename `proxy.ts` back to `middleware.ts` or introduce duplicate middleware files.
 
 ---
 
@@ -156,4 +160,18 @@ Convex agent skills for common tasks can be installed by running
   - **Frontend Hook Tests**: Isolated custom hook tests must reside in `hooks/__tests__/`.
 - **Zero Orphaned or Lingering Artifacts**:
   - When refactoring, moving, or consolidating code, immediately delete obsolete directories, old files, and dead re-exports. Never leave lingering or deprecated duplicates in the tree.
+
+---
+
+## 11. Mandatory Endpoint & Action Authorization Standards
+
+- **Zero Unauthenticated Public Endpoints by Default**:
+  - Never leave public Convex actions, queries, or mutations unprotected unless they are explicitly designed, documented, and verified to be public resources (e.g. initial login credentials verification).
+  - Any endpoint performing external network requests, outbound scraping (e.g. URL metadata fetching), LLM invocations, database reads, or database mutations MUST enforce authenticated identity server-side via `requireAuthUserId(ctx)` or `getAuthUserId(ctx)`.
+- **Proactive Questioning on Ambiguity**:
+  - If there is EVER any ambiguity, uncertainty, or doubt regarding whether an endpoint, action, query, or route should be public or protected, **agents MUST NOT make assumptions or leave it open**.
+  - **Stop and question the user at every opportunity** to clarify the security and authorization requirements before writing or leaving unprotected endpoints.
+- **Idiomatic Reactive Client Protection**:
+  - Protected Next.js pages under `app/(protected)/` must be Client Components (`"use client"`) wrapped by `<AuthGuard>` to avoid Server Component parallel SSR execution pitfalls without reintroducing brittle edge middleware 307 redirect loops.
+
 

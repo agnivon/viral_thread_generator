@@ -1,7 +1,7 @@
 "use node";
 
 import googleTrends from '@alkalisummer/google-trends-js';
-import { getAuthUserId } from "@convex-dev/auth/server";
+import { requireAuthUserId } from "./threads";
 import { v } from "convex/values";
 import { action } from "../_generated/server";
 import crypto from "crypto";
@@ -49,10 +49,7 @@ export const getTrendingKeywords = action({
     hours: v.optional(v.number()),
   },
   handler: async (ctx, args): Promise<ActiveTrend[]> => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) {
-      throw new Error("Unauthorized");
-    }
+    await requireAuthUserId(ctx);
 
     const geo = args.geo || 'US';
     const hours = args.hours || 24;
@@ -106,10 +103,7 @@ export const fetchArticlesForKeyword = action({
     articleKeys: v.optional(v.array(v.array(v.union(v.number(), v.string())))),
   },
   handler: async (ctx, args): Promise<GoogleTrendArticle[]> => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) {
-      throw new Error("Unauthorized");
-    }
+    await requireAuthUserId(ctx);
 
     let rawKeys: unknown[] = args.articleKeys || [];
     if (rawKeys.length === 0 && args.keyword) {

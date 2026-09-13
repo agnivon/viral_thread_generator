@@ -1,6 +1,5 @@
 "use node";
 
-import { getAuthUserId } from "@convex-dev/auth/server";
 import { awaitAllCallbacks } from "@langchain/core/callbacks/promises";
 import { isInterrupted, Command } from "@langchain/langgraph";
 import { action, internalAction, ActionCtx } from "../_generated/server";
@@ -14,14 +13,9 @@ import { TopicThreadFactoryGraph } from "../lib/agents/topic/graph.js";
 import { ThreadsAPI } from "../lib/clients/threads.js";
 import { modelCircuitBreaker } from "../lib/agents/circuitBreaker.js";
 import { generationPool, publicationPool } from "../lib/workpool.js";
+import { requireAuthUserId } from "../auth";
 
-async function requireAuthUserId(ctx: ActionCtx): Promise<Id<"users">> {
-  const userId = await getAuthUserId(ctx);
-  if (!userId) {
-    throw new Error("Unauthorized");
-  }
-  return userId;
-}
+export { requireAuthUserId };
 
 type ThreadInput = Infer<typeof threadDraftInputValidator>;
 
@@ -620,6 +614,11 @@ export const enqueueThreadPublication = action({
 
     await Promise.all(
       args.requests.map(async (req) => {
+        const draft = await ctx.runQuery(internal.threads.getThreadDraftInternal, { id: req.id, userId });
+        if (!draft) {
+          throw new Error(`Draft ${req.id} not found or unauthorized`);
+        }
+
         // Optimistically set the status to "queued" so the UI immediately reflects it as queued
         await ctx.runMutation(internal.threads.updateThreadDraft, {
           id: req.id,
@@ -684,15 +683,17 @@ export const publishThread = internalAction({
         { id: args.id, userId: args.userId }
       );
       if (!state) {
-        throw new Error(`Thread factory state not found for ID: ${args.id}`);
+        throw new Error(`State with ID ${args.id} does not exist`);
       }
 
-      if (!state.thread_draft || state.thread_draft.length === 0) {
-        throw new Error("Thread factory state has no thread draft content to publish.");
+      console.log(`[publishThread] Extracted thread posts: ${JSON.stringify(state.thread_draft)}`);
+      const postsToPublish = args.modified_thread || state.thread_draft;
+
+      if (!postsToPublish || postsToPublish.length === 0) {
+        throw new Error("Cannot publish an empty thread.");
       }
 
       const threadsApi = new ThreadsAPI(tokenDoc.token, "me");
-      const postsToPublish = args.modified_thread || state.thread_draft;
       const postIds: string[] = [];
       let replyToId: string | undefined = undefined;
 
@@ -735,13 +736,17 @@ export const publishThread = internalAction({
 
       console.log("[publishThread] All posts published successfully. Post IDs:", postIds, "Permalink:", permalink);
       return { postIds, threadId: args.id, permalink };
-    } catch (e) {
-      const publication_error = formatErrorMessage(e);
+    } catch (e: unknown) {
+      const errorMessage = e instanceof Error ? e.message : String(e);
+      console.error(`[publishThread] Error publishing thread with state ID ${args.id}:`, errorMessage);
+
       await ctx.runMutation(internal.threads.updateThreadDraft, {
         id: args.id,
+        is_published: false,
         publication_status: "failed",
-        publication_error,
+        publication_error: errorMessage,
       });
+
       throw e;
     }
   },
@@ -775,12 +780,56 @@ export const deleteThreadDraft = action({
 export const getUrlMetadata = action({
   args: { url: v.string() },
   handler: async (ctx, args) => {
+    await requireAuthUserId(ctx);
+
     try {
+      let parsedUrl: URL;
+      try {
+        parsedUrl = new URL(args.url);
+      } catch {
+        return { title: "", description: "", image: "" };
+      }
+
+      if (parsedUrl.protocol !== "http:" && parsedUrl.protocol !== "https:") {
+        return { title: "", description: "", image: "" };
+      }
+
+      const rawHostname = parsedUrl.hostname.toLowerCase();
+      const hostname = rawHostname.startsWith("[") && rawHostname.endsWith("]")
+        ? rawHostname.slice(1, -1)
+        : rawHostname;
+
+      const isPrivateIp =
+        hostname === "localhost" ||
+        hostname === "127.0.0.1" ||
+        hostname === "0.0.0.0" ||
+        hostname === "::1" ||
+        hostname === "::" ||
+        hostname === "169.254.169.254" ||
+        hostname.startsWith("127.") ||
+        hostname.startsWith("10.") ||
+        hostname.startsWith("192.168.") ||
+        (hostname.startsWith("172.") && (() => {
+          const second = parseInt(hostname.split(".")[1] || "0", 10);
+          return second >= 16 && second <= 31;
+        })()) ||
+        hostname.endsWith(".internal") ||
+        hostname.endsWith(".local");
+
+      if (isPrivateIp) {
+        return { title: "", description: "", image: "" };
+      }
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
+
       const response = await fetch(args.url, {
+        signal: controller.signal,
         headers: {
           "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
         },
       });
+      clearTimeout(timeoutId);
       const html = await response.text();
 
       const getMetaTag = (property: string) => {

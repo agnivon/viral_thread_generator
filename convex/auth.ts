@@ -1,6 +1,8 @@
 import { Password } from "@convex-dev/auth/providers/Password";
 import { ConvexCredentials, ConvexCredentialsUserConfig } from "@convex-dev/auth/providers/ConvexCredentials";
-import { convexAuth } from "@convex-dev/auth/server";
+import { convexAuth, getAuthUserId } from "@convex-dev/auth/server";
+import { Auth } from "convex/server";
+import { Id } from "./_generated/dataModel";
 import { isProduction } from "./lib/env";
 
 interface ProviderWithOptions {
@@ -62,5 +64,18 @@ const customPasswordProvider = ConvexCredentials({
 export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
   providers: [customPasswordProvider],
 });
+
+/**
+ * Derives and returns the authenticated user ID from context.
+ * Throws an "Unauthorized" Error if the user is not authenticated.
+ */
+export async function requireAuthUserId(ctx: { auth: Auth }): Promise<Id<"users">> {
+  const userId = await getAuthUserId(ctx);
+  if (!userId) {
+    throw new Error("Unauthorized");
+  }
+  return userId;
+}
+
 
 

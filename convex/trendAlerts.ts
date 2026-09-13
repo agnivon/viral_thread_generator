@@ -1,7 +1,7 @@
 import { v } from "convex/values";
 import { internalMutation, query, QueryCtx, MutationCtx } from "./_generated/server";
 import { notifications } from "./notifications/client";
-import { getAuthUserId } from "@convex-dev/auth/server";
+import { requireAuthUserId } from "./auth";
 import { matchesUserPreferences } from "./lib/trends/nicheClassifier.js";
 import { computeTrajectory } from "./lib/trends/trajectory.js";
 
@@ -253,10 +253,7 @@ export const listRecentEmergingTrends = query({
     limit: v.optional(v.number()),
   },
   handler: async (ctx: QueryCtx, args) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) {
-      throw new Error("Unauthorized");
-    }
+    await requireAuthUserId(ctx);
 
     const limit = args.limit ?? 25;
     return await ctx.db

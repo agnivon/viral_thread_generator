@@ -4,8 +4,9 @@
 import { convexTest } from "convex-test";
 import { expect, test, vi, afterEach } from "vitest";
 import schema from "../schema";
-import { internal } from "../_generated/api";
+import { api, internal } from "../_generated/api";
 import { evaluateEmergence } from "../actions/trendAlerts";
+import googleTrends from "@alkalisummer/google-trends-js";
 
 const modules = import.meta.glob("../**/*.ts");
 
@@ -234,6 +235,31 @@ test("detectAndNotifyEmergingTrendsCron skips execution in development environme
   } finally {
     process.env.CONVEX_DEPLOYMENT = prevDeployment;
   }
+});
+
+test("detectAndNotifyEmergingTrends action rejects unauthenticated callers and authorizes authenticated users", async () => {
+  const t = convexTest(schema, modules);
+
+  // 1. Unauthenticated invocation must fail with Unauthorized
+  await expect(
+    t.action(api.actions.trendAlerts.detectAndNotifyEmergingTrends, { geo: "US", maxCandidates: 10 })
+  ).rejects.toThrow("Unauthorized");
+
+  // 2. Authenticated invocation succeeds
+  const user = await t.mutation(async (ctx) => ctx.db.insert("users", {}));
+  const tAuthed = t.withIdentity({ subject: user });
+
+  vi.spyOn(googleTrends, "realTimeTrends").mockResolvedValue({
+    error: null,
+    data: [],
+  } as any);
+
+  const result = await tAuthed.action(api.actions.trendAlerts.detectAndNotifyEmergingTrends, {
+    geo: "US",
+    maxCandidates: 10,
+  });
+
+  expect(result).toEqual({ candidateCount: 0, dispatched: 0 });
 });
 
 test("evaluateEmergence applies acceleration boost and deceleration penalty", () => {

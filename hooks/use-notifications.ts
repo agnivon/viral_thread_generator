@@ -56,6 +56,81 @@ export function isExternalUrl(url?: string): boolean {
   return url.startsWith("http://") || url.startsWith("https://") || url.startsWith("//");
 }
 
+export interface SimpleNotificationPayload {
+  title: string;
+  body?: string;
+  href?: string;
+  tag?: string;
+}
+
+export type AppNotificationTarget = AppNotificationItem | SimpleNotificationPayload;
+
+export async function showAppNotification(
+  notification: AppNotificationTarget,
+  onClickAction?: () => void
+): Promise<Notification | boolean | null> {
+  if (typeof window === "undefined" || !("Notification" in window)) {
+    return null;
+  }
+
+  if (window.Notification.permission !== "granted") {
+    return null;
+  }
+
+  const isItem = "data" in notification;
+  const title = isItem
+    ? notification.data.title || "Viral Thread Generator"
+    : notification.title || "Viral Thread Generator";
+  const body = isItem
+    ? notification.data.body || "You have a new notification"
+    : notification.body || "You have a new notification";
+  const targetHref = isItem
+    ? notification.kind === "emerging_trend_alert"
+      ? (notification.data.trendKeyword ? getTrendSourceHref(notification.data.trendKeyword) : undefined)
+      : notification.data.href
+    : notification.href;
+  const tag = isItem ? notification._id : notification.tag;
+
+  // 1. Prefer Service Worker registration if available (mandatory on mobile browsers & PWAs)
+  if (typeof navigator !== "undefined" && "serviceWorker" in navigator) {
+    try {
+      const registration = await navigator.serviceWorker.ready;
+      if (registration && "showNotification" in registration) {
+        await registration.showNotification(title, {
+          body,
+          icon: "/icon.svg",
+          badge: "/icon.svg",
+          tag,
+          data: { href: targetHref },
+        });
+        return true;
+      }
+    } catch (swErr) {
+      console.warn("ServiceWorker showNotification failed, trying desktop constructor:", swErr);
+    }
+  }
+
+  // 2. Fallback to desktop window.Notification constructor
+  try {
+    const desktopNotification = new window.Notification(title, {
+      body,
+      icon: "/icon.svg",
+      tag,
+    });
+
+    desktopNotification.onclick = () => {
+      window.focus();
+      desktopNotification.close();
+      onClickAction?.();
+    };
+
+    return desktopNotification;
+  } catch (err) {
+    console.error("Failed to display notification:", err);
+    return null;
+  }
+}
+
 export function showDesktopNotification(
   notification: AppNotificationItem,
   onClickAction?: () => void
@@ -137,9 +212,9 @@ export function useNotifications() {
       const result = await window.Notification.requestPermission();
       setPermission(result);
       if (result === "granted") {
-        toast.success("Desktop notifications enabled!");
+        toast.success("Notifications enabled!");
       } else if (result === "denied") {
-        toast.error("Desktop notifications were blocked in browser settings.");
+        toast.error("Notifications were blocked in browser settings.");
       }
       return result;
     } catch (err) {
@@ -235,8 +310,8 @@ export function useNotifications() {
       };
 
       if (isInactive) {
-        // Display native desktop notification when window is inactive
-        showDesktopNotification(item, handleNotificationClick);
+        // Display native app / service worker notification when window is inactive
+        void showAppNotification(item, handleNotificationClick);
 
         // Flash/update document title with unread indicator
         if (typeof document !== "undefined") {
@@ -315,33 +390,29 @@ export function useNotifications() {
     }
   }, [isActive]);
 
-  const sendTestNotification = useCallback(() => {
+  const sendTestNotification = useCallback(async () => {
     if (typeof window === "undefined" || !("Notification" in window)) {
-      toast.error("Desktop notifications are not supported in your browser.");
+      toast.error("Notifications are not supported in your browser.");
       return false;
     }
 
     if (window.Notification.permission !== "granted") {
-      toast.error("Desktop notifications are not enabled. Please grant permission first.");
+      toast.error("Notifications are not enabled. Please grant permission first.");
       return false;
     }
 
-    try {
-      const testNotification = new window.Notification("Viral Thread Generator", {
-        body: "⚡ Desktop notifications are functional! You will receive native alerts when new trends emerge.",
-        icon: "/icon.svg",
-      });
+    const result = await showAppNotification({
+      title: "Viral Thread Generator",
+      body: "⚡ Notifications are functional! You will receive alerts when new trends emerge.",
+      href: "/dashboard",
+      tag: "test_alert",
+    });
 
-      testNotification.onclick = () => {
-        window.focus();
-        testNotification.close();
-      };
-
-      toast.success("Test desktop notification dispatched!");
+    if (result) {
+      toast.success("Test notification dispatched!");
       return true;
-    } catch (err) {
-      console.error("Failed to trigger desktop notification:", err);
-      toast.error("Failed to display desktop notification. Check browser permissions.");
+    } else {
+      toast.error("Failed to display notification. Check browser permissions.");
       return false;
     }
   }, []);

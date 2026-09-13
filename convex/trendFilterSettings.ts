@@ -1,20 +1,12 @@
 import { v } from "convex/values";
-import { query, mutation, QueryCtx, MutationCtx } from "./_generated/server";
-import { getAuthUserId } from "@convex-dev/auth/server";
+import { query, mutation } from "./_generated/server";
+import { requireAuthUserId } from "./auth";
 import {
   NICHE_DEFINITIONS,
   classifyTrendNiches,
   matchesUserPreferences,
   TrendFilterSettingsInput,
 } from "./lib/trends/nicheClassifier.js";
-
-async function requireAuthUserId(ctx: QueryCtx | MutationCtx) {
-  const userId = await getAuthUserId(ctx);
-  if (!userId) {
-    throw new Error("Unauthorized");
-  }
-  return userId;
-}
 
 export const DEFAULT_TREND_SETTINGS: TrendFilterSettingsInput = {
   enabled: false, // User requested: Master toggle OFF by default
@@ -131,11 +123,12 @@ export const updateSettings = mutation({
 });
 
 /**
- * Returns the list of standard niche definitions.
+ * Returns the list of standard niche definitions for authenticated users.
  */
 export const getNichesList = query({
   args: {},
-  handler: async () => {
+  handler: async (ctx) => {
+    await requireAuthUserId(ctx);
     return NICHE_DEFINITIONS;
   },
 });

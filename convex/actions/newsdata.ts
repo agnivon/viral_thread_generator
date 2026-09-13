@@ -1,7 +1,7 @@
 "use node";
 
 import googleTrends, { TrendingKeyword } from '@alkalisummer/google-trends-js';
-import { getAuthUserId } from "@convex-dev/auth/server";
+import { requireAuthUserId } from "./threads";
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { v } from "convex/values";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
@@ -261,10 +261,7 @@ export const getAvailableKeywords = action({
     limitNum: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) {
-      throw new Error("Unauthorized");
-    }
+    await requireAuthUserId(ctx);
 
     const limit = args.limitNum ?? 15;
     const snapshot = await db.collection("newsdata_latest_news")
@@ -286,10 +283,7 @@ export const getLatestNewsFromFirestore = action({
     numItems: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) {
-      throw new Error("Unauthorized");
-    }
+    await requireAuthUserId(ctx);
 
     const limitNum = args.numItems ?? 50;
     const collectionRef = db.collection("newsdata_latest_news").doc(args.keyword).collection("articles");
@@ -357,10 +351,7 @@ export const updateNewsArticle = action({
     category: v.optional(v.array(v.string())),
   },
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) {
-      throw new Error("Unauthorized");
-    }
+    await requireAuthUserId(ctx);
 
     const { keyword, id, ...updates } = args;
 
@@ -393,10 +384,7 @@ export const updateNewsArticle = action({
 export const evaluateNewsArticle = action({
   args: { keyword: v.string(), id: v.string() },
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) {
-      throw new Error("Unauthorized");
-    }
+    await requireAuthUserId(ctx);
 
     const docRef = db.collection("newsdata_latest_news").doc(args.keyword).collection("articles").doc(args.id);
     const snapshot = await docRef.get();

@@ -1,7 +1,9 @@
 "use client";
 
 import { useAuthActions } from "@convex-dev/auth/react";
-import { useState, useRef } from "react";
+import { useConvexAuth } from "convex/react";
+import { useRouter } from "next/navigation";
+import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,10 +21,18 @@ import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
 
 export default function LoginPage() {
   const { signIn } = useAuthActions();
+  const { isAuthenticated } = useConvexAuth();
+  const router = useRouter();
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const turnstileRef = useRef<TurnstileInstance | null>(null);
   const siteKey = process.env.NEXT_PUBLIC_CLOUDFLARE_TURNSTILE_SITE_KEY;
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      router.replace("/dashboard");
+    }
+  }, [isAuthenticated, router]);
 
   const loginMutation = useMutation({
     mutationFn: async (formData: FormData) => {
@@ -58,6 +68,14 @@ export default function LoginPage() {
     
     loginMutation.mutate(formData);
   };
+
+  if (isAuthenticated) {
+    return (
+      <div className="flex min-h-screen w-full items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   return (
     <div className="relative min-h-screen flex items-center justify-center p-4 bg-background overflow-hidden">

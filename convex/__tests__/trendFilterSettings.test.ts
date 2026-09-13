@@ -73,6 +73,19 @@ test("classifyTrendNiches maps keywords to appropriate creator niches", () => {
   expect(
     classifyTrendNiches("xbox game pass", ["xbox", "video games"])
   ).not.toContain("sports");
+
+  // College sports teams with "tech" in name must map to sports and NOT tech_ai
+  expect(classifyTrendNiches("la tech vs lsu")).toContain("sports");
+  expect(classifyTrendNiches("la tech vs lsu")).not.toContain("tech_ai");
+
+  expect(classifyTrendNiches("tennessee vs gerogia tech")).toContain("sports");
+  expect(classifyTrendNiches("tennessee vs gerogia tech")).not.toContain("tech_ai");
+
+  expect(classifyTrendNiches("georgia tech score")).toContain("sports");
+  expect(classifyTrendNiches("georgia tech score")).not.toContain("tech_ai");
+
+  expect(classifyTrendNiches("lsu gymnastics")).toContain("sports");
+  expect(classifyTrendNiches("tennessee vols")).toContain("sports");
 });
 
 test("matchesUserPreferences enforces master toggle, blacklist, whitelist, and niche filters", () => {
@@ -277,6 +290,34 @@ test("matchesUserPreferences enforces master toggle, blacklist, whitelist, and n
       blacklistKeywords: [],
     })
   ).toBe(false);
+
+  // 15. College matchups with "tech" in name are strictly suppressed when sports is deselected, even if tech_ai is enabled
+  expect(
+    matchesUserPreferences(
+      { keyword: "la tech vs lsu", trafficGrowthRate: 500 },
+      {
+        enabled: true,
+        minGrowthRate: 150,
+        selectedNiches: ["tech_ai"], // Sports is DESELECTED, tech_ai is ENABLED
+        whitelistKeywords: [],
+        blacklistKeywords: [],
+      }
+    )
+  ).toBe(false);
+
+  // 16. Matchups with common college typos like "gerogia tech" are strictly suppressed
+  expect(
+    matchesUserPreferences(
+      { keyword: "tennessee vs gerogia tech", trafficGrowthRate: 500 },
+      {
+        enabled: true,
+        minGrowthRate: 150,
+        selectedNiches: ["tech_ai"], // Sports is DESELECTED, tech_ai is ENABLED
+        whitelistKeywords: [],
+        blacklistKeywords: [],
+      }
+    )
+  ).toBe(false);
 });
 
 test("getSettings and updateSettings CRUD operations work with sensible defaults", async () => {
@@ -448,3 +489,21 @@ test("recordAndDistributeAlerts respects individual user niche preferences", asy
   expect(sportsNotifs).toHaveLength(1);
   expect(sportsNotifs[0].data.trendKeyword).toBe("NFL Quarterback Trade");
 });
+
+test("getNichesList query rejects unauthenticated callers and returns NICHE_DEFINITIONS when authenticated", async () => {
+  const t = convexTest(schema, modules);
+
+  // 1. Unauthenticated invocation must fail with Unauthorized
+  await expect(t.query(api.trendFilterSettings.getNichesList, {})).rejects.toThrow("Unauthorized");
+
+  // 2. Authenticated invocation succeeds
+  const userId = await t.mutation(async (ctx) => ctx.db.insert("users", {}));
+  const authed = t.withIdentity({ subject: userId });
+  const result = await authed.query(api.trendFilterSettings.getNichesList, {});
+
+  expect(Array.isArray(result)).toBe(true);
+  expect(result.length).toBeGreaterThan(0);
+  expect(result[0]).toHaveProperty("id");
+  expect(result[0]).toHaveProperty("name");
+});
+

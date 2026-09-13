@@ -192,7 +192,7 @@ export function NotificationCenter() {
           </div>
         </div>
 
-        {/* Desktop Notification Permission Banner */}
+        {/* Notification Permission Banner */}
         {permission === "default" && (
           <div className="border-b border-border/40 bg-violet-500/5 p-3.5 text-xs text-muted-foreground">
             <div className="flex items-start gap-3">
@@ -204,7 +204,7 @@ export function NotificationCenter() {
                   Get notified in background
                 </p>
                 <p className="text-[12px] leading-relaxed">
-                  Enable desktop alerts so you never miss emerging trends and drafts when working in other tabs.
+                  Enable notifications so you never miss emerging trends and drafts when working in other tabs or apps.
                 </p>
                 <Button
                   size="sm"
@@ -212,7 +212,7 @@ export function NotificationCenter() {
                   onClick={() => void requestPermission()}
                   className="h-7 text-xs px-3 rounded-lg border-violet-500/30 text-violet-600 dark:text-violet-400 hover:bg-violet-500/10 font-semibold cursor-pointer"
                 >
-                  Enable Desktop Alerts
+                  Enable Notifications
                 </Button>
               </div>
             </div>
@@ -223,7 +223,7 @@ export function NotificationCenter() {
           <div className="border-b border-border/40 bg-emerald-500/5 px-5 py-2.5 text-xs flex items-center justify-between">
             <span className="flex items-center gap-1.5 text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              Desktop alerts active
+              Notifications active
             </span>
             {isDev && (
               <button
@@ -240,7 +240,7 @@ export function NotificationCenter() {
         {permission === "denied" && (
           <div className="border-b border-border/40 bg-amber-500/5 px-5 py-2.5 text-xs text-amber-600 dark:text-amber-400">
             <p className="text-[11px] leading-snug">
-              Desktop alerts are blocked by your browser. Enable notifications in your browser address bar to receive background alerts.
+              Notifications are blocked by your browser. Enable notifications in your browser or site settings to receive background alerts.
             </p>
           </div>
         )}
@@ -291,7 +291,7 @@ export function NotificationCenter() {
                 key={item._id}
                 onClick={() => handleNotificationClick(item)}
                 className={cn(
-                  "group relative flex items-start gap-3 sm:gap-3.5 p-3.5 sm:p-4 transition-colors cursor-pointer text-left",
+                  "group flex items-start gap-3 sm:gap-3.5 p-3.5 sm:p-4 transition-colors cursor-pointer text-left",
                   !item.isSeen
                     ? "bg-violet-500/5 hover:bg-violet-500/10"
                     : "hover:bg-muted/40"
@@ -301,17 +301,52 @@ export function NotificationCenter() {
                 {getNotificationIcon(item.kind)}
 
                 {/* Content */}
-                <div className="flex-1 min-w-0 pr-9 sm:pr-16 space-y-1">
-                  <div className="min-w-0 w-full">
+                <div className="flex-1 min-w-0 space-y-1">
+                  <div className="flex items-start justify-between gap-2.5">
                     <h4
                       className={cn(
-                        "text-sm leading-snug break-words",
+                        "text-sm leading-snug break-words flex-1 min-w-0",
                         !item.isSeen ? "font-bold text-foreground" : "font-medium text-foreground/80"
                       )}
                       title={item.data.title || "Notification"}
                     >
                       {item.data.title || "Notification"}
                     </h4>
+
+                    {/* Actions & Unread Dot */}
+                    <div className="flex items-center gap-1.5 shrink-0 pt-0.5">
+                      <div className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity flex items-center gap-1 shrink-0 bg-background/80 backdrop-blur-xs rounded-md">
+                        {!item.isSeen && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              void markSeen(item._id);
+                            }}
+                            className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors cursor-pointer"
+                            title="Mark as read"
+                            aria-label="Mark as read"
+                          >
+                            <Check className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            void dismiss(item._id);
+                          }}
+                          className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-md transition-colors cursor-pointer"
+                          title="Dismiss"
+                          aria-label="Dismiss"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                      {!item.isSeen && (
+                        <span className="h-2 w-2 rounded-full bg-violet-600 shadow-xs shrink-0" title="Unread" />
+                      )}
+                    </div>
                   </div>
                   {item.data.body && (
                     <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed break-words">
@@ -375,39 +410,6 @@ export function NotificationCenter() {
                       )}
                     </div>
                   )}
-                </div>
-
-                {/* Unread Dot & Actions */}
-                <div className="absolute top-3.5 right-3.5 sm:top-4 sm:right-4 flex items-center gap-1.5 shrink-0 z-10">
-                  {!item.isSeen && (
-                    <span className="h-2 w-2 rounded-full bg-violet-600 shadow-xs shrink-0" title="Unread" />
-                  )}
-                  <div className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity flex items-center gap-1 shrink-0 bg-background/80 backdrop-blur-xs rounded-md">
-                    {!item.isSeen && (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          void markSeen(item._id);
-                        }}
-                        className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors cursor-pointer"
-                        title="Mark as read"
-                      >
-                        <Check className="h-3.5 w-3.5" />
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        void dismiss(item._id);
-                      }}
-                      className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-md transition-colors cursor-pointer"
-                      title="Dismiss"
-                    >
-                      <X className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
                 </div>
               </div>
             ))

@@ -6,6 +6,7 @@ import { Geist } from "next/font/google";
 import { cn } from "@/lib/utils";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
+import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
 
 const geist = Geist({subsets:['latin'],variable:'--font-sans'});
 
@@ -76,6 +77,7 @@ export default function RootLayout({
           >
             <ConvexClientProvider>{children}</ConvexClientProvider>
             <Toaster />
+            <ServiceWorkerRegister />
           </ThemeProvider>
         </body>
       </html>

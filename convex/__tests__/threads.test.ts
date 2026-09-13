@@ -6,6 +6,7 @@ import { api, internal } from "../_generated/api";
 import schema from "../schema";
 import { NewsThreadFactoryGraph } from "../lib/agents/news/graph.js";
 import { ThreadsAPI } from "../lib/clients/threads.js";
+import { publicationPool } from "../lib/workpool.js";
 
 const modules = import.meta.glob("../**/*.ts");
 
@@ -731,5 +732,113 @@ test("deleteThreadDraftInternal authorization and deletion", async () => {
   expect(deletedDraft2).toBeNull();
 });
 
+test("getUrlMetadata action rejects unauthenticated callers and succeeds when authenticated", async () => {
+  const t = convexTest(schema, modules);
+  const user = await t.mutation(async (ctx) => ctx.db.insert("users", {}));
 
+  // 1. Unauthenticated invocation must fail with Unauthorized
+  await expect(
+    t.action(api.actions.threads.getUrlMetadata, { url: "https://example.com/article" })
+  ).rejects.toThrow("Unauthorized");
 
+  // 2. Authenticated invocation succeeds
+  const mockHtml = `<html><head>
+    <meta property="og:title" content="Test Article" />
+    <meta property="og:description" content="Test Description" />
+    <meta property="og:image" content="https://example.com/image.png" />
+  </head><body></body></html>`;
+
+  const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce({
+    text: async () => mockHtml,
+  } as any);
+
+  const tAuthed = t.withIdentity({ subject: user });
+  const result = await tAuthed.action(api.actions.threads.getUrlMetadata, {
+    url: "https://example.com/article",
+  });
+
+  expect(fetchSpy).toHaveBeenCalledWith("https://example.com/article", expect.any(Object));
+  expect(result).toEqual({
+    title: "Test Article",
+    description: "Test Description",
+    image: "https://example.com/image.png",
+  });
+});
+
+test("enqueueThreadPublication enforces authentication and IDOR ownership check", async () => {
+  const t = convexTest(schema, modules);
+  const user1 = await t.mutation(async (ctx) => ctx.db.insert("users", {}));
+  const user2 = await t.mutation(async (ctx) => ctx.db.insert("users", {}));
+
+  const draftId = await t.mutation(internal.threads.initializeThreadDraft, {
+    userId: user1,
+    agent: "news",
+    input_field: { agent: "news", url: "https://example.com/source" },
+  });
+
+  // 1. Unauthenticated call rejected
+  await expect(
+    t.action(api.actions.threads.enqueueThreadPublication, {
+      requests: [{ id: draftId }],
+    })
+  ).rejects.toThrow("Unauthorized");
+
+  // 2. Cross-user invocation (user2 trying to publish user1's draft) rejected
+  const tUser2 = t.withIdentity({ subject: user2 });
+  await expect(
+    tUser2.action(api.actions.threads.enqueueThreadPublication, {
+      requests: [{ id: draftId }],
+    })
+  ).rejects.toThrow("Unauthorized");
+
+  // Verify status was NOT modified to queued
+  const draftBefore = await t.query(async (ctx) => ctx.db.get("threadDrafts", draftId));
+  expect(draftBefore?.publication_status).toBe("not_published");
+
+  // 3. Authorized user1 can enqueue publication
+  const enqueueSpy = vi.spyOn(publicationPool, "enqueueAction").mockResolvedValueOnce("work-123" as any);
+  const tUser1 = t.withIdentity({ subject: user1 });
+  await tUser1.action(api.actions.threads.enqueueThreadPublication, {
+    requests: [{ id: draftId }],
+  });
+
+  expect(enqueueSpy).toHaveBeenCalled();
+  const draftAfter = await t.query(async (ctx) => ctx.db.get("threadDrafts", draftId));
+  expect(draftAfter?.publication_status).toBe("queued");
+});
+
+test("getUrlMetadata rejects invalid protocols and loopback/private hosts to prevent SSRF", async () => {
+  const t = convexTest(schema, modules);
+  const user = await t.mutation(async (ctx) => ctx.db.insert("users", {}));
+  const tAuthed = t.withIdentity({ subject: user });
+  const fetchSpy = vi.fn();
+  vi.stubGlobal("fetch", fetchSpy);
+
+  try {
+    // Invalid protocol
+    const ftpRes = await tAuthed.action(api.actions.threads.getUrlMetadata, {
+      url: "ftp://example.com/file.txt",
+    });
+    expect(ftpRes).toEqual({ title: "", description: "", image: "" });
+
+    // Loopback / metadata hosts
+    const loopbackHosts = [
+      "http://localhost:3000/api",
+      "http://127.0.0.1/admin",
+      "http://[::1]/secret",
+      "http://169.254.169.254/latest/meta-data",
+      "http://database.internal/dump",
+      "http://printer.local/status",
+    ];
+
+    for (const targetUrl of loopbackHosts) {
+      const res = await tAuthed.action(api.actions.threads.getUrlMetadata, { url: targetUrl });
+      expect(res).toEqual({ title: "", description: "", image: "" });
+    }
+
+    // Ensure fetch was never called for these blocked targets
+    expect(fetchSpy).not.toHaveBeenCalled();
+  } finally {
+    vi.unstubAllGlobals();
+  }
+});

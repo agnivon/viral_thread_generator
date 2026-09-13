@@ -1,7 +1,7 @@
 import { v } from "convex/values";
 import { query, internalQuery, internalMutation } from "./_generated/server";
 import { Doc, Id } from "./_generated/dataModel";
-import { getAuthUserId } from "@convex-dev/auth/server";
+import { requireAuthUserId } from "./auth";
 import { paginationOptsValidator } from "convex/server";
 import {
   threadDraftInputValidator,
@@ -18,10 +18,7 @@ export const getThreadDraft = query({
     id: v.id("threadDrafts"),
   },
   handler: async (ctx, args): Promise<Doc<"threadDrafts"> | null> => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) {
-      throw new Error("Unauthorized");
-    }
+    const userId = await requireAuthUserId(ctx);
     const draft = await ctx.db.get("threadDrafts", args.id);
     if (draft && draft.userId !== userId) {
       throw new Error("Unauthorized");
@@ -38,10 +35,7 @@ export const getPaginatedThreadDrafts = query({
     paginationOpts: paginationOptsValidator,
   },
   handler: async (ctx, args) => {
-    const userId = await getAuthUserId(ctx);
-    if (!userId) {
-      throw new Error("Unauthorized");
-    }
+    const userId = await requireAuthUserId(ctx);
     return await ctx.db
       .query("threadDrafts")
       .withIndex("by_userId", (q) => q.eq("userId", userId))
@@ -161,10 +155,7 @@ export const deleteThreadDraftInternal = internalMutation({
     userId: v.optional(v.id("users")),
   },
   handler: async (ctx, args) => {
-    const userId = args.userId ?? (await getAuthUserId(ctx));
-    if (!userId) {
-      throw new Error("Unauthorized");
-    }
+    const userId = args.userId ?? (await requireAuthUserId(ctx));
     const draft = await ctx.db.get("threadDrafts", args.id);
     if (draft && draft.userId !== userId) {
       throw new Error("Unauthorized");

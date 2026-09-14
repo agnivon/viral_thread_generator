@@ -1,4 +1,4 @@
-import { v, Infer } from "convex/values";
+import { v } from "convex/values";
 import {
   internalQuery,
   query,
@@ -8,8 +8,6 @@ import {
 import { Doc, Id } from "./_generated/dataModel";
 import { platformValidator, tokenTypeValidator } from "./schema";
 import { getAuthUserId } from "@convex-dev/auth/server";
-
-type Platform = Infer<typeof platformValidator>;
 
 /**
  * Retrieves the latest active access token of the specified platform and type.
@@ -118,7 +116,7 @@ export const getAllTokensNearExpiry = internalQuery({
 /**
  * Helper function to delete all tokens for a platform.
  */
-async function deleteTokensByPlatformInternal(ctx: MutationCtx, platform: Platform, userId: Id<"users">) {
+async function deleteTokensByPlatformInternal(ctx: MutationCtx, platform: Doc<"accessTokens">["platform"], userId: Id<"users">) {
   const existingTokens = await ctx.db
     .query("accessTokens")
     .withIndex("by_userId_platform_active", (q) =>

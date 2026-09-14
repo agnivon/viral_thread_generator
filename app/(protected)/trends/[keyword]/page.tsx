@@ -48,12 +48,12 @@ import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
 import { trendsQueryKeys } from "@/lib/query-keys";
 import {
-  Article,
-  KeywordItem,
+  type Article,
+  type KeywordItem,
   formatSearchVolume,
   formatGrowthRate,
   formatStartedAgo,
-} from "../page";
+} from "../utils";
 
 export default function KeywordDetailPage() {
   const [mounted, setMounted] = useState(false);

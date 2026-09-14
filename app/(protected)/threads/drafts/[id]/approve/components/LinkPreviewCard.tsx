@@ -14,8 +14,6 @@ interface LinkPreviewCardProps {
   url: string;
 }
 
-export { linkPreviewKeys };
-
 export function LinkPreviewCard({ url }: LinkPreviewCardProps) {
   const fetchMetadata = useAction(api.actions.threads.getUrlMetadata);
 

@@ -5,22 +5,10 @@ import { useQuery, useMutation, useAction, useConvexAuth } from "convex/react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { api } from "@/convex/_generated/api";
-import { Id } from "@/convex/_generated/dataModel";
+import { Doc, Id } from "@/convex/_generated/dataModel";
 import { useWindowActivity } from "./use-window-activity";
 
-export interface NotificationPayload {
-  threadId?: string;
-  title?: string;
-  body?: string;
-  error?: string;
-  postIds?: string[];
-  href?: string;
-  trendKeyword?: string;
-  traffic?: number;
-  growthRate?: number;
-  trajectoryStatus?: string;
-  acceleration?: number;
-}
+export type NotificationPayload = Doc<"notifications">["data"];
 
 export function getTrendSourceHref(keyword: string): string {
   const slug = keyword
@@ -32,20 +20,13 @@ export function getTrendSourceHref(keyword: string): string {
 
 export const getTrendHref = getTrendSourceHref;
 
-export type NotificationKind =
-  | "thread_generation_success"
-  | "thread_hook_selection_required"
-  | "thread_generation_failed"
-  | "thread_publication_success"
-  | "thread_publication_failed"
-  | "emerging_trend_alert";
+export type NotificationKind = Doc<"notifications">["kind"];
 
 export interface AppNotificationItem {
   _id: Id<"notifications">;
-  kind: NotificationKind | string;
+  kind: NotificationKind;
   data: NotificationPayload;
   targetId: string;
-  sequence?: number;
   dedupeKey?: string;
   isSeen: boolean;
   isDismissed: boolean;

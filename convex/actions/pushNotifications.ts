@@ -29,35 +29,7 @@ function ensureVapidConfigured() {
   vapidConfigured = true;
 }
 
-export interface PushSubscriptionRecord {
-  _id: string;
-  _creationTime: number;
-  userId: string;
-  endpoint: string;
-  keys: {
-    p256dh: string;
-    auth: string;
-  };
-  userAgent?: string;
-  createdAt: number;
-  updatedAt: number;
-}
-
-export interface UserPushSettingsRecord {
-  _id: string;
-  _creationTime: number;
-  userId: string;
-  enabled: boolean;
-  minGrowthRate: number;
-  selectedNiches: string[];
-  whitelistKeywords: string[];
-  blacklistKeywords: string[];
-  desktopPushEnabled: boolean;
-  quietHoursEnabled: boolean;
-  quietHoursStart?: string;
-  quietHoursEnd?: string;
-  updatedAt: number;
-}
+import { Doc } from "../_generated/dataModel";
 
 export function isWithinQuietHours(
   startStr?: string,
@@ -94,7 +66,7 @@ export function isWithinQuietHours(
 
 async function dispatchWebPushPayload(
   ctx: ActionCtx,
-  subscriptions: PushSubscriptionRecord[],
+  subscriptions: Doc<"pushSubscriptions">[],
   payload: string,
   options: { TTL: number; urgency: "high" | "normal" | "low" }
 ): Promise<{ sent: number; failed: number }> {
@@ -102,7 +74,7 @@ async function dispatchWebPushPayload(
   let failed = 0;
 
   await Promise.allSettled(
-    subscriptions.map(async (sub: PushSubscriptionRecord) => {
+    subscriptions.map(async (sub: Doc<"pushSubscriptions">) => {
       try {
         await webpush.sendNotification(
           {
@@ -158,7 +130,7 @@ export const sendPushToUser = internalAction({
   }> => {
     ensureVapidConfigured();
 
-    const subscriptions: PushSubscriptionRecord[] = await ctx.runQuery(
+    const subscriptions: Doc<"pushSubscriptions">[] = await ctx.runQuery(
       internal.pushSubscriptions.listByUserInternal,
       { userId: args.userId }
     );
@@ -169,7 +141,7 @@ export const sendPushToUser = internalAction({
 
     // Check user trend filter settings if this is a trend alert
     if (args.kind === "emerging_trend_alert") {
-      const settings: UserPushSettingsRecord | null = await ctx.runQuery(
+      const settings: Doc<"trendFilterSettings"> | null = await ctx.runQuery(
         internal.pushSubscriptions.getUserPushSettingsInternal,
         { userId: args.userId }
       );
@@ -238,7 +210,7 @@ export const sendTestPush = action({
     const userId = await requireAuthUserId(ctx);
     ensureVapidConfigured();
 
-    const subscriptions: PushSubscriptionRecord[] = await ctx.runQuery(
+    const subscriptions: Doc<"pushSubscriptions">[] = await ctx.runQuery(
       internal.pushSubscriptions.listByUserInternal,
       { userId }
     );

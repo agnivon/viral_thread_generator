@@ -10,8 +10,6 @@ export const trendsQueryKeys = {
     ["news", sourceId, keyword, { hasArticleKeys: Boolean(hasArticleKeys) }] as const,
 };
 
-export const sourcesQueryKeys = trendsQueryKeys;
-
 export const trendAlertsQueryKeys = {
   all: ["trendAlerts"] as const,
   settings: () => ["trendAlerts", "settings"] as const,

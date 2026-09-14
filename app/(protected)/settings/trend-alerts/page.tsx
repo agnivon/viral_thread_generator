@@ -45,7 +45,6 @@ import {
   isSettingsFormChanged,
   type TrendAlertsFormData,
 } from "./schema";
-export { trendAlertsQueryKeys };
 
 const NICHE_ICONS: Record<string, React.ElementType> = {
   tech_ai: Bot,

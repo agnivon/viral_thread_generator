@@ -1,28 +1,10 @@
 import { MutationCtx } from "../_generated/server";
-import { Id } from "../_generated/dataModel";
+import { Doc, Id } from "../_generated/dataModel";
 import { internal } from "../_generated/api";
 
-export type NotificationKind =
-  | "thread_generation_success"
-  | "thread_hook_selection_required"
-  | "thread_generation_failed"
-  | "thread_publication_success"
-  | "thread_publication_failed"
-  | "emerging_trend_alert";
+export type NotificationKind = Doc<"notifications">["kind"];
 
-export interface NotificationPayloadData {
-  threadId?: string;
-  title: string;
-  body?: string;
-  href?: string;
-  error?: string;
-  postIds?: string[];
-  trendKeyword?: string;
-  traffic?: number;
-  growthRate?: number;
-  trajectoryStatus?: string;
-  acceleration?: number;
-}
+export type NotificationPayloadData = Doc<"notifications">["data"];
 
 export interface CreateNotificationArgs {
   targetId: Id<"users">;

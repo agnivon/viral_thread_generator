@@ -31,6 +31,15 @@ export const publicationStatusValidator = v.union(
   v.literal("failed")
 );
 
+export const notificationKindValidator = v.union(
+  v.literal("thread_generation_success"),
+  v.literal("thread_hook_selection_required"),
+  v.literal("thread_generation_failed"),
+  v.literal("thread_publication_success"),
+  v.literal("thread_publication_failed"),
+  v.literal("emerging_trend_alert")
+);
+
 const NewsInput = v.object({
   agent: v.literal("news"),
   url: v.string(),
@@ -110,7 +119,7 @@ export default defineSchema(
     }).index("by_userId", ["userId"]),
     notifications: defineTable({
       userId: v.id("users"),
-      kind: v.string(),
+      kind: notificationKindValidator,
       data: v.object({
         threadId: v.optional(v.string()),
         title: v.string(),

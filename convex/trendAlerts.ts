@@ -5,18 +5,6 @@ import { requireAuthUserId } from "./auth";
 import { matchesUserPreferences } from "./lib/trends/nicheClassifier.js";
 import { computeTrajectory } from "./lib/trends/trajectory.js";
 
-export interface CandidateTrendPayload {
-  keyword: string;
-  geo: string;
-  traffic: number;
-  trafficGrowthRate: number;
-  startedAtMs: number;
-  emergenceScore: number;
-  tier: "breakout" | "momentum";
-  relatedKeywords: string[];
-  rank: number;
-}
-
 function formatVolumeLabel(traffic: number): string {
   if (traffic >= 1_000_000) {
     return `${(traffic / 1_000_000).toFixed(1).replace(/\.0$/, "")}M+`;

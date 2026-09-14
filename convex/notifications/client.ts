@@ -1,5 +1,6 @@
 import { MutationCtx } from "../_generated/server";
 import { Id } from "../_generated/dataModel";
+import { internal } from "../_generated/api";
 
 export type NotificationKind =
   | "thread_generation_success"
@@ -67,6 +68,31 @@ export const notifications = {
       isDismissed: false,
       createdAt: now,
     });
+
+    if (ctx.scheduler) {
+      const slug = args.data.trendKeyword
+        ? args.data.trendKeyword
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, "-")
+            .replace(/(^-|-$)/g, "")
+        : undefined;
+      const targetHref =
+        args.data.href ||
+        (slug ? `/trends/${encodeURIComponent(slug)}` : "/dashboard");
+
+      await ctx.scheduler.runAfter(
+        0,
+        internal.actions.pushNotifications.sendPushToUser,
+        {
+          userId: args.targetId,
+          title: args.data.title,
+          body: args.data.body || "",
+          href: targetHref,
+          tag: dedupeKey || args.kind,
+          kind: args.kind,
+        }
+      );
+    }
 
     return {
       notificationId,

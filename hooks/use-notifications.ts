@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useQuery, useMutation, useConvexAuth } from "convex/react";
+import { useQuery, useMutation, useAction, useConvexAuth } from "convex/react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { api } from "@/convex/_generated/api";
@@ -46,6 +46,7 @@ export interface AppNotificationItem {
   data: NotificationPayload;
   targetId: string;
   sequence?: number;
+  dedupeKey?: string;
   isSeen: boolean;
   isDismissed: boolean;
   createdAt: number;
@@ -56,6 +57,21 @@ export interface AppNotificationItem {
 export function isExternalUrl(url?: string): boolean {
   if (!url) return false;
   return url.startsWith("http://") || url.startsWith("https://") || url.startsWith("//");
+}
+
+export function urlBase64ToUint8Array(base64String: string): Uint8Array {
+  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding)
+    .replace(/-/g, "+")
+    .replace(/_/g, "/");
+
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
 }
 
 export interface SimpleNotificationPayload {
@@ -91,7 +107,7 @@ export async function showAppNotification(
       ? (notification.data.trendKeyword ? getTrendSourceHref(notification.data.trendKeyword) : undefined)
       : notification.data.href
     : notification.href;
-  const tag = isItem ? notification._id : notification.tag;
+  const tag = isItem ? (notification.dedupeKey || notification._id) : notification.tag;
 
   // 1. Prefer Service Worker registration if available (mandatory on mobile browsers & PWAs)
   if (typeof navigator !== "undefined" && "serviceWorker" in navigator) {
@@ -190,12 +206,17 @@ export function useNotifications() {
   const dismissMutation = useMutation(api.notifications.dismiss);
   const dismissAllMutation = useMutation(api.notifications.dismissAll);
 
+  // Push subscription mutations & actions
+  const saveSubscriptionMutation = useMutation(api.pushSubscriptions.saveSubscription);
+  const sendTestPushAction = useAction(api.actions.pushNotifications.sendTestPush);
+
   const notifications: AppNotificationItem[] = (rawNotifications ?? []) as AppNotificationItem[];
 
   // Track initial load & processed IDs
   const initialLoadDoneRef = useRef<boolean>(false);
   const processedIdsRef = useRef<Set<string>>(new Set());
   const originalTitleRef = useRef<string>("");
+  const syncedEndpointRef = useRef<string | null>(null);
 
   // Sync notification permission state
   useEffect(() => {
@@ -204,6 +225,89 @@ export function useNotifications() {
       originalTitleRef.current = document.title;
     }
   }, []);
+
+  const syncPushSubscription = useCallback(async (): Promise<boolean> => {
+    if (
+      typeof window === "undefined" ||
+      !("serviceWorker" in navigator) ||
+      !("PushManager" in window) ||
+      !isAuthenticated
+    ) {
+      return false;
+    }
+
+    if (window.Notification?.permission !== "granted") {
+      return false;
+    }
+
+    const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+    if (!vapidKey) {
+      console.warn("Push subscription skipped: NEXT_PUBLIC_VAPID_PUBLIC_KEY is not defined in environment.");
+      return false;
+    }
+
+    try {
+      const registration = await navigator.serviceWorker.ready;
+      let subscription = await registration.pushManager.getSubscription();
+
+      const keyUint8 = urlBase64ToUint8Array(vapidKey);
+
+      // Self-healing: if subscription exists under an outdated VAPID key, rotate/resubscribe
+      if (subscription && subscription.options?.applicationServerKey) {
+        const subKeyArr = new Uint8Array(subscription.options.applicationServerKey);
+        let keysMatch = subKeyArr.length === keyUint8.length;
+        if (keysMatch) {
+          for (let i = 0; i < subKeyArr.length; i++) {
+            if (subKeyArr[i] !== keyUint8[i]) {
+              keysMatch = false;
+              break;
+            }
+          }
+        }
+        if (!keysMatch) {
+          await subscription.unsubscribe();
+          subscription = null;
+          syncedEndpointRef.current = null;
+        }
+      }
+
+      if (!subscription) {
+        subscription = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: keyUint8.buffer as ArrayBuffer,
+        });
+      }
+
+      const subJson = subscription.toJSON();
+      if (subJson.endpoint && subJson.keys?.p256dh && subJson.keys?.auth) {
+        if (syncedEndpointRef.current === subJson.endpoint) {
+          return true;
+        }
+
+        await saveSubscriptionMutation({
+          endpoint: subJson.endpoint,
+          keys: {
+            p256dh: subJson.keys.p256dh,
+            auth: subJson.keys.auth,
+          },
+          userAgent: typeof navigator !== "undefined" ? navigator.userAgent : undefined,
+        });
+
+        syncedEndpointRef.current = subJson.endpoint;
+        return true;
+      }
+    } catch (err) {
+      console.warn("Push subscription sync failed:", err);
+    }
+    return false;
+  }, [isAuthenticated, saveSubscriptionMutation]);
+
+  // Automatically sync push subscription when authenticated and granted
+  useEffect(() => {
+    if (isAuthenticated && permission === "granted") {
+      void syncPushSubscription();
+    }
+  }, [isAuthenticated, permission, syncPushSubscription]);
 
   const requestPermission = useCallback(async (): Promise<NotificationPermission> => {
     if (typeof window === "undefined" || !("Notification" in window)) {
@@ -215,6 +319,7 @@ export function useNotifications() {
       setPermission(result);
       if (result === "granted") {
         toast.success("Notifications enabled!");
+        void syncPushSubscription();
       } else if (result === "denied") {
         toast.error("Notifications were blocked in browser settings.");
       }
@@ -223,7 +328,7 @@ export function useNotifications() {
       console.error("Failed to request notification permission:", err);
       return "denied";
     }
-  }, []);
+  }, [syncPushSubscription]);
 
   const markSeen = useCallback(
     async (notificationId: Id<"notifications">) => {
@@ -403,6 +508,18 @@ export function useNotifications() {
       return false;
     }
 
+    // Try backend push dispatch first to test wake-up on WebAPK / OS
+    try {
+      await syncPushSubscription();
+      const pushRes = await sendTestPushAction({});
+      if (pushRes.success) {
+        toast.success(pushRes.message || "Test push alert dispatched to your device!");
+        return true;
+      }
+    } catch (pushErr) {
+      console.warn("Backend push test failed, attempting local fallback:", pushErr);
+    }
+
     const result = await showAppNotification({
       title: "Viral Thread Generator",
       body: "⚡ Notifications are functional! You will receive alerts when new trends emerge.",
@@ -417,7 +534,7 @@ export function useNotifications() {
       toast.error("Failed to display notification. Check browser permissions.");
       return false;
     }
-  }, []);
+  }, [syncPushSubscription, sendTestPushAction]);
 
   return {
     notifications,
@@ -426,6 +543,7 @@ export function useNotifications() {
     permission,
     requestPermission,
     sendTestNotification,
+    syncPushSubscription,
     markSeen,
     markAllSeen,
     dismiss,

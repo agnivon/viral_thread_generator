@@ -11,6 +11,7 @@
 import type * as actions_currentsNews from "../actions/currentsNews.js";
 import type * as actions_googleTrends from "../actions/googleTrends.js";
 import type * as actions_newsdata from "../actions/newsdata.js";
+import type * as actions_pushNotifications from "../actions/pushNotifications.js";
 import type * as actions_setup from "../actions/setup.js";
 import type * as actions_threads from "../actions/threads.js";
 import type * as actions_tokens from "../actions/tokens.js";
@@ -59,6 +60,7 @@ import type * as migrations from "../migrations.js";
 import type * as notifications from "../notifications.js";
 import type * as notifications_client from "../notifications/client.js";
 import type * as notifications_onComplete from "../notifications/onComplete.js";
+import type * as pushSubscriptions from "../pushSubscriptions.js";
 import type * as threads from "../threads.js";
 import type * as tokens from "../tokens.js";
 import type * as trendAlerts from "../trendAlerts.js";
@@ -74,6 +76,7 @@ declare const fullApi: ApiFromModules<{
   "actions/currentsNews": typeof actions_currentsNews;
   "actions/googleTrends": typeof actions_googleTrends;
   "actions/newsdata": typeof actions_newsdata;
+  "actions/pushNotifications": typeof actions_pushNotifications;
   "actions/setup": typeof actions_setup;
   "actions/threads": typeof actions_threads;
   "actions/tokens": typeof actions_tokens;
@@ -122,6 +125,7 @@ declare const fullApi: ApiFromModules<{
   notifications: typeof notifications;
   "notifications/client": typeof notifications_client;
   "notifications/onComplete": typeof notifications_onComplete;
+  pushSubscriptions: typeof pushSubscriptions;
   threads: typeof threads;
   tokens: typeof tokens;
   trendAlerts: typeof trendAlerts;

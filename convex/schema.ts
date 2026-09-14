@@ -197,6 +197,19 @@ export default defineSchema(
     })
       .index("by_type_target", ["type", "target"])
       .index("by_trippedUntil", ["trippedUntil"]),
+    pushSubscriptions: defineTable({
+      userId: v.id("users"),
+      endpoint: v.string(),
+      keys: v.object({
+        p256dh: v.string(),
+        auth: v.string(),
+      }),
+      userAgent: v.optional(v.string()),
+      createdAt: v.number(),
+      updatedAt: v.number(),
+    })
+      .index("by_userId", ["userId"])
+      .index("by_endpoint", ["endpoint"]),
   },
   // If you ever get an error about schema mismatch
   // between your data and your schema, and you cannot

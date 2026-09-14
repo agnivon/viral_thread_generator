@@ -243,7 +243,7 @@ test("circuitBreaker - clearTrip deletes all matching records if duplicates exis
     });
   });
 
-  let active = await t.query(internal.circuitBreaker.getActiveTrips, {});
+  let active: Array<{ target: string }> = await t.query(internal.circuitBreaker.getActiveTrips, {});
   expect(active.filter((a) => a.target === "dup-key").length).toBe(2);
 
   await t.mutation(internal.circuitBreaker.clearTrip, {

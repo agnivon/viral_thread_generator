@@ -7,7 +7,7 @@ import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Sparkles, Mail, Lock, Loader2 } from "lucide-react";
+import { Sparkles, Mail, Lock, Loader2, ShieldCheck, CheckCircle2 } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -78,7 +78,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="relative min-h-screen flex items-center justify-center p-4 bg-background overflow-hidden">
+    <div className="relative min-h-screen flex items-center justify-center p-3 sm:p-4 bg-background overflow-hidden">
       {/* Background Mesh Decorative Gradients */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-lg h-100 bg-linear-to-br from-violet-500/10 via-transparent to-transparent blur-3xl pointer-events-none -z-10" />
       <div className="absolute -top-40 -right-40 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none -z-10" />
@@ -145,23 +145,48 @@ export default function LoginPage() {
             
             <input name="flow" type="hidden" value="signIn" />
             
-            {/* Turnstile CAPTCHA */}
+            {/* Security Verification Container */}
             {siteKey && (
-              <div className="w-full overflow-x-auto flex justify-center my-1 py-1">
-                <Turnstile
-                  ref={turnstileRef}
-                  siteKey={siteKey}
-                  onSuccess={(token) => {
-                    setTurnstileToken(token);
-                    setError(null);
-                  }}
-                  onError={() => {
-                    toast.error("Security verification failed to load.");
-                  }}
-                  onExpire={() => {
-                    setTurnstileToken(null);
-                  }}
-                />
+              <div className="rounded-xl border border-border/70 bg-muted/20 p-3 flex flex-col items-center justify-center gap-2 overflow-hidden">
+                <div className="flex items-center justify-between w-full px-1 select-none">
+                  <span className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/80">
+                    <ShieldCheck className="w-3.5 h-3.5 text-violet-500" />
+                    Security Verification
+                  </span>
+                  {turnstileToken ? (
+                    <span className="text-[11px] font-semibold text-emerald-500 dark:text-emerald-400 flex items-center gap-1">
+                      <CheckCircle2 className="w-3 h-3" />
+                      Verified
+                    </span>
+                  ) : (
+                    <span className="text-[11px] text-muted-foreground/60">
+                      Required
+                    </span>
+                  )}
+                </div>
+
+                <div className="w-full flex items-center justify-center overflow-hidden py-1 min-h-[65px]">
+                  <div className="origin-center scale-[0.85] min-[360px]:scale-95 min-[390px]:scale-100 transition-transform">
+                    <Turnstile
+                      ref={turnstileRef}
+                      siteKey={siteKey}
+                      options={{
+                        theme: "auto",
+                        size: "normal",
+                      }}
+                      onSuccess={(token) => {
+                        setTurnstileToken(token);
+                        setError(null);
+                      }}
+                      onError={() => {
+                        toast.error("Security verification failed to load.");
+                      }}
+                      onExpire={() => {
+                        setTurnstileToken(null);
+                      }}
+                    />
+                  </div>
+                </div>
               </div>
             )}
             

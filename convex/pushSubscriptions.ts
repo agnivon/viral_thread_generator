@@ -116,3 +116,20 @@ export const getUserPushSettingsInternal = internalQuery({
       .first();
   },
 });
+
+export const countAllInternal = internalQuery({
+  args: {},
+  handler: async (ctx) => {
+    const subs = await ctx.db.query("pushSubscriptions").collect();
+    return {
+      count: subs.length,
+      endpoints: subs.map((s) => ({
+        endpoint: s.endpoint.slice(0, 40) + "...",
+        userId: s.userId,
+        userAgent: s.userAgent,
+        createdAt: s.createdAt,
+      })),
+    };
+  },
+});
+

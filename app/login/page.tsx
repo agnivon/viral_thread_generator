@@ -18,6 +18,7 @@ import {
 import { toast } from "sonner";
 import { useMutation } from "@tanstack/react-query";
 import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
+import { AuthLoadingIndicator } from "@/components/AuthGuard";
 
 export default function LoginPage() {
   const { signIn } = useAuthActions();
@@ -70,11 +71,7 @@ export default function LoginPage() {
   };
 
   if (isAuthenticated) {
-    return (
-      <div className="flex min-h-screen w-full items-center justify-center bg-background">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
-    );
+    return <AuthLoadingIndicator />;
   }
 
   return (

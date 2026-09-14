@@ -3,12 +3,14 @@
  * Follows Rule 8: Structured query key objects with explicit tuples (`as const`).
  */
 
-export const sourcesQueryKeys = {
+export const trendsQueryKeys = {
   all: ["news"] as const,
   keywords: (sourceId: string) => ["keywords", sourceId] as const,
   bySourceKeyword: (sourceId: string, keyword: string, hasArticleKeys?: boolean) =>
     ["news", sourceId, keyword, { hasArticleKeys: Boolean(hasArticleKeys) }] as const,
 };
+
+export const sourcesQueryKeys = trendsQueryKeys;
 
 export const trendAlertsQueryKeys = {
   all: ["trendAlerts"] as const,

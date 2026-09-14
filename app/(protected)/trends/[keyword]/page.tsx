@@ -46,7 +46,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
-import { sourcesQueryKeys } from "@/lib/query-keys";
+import { trendsQueryKeys } from "@/lib/query-keys";
 import {
   Article,
   KeywordItem,
@@ -79,7 +79,7 @@ export default function KeywordDetailPage() {
     isLoading: isKeywordsLoading,
     refetch: refetchKeywords,
   } = useQuery<KeywordItem[]>({
-    queryKey: sourcesQueryKeys.keywords("googleTrends"),
+    queryKey: trendsQueryKeys.keywords("googleTrends"),
     queryFn: async (): Promise<KeywordItem[]> => {
       const result = await getTrendingKeywordsAction({});
       return result ?? [];
@@ -120,7 +120,7 @@ export default function KeywordDetailPage() {
     refetch: refetchArticles,
     isFetching: isArticlesFetching,
   } = useQuery<Article[]>({
-    queryKey: sourcesQueryKeys.bySourceKeyword("googleTrends", keywordSlug, hasArticleKeys),
+    queryKey: trendsQueryKeys.bySourceKeyword("googleTrends", keywordSlug, hasArticleKeys),
     queryFn: async (): Promise<Article[]> => {
       const kw = currentKeywordObj?.keyword || decodeURIComponent(keywordSlug);
       const results = await fetchArticlesAction({
@@ -211,7 +211,7 @@ export default function KeywordDetailPage() {
         {/* Navigation & Breadcrumb */}
         <div>
           <Link
-            href="/sources"
+            href="/trends"
             className="inline-flex items-center gap-2 text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors group"
           >
             <ArrowLeft className="w-4 h-4 transition-transform group-hover:-translate-x-1" />

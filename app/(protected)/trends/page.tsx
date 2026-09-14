@@ -47,8 +47,8 @@ export interface KeywordItem {
   articleKeys?: [number, string, string][];
 }
 
-import { sourcesQueryKeys } from "@/lib/query-keys";
-export { sourcesQueryKeys };
+import { trendsQueryKeys, sourcesQueryKeys } from "@/lib/query-keys";
+export { trendsQueryKeys, sourcesQueryKeys };
 
 // --- Google Trends Formatter Utilities ---
 
@@ -58,8 +58,9 @@ export function formatSearchVolume(traffic?: number): string {
     const millions = traffic / 1_000_000;
     return `${millions % 1 === 0 ? millions.toFixed(0) : millions.toFixed(1)}M+`;
   }
-  if (traffic >= 1_000) {
-    return `${Math.round(traffic / 1_000)}K+`;
+  if (traffic >= 1000) {
+    const thousands = traffic / 1000;
+    return `${thousands % 1 === 0 ? thousands.toFixed(0) : thousands.toFixed(0)}K+`;
   }
   return `${traffic}+`;
 }
@@ -89,7 +90,7 @@ export function formatStartedAgo(startedAtMs?: number): string {
 
 type SortMode = "relevance" | "traffic" | "growth" | "recent";
 
-export default function SourcesPage() {
+export default function TrendsPage() {
   const [mounted, setMounted] = useState(false);
   useEffect(() => {
     setMounted(true);
@@ -109,8 +110,8 @@ export default function SourcesPage() {
     isLoading: isGoogleLoading,
     refetch: refetchKeywords,
     isFetching: isGoogleFetching,
-  } = useQuery<KeywordItem[]>({
-    queryKey: sourcesQueryKeys.keywords("googleTrends"),
+  } = useQuery({
+    queryKey: trendsQueryKeys.keywords("googleTrends"),
     queryFn: async () => await getTrendingKeywordsAction({}),
     staleTime: 5 * 60 * 1000,
   });
@@ -192,7 +193,7 @@ export default function SourcesPage() {
             <div className="flex items-center gap-2.5">
               <h1 className="text-4xl font-extrabold tracking-tight">
                 <span className="bg-linear-to-r from-violet-600 via-indigo-600 to-cyan-500 bg-clip-text text-transparent dark:from-violet-400 dark:via-indigo-400 dark:to-cyan-400">
-                  Sources
+                  Trends
                 </span>
               </h1>
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 shadow-xs">
@@ -369,7 +370,7 @@ export default function SourcesPage() {
               return (
                 <Link
                   key={item.id}
-                  href={`/sources/${encodeURIComponent(item.id)}`}
+                  href={`/trends/${encodeURIComponent(item.id)}`}
                   className="block w-full group focus-visible:outline-none"
                 >
                   <Card className="w-full relative overflow-hidden bg-card/45 backdrop-blur-xs border-border/80 hover:border-violet-500/40 hover:shadow-md transition-all duration-200 p-5 sm:p-6">

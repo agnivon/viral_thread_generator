@@ -27,8 +27,10 @@ export function getTrendSourceHref(keyword: string): string {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/(^-|-$)/g, "");
-  return `/sources/${encodeURIComponent(slug || keyword)}`;
+  return `/trends/${encodeURIComponent(slug || keyword)}`;
 }
+
+export const getTrendHref = getTrendSourceHref;
 
 export type NotificationKind =
   | "thread_generation_success"

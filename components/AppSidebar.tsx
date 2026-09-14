@@ -13,7 +13,7 @@ import {
   SidebarFooter,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { Home, FileText, Settings, LogOut, Sparkles, Globe, PenSquare } from "lucide-react";
+import { Home, FileText, Settings, LogOut, Sparkles, TrendingUp, PenSquare } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuthActions } from "@convex-dev/auth/react";
@@ -33,7 +33,7 @@ export function AppSidebar() {
   const navigation = [
     { name: "Dashboard", href: "/dashboard", icon: Home },
     { name: "Create", href: "/threads/create", icon: PenSquare },
-    { name: "Sources", href: "/sources", icon: Globe },
+    { name: "Trends", href: "/trends", icon: TrendingUp },
     { name: "Drafts", href: "/threads/drafts", icon: FileText },
     { name: "Settings", href: "/settings/trend-alerts", icon: Settings },
   ];

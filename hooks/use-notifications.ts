@@ -97,10 +97,10 @@ export async function showAppNotification(
       if (registration && "showNotification" in registration) {
         await registration.showNotification(title, {
           body,
-          icon: "/icon.svg",
-          badge: "/icon.svg",
+          icon: "/apple-icon",
+          badge: "/apple-icon",
           tag,
-          data: { href: targetHref },
+          data: { href: targetHref || "/" },
         });
         return true;
       }

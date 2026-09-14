@@ -186,8 +186,8 @@ describe("showAppNotification", () => {
     expect(result).toBe(true);
     expect(showNotificationMock).toHaveBeenCalledWith("Thread Published", {
       body: "Your thread is live on Threads!",
-      icon: "/icon.svg",
-      badge: "/icon.svg",
+      icon: "/apple-icon",
+      badge: "/apple-icon",
       tag: "notif_456",
       data: {
         href: "https://threads.net/@user/post/456",

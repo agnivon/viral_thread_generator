@@ -24,12 +24,17 @@ self.addEventListener("push", (event) => {
   }
 
   const title = data.title || "Viral Thread Generator";
+  const targetHref = data.data?.href || data.href || "/";
   const options = {
     body: data.body || "New update available",
     icon: data.icon || "/apple-icon",
     badge: data.badge || "/apple-icon",
     tag: data.tag || "viral-thread-alert",
-    data: data.data || {},
+    data: {
+      href: targetHref,
+      tag: data.tag,
+      ...(data.data || {}),
+    },
     vibrate: [150, 50, 150],
     renotify: true,
   };
@@ -40,46 +45,81 @@ self.addEventListener("push", (event) => {
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
 
-  const targetHref = event.notification.data?.href || "/";
+  let urlToOpen = "/";
+  try {
+    const rawHref = event.notification.data?.href;
+    if (rawHref && typeof rawHref === "string") {
+      urlToOpen = new URL(rawHref, self.location.origin).href;
+    } else {
+      urlToOpen = new URL("/", self.location.origin).href;
+    }
+  } catch {
+    urlToOpen = self.location.origin + "/";
+  }
+
   const isExternal =
-    targetHref.startsWith("http://") ||
-    targetHref.startsWith("https://") ||
-    targetHref.startsWith("//");
+    urlToOpen.startsWith("http://") ||
+    urlToOpen.startsWith("https://") ||
+    urlToOpen.startsWith("//");
   const isCrossOrigin =
-    isExternal && !targetHref.startsWith(self.location.origin);
+    isExternal && !urlToOpen.startsWith(self.location.origin);
 
   event.waitUntil(
     (async () => {
-      // External cross-origin targets (e.g. Threads permalink) must open in a new tab/window
+      // External cross-origin targets (e.g. Threads permalink) must open in an external window
       if (isCrossOrigin) {
         if (self.clients.openWindow) {
-          return self.clients.openWindow(targetHref);
+          return await self.clients.openWindow(urlToOpen);
         }
         return;
       }
 
-      const clientList = await self.clients.matchAll({
-        type: "window",
-        includeUncontrolled: true,
-      });
+      try {
+        const clientList = await self.clients.matchAll({
+          type: "window",
+          includeUncontrolled: true,
+        });
 
-      // If a same-origin window is already active, focus and navigate
-      for (const client of clientList) {
-        if (client.url && "focus" in client) {
-          if ("navigate" in client) {
-            try {
-              await client.navigate(targetHref);
-            } catch {
-              // Ignore navigation failures if window is closing
+        // 1. If a window is ALREADY in the foreground (focused), navigate and keep focus
+        for (const client of clientList) {
+          if (client.url && "focus" in client) {
+            if (client.focused) {
+              if ("navigate" in client && client.url !== urlToOpen) {
+                await client.navigate(urlToOpen);
+              }
+              return await client.focus();
             }
           }
-          return client.focus();
         }
-      }
 
-      // Otherwise, open a new window
-      if (self.clients.openWindow) {
-        return self.clients.openWindow(targetHref);
+        // 2. On Android WebAPK and mobile browsers, openWindow is REQUIRED to launch the app
+        // or bring a background task to the foreground. Android routes openWindow to the WebAPK.
+        if (self.clients.openWindow) {
+          return await self.clients.openWindow(urlToOpen);
+        }
+
+        // 3. Fallback to focusing any available client if openWindow is not supported
+        for (const client of clientList) {
+          if (client.url && "focus" in client) {
+            if ("navigate" in client && client.url !== urlToOpen) {
+              try {
+                await client.navigate(urlToOpen);
+              } catch {
+                // Ignore navigation error
+              }
+            }
+            return await client.focus();
+          }
+        }
+      } catch (err) {
+        console.error("Failed to handle notificationclick:", err);
+        if (self.clients.openWindow) {
+          try {
+            return await self.clients.openWindow(urlToOpen);
+          } catch (openErr) {
+            console.error("Fallback openWindow failed:", openErr);
+          }
+        }
       }
     })()
   );

@@ -1,5 +1,5 @@
 import { Sparkles, Image as ImageIcon, X, Video as VideoIcon, GripVertical, ChevronUp, ChevronDown, Trash2, Plus } from "lucide-react";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { CardContent } from "@/components/ui/card";
 import { LinkPreviewCard } from "./LinkPreviewCard";
@@ -16,7 +16,7 @@ interface DraftPostsListProps {
   control: Control<ThreadDraftFormData>;
   selectedImages: Record<string, string>;
   selectedVideos: Record<string, string>;
-  postCritiques?: Array<{ post_index: number; critique?: string }>;
+  postCritiques?: Array<{ post_index: number; critique?: string; fix_directive?: string }>;
   onAttachImage: (index: number) => void;
   onRemoveImage: (index: number) => void;
   onAttachVideo: (index: number) => void;
@@ -38,7 +38,7 @@ interface DraftPostItemProps {
   control: Control<ThreadDraftFormData>;
   selectedImages: Record<string, string>;
   selectedVideos: Record<string, string>;
-  postCritique?: { post_index: number; critique?: string };
+  postCritique?: { post_index: number; critique?: string; fix_directive?: string };
   onAttachImage: (index: number) => void;
   onRemoveImage: (index: number) => void;
   onAttachVideo: (index: number) => void;
@@ -342,13 +342,20 @@ function DraftPostItem({
         </div>
       )}
 
-      {postCritique?.critique?.trim() && (
-        <div className="p-3.5 rounded-xl bg-amber-500/5 border border-amber-500/20 text-amber-800 dark:text-amber-300 text-xs mt-1">
-          <span className="font-bold flex items-center gap-1.5 mb-1 text-amber-900 dark:text-amber-400">
+      {(postCritique?.critique?.trim() || postCritique?.fix_directive?.trim()) && (
+        <div className="p-3.5 rounded-xl bg-amber-500/5 border border-amber-500/20 text-amber-800 dark:text-amber-300 text-xs mt-1 space-y-1.5">
+          <span className="font-bold flex items-center gap-1.5 text-amber-900 dark:text-amber-400">
             <Sparkles className="w-3.5 h-3.5 text-amber-500 shrink-0" />
             AI Critique
           </span>
-          <p className="leading-relaxed font-medium pl-5">{postCritique.critique}</p>
+          {postCritique.critique?.trim() && (
+            <p className="leading-relaxed font-medium pl-5">{postCritique.critique}</p>
+          )}
+          {postCritique.fix_directive?.trim() && (
+            <p className="leading-relaxed font-medium pl-5 text-amber-700/90 dark:text-amber-300/90">
+              <span className="font-semibold text-amber-900 dark:text-amber-200">Fix Directive:</span> {postCritique.fix_directive}
+            </p>
+          )}
         </div>
       )}
     </div>
@@ -375,6 +382,16 @@ export function DraftPostsList({
 
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
 
+  const critiquesByIndex = useMemo(() => {
+    const map = new Map<number, NonNullable<DraftPostsListProps["postCritiques"]>[number]>();
+    if (postCritiques) {
+      for (const pc of postCritiques) {
+        map.set(pc.post_index, pc);
+      }
+    }
+    return map;
+  }, [postCritiques]);
+
   const displayPosts = isEditingPosts
     ? fields.map((field) => ({ id: field.id, content: field.content || "" }))
     : posts.map((post, i) => ({ id: i.toString(), content: post }));
@@ -382,7 +399,7 @@ export function DraftPostsList({
   return (
     <CardContent className="p-3.5 sm:p-6 space-y-4 sm:space-y-6 pt-4 sm:pt-6">
       {displayPosts.map((item, index) => {
-        const postCritique = postCritiques?.find((pc) => pc.post_index === index + 1);
+        const postCritique = critiquesByIndex.get(index + 1);
 
         return (
           <DraftPostItem

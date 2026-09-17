@@ -225,9 +225,14 @@ export const ThreadWriterNode = async (state: SocialMediaThreadFactoryStateType,
   const critiqueContext = state.critique ? `\n\n<CRITIQUE_TO_ADDRESS>\n${state.critique}\n</CRITIQUE_TO_ADDRESS>` : "";
   let postCritiquesContext = "";
   if (state.post_critiques && state.post_critiques.length > 0) {
-    postCritiquesContext = "\n\n<POST_SPECIFIC_CRITIQUES>\n" +
-      state.post_critiques.map(pc => `Post ${pc.post_index}: ${pc.critique}${pc.fix_directive ? `\nFix Directive: ${pc.fix_directive}` : ''}`).join("\n\n") +
-      "\n</POST_SPECIFIC_CRITIQUES>";
+    const actionable = state.post_critiques.filter(
+      (pc) => (pc.critique && pc.critique.trim().length > 0) || (pc.fix_directive && pc.fix_directive.trim().length > 0)
+    );
+    if (actionable.length > 0) {
+      postCritiquesContext = "\n\n<POST_SPECIFIC_CRITIQUES>\n" +
+        actionable.map(pc => `Post ${pc.post_index}: ${pc.critique}${pc.fix_directive ? `\nFix Directive: ${pc.fix_directive}` : ''}`).join("\n\n") +
+        "\n</POST_SPECIFIC_CRITIQUES>";
+    }
   }
   const charCritiqueContext = state.character_critique ? `\n\n<CHARACTER_AND_FORMATTING_CONSTRAINTS_FAILED>\n${state.character_critique}\nFix the previous draft to respect these exact formatting constraints.\n</CHARACTER_AND_FORMATTING_CONSTRAINTS_FAILED>` : "";
   const guidanceContext = state.guidance ? `\n\n<ADDITIONAL_GUIDANCE>\n${state.guidance}\n</ADDITIONAL_GUIDANCE>` : "";
@@ -280,7 +285,7 @@ const socialMediaCriticSchema = z.object({
   post_critiques: z.array(z.object({
     post_index: z.number(),
     critique: z.string(),
-    fix_directive: z.string()
+    fix_directive: z.string().optional()
   }))
 });
 

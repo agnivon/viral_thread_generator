@@ -244,12 +244,19 @@ export const ThreadWriterNode = async (state: TopicThreadFactoryStateType, confi
     if ((state.post_critiques && state.post_critiques.length > 0) || state.character_critique) {
       let critiqueStr = "";
       if (state.post_critiques && state.post_critiques.length > 0) {
-        critiqueStr += state.post_critiques.map(pc => `Post ${pc.post_index}: ${pc.critique}${pc.fix_directive ? `\nFix Directive: ${pc.fix_directive}` : ''}`).join("\n\n");
+        const actionable = state.post_critiques.filter(
+          (pc) => (pc.critique && pc.critique.trim().length > 0) || (pc.fix_directive && pc.fix_directive.trim().length > 0)
+        );
+        if (actionable.length > 0) {
+          critiqueStr += actionable.map(pc => `Post ${pc.post_index}: ${pc.critique}${pc.fix_directive ? `\nFix Directive: ${pc.fix_directive}` : ''}`).join("\n\n");
+        }
       }
       if (state.character_critique) {
         critiqueStr += (critiqueStr ? "\n\n" : "") + state.character_critique;
       }
-      critiqueContext = `\n\n<CURRENT_DRAFT>\n${JSON.stringify(state.thread_draft, null, 2)}\n</CURRENT_DRAFT>\n\n<CRITIQUES>\n${critiqueStr}\n</CRITIQUES>`;
+      if (critiqueStr) {
+        critiqueContext = `\n\n<CURRENT_DRAFT>\n${JSON.stringify(state.thread_draft, null, 2)}\n</CURRENT_DRAFT>\n\n<CRITIQUES>\n${critiqueStr}\n</CRITIQUES>`;
+      }
     }
 
     result = await invokeWithFallbacks(

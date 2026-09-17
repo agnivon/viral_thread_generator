@@ -224,9 +224,14 @@ export const ThreadWriterNode = async (state: NewsThreadFactoryStateType, config
   const critiqueContext = state.critique ? `\n\n<CRITIQUE_TO_ADDRESS>\n${state.critique}\n</CRITIQUE_TO_ADDRESS>` : "";
   let postCritiquesContext = "";
   if (state.post_critiques && state.post_critiques.length > 0) {
-    postCritiquesContext = "\n\n<POST_SPECIFIC_CRITIQUES>\n" +
-      state.post_critiques.map(pc => `Post ${pc.post_index}: ${pc.critique}`).join("\n") +
-      "\n</POST_SPECIFIC_CRITIQUES>";
+    const actionable = state.post_critiques.filter(
+      (pc) => (pc.critique && pc.critique.trim().length > 0) || (pc.fix_directive && pc.fix_directive.trim().length > 0)
+    );
+    if (actionable.length > 0) {
+      postCritiquesContext = "\n\n<POST_SPECIFIC_CRITIQUES>\n" +
+        actionable.map(pc => `Post ${pc.post_index}: ${pc.critique}${pc.fix_directive ? `\nFix Directive: ${pc.fix_directive}` : ''}`).join("\n\n") +
+        "\n</POST_SPECIFIC_CRITIQUES>";
+    }
   }
   const charCritiqueContext = state.character_critique ? `\n\n<CHARACTER_AND_FORMATTING_CONSTRAINTS_FAILED>\n${state.character_critique}\nFix the previous draft to respect these exact formatting constraints.\n</CHARACTER_AND_FORMATTING_CONSTRAINTS_FAILED>` : "";
   const guidanceContext = state.guidance ? `\n\n<ADDITIONAL_GUIDANCE>\n${state.guidance}\n</ADDITIONAL_GUIDANCE>` : "";
@@ -278,7 +283,8 @@ const newsCriticSchema = z.object({
   overall_critique: z.string(),
   post_critiques: z.array(z.object({
     post_index: z.number(),
-    critique: z.string()
+    critique: z.string(),
+    fix_directive: z.string().optional()
   }))
 });
 
@@ -324,7 +330,7 @@ export const ViralityCriticNode = async (state: NewsThreadFactoryStateType, conf
   let finalCritique = "";
   let finalApproval = false;
   let virality_score;
-  let post_critiques: { post_index: number; critique: string }[] = [];
+  let post_critiques: { post_index: number; critique: string; fix_directive?: string }[] = [];
 
   if (parse_success && result?.structuredResponse) {
     finalCritique = result.structuredResponse.overall_critique || "";

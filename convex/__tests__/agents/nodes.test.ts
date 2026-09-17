@@ -173,3 +173,75 @@ test("DeepSeek models use deepseek-flash identifier and aliases match", async ()
   expect(deepSeekV4ProT00ReasoningHigh).toBe(deepSeekFlashT00ReasoningHigh);
 });
 
+test("News ViralityCriticNode - extracts and preserves fix_directive in post_critiques", async () => {
+  const { ViralityCriticNode } = await import("../../lib/agents/news/nodes");
+
+  const mockStructuredResponse = {
+    virality_score: 90,
+    overall_critique: "Strong narrative rhythm with sharp atomic density.",
+    post_critiques: [
+      {
+        post_index: 1,
+        critique: "Payoff revealed too early in the hook.",
+        fix_directive: "Remove payoff and end on curiosity gap.",
+      },
+    ],
+  };
+
+  vi.spyOn(agentUtils, "invokeWithFallbacks").mockResolvedValue({
+    structuredResponse: mockStructuredResponse,
+  });
+
+  const result = await ViralityCriticNode({
+    raw_markdown: "News text",
+    thread_draft: ["Hook post", "Body post"],
+    iterations: 0,
+    retries: { critic: 0, validator: 0 },
+  } as unknown as Parameters<typeof ViralityCriticNode>[0]);
+
+  expect(result.parse_success).toBe(true);
+  expect(result.is_approved).toBe(true);
+  expect(result.virality_score).toBe(90);
+  expect(result.post_critiques).toEqual([
+    {
+      post_index: 1,
+      critique: "Payoff revealed too early in the hook.",
+      fix_directive: "Remove payoff and end on curiosity gap.",
+    },
+  ]);
+});
+
+test("News ThreadWriterNode - formats fix_directive inside POST_SPECIFIC_CRITIQUES context", async () => {
+  const { ThreadWriterNode } = await import("../../lib/agents/news/nodes");
+
+  const invokeSpy = vi.spyOn(agentUtils, "invokeWithFallbacks").mockResolvedValue({
+    thread_draft: ["Revised hook", "Revised body"],
+  });
+
+  const result = await ThreadWriterNode({
+    selected_hook: "Best hook",
+    raw_markdown: "Source content",
+    thread_draft: ["Draft 1", "Draft 2"],
+    critique: "Needs more tension",
+    post_critiques: [
+      {
+        post_index: 1,
+        critique: "Weak curiosity gap",
+        fix_directive: "Front-load concrete metric in first 5 words",
+      },
+    ],
+    retries: { writer: 0 },
+  } as unknown as Parameters<typeof ThreadWriterNode>[0]);
+
+  expect(result.parse_success).toBe(true);
+  expect(result.thread_draft).toEqual(["Revised hook", "Revised body"]);
+
+  expect(invokeSpy).toHaveBeenCalled();
+  const calledArgs = invokeSpy.mock.calls[0];
+  const messages = calledArgs[1] as Array<{ role: string; content: string }>;
+  const userMessage = messages.find((m) => m.role === "user");
+
+  expect(userMessage?.content).toContain("<POST_SPECIFIC_CRITIQUES>");
+  expect(userMessage?.content).toContain("Post 1: Weak curiosity gap\nFix Directive: Front-load concrete metric in first 5 words");
+});
+

@@ -63,13 +63,16 @@ const route_after_validator = (state: TopicThreadFactoryStateType) => {
   return "ViralityCriticNode";
 };
 
-const route_after_critic = (state: TopicThreadFactoryStateType) => {
+export const route_after_critic = (state: TopicThreadFactoryStateType) => {
   if (!state.parse_success) {
     if ((state.retries?.critic || 0) >= 3) throw new Error("ViralityCriticNode failed after 3 retries");
     return "ViralityCriticNode";
   }
   if (state.is_approved === true || state.iterations >= 3) {
-    if (state.iterations === 1 && state.post_critiques && state.post_critiques.length > 0) {
+    const hasFixDirectives = Boolean(
+      state.post_critiques?.some((pc) => pc.fix_directive && pc.fix_directive.trim().length > 0)
+    );
+    if (state.iterations === 1 && hasFixDirectives) {
       return "ThreadWriterNode";
     }
     return state.search_query_generation ? "VisualKeywordStrategistNode" : END;

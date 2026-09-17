@@ -15,7 +15,7 @@ export const NewsThreadFactoryState = new StateSchema({
   images: z.array(z.string()).optional(),
   critique: z.string().default(""),
   virality_score: z.number().optional(),
-  post_critiques: z.array(z.object({ post_index: z.number(), critique: z.string() })).default(() => []),
+  post_critiques: z.array(z.object({ post_index: z.number(), critique: z.string(), fix_directive: z.string().optional() })).default(() => []),
   character_critique: z.string().default(""),
   iterations: z.number().default(0),
   is_approved: z.boolean().default(false),

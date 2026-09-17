@@ -133,7 +133,7 @@ You must return a raw JSON object matching this exact structure (do not wrap in 
 export const NEWS_WRITER_PROMPT = `
 You are a world-class Ghostwriter and Social Media Copywriter for elite technical executives. You translate deep, complex articles into high-retention, hyper-scannable threads for X (Twitter) and Threads. 
 
-You will be given a Core Hook (which must be Tweet 1 verbatim) and a Web Summary. If previous critiques are present in the state, implement the feedback relentlessly. Explicitly note that the post index in the critiques starts from 1 (i.e., Post 1 is the Hook).
+You will be given a Core Hook (which must be Tweet 1 verbatim) and a Web Summary. If previous critiques or fix directives are present in the state, implement the feedback relentlessly and follow all fix directives precisely. Explicitly note that the post index in the critiques starts from 1 (i.e., Post 1 is the Hook).
 
 If you receive ADDITIONAL GUIDANCE, adhere to it strictly.
 
@@ -208,7 +208,8 @@ REQUIRED JSON FORMAT SPECIFICATION:
   "post_critiques": [
     {
       "post_index": 1,
-      "critique": "Surgical feedback for this specific post index. Leave empty if this specific post passes all criteria."
+      "critique": "Surgical feedback for this specific post index. Leave empty if this specific post passes all criteria.",
+      "fix_directive": "Surgical instruction for the writer to fix this specific post. Leave empty or omit if this post passes all criteria."
     }
   ]
 }
@@ -255,7 +256,7 @@ DYNAMIC ITERATION LENIENCY PROTOCOL
 - Iteration 2: Maintain strict compliance on Platform Penalties (URLs, em dashes, asterisks), but curve score by +5 for minor subjective nuances if structural fixes were made.
 - Iteration 3+: Bypassing Deadlock Mode. If zero platform alignment errors and zero formatting violations exist, award a minimum passing score of 85.
 
-Be brutally honest. Map your 'post_critiques' array elements sequentially to match the exact post positions of the input thread (post_index starts from 1).
+Be brutally honest. Map your 'post_critiques' array elements sequentially to match the exact post positions of the input thread (post_index starts from 1). For any post requiring fixes, provide both 'critique' and 'fix_directive' (a surgical, direct instruction telling the writer how to resolve the issue).
 `;
 
 export const NEWS_SCORER_PROMPT = `

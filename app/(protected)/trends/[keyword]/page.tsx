@@ -107,10 +107,7 @@ export default function KeywordDetailPage() {
     const desc = currentKeywordObj?.relatedKeywords?.length
       ? `Explore emerging developments and insights on ${topic}. Related queries: ${currentKeywordObj.relatedKeywords.slice(0, 3).join(", ")}.`
       : `Explore emerging developments and insights on ${topic}.`;
-    const guidance = currentKeywordObj?.relatedKeywords?.length
-      ? `Break down the emerging surge around ${topic}. Highlight key context, why this is gaining momentum now, and incorporate related inquiries: ${currentKeywordObj.relatedKeywords.slice(0, 4).join(", ")}.`
-      : `Break down the emerging surge around ${topic}, focusing on key context, drivers, and why this is capturing widespread interest.`;
-    return `/threads/create?topic=${encodeURIComponent(topic)}&description=${encodeURIComponent(desc)}&guidance=${encodeURIComponent(guidance)}&agent=topic`;
+    return `/threads/create?topic=${encodeURIComponent(topic)}&description=${encodeURIComponent(desc)}&agent=topic`;
   }, [displayKeyword, currentKeywordObj]);
 
   const hasArticleKeys = Boolean(currentKeywordObj?.articleKeys && currentKeywordObj.articleKeys.length > 0);
@@ -570,9 +567,7 @@ export default function KeywordDetailPage() {
                               <ExternalLink className="w-3.5 h-3.5" />
                             </a>
                             <Link
-                              href={`/threads/create?url=${encodeURIComponent(article.url)}&topic=${encodeURIComponent(article.title)}&agent=news&guidance=${encodeURIComponent(
-                                `Focus on key takeaways and breaking developments from ${article.mediaCompany || "this coverage"} regarding ${displayKeyword}. Article headline: "${article.title}".`
-                              )}`}
+                              href={`/threads/create?url=${encodeURIComponent(article.url)}&topic=${encodeURIComponent(article.title)}&agent=news`}
                               className="inline-flex items-center gap-1 px-3 h-8 rounded-lg bg-violet-600 hover:bg-violet-700 text-white font-semibold text-xs transition-colors shadow-xs cursor-pointer"
                             >
                               <Sparkles className="w-3 h-3" />

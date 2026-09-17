@@ -351,7 +351,7 @@ function CreateThreadForm() {
   const isLoading = createMutation.isPending;
 
   useEffect(() => {
-    if (urlTopic || urlUrl || urlGuidance || urlDescription) {
+    if (urlTopic || urlUrl) {
       reset({
         entries: [
           createDefaultEntry({

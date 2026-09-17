@@ -52,11 +52,10 @@ const route_after_writer = (state: TopicThreadFactoryStateType) => {
   return "TopicCharacterValidatorNode";
 };
 
-const route_after_validator = (state: TopicThreadFactoryStateType) => {
-  if (state.is_character_valid === false) {
+export const route_after_validator = (state: TopicThreadFactoryStateType) => {
+  if (!state.is_character_valid) {
     if ((state.retries?.validator || 0) >= 3) {
-      // If we keep failing validation, just send it to the critic and let it fail or rewrite
-      return "ViralityCriticNode";
+      throw new Error("TopicCharacterValidatorNode failed after 3 retries");
     }
     return "ThreadWriterNode";
   }

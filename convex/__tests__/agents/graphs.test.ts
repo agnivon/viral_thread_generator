@@ -1,9 +1,9 @@
 /// <reference types="vite/client" />
 import { expect, test, describe } from "vitest";
 import { END } from "@langchain/langgraph";
-import { NewsThreadFactoryGraph, route_after_critic as newsRouteAfterCritic } from "../../lib/agents/news/graph";
-import { SocialMediaThreadFactoryGraph, route_after_critic as socialMediaRouteAfterCritic } from "../../lib/agents/social_media/graph";
-import { TopicThreadFactoryGraph, route_after_critic as topicRouteAfterCritic } from "../../lib/agents/topic/graph";
+import { NewsThreadFactoryGraph, route_after_critic as newsRouteAfterCritic, route_after_validator as newsRouteAfterValidator } from "../../lib/agents/news/graph";
+import { SocialMediaThreadFactoryGraph, route_after_critic as socialMediaRouteAfterCritic, route_after_validator as socialMediaRouteAfterValidator } from "../../lib/agents/social_media/graph";
+import { TopicThreadFactoryGraph, route_after_critic as topicRouteAfterCritic, route_after_validator as topicRouteAfterValidator } from "../../lib/agents/topic/graph";
 import type { NewsThreadFactoryStateType } from "../../lib/agents/news/state";
 import type { SocialMediaThreadFactoryStateType } from "../../lib/agents/social_media/state";
 import type { TopicThreadFactoryStateType } from "../../lib/agents/topic/state";
@@ -182,5 +182,52 @@ describe.each<{ name: string; router: RouterFn }>([
       ],
     } as unknown as RouterState);
     expect(nextNode).toBe(END);
+  });
+});
+
+describe.each<{ name: string; router: RouterFn; expectedError: string }>([
+  { name: "NewsThreadFactory", router: newsRouteAfterValidator, expectedError: "CharacterValidatorNode failed after 3 retries" },
+  { name: "SocialMediaThreadFactory", router: socialMediaRouteAfterValidator, expectedError: "CharacterValidatorNode failed after 3 retries" },
+  { name: "TopicThreadFactory", router: topicRouteAfterValidator, expectedError: "TopicCharacterValidatorNode failed after 3 retries" },
+])("$name route_after_validator", ({ router, expectedError }) => {
+  const baseState = {
+    url: "https://example.com",
+    raw_markdown: "content",
+    research_context: "",
+    core_hooks: [],
+    selected_hook: "hook",
+    thread_draft: ["post 1", "post 2"],
+    critique: "",
+    character_critique: "",
+    is_character_valid: true,
+    search_query_generation: false,
+    retries: { scraper: 0, researcher: 0, hook: 0, writer: 0, critic: 0, validator: 0 },
+  };
+
+  test("routes to ViralityCriticNode when character validation passes", () => {
+    const nextNode = router({
+      ...baseState,
+      is_character_valid: true,
+    } as unknown as RouterState);
+    expect(nextNode).toBe("ViralityCriticNode");
+  });
+
+  test("retries ThreadWriterNode when invalid and validator retries < 3", () => {
+    const nextNode = router({
+      ...baseState,
+      is_character_valid: false,
+      retries: { scraper: 0, researcher: 0, hook: 0, writer: 0, critic: 0, validator: 2 },
+    } as unknown as RouterState);
+    expect(nextNode).toBe("ThreadWriterNode");
+  });
+
+  test("throws error when invalid and validator retries >= 3, aborting the generation", () => {
+    expect(() =>
+      router({
+        ...baseState,
+        is_character_valid: false,
+        retries: { scraper: 0, researcher: 0, hook: 0, writer: 0, critic: 0, validator: 3 },
+      } as unknown as RouterState)
+    ).toThrow(expectedError);
   });
 });

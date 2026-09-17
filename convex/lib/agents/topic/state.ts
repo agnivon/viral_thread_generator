@@ -11,9 +11,10 @@ export const TopicThreadFactoryState = new StateSchema({
   research_dossier: z.string().default(""),
   selected_hook: z.string().default(""),
   core_hooks: z.array(z.string()).default(() => []),
+  core_delta: z.string().optional(),
   thread_draft: z.array(z.string()).default(() => []),
   virality_score: z.number().optional(),
-  critique: z.string().optional(),
+  critique: z.string().default(""),
   post_critiques: z.array(
     z.object({ 
       post_index: z.number(), 
@@ -26,7 +27,7 @@ export const TopicThreadFactoryState = new StateSchema({
   parse_success: z.boolean().default(true),
   is_approved: z.boolean().default(false),
   is_character_valid: z.boolean().default(true),
-  character_critique: z.string().optional(),
+  character_critique: z.string().default(""),
   images: z.array(z.string()).default(() => []),
   retries: z.object({
     orchestrator: z.number().default(0),

@@ -245,3 +245,319 @@ test("News ThreadWriterNode - formats fix_directive inside POST_SPECIFIC_CRITIQU
   expect(userMessage?.content).toContain("Post 1: Weak curiosity gap\nFix Directive: Front-load concrete metric in first 5 words");
 });
 
+test("News HookStrategistNode - extracts and returns core_delta from structuredResponse", async () => {
+  const { HookStrategistNode } = await import("../../lib/agents/news/nodes");
+
+  vi.spyOn(agentUtils, "invokeWithFallbacks").mockResolvedValue({
+    structuredResponse: {
+      core_delta: "They replaced 40 microservices with a single Go binary.",
+      core_hooks: ["Hook 1", "Hook 2"],
+      selected_hook: "Hook 1",
+    },
+  });
+
+  const result = await HookStrategistNode({
+    raw_markdown: "Source text",
+    retries: { hook: 0 },
+  } as unknown as Parameters<typeof HookStrategistNode>[0]);
+
+  expect(result.parse_success).toBe(true);
+  expect(result.core_delta).toBe("They replaced 40 microservices with a single Go binary.");
+  expect(result.selected_hook).toBe("Hook 1");
+  expect(result.core_hooks).toEqual(["Hook 1", "Hook 2"]);
+});
+
+test("News ThreadWriterNode - injects CORE_DELTA into user message when present", async () => {
+  const { ThreadWriterNode } = await import("../../lib/agents/news/nodes");
+
+  const invokeSpy = vi.spyOn(agentUtils, "invokeWithFallbacks").mockResolvedValue({
+    thread_draft: ["Hook 1", "Body 1", "Closer"],
+  });
+
+  await ThreadWriterNode({
+    selected_hook: "Hook 1",
+    raw_markdown: "Source text",
+    core_delta: "They replaced 40 microservices with a single Go binary.",
+    retries: { writer: 0 },
+  } as unknown as Parameters<typeof ThreadWriterNode>[0]);
+
+  expect(invokeSpy).toHaveBeenCalled();
+  const calledArgs = invokeSpy.mock.calls[0];
+  const messages = calledArgs[1] as Array<{ role: string; content: string }>;
+  const userMessage = messages.find((m) => m.role === "user");
+
+  expect(userMessage?.content).toContain("<CORE_DELTA>\nThey replaced 40 microservices with a single Go binary.\n</CORE_DELTA>");
+});
+
+test("News ViralityCriticNode - injects CORE_DELTA into user message when present", async () => {
+  const { ViralityCriticNode } = await import("../../lib/agents/news/nodes");
+
+  const invokeSpy = vi.spyOn(agentUtils, "invokeWithFallbacks").mockResolvedValue({
+    structuredResponse: {
+      virality_score: 92,
+      overall_critique: "Great beat progression",
+      post_critiques: [],
+    },
+  });
+
+  await ViralityCriticNode({
+    raw_markdown: "Source text",
+    thread_draft: ["Hook 1", "Body 1", "Closer"],
+    core_delta: "They replaced 40 microservices with a single Go binary.",
+    iterations: 0,
+    retries: { critic: 0, validator: 0 },
+  } as unknown as Parameters<typeof ViralityCriticNode>[0]);
+
+  expect(invokeSpy).toHaveBeenCalled();
+  const calledArgs = invokeSpy.mock.calls[0];
+  const input = calledArgs[1] as { messages: Array<{ role: string; content: string }> };
+  const userMessage = input.messages.find((m) => m.role === "user");
+
+  expect(userMessage?.content).toContain("<CORE_DELTA>\nThey replaced 40 microservices with a single Go binary.\n</CORE_DELTA>");
+});
+
+test("Social Media HookStrategistNode - extracts and returns core_delta from structuredResponse", async () => {
+  const { HookStrategistNode } = await import("../../lib/agents/social_media/nodes");
+
+  vi.spyOn(agentUtils, "invokeWithFallbacks").mockResolvedValue({
+    structuredResponse: {
+      core_delta: "3.2 billion queries per day on two servers.",
+      core_hooks: ["Hook 1", "Hook 2", "Hook 3"],
+      selected_hook: "Hook 1",
+    },
+  });
+
+  const result = await HookStrategistNode({
+    raw_markdown: "Source text",
+    retries: { hook: 0 },
+  } as unknown as Parameters<typeof HookStrategistNode>[0]);
+
+  expect(result.parse_success).toBe(true);
+  expect(result.core_delta).toBe("3.2 billion queries per day on two servers.");
+  expect(result.selected_hook).toBe("Hook 1");
+});
+
+test("Social Media ThreadWriterNode - injects CORE_DELTA into user message when present", async () => {
+  const { ThreadWriterNode } = await import("../../lib/agents/social_media/nodes");
+
+  const invokeSpy = vi.spyOn(agentUtils, "invokeWithFallbacks").mockResolvedValue({
+    thread_draft: ["Hook 1", "Body 1", "Closer"],
+  });
+
+  await ThreadWriterNode({
+    selected_hook: "Hook 1",
+    raw_markdown: "Source text",
+    core_delta: "3.2 billion queries per day on two servers.",
+    retries: { writer: 0 },
+  } as unknown as Parameters<typeof ThreadWriterNode>[0]);
+
+  expect(invokeSpy).toHaveBeenCalled();
+  const calledArgs = invokeSpy.mock.calls[0];
+  const messages = calledArgs[1] as Array<{ role: string; content: string }>;
+  const userMessage = messages.find((m) => m.role === "user");
+
+  expect(userMessage?.content).toContain("<CORE_DELTA>\n3.2 billion queries per day on two servers.\n</CORE_DELTA>");
+});
+
+test("Social Media ViralityCriticNode - injects CORE_DELTA into user message when present", async () => {
+  const { ViralityCriticNode } = await import("../../lib/agents/social_media/nodes");
+
+  const invokeSpy = vi.spyOn(agentUtils, "invokeWithFallbacks").mockResolvedValue({
+    structuredResponse: {
+      virality_score: 92,
+      overall_critique: "Great pacing",
+      post_critiques: [],
+    },
+  });
+
+  await ViralityCriticNode({
+    raw_markdown: "Source text",
+    thread_draft: ["Hook 1", "Body 1", "Closer"],
+    core_delta: "3.2 billion queries per day on two servers.",
+    iterations: 0,
+    retries: { critic: 0, validator: 0 },
+  } as unknown as Parameters<typeof ViralityCriticNode>[0]);
+
+  expect(invokeSpy).toHaveBeenCalled();
+  const calledArgs = invokeSpy.mock.calls[0];
+  const input = calledArgs[1] as { messages: Array<{ role: string; content: string }> };
+  const userMessage = input.messages.find((m) => m.role === "user");
+
+  expect(userMessage?.content).toContain("<CORE_DELTA>\n3.2 billion queries per day on two servers.\n</CORE_DELTA>");
+});
+
+test("Topic HookStrategistNode - extracts and returns core_delta from model response", async () => {
+  const { HookStrategistNode } = await import("../../lib/agents/topic/nodes");
+
+  vi.spyOn(agentUtils, "invokeWithFallbacks").mockResolvedValue({
+    core_delta: "Adding more caches actually made their API 3x slower.",
+    core_hooks: ["Hook 1", "Hook 2", "Hook 3"],
+    selected_hook: "Hook 1",
+  });
+
+  const result = await HookStrategistNode({
+    research_dossier: "# Research Dossier",
+    retries: { hook: 0 },
+  } as unknown as Parameters<typeof HookStrategistNode>[0]);
+
+  expect(result.parse_success).toBe(true);
+  expect(result.core_delta).toBe("Adding more caches actually made their API 3x slower.");
+  expect(result.selected_hook).toBe("Hook 1");
+});
+
+test("Topic ThreadWriterNode - injects CORE_DELTA into user message when present", async () => {
+  const { ThreadWriterNode } = await import("../../lib/agents/topic/nodes");
+
+  const invokeSpy = vi.spyOn(agentUtils, "invokeWithFallbacks").mockResolvedValue({
+    thread_draft: ["Hook 1", "Body 1", "Closer"],
+  });
+
+  await ThreadWriterNode({
+    selected_hook: "Hook 1",
+    research_dossier: "# Research Dossier",
+    core_delta: "Adding more caches actually made their API 3x slower.",
+    retries: { writer: 0 },
+  } as unknown as Parameters<typeof ThreadWriterNode>[0]);
+
+  expect(invokeSpy).toHaveBeenCalled();
+  const calledArgs = invokeSpy.mock.calls[0];
+  const messages = calledArgs[1] as Array<{ role: string; content: string }>;
+  const userMessage = messages.find((m) => m.role === "user");
+
+  expect(userMessage?.content).toContain("<CORE_DELTA>\nAdding more caches actually made their API 3x slower.\n</CORE_DELTA>");
+});
+
+test("Topic ViralityCriticNode - injects CORE_DELTA, DOSSIER, and CURRENT_ITERATION_ATTEMPT into user message", async () => {
+  const { ViralityCriticNode } = await import("../../lib/agents/topic/nodes");
+
+  const invokeSpy = vi.spyOn(agentUtils, "invokeWithFallbacks").mockResolvedValue({
+    structuredResponse: {
+      virality_score: 92,
+      overall_critique: "Great pacing",
+      post_critiques: [
+        {
+          post_index: 1,
+          critique: "Needs stronger contrast",
+          fix_directive: "State the delta directly",
+        },
+      ],
+    },
+  });
+
+  const result = await ViralityCriticNode({
+    research_dossier: "# Research Dossier Content",
+    thread_draft: ["Hook 1", "Body 1", "Closer"],
+    core_delta: "Adding more caches actually made their API 3x slower.",
+    iterations: 0,
+    retries: { critic: 0, validator: 0 },
+  } as unknown as Parameters<typeof ViralityCriticNode>[0]);
+
+  expect(result.parse_success).toBe(true);
+  expect(result.critique).toBe("Great pacing");
+  expect(result.virality_score).toBe(92);
+  expect(result.post_critiques).toEqual([
+    {
+      post_index: 1,
+      critique: "Needs stronger contrast",
+      fix_directive: "State the delta directly",
+    },
+  ]);
+
+  expect(invokeSpy).toHaveBeenCalled();
+  const calledArgs = invokeSpy.mock.calls[0];
+  const input = calledArgs[1] as { messages: Array<{ role: string; content: string }> };
+  const userMessage = input.messages.find((m) => m.role === "user");
+
+  expect(userMessage?.content).toContain("<CURRENT_ITERATION_ATTEMPT>\n1\n</CURRENT_ITERATION_ATTEMPT>");
+  expect(userMessage?.content).toContain("<DOSSIER>\n# Research Dossier Content\n</DOSSIER>");
+  expect(userMessage?.content).toContain("<CORE_DELTA>\nAdding more caches actually made their API 3x slower.\n</CORE_DELTA>");
+});
+
+test("Topic ThreadWriterNode - injects PREVIOUS_THREAD_DRAFT, CRITIQUE_TO_ADDRESS, and POST_SPECIFIC_CRITIQUES", async () => {
+  const { ThreadWriterNode } = await import("../../lib/agents/topic/nodes");
+
+  const invokeSpy = vi.spyOn(agentUtils, "invokeWithFallbacks").mockResolvedValue({
+    thread_draft: ["Updated Hook", "Updated Body", "Updated Closer"],
+  });
+
+  const result = await ThreadWriterNode({
+    selected_hook: "Hook 1",
+    research_dossier: "# Research Dossier Content",
+    core_delta: "Adding more caches actually made their API 3x slower.",
+    thread_draft: ["Old Hook", "Old Body", "Old Closer"],
+    critique: "Overall thread pacing drags in the middle.",
+    post_critiques: [
+      {
+        post_index: 2,
+        critique: "Too wordy",
+        fix_directive: "Cut 20 words",
+      },
+    ],
+    retries: { writer: 0 },
+  } as unknown as Parameters<typeof ThreadWriterNode>[0]);
+
+  expect(result.parse_success).toBe(true);
+  expect(result.thread_draft).toEqual(["Updated Hook", "Updated Body", "Updated Closer"]);
+
+  expect(invokeSpy).toHaveBeenCalled();
+  const calledArgs = invokeSpy.mock.calls[0];
+  const messages = calledArgs[1] as Array<{ role: string; content: string }>;
+  const userMessage = messages.find((m) => m.role === "user");
+
+  expect(userMessage?.content).toContain("<PREVIOUS_THREAD_DRAFT>");
+  expect(userMessage?.content).toContain("<CRITIQUE_TO_ADDRESS>\nOverall thread pacing drags in the middle.\n</CRITIQUE_TO_ADDRESS>");
+  expect(userMessage?.content).toContain("<POST_SPECIFIC_CRITIQUES>");
+  expect(userMessage?.content).toContain("Post 2: Too wordy\nFix Directive: Cut 20 words");
+});
+
+test("Topic HookStrategistNode - returns empty array and string on parse failure (no placeholder strings)", async () => {
+  const { HookStrategistNode } = await import("../../lib/agents/topic/nodes");
+
+  vi.spyOn(agentUtils, "invokeWithFallbacks").mockRejectedValue(new Error("LLM failure"));
+
+  const result = await HookStrategistNode({
+    research_dossier: "# Research Dossier",
+    retries: { hook: 0 },
+  } as unknown as Parameters<typeof HookStrategistNode>[0]);
+
+  expect(result.parse_success).toBe(false);
+  expect(result.core_hooks).toEqual([]);
+  expect(result.selected_hook).toBe("");
+  expect(result.core_delta).toBeUndefined();
+});
+
+test("News ThreadWriterNode - retains previous thread_draft on invocation failure", async () => {
+  const { ThreadWriterNode } = await import("../../lib/agents/news/nodes");
+
+  vi.spyOn(agentUtils, "invokeWithFallbacks").mockRejectedValue(new Error("Timeout error"));
+
+  const result = await ThreadWriterNode({
+    selected_hook: "Hook 1",
+    raw_markdown: "Source text",
+    thread_draft: ["Preserved Post 1", "Preserved Post 2"],
+    retries: { writer: 1 },
+  } as unknown as Parameters<typeof ThreadWriterNode>[0]);
+
+  expect(result.parse_success).toBe(false);
+  expect(result.thread_draft).toEqual(["Preserved Post 1", "Preserved Post 2"]);
+  expect(result.retries.writer).toBe(2);
+});
+
+test("Social Media ThreadWriterNode - retains previous thread_draft on invocation failure", async () => {
+  const { ThreadWriterNode } = await import("../../lib/agents/social_media/nodes");
+
+  vi.spyOn(agentUtils, "invokeWithFallbacks").mockRejectedValue(new Error("Timeout error"));
+
+  const result = await ThreadWriterNode({
+    selected_hook: "Hook 1",
+    raw_markdown: "Source text",
+    thread_draft: ["Preserved Post 1", "Preserved Post 2"],
+    retries: { writer: 1 },
+  } as unknown as Parameters<typeof ThreadWriterNode>[0]);
+
+  expect(result.parse_success).toBe(false);
+  expect(result.thread_draft).toEqual(["Preserved Post 1", "Preserved Post 2"]);
+  expect(result.retries.writer).toBe(2);
+});
+
+

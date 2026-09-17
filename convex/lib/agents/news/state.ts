@@ -11,6 +11,7 @@ export const NewsThreadFactoryState = new StateSchema({
   research_context: z.string().default(""),
   core_hooks: z.array(z.string()).default(() => []),
   selected_hook: z.string().default(""),
+  core_delta: z.string().optional(),
   thread_draft: z.array(z.string()).default(() => []),
   images: z.array(z.string()).optional(),
   critique: z.string().default(""),

@@ -35,7 +35,8 @@ import {
   DuckDuckGoSearchTool,
   JinaReaderTool,
   FirecrawlScrapeTool,
-  TopicCharacterValidatorTool
+  TopicCharacterValidatorTool,
+  ContentAuthenticityCheckerTool
 } from "./tools.js";
 import { buildAgents, invokeWithFallbacks, withTimeout, normalizeResearchDossier } from "../utils.js";
 
@@ -176,8 +177,9 @@ export const DeepPageScraperNode = async (state: TopicThreadFactoryStateType, co
 };
 
 const topicHookStrategistSchema = z.object({
-  core_hooks: z.array(z.string()),
-  selected_hook: z.string()
+  core_delta: z.string().optional(),
+  core_hooks: z.array(z.string()).min(1, "Must generate at least one hook"),
+  selected_hook: z.string().min(1, "Must select a hook")
 });
 
 const topicHookStrategistModels = [
@@ -208,8 +210,9 @@ export const HookStrategistNode = async (state: TopicThreadFactoryStateType, con
   }
 
   return {
-    core_hooks: parse_success && result ? result.core_hooks : ["Placeholder Hook 1", "Placeholder Hook 2"],
-    selected_hook: parse_success && result ? result.selected_hook : "Placeholder Hook",
+    core_hooks: parse_success && result ? result.core_hooks : [],
+    selected_hook: parse_success && result ? result.selected_hook : "",
+    core_delta: parse_success && result ? result.core_delta : undefined,
     parse_success,
     retries: { ...(state.retries || {}), hook: (state.retries?.hook || 0) + 1 }
   };
@@ -235,45 +238,46 @@ const topicThreadWriterModels = [
 ];
 
 export const ThreadWriterNode = async (state: TopicThreadFactoryStateType, config?: RunnableConfig) => {
+  const previousDraftContext = state.thread_draft && state.thread_draft.length > 0
+    ? `\n\n<PREVIOUS_THREAD_DRAFT>\n${JSON.stringify(state.thread_draft, null, 2)}\n</PREVIOUS_THREAD_DRAFT>`
+    : "";
+  const critiqueContext = state.critique ? `\n\n<CRITIQUE_TO_ADDRESS>\n${state.critique}\n</CRITIQUE_TO_ADDRESS>` : "";
+  let postCritiquesContext = "";
+  if (state.post_critiques && state.post_critiques.length > 0) {
+    const actionable = state.post_critiques.filter(
+      (pc) => (pc.critique && pc.critique.trim().length > 0) || (pc.fix_directive && pc.fix_directive.trim().length > 0)
+    );
+    if (actionable.length > 0) {
+      postCritiquesContext = "\n\n<POST_SPECIFIC_CRITIQUES>\n" +
+        actionable.map(pc => `Post ${pc.post_index}: ${pc.critique}${pc.fix_directive ? `\nFix Directive: ${pc.fix_directive}` : ''}`).join("\n\n") +
+        "\n</POST_SPECIFIC_CRITIQUES>";
+    }
+  }
+  const charCritiqueContext = state.character_critique ? `\n\n<CHARACTER_AND_FORMATTING_CONSTRAINTS_FAILED>\n${state.character_critique}\nFix the previous draft to respect these exact formatting constraints.\n</CHARACTER_AND_FORMATTING_CONSTRAINTS_FAILED>` : "";
+  const guidanceContext = state.guidance ? `\n\n<ADDITIONAL_GUIDANCE>\n${state.guidance}\n</ADDITIONAL_GUIDANCE>` : "";
+  const deltaContext = state.core_delta
+    ? `\n\n<CORE_DELTA>\n${state.core_delta}\n</CORE_DELTA>`
+    : "";
+
   let result;
   let parse_success = true;
 
   try {
-    const guidanceContext = state.guidance ? `\n\n<ADDITIONAL_GUIDANCE>\n${state.guidance}\n</ADDITIONAL_GUIDANCE>` : "";
-    let critiqueContext = "";
-    if ((state.post_critiques && state.post_critiques.length > 0) || state.character_critique) {
-      let critiqueStr = "";
-      if (state.post_critiques && state.post_critiques.length > 0) {
-        const actionable = state.post_critiques.filter(
-          (pc) => (pc.critique && pc.critique.trim().length > 0) || (pc.fix_directive && pc.fix_directive.trim().length > 0)
-        );
-        if (actionable.length > 0) {
-          critiqueStr += actionable.map(pc => `Post ${pc.post_index}: ${pc.critique}${pc.fix_directive ? `\nFix Directive: ${pc.fix_directive}` : ''}`).join("\n\n");
-        }
-      }
-      if (state.character_critique) {
-        critiqueStr += (critiqueStr ? "\n\n" : "") + state.character_critique;
-      }
-      if (critiqueStr) {
-        critiqueContext = `\n\n<CURRENT_DRAFT>\n${JSON.stringify(state.thread_draft, null, 2)}\n</CURRENT_DRAFT>\n\n<CRITIQUES>\n${critiqueStr}\n</CRITIQUES>`;
-      }
-    }
-
     result = await invokeWithFallbacks(
       topicThreadWriterModels,
       [
         { role: "system", content: TOPIC_THREAD_WRITER_PROMPT },
-        { role: "user", content: `<HOOK>\n${state.selected_hook}\n</HOOK>\n<DOSSIER>\n${state.research_dossier}\n</DOSSIER>${guidanceContext}${critiqueContext}` }
+        { role: "user", content: `<HOOK>\n${state.selected_hook}\n</HOOK>\n<DOSSIER>\n${state.research_dossier}\n</DOSSIER>${deltaContext}${previousDraftContext}${critiqueContext}${postCritiquesContext}${charCritiqueContext}${guidanceContext}` }
       ],
       { ...config, timeout: 180000 }
     );
-    if (!result) parse_success = false;
+    if (!result || !result.thread_draft) parse_success = false;
   } catch (_e) {
     parse_success = false;
   }
 
   return {
-    thread_draft: parse_success && result ? result.thread_draft : (state.thread_draft || []),
+    thread_draft: parse_success && result?.thread_draft ? result.thread_draft : (state.thread_draft || []),
     parse_success,
     retries: { ...(state.retries || {}), writer: (state.retries?.writer || 0) + 1 }
   };
@@ -281,7 +285,7 @@ export const ThreadWriterNode = async (state: TopicThreadFactoryStateType, confi
 
 const topicViralityCriticSchema = z.object({
   virality_score: z.number(),
-  critique: z.string().optional(),
+  overall_critique: z.string(),
   post_critiques: z.array(z.object({
     post_index: z.number(),
     critique: z.string(),
@@ -289,58 +293,79 @@ const topicViralityCriticSchema = z.object({
   }))
 });
 
-const topicViralityCriticModels = [
-  googleGemini38FlashT00Key1.withStructuredOutput(topicViralityCriticSchema, { name: "virality_critic", method: "jsonSchema" }),
-  withTimeout(googleGemini38FlashT00Key2.withStructuredOutput(topicViralityCriticSchema, { name: "virality_critic", method: "jsonSchema" }), 45000),
-  googleGemini37FlashT00Key1.withStructuredOutput(topicViralityCriticSchema, { name: "virality_critic", method: "jsonSchema" }),
-  withTimeout(googleGemini37FlashT00Key2.withStructuredOutput(topicViralityCriticSchema, { name: "virality_critic", method: "jsonSchema" }), 45000),
-  googleGemini36FlashT00Key1.withStructuredOutput(topicViralityCriticSchema, { name: "virality_critic", method: "jsonSchema" }),
-  withTimeout(googleGemini36FlashT00Key2.withStructuredOutput(topicViralityCriticSchema, { name: "virality_critic", method: "jsonSchema" }), 45000),
-  googleGemini35FlashT00Key1.withStructuredOutput(topicViralityCriticSchema, { name: "virality_critic", method: "jsonSchema" }),
-  withTimeout(googleGemini35FlashT00Key2.withStructuredOutput(topicViralityCriticSchema, { name: "virality_critic", method: "jsonSchema" }), 45000),
-  deepSeekFlashT00ReasoningHigh.withStructuredOutput(topicViralityCriticSchema, { name: "virality_critic", method: "jsonMode" }),
-  openAiGpt54MiniT00.withStructuredOutput(topicViralityCriticSchema, { name: "virality_critic", method: "jsonSchema" }),
-  googleGemini3FlashPreviewT00Key1.withStructuredOutput(topicViralityCriticSchema, { name: "virality_critic", method: "jsonSchema" }),
-  withTimeout(googleGemini3FlashPreviewT00Key2.withStructuredOutput(topicViralityCriticSchema, { name: "virality_critic", method: "jsonSchema" }), 45000)
-];
+const topicViralityCriticAgents = buildAgents(
+  [
+    googleGemini38FlashT00Key1,
+    withTimeout(googleGemini38FlashT00Key2, 45000),
+    googleGemini37FlashT00Key1,
+    withTimeout(googleGemini37FlashT00Key2, 45000),
+    googleGemini36FlashT00Key1,
+    withTimeout(googleGemini36FlashT00Key2, 45000),
+    googleGemini35FlashT00Key1,
+    withTimeout(googleGemini35FlashT00Key2, 45000),
+    deepSeekFlashT00ReasoningHigh,
+    openAiGpt54MiniT00,
+    googleGemini3FlashPreviewT00Key1,
+    withTimeout(googleGemini3FlashPreviewT00Key2, 45000)
+  ],
+  {
+    tools: [ContentAuthenticityCheckerTool],
+    systemPrompt: TOPIC_VIRALITY_CRITIC_PROMPT,
+    responseFormat: providerStrategy(topicViralityCriticSchema)
+  }
+);
 
 export const ViralityCriticNode = async (state: TopicThreadFactoryStateType, config?: RunnableConfig) => {
   let result;
-  let parse_success = true;
+  let parse_success = false;
 
   try {
     const guidanceContext = state.guidance ? `\n\n<ADDITIONAL_GUIDANCE>\n${state.guidance}\n</ADDITIONAL_GUIDANCE>` : "";
-    result = await invokeWithFallbacks(
-      topicViralityCriticModels,
-      [
-        { role: "system", content: TOPIC_VIRALITY_CRITIC_PROMPT },
-        { role: "user", content: `<THREAD>\n${JSON.stringify(state.thread_draft, null, 2)}\n</THREAD>${guidanceContext}` }
-      ],
-      { ...config, timeout: 120000 }
-    );
-    if (!result) parse_success = false;
+    const deltaContext = state.core_delta
+      ? `\n\n<CORE_DELTA>\n${state.core_delta}\n</CORE_DELTA>`
+      : "";
+    const dossierContext = state.research_dossier
+      ? `\n\n<DOSSIER>\n${state.research_dossier}\n</DOSSIER>`
+      : "";
+    result = await invokeWithFallbacks(topicViralityCriticAgents, {
+      messages: [
+        { role: "user", content: `<CURRENT_ITERATION_ATTEMPT>\n${state.iterations + 1}\n</CURRENT_ITERATION_ATTEMPT>${dossierContext}${deltaContext}\n\n<THREAD>\n${JSON.stringify(state.thread_draft, null, 2)}\n</THREAD>${guidanceContext}` }
+      ]
+    }, { ...config, timeout: 120000 });
+    parse_success = true;
   } catch (_e) {
     parse_success = false;
   }
 
-  if (!parse_success || !result) {
+  let finalCritique = "";
+  let finalApproval = false;
+  let virality_score;
+  let post_critiques: { post_index: number; critique: string; fix_directive?: string }[] = [];
+
+  if (parse_success && result?.structuredResponse) {
+    finalCritique = result.structuredResponse.overall_critique || "";
+    virality_score = result.structuredResponse.virality_score;
+    finalApproval = typeof virality_score === 'number' && virality_score >= 85;
+    post_critiques = result.structuredResponse.post_critiques || [];
+  } else {
+    parse_success = false;
+  }
+
+  if (!parse_success) {
     return {
       retries: { ...(state.retries || {}), critic: (state.retries?.critic || 0) + 1 },
-      parse_success: false,
+      parse_success: false
     };
   }
 
-  const virality_score = result.virality_score;
-  const is_approved = typeof virality_score === "number" && virality_score >= 85;
-
   return {
-    is_approved,
-    critique: result.critique,
+    is_approved: finalApproval,
+    critique: finalCritique,
     virality_score,
-    post_critiques: result.post_critiques || [],
+    post_critiques,
     iterations: state.iterations + 1,
     retries: { ...(state.retries || {}), critic: (state.retries?.critic || 0) + 1, validator: 0 },
-    parse_success: true,
+    parse_success: true
   };
 };
 

@@ -170,3 +170,6 @@ export const TopicCharacterValidatorTool = tool(
     }),
   }
 );
+
+export { ContentAuthenticityCheckerTool } from "../news/tools.js";
+

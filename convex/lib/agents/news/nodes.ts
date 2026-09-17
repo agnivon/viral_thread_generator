@@ -146,6 +146,7 @@ export const ContextResearcherNode = async (state: NewsThreadFactoryStateType, c
 };
 
 const newsHookSchema = z.object({
+  core_delta: z.string().optional(),
   core_hooks: z.array(z.string()).min(1, "Must generate at least one hook"),
   selected_hook: z.string().min(1, "Must select a hook")
 });
@@ -182,10 +183,12 @@ export const HookStrategistNode = async (state: NewsThreadFactoryStateType, conf
 
   let core_hooks: string[] = [];
   let selected_hook = "";
+  let core_delta: string | undefined = undefined;
 
   if (parse_success && result?.structuredResponse) {
     core_hooks = result.structuredResponse.core_hooks || [];
     selected_hook = result.structuredResponse.selected_hook || "";
+    core_delta = result.structuredResponse.core_delta;
   } else {
     parse_success = false;
   }
@@ -193,6 +196,7 @@ export const HookStrategistNode = async (state: NewsThreadFactoryStateType, conf
   return {
     core_hooks,
     selected_hook,
+    core_delta,
     parse_success,
     retries: { ...(state.retries || {}), hook: (state.retries?.hook || 0) + 1 }
   };
@@ -236,6 +240,9 @@ export const ThreadWriterNode = async (state: NewsThreadFactoryStateType, config
   const charCritiqueContext = state.character_critique ? `\n\n<CHARACTER_AND_FORMATTING_CONSTRAINTS_FAILED>\n${state.character_critique}\nFix the previous draft to respect these exact formatting constraints.\n</CHARACTER_AND_FORMATTING_CONSTRAINTS_FAILED>` : "";
   const guidanceContext = state.guidance ? `\n\n<ADDITIONAL_GUIDANCE>\n${state.guidance}\n</ADDITIONAL_GUIDANCE>` : "";
   const researchContext = state.research_context ? `\n\n<RESEARCH_CONTEXT>\n${state.research_context}\n</RESEARCH_CONTEXT>` : "";
+  const deltaContext = state.core_delta
+    ? `\n\n<CORE_DELTA>\n${state.core_delta}\n</CORE_DELTA>`
+    : "";
 
   let draft;
   let parse_success = true;
@@ -244,7 +251,7 @@ export const ThreadWriterNode = async (state: NewsThreadFactoryStateType, config
       newsThreadWriterModels,
       [
         { role: "system", content: NEWS_WRITER_PROMPT },
-        { role: "user", content: `<HOOK>\n${state.selected_hook}\n</HOOK>\n\n<SOURCE>\n${state.raw_markdown}\n</SOURCE>${researchContext}${previousDraftContext}${critiqueContext}${postCritiquesContext}${charCritiqueContext}${guidanceContext}` }
+        { role: "user", content: `<HOOK>\n${state.selected_hook}\n</HOOK>\n\n<SOURCE>\n${state.raw_markdown}\n</SOURCE>${researchContext}${deltaContext}${previousDraftContext}${critiqueContext}${postCritiquesContext}${charCritiqueContext}${guidanceContext}` }
       ],
       { ...config, timeout: 180000 }
     );
@@ -254,7 +261,7 @@ export const ThreadWriterNode = async (state: NewsThreadFactoryStateType, config
   }
 
   return {
-    thread_draft: draft?.thread_draft || [],
+    thread_draft: parse_success && draft?.thread_draft ? draft.thread_draft : (state.thread_draft || []),
     parse_success,
     retries: { ...(state.retries || {}), writer: (state.retries?.writer || 0) + 1 }
   };
@@ -317,9 +324,12 @@ export const ViralityCriticNode = async (state: NewsThreadFactoryStateType, conf
   try {
     const guidanceContext = state.guidance ? `\n\n<ADDITIONAL_GUIDANCE>\n${state.guidance}\n</ADDITIONAL_GUIDANCE>` : "";
     const researchContext = state.research_context ? `\n\n<RESEARCH_CONTEXT>\n${state.research_context}\n</RESEARCH_CONTEXT>` : "";
+    const deltaContext = state.core_delta
+      ? `\n\n<CORE_DELTA>\n${state.core_delta}\n</CORE_DELTA>`
+      : "";
     result = await invokeWithFallbacks(newsViralityCriticAgents, {
       messages: [
-        { role: "user", content: `<CURRENT_ITERATION_ATTEMPT>\n${state.iterations + 1}\n</CURRENT_ITERATION_ATTEMPT>\n\n<SOURCE_MATERIAL>\n${state.raw_markdown}\n</SOURCE_MATERIAL>${researchContext}\n\n<THREAD>\n${JSON.stringify(state.thread_draft, null, 2)}\n</THREAD>${guidanceContext}` }
+        { role: "user", content: `<CURRENT_ITERATION_ATTEMPT>\n${state.iterations + 1}\n</CURRENT_ITERATION_ATTEMPT>\n\n<SOURCE_MATERIAL>\n${state.raw_markdown}\n</SOURCE_MATERIAL>${researchContext}${deltaContext}\n\n<THREAD>\n${JSON.stringify(state.thread_draft, null, 2)}\n</THREAD>${guidanceContext}` }
       ]
     }, { ...config, timeout: 120000 });
     parse_success = true;

@@ -1,6 +1,8 @@
 "use client";
 
 import { Button, buttonVariants } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import {
   Card,
   CardContent,
@@ -53,8 +55,13 @@ export default function ApproveDraftPage() {
   const [selectedVideos, setSelectedVideos] = useState<Record<string, string>>({});
   const [activeVideoPickerIdx, setActiveVideoPickerIdx] = useState<number | null>(null);
 
+  const [appendSourceUrl, setAppendSourceUrl] = useState(true);
 
-  const { register, reset, control, getValues } = useForm<{ posts: { content: string }[] }>({
+  const sourceUrl = state?.input_field?.agent !== "topic" && state?.input_field?.url
+    ? state.input_field.url.trim()
+    : undefined;
+
+  const { register, reset, control, getValues } = useForm<{ posts: { content: string; originalIndex?: number }[] }>({
     defaultValues: {
       posts: [],
     }
@@ -62,13 +69,13 @@ export default function ApproveDraftPage() {
 
   useEffect(() => {
     if (state?.thread_draft) {
-      reset({ posts: state.thread_draft.map(p => ({ content: p })) });
+      reset({ posts: state.thread_draft.map((p, i) => ({ content: p, originalIndex: i + 1 })) });
     }
-  }, [state, reset]);
+  }, [state?.thread_draft, reset]);
 
   const handleCancelEditing = () => {
     if (state?.thread_draft) {
-      reset({ posts: state.thread_draft.map(p => ({ content: p })) });
+      reset({ posts: state.thread_draft.map((p, i) => ({ content: p, originalIndex: i + 1 })) });
     }
     setSelectedImages({});
     setSelectedVideos({});
@@ -128,6 +135,7 @@ export default function ApproveDraftPage() {
         modified_thread?: string[];
         images?: Record<string, string>;
         videos?: Record<string, string>;
+        append_source_url?: boolean;
       }>;
     }) => {
       return await enqueuePublication(payload);
@@ -206,7 +214,7 @@ export default function ApproveDraftPage() {
 
     // Determine if modified
     let isModified = false;
-    if (state && state.thread_draft) {
+    if (state?.thread_draft) {
       if (currentPosts.length !== state.thread_draft.length) {
         isModified = true;
       } else {
@@ -226,6 +234,7 @@ export default function ApproveDraftPage() {
           modified_thread: isModified ? currentPosts : undefined,
           images: Object.keys(selectedImages).length > 0 ? selectedImages : undefined,
           videos: Object.keys(selectedVideos).length > 0 ? selectedVideos : undefined,
+          append_source_url: sourceUrl ? appendSourceUrl : undefined,
         },
       ],
     });
@@ -593,6 +602,44 @@ export default function ApproveDraftPage() {
                     return updated;
                   });
                 }}
+                onReorderMedia={(fromIndex, toIndex) => {
+                  const reorderMap = (prev: Record<string, string>) => {
+                    const updated: Record<string, string> = {};
+                    for (const [key, val] of Object.entries(prev)) {
+                      const idx = parseInt(key, 10);
+                      if (isNaN(idx)) continue;
+                      let newIdx = idx;
+                      if (idx === fromIndex) {
+                        newIdx = toIndex;
+                      } else if (fromIndex < toIndex && idx > fromIndex && idx <= toIndex) {
+                        newIdx = idx - 1;
+                      } else if (fromIndex > toIndex && idx >= toIndex && idx < fromIndex) {
+                        newIdx = idx + 1;
+                      }
+                      updated[newIdx.toString()] = val;
+                    }
+                    return updated;
+                  };
+                  setSelectedImages(prev => reorderMap(prev));
+                  setSelectedVideos(prev => reorderMap(prev));
+                }}
+                onDeletePostMedia={(deletedIndex) => {
+                  const deleteMap = (prev: Record<string, string>) => {
+                    const updated: Record<string, string> = {};
+                    for (const [key, val] of Object.entries(prev)) {
+                      const idx = parseInt(key, 10);
+                      if (isNaN(idx)) continue;
+                      if (idx < deletedIndex) {
+                        updated[idx.toString()] = val;
+                      } else if (idx > deletedIndex) {
+                        updated[(idx - 1).toString()] = val;
+                      }
+                    }
+                    return updated;
+                  };
+                  setSelectedImages(prev => deleteMap(prev));
+                  setSelectedVideos(prev => deleteMap(prev));
+                }}
               />
             </Card>
           </div>
@@ -600,6 +647,27 @@ export default function ApproveDraftPage() {
           {/* Sidebar controls */}
           <div className="space-y-6">
             <div className="flex flex-col gap-2">
+              {sourceUrl && (
+                <div className="flex items-start space-x-2.5 p-3 rounded-xl border border-border/60 bg-card/45 backdrop-blur-xs shadow-xs mb-1">
+                  <Checkbox
+                    id="append-source-url"
+                    checked={appendSourceUrl}
+                    onCheckedChange={(checked) => setAppendSourceUrl(!!checked)}
+                    disabled={isPublishing || state.is_published || state.publication_status === "publishing" || state.publication_status === "queued"}
+                  />
+                  <div className="grid gap-1 leading-none">
+                    <Label
+                      htmlFor="append-source-url"
+                      className="text-xs font-semibold leading-none cursor-pointer text-foreground"
+                    >
+                      Append source URL on publish
+                    </Label>
+                    <p className="text-[11px] text-muted-foreground truncate max-w-[220px]" title={sourceUrl}>
+                      {sourceUrl}
+                    </p>
+                  </div>
+                </div>
+              )}
               <Button
                 className="w-full rounded-xl bg-linear-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white font-bold py-6 shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 cursor-pointer"
                 size="lg"

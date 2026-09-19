@@ -128,7 +128,7 @@ test("generateNewsThread action runs graph and saves result", async () => {
     raw_markdown: expectedDbFields.raw_markdown,
     core_hooks: expectedDbFields.core_hooks,
     selected_hook: expectedDbFields.selected_hook,
-    thread_draft: [...expectedDbFields.thread_draft, "https://example.com/target-url"],
+    thread_draft: expectedDbFields.thread_draft,
     critique: expectedDbFields.critique,
     virality_score: expectedDbFields.virality_score,
     post_critiques: expectedDbFields.post_critiques,
@@ -273,6 +273,60 @@ test("publishThread action retrieves state and publishes thread of posts sequent
 
   expect(getPermalinkSpy).toHaveBeenCalledWith("post-id-1");
 }, 20000);
+
+test("publishThread appends source URL when append_source_url is true", async () => {
+  const t = convexTest(schema, modules);
+  const userId = await t.mutation(async (ctx) => {
+    return await ctx.db.insert("users", {});
+  });
+
+  await t.mutation(internal.tokens.storeAuthToken, {
+    userId,
+    platform: "threads",
+    platformUserId: "mock-platform-user",
+    token: "mock-long-lived-token",
+    type: "long lived",
+    active: true,
+    expiresIn: 10 * 24 * 60 * 60,
+  });
+
+  const stateId = await t.mutation(async (ctx) => {
+    return await ctx.db.insert("threadDrafts", {
+      input_field: { agent: "news", url: "https://example.com/source-url" },
+      raw_markdown: "Mock markdown",
+      core_hooks: [],
+      selected_hook: "Hook 1",
+      thread_draft: ["Draft 1", "Draft 2"],
+      critique: "Mock critique",
+      virality_score: 95,
+      post_critiques: [],
+      iterations: 1,
+      is_approved: true,
+      userId,
+      is_published: false,
+      generation_status: "success",
+      publication_status: "not_published",
+    });
+  });
+
+  const createPostSpy = vi.spyOn(ThreadsAPI.prototype, "createPost").mockResolvedValue("post-id-1");
+  const createReplySpy = vi.spyOn(ThreadsAPI.prototype, "createReply")
+    .mockResolvedValueOnce("post-id-2")
+    .mockResolvedValueOnce("post-id-3");
+  vi.spyOn(ThreadsAPI.prototype, "getPostPermalink")
+    .mockResolvedValue("https://www.threads.net/@mock/post/post-id-1");
+
+  const result = await t.action(internal.actions.threads.publishThread, {
+    id: stateId,
+    userId,
+    append_source_url: true,
+  });
+
+  expect(result.postIds).toEqual(["post-id-1", "post-id-2", "post-id-3"]);
+  expect(createPostSpy).toHaveBeenCalledWith({ text: "Draft 1" });
+  expect(createReplySpy).toHaveBeenNthCalledWith(1, "post-id-1", { text: "Draft 2" });
+  expect(createReplySpy).toHaveBeenNthCalledWith(2, "post-id-2", { text: "https://example.com/source-url" });
+});
 
 test("ThreadsAPI createContainer retries on propagation error (auto-publish)", async () => {
   vi.useFakeTimers();
@@ -491,7 +545,7 @@ test("retryThreadInternal restarts from scratch when state.next is empty", async
   });
 
   expect(saved?.generation_status).toBe("success");
-  expect(saved?.thread_draft).toEqual(["Post 1", "Post 2", "https://example.com/retry-empty-next"]);
+  expect(saved?.thread_draft).toEqual(["Post 1", "Post 2"]);
 });
 
 test("retryThreadInternal falls back to restart from scratch if graph.invoke(null) returns no thread_draft", async () => {
@@ -546,7 +600,7 @@ test("retryThreadInternal falls back to restart from scratch if graph.invoke(nul
   });
 
   expect(saved?.generation_status).toBe("success");
-  expect(saved?.thread_draft).toEqual(["P1", "P2", "https://example.com/retry-empty-draft"]);
+  expect(saved?.thread_draft).toEqual(["P1", "P2"]);
 });
 
 test("generateThreadInternal marks draft as failed if thread_draft is empty and not interrupted", async () => {

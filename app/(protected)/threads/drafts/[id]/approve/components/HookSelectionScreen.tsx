@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ArrowLeft, Sparkles, Compass, Loader2, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 
 interface HookSelectionScreenProps {
   url: string;
@@ -84,40 +85,86 @@ export function HookSelectionScreen({
                 return (
                   <div
                     key={index}
+                    role="radio"
+                    aria-checked={isSelected}
+                    tabIndex={0}
                     onClick={() => onSelectHook(index, hook)}
-                    className={`group relative overflow-hidden p-5 rounded-xl border transition-all duration-300 cursor-pointer ${
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        onSelectHook(index, hook);
+                      }
+                    }}
+                    className={cn(
+                      "group relative overflow-hidden flex flex-col justify-between p-4 sm:p-5 rounded-2xl border transition-all duration-300 cursor-pointer focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-violet-500",
                       isSelected
-                        ? "border-violet-500 bg-violet-500/5 shadow-md animate-in fade-in duration-200"
-                        : "border-border/80 bg-card/40 backdrop-blur-xs hover:border-violet-500/30 hover:bg-muted/10"
-                    }`}
+                        ? "border-violet-500 bg-violet-500/[0.04] shadow-md ring-1 ring-violet-500/20"
+                        : "border-border/80 bg-card/40 backdrop-blur-xs hover:border-violet-500/40 hover:bg-muted/10"
+                    )}
                   >
-                    <div className="flex gap-4 items-start">
-                      <span className={`shrink-0 h-6 w-6 rounded-full flex items-center justify-center text-xs font-black shadow-xs select-none transition-colors ${
+                    {/* Left Accent Gradient Bar */}
+                    <div
+                      className={cn(
+                        "absolute top-0 left-0 w-1 sm:w-1.5 h-full transition-all duration-300",
                         isSelected
-                          ? "bg-violet-600 text-white"
-                          : "bg-muted text-muted-foreground group-hover:bg-violet-100 group-hover:text-violet-800 dark:group-hover:bg-violet-950 dark:group-hover:text-violet-300"
-                      }`}>
-                        {index + 1}
-                      </span>
-                      <div className="flex-1 space-y-1">
-                        <div className="flex items-start justify-between gap-4">
-                          <p className="text-sm leading-relaxed text-foreground font-medium flex-1">
-                            {hook}
-                          </p>
-                          {selectedHook === hook && (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold bg-violet-500/10 text-violet-600 dark:bg-violet-400/10 dark:text-violet-400 border border-violet-500/20 shadow-xs uppercase tracking-wider select-none shrink-0 mt-0.5 animate-pulse">
-                              Selected
-                            </span>
+                          ? "bg-linear-to-b from-violet-600 to-indigo-600 opacity-100"
+                          : "bg-linear-to-b from-violet-600 to-indigo-600 opacity-0 group-hover:opacity-60"
+                      )}
+                    />
+
+                    {/* Card Header: Meta info & Selection Badge */}
+                    <div className="flex items-center justify-between gap-3 pb-3 mb-3 border-b border-border/40">
+                      <span
+                        className={cn(
+                          "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold transition-colors select-none",
+                          isSelected
+                            ? "bg-violet-600/15 text-violet-700 dark:text-violet-300 border border-violet-500/30"
+                            : "bg-muted/80 text-muted-foreground border border-border/50 group-hover:border-violet-500/30 group-hover:text-foreground"
+                        )}
+                      >
+                        <span
+                          className={cn(
+                            "w-1.5 h-1.5 rounded-full",
+                            isSelected ? "bg-violet-600 dark:bg-violet-400 animate-pulse" : "bg-muted-foreground/40"
                           )}
-                        </div>
-                        <span className={`text-[10px] font-medium block pt-2 select-none ${
-                          hook.length > 500 ? "text-destructive font-semibold" : "text-muted-foreground"
-                        }`}>
-                          {hook.length} character{hook.length !== 1 ? 's' : ''} {hook.length > 500 && "(Exceeds 500 limit)"}
+                        />
+                        Hook #{index + 1}
+                      </span>
+
+                      {isSelected ? (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-linear-to-r from-violet-600 to-indigo-600 text-white shadow-xs shadow-violet-500/25 animate-in fade-in zoom-in-95 duration-150 select-none shrink-0">
+                          <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                          Selected
                         </span>
-                      </div>
-                      {isSelected && (
-                        <CheckCircle2 className="w-5 h-5 text-violet-500 shrink-0" />
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground/70 group-hover:text-violet-600 dark:group-hover:text-violet-400 transition-colors select-none shrink-0">
+                          <span className="w-3.5 h-3.5 rounded-full border border-border/80 group-hover:border-violet-500/60 transition-colors" />
+                          <span>Select</span>
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Card Body: Full-Width Hook Text */}
+                    <div className="flex-1 py-1">
+                      <p className="text-sm sm:text-base leading-relaxed text-foreground font-medium selection:bg-violet-500/20 break-words">
+                        {hook}
+                      </p>
+                    </div>
+
+                    {/* Card Footer: Character Count Metric */}
+                    <div className="flex items-center justify-between text-xs text-muted-foreground pt-3 mt-3 border-t border-border/30 select-none">
+                      <span
+                        className={cn(
+                          "font-mono text-[11px] font-medium",
+                          hook.length > 500 ? "text-destructive font-semibold" : "text-muted-foreground"
+                        )}
+                      >
+                        {hook.length} / 500 chars
+                      </span>
+                      {hook.length > 500 && (
+                        <span className="text-[11px] text-destructive font-bold">
+                          Exceeds limit
+                        </span>
                       )}
                     </div>
                   </div>

@@ -79,12 +79,7 @@ async function handleGraphCompletion(
     isInterrupted(finalState) ||
     (await graph.getState({ configurable: { thread_id: recordId } })).next.length > 0;
 
-  const url = typeof finalState.url === "string" ? finalState.url : undefined;
-  const rawDraft = Array.isArray(finalState.thread_draft) ? (finalState.thread_draft as string[]) : undefined;
-  let thread_draft = rawDraft;
-  if (!interrupted && actualAgent === "news" && thread_draft && url) {
-    thread_draft = [...thread_draft, url];
-  }
+  const thread_draft = Array.isArray(finalState.thread_draft) ? (finalState.thread_draft as string[]) : undefined;
 
   const hasDraft = Array.isArray(thread_draft) && thread_draft.length > 0;
   const generation_status = interrupted
@@ -607,6 +602,7 @@ export const enqueueThreadPublication = action({
       modified_thread: v.optional(v.array(v.string())),
       images: v.optional(v.record(v.string(), v.string())),
       videos: v.optional(v.record(v.string(), v.string())),
+      append_source_url: v.optional(v.boolean()),
     })),
   },
   handler: async (ctx, args) => {
@@ -634,6 +630,7 @@ export const enqueueThreadPublication = action({
             modified_thread: req.modified_thread,
             images: req.images,
             videos: req.videos,
+            append_source_url: req.append_source_url,
           },
           {
             onComplete: internal.notifications.onComplete.onPublicationComplete,
@@ -652,6 +649,7 @@ export const publishThread = internalAction({
     modified_thread: v.optional(v.array(v.string())),
     images: v.optional(v.record(v.string(), v.string())),
     videos: v.optional(v.record(v.string(), v.string())),
+    append_source_url: v.optional(v.boolean()),
   },
   handler: async (ctx, args): Promise<{ postIds: string[]; threadId: Id<"threadDrafts">; permalink?: string }> => {
     const userId = args.userId;
@@ -687,10 +685,18 @@ export const publishThread = internalAction({
       }
 
       console.log(`[publishThread] Extracted thread posts: ${JSON.stringify(state.thread_draft)}`);
-      const postsToPublish = args.modified_thread || state.thread_draft;
+      const rawPosts = args.modified_thread || state.thread_draft;
 
-      if (!postsToPublish || postsToPublish.length === 0) {
+      if (!rawPosts || rawPosts.length === 0) {
         throw new Error("Cannot publish an empty thread.");
+      }
+
+      const postsToPublish = [...rawPosts];
+      if (args.append_source_url && state.input_field?.agent !== "topic" && state.input_field?.url) {
+        const sourceUrl = state.input_field.url.trim();
+        if (!postsToPublish.some((p) => p.includes(sourceUrl))) {
+          postsToPublish.push(sourceUrl);
+        }
       }
 
       const threadsApi = new ThreadsAPI(tokenDoc.token, "me");

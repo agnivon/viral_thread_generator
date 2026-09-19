@@ -6,7 +6,7 @@ import { LinkPreviewCard } from "./LinkPreviewCard";
 import { useWatch, useFieldArray, type Control, type UseFormRegister } from "react-hook-form";
 
 export interface ThreadDraftFormData {
-  posts: { content: string }[];
+  posts: { content: string; originalIndex?: number }[];
 }
 
 interface DraftPostsListProps {
@@ -21,6 +21,8 @@ interface DraftPostsListProps {
   onRemoveImage: (index: number) => void;
   onAttachVideo: (index: number) => void;
   onRemoveVideo: (index: number) => void;
+  onReorderMedia?: (fromIndex: number, toIndex: number) => void;
+  onDeletePostMedia?: (index: number) => void;
 }
 
 const getFirstUrl = (text: string): string | null => {
@@ -374,6 +376,8 @@ export function DraftPostsList({
   onRemoveImage,
   onAttachVideo,
   onRemoveVideo,
+  onReorderMedia,
+  onDeletePostMedia,
 }: DraftPostsListProps) {
   const { fields, append, remove, move } = useFieldArray({
     control,
@@ -392,14 +396,34 @@ export function DraftPostsList({
     return map;
   }, [postCritiques]);
 
+  const handleRemovePost = (index: number) => {
+    remove(index);
+    onDeletePostMedia?.(index);
+  };
+
+  const handleMovePost = (fromIndex: number, toIndex: number) => {
+    move(fromIndex, toIndex);
+    onReorderMedia?.(fromIndex, toIndex);
+  };
+
   const displayPosts = isEditingPosts
-    ? fields.map((field) => ({ id: field.id, content: field.content || "" }))
-    : posts.map((post, i) => ({ id: i.toString(), content: post }));
+    ? fields.map((field) => ({
+        id: field.id,
+        content: field.content || "",
+        originalIndex: field.originalIndex,
+      }))
+    : posts.map((post, i) => ({
+        id: i.toString(),
+        content: post,
+        originalIndex: i + 1,
+      }));
 
   return (
     <CardContent className="p-3.5 sm:p-6 space-y-4 sm:space-y-6 pt-4 sm:pt-6">
       {displayPosts.map((item, index) => {
-        const postCritique = critiquesByIndex.get(index + 1);
+        const postCritique = item.originalIndex !== undefined
+          ? critiquesByIndex.get(item.originalIndex)
+          : undefined;
 
         return (
           <DraftPostItem
@@ -417,9 +441,9 @@ export function DraftPostsList({
             onRemoveImage={onRemoveImage}
             onAttachVideo={onAttachVideo}
             onRemoveVideo={onRemoveVideo}
-            onRemovePost={isEditingPosts ? () => remove(index) : undefined}
-            onMoveUp={isEditingPosts && index > 0 ? () => move(index, index - 1) : undefined}
-            onMoveDown={isEditingPosts && index < displayPosts.length - 1 ? () => move(index, index + 1) : undefined}
+            onRemovePost={isEditingPosts ? () => handleRemovePost(index) : undefined}
+            onMoveUp={isEditingPosts && index > 0 ? () => handleMovePost(index, index - 1) : undefined}
+            onMoveDown={isEditingPosts && index < displayPosts.length - 1 ? () => handleMovePost(index, index + 1) : undefined}
             isDragging={draggedIndex === index}
             onDragStart={(e) => {
               setDraggedIndex(index);
@@ -433,7 +457,7 @@ export function DraftPostsList({
             onDrop={(e) => {
               e.preventDefault();
               if (draggedIndex !== null && draggedIndex !== index) {
-                move(draggedIndex, index);
+                handleMovePost(draggedIndex, index);
               }
               setDraggedIndex(null);
             }}
@@ -447,7 +471,7 @@ export function DraftPostsList({
           type="button"
           variant="outline"
           className="w-full rounded-2xl border-2 border-dashed border-border/80 hover:border-violet-500/50 hover:text-violet-600 dark:hover:text-violet-400 hover:bg-violet-500/5 transition-all py-6 font-semibold flex items-center justify-center gap-2 cursor-pointer"
-          onClick={() => append({ content: "" })}
+          onClick={() => append({ content: "", originalIndex: undefined })}
         >
           <Plus className="w-4 h-4" />
           <span>Add New Post to Thread</span>

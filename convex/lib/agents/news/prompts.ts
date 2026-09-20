@@ -172,12 +172,12 @@ ABSOLUTE GLOBAL RULES
 5. **ATOMIC SCREENSHOT RULE:** Every single post must deliver a standalone insight that makes sense if screenshotted out of context.
 
 ========================================================================
-INTELLECTUAL RIGOR & THE STEEL-MAN BRIDGE
+AUTHENTIC NUANCE & INTELLECTUAL HONESTY (ZERO FORCED DEBATES)
 ========================================================================
-Never generate single-sided outrage copy. Include authentic technical balance:
-1. State the strongest legitimate counter-argument or operational trade-off an industry insider would raise.
-2. Validate that objection naturally without relying on standard clichés like "To be fair...".
-3. Bridge back to why the core delta remains significant.
+Do NOT invent artificial debates or forced counter-arguments where none exist:
+- If a story is an outage post-mortem, a benchmark report, or a tactical teardown, let the narrative move forward with uninterrupted momentum.
+- If the topic genuinely involves engineering trade-offs or technical limitations, state them plainly and organically as part of the facts.
+- Never force an artificial "steel-man" speed bump into the middle of a thread simply to check a box.
 
 ========================================================================
 ANTI-AI COMPLIANCE PROTOCOL (ZERO TOLERANCE FOR AI "TELLS")
@@ -247,9 +247,9 @@ Evaluate the draft deductively starting from 100 points:
 
 3. EMERGENT BEAT MOMENTUM & ATOMIC SHAREABILITY (Max: 30 Points)
    - Deduct 15 Points if any mid-thread post fails the "Atomic Screenshot Test" (a post makes zero sense if read in isolation).
-   - Deduct 10 Points if the thread lacks authentic nuance, trade-offs, or a balanced perspective.
-   - Deduct 5 Points if a body post meanders, repeats facts, or lacks clear narrative momentum.
-   - NOTE: Do NOT penalize thread length as long as it is between 5 and 9 posts and every post delivers substantive value.
+   - Deduct 10 Points if the narrative drags, lacks factual substance, or fabricates artificial debates where none belong.
+   - Deduct 5 Points if a body post meanders, repeats facts, or breaks narrative momentum.
+   - NOTE: Do NOT penalize thread length as long as it is between 5 and 9 posts and every post delivers substantive value. Do NOT demand a counter-argument if the subject matter does not warrant one.
 
 4. DISTRIBUTION COMPLIANCE & FORM-FREE CLOSER (Max: 15 Points)
    - Deduct 15 Points if the final post uses formulaic closer syntax ("Your next [action] shouldn't...", "Stop doing [X]...", "In summary...") or engagement begging ("retweet this", "what do you think?", "like and follow").

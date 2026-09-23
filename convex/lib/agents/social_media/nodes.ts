@@ -10,9 +10,9 @@ import {
   googleGemini36FlashT00Key1, googleGemini36FlashT00Key2,
   googleGemini35FlashT00Key1, googleGemini35FlashT00Key2,
   openAiGpt54MiniT00, googleGemini3FlashPreviewT00Key1, googleGemini3FlashPreviewT00Key2,
-  openAiGpt54MiniT08, openRouterFreeT08,
+  openAiGpt54MiniT08, deepSeekFlashT08ReasoningNone,
   googleGemini31FlashLiteT08Key1, googleGemini31FlashLiteT08Key2,
-  openAiGpt54MiniT01,
+  deepSeekFlashT01ReasoningNone,
   googleGemini31FlashLiteT01Key1, googleGemini31FlashLiteT01Key2,
   openAiGpt54T08Penalty04, googleGemini3FlashPreviewT08Key1, googleGemini3FlashPreviewT08Key2,
   googleGemini38FlashT08Key1, googleGemini38FlashT08Key2,
@@ -47,7 +47,7 @@ const socialMediaScraperModels = [
   googleGemini35FlashLiteT01Key2,
   googleGemini31FlashLiteT01Key1,
   googleGemini31FlashLiteT01Key2,
-  openAiGpt54MiniT01
+  deepSeekFlashT01ReasoningNone
 ];
 
 export const PostScraperNode = async (state: SocialMediaThreadFactoryStateType, config?: RunnableConfig) => {
@@ -159,7 +159,7 @@ const socialMediaHookStrategistAgents = buildAgents(
     googleGemini31FlashLiteT08Key1,
     googleGemini31FlashLiteT08Key2,
     openAiGpt54MiniT08,
-    openRouterFreeT08
+    deepSeekFlashT08ReasoningNone
   ],
   {
     systemPrompt: SOCIAL_MEDIA_HOOK_PROMPT,

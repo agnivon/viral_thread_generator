@@ -11,7 +11,7 @@ import {
   googleGemini35FlashT00Key1, googleGemini35FlashT00Key2,
   openAiGpt54MiniT00, googleGemini3FlashPreviewT00Key1, googleGemini3FlashPreviewT00Key2,
   googleGemini31FlashLiteT08Key1, googleGemini31FlashLiteT08Key2, openAiGpt54MiniT08,
-  googleGemini31FlashLiteT01Key1, googleGemini31FlashLiteT01Key2, openAiGpt54MiniT01,
+  googleGemini31FlashLiteT01Key1, googleGemini31FlashLiteT01Key2, deepSeekFlashT01ReasoningNone,
   googleGemini38FlashT08Key1, googleGemini38FlashT08Key2,
   googleGemini37FlashT08Key1, googleGemini37FlashT08Key2,
   googleGemini36FlashT08Key1, googleGemini36FlashT08Key2,
@@ -19,7 +19,7 @@ import {
   deepSeekFlashT085ReasoningNone, deepSeekFlashT00ReasoningHigh, openAiGpt54T08Penalty04, googleGemini3FlashPreviewT08Key1, googleGemini3FlashPreviewT08Key2,
   googleGemini31FlashLiteT02Key1, googleGemini31FlashLiteT02Key2, openAiGpt54MiniT02,
   googleGemini35FlashLiteT01Key1, googleGemini35FlashLiteT01Key2,
-  googleGemini35FlashLiteT08Key1, googleGemini35FlashLiteT08Key2,
+  googleGemini35FlashLiteT08Key1, googleGemini35FlashLiteT08Key2, deepSeekFlashT08ReasoningNone,
   googleGemini35FlashLiteT02Key1, googleGemini35FlashLiteT02Key2
 } from "../models.js";
 import {
@@ -120,7 +120,7 @@ const topicDeepScraperModels = [
   googleGemini35FlashLiteT01Key2.withStructuredOutput(topicDeepScraperSchema, { name: "deep_scraper", method: "jsonSchema" }),
   googleGemini31FlashLiteT01Key1.withStructuredOutput(topicDeepScraperSchema, { name: "deep_scraper", method: "jsonSchema" }),
   googleGemini31FlashLiteT01Key2.withStructuredOutput(topicDeepScraperSchema, { name: "deep_scraper", method: "jsonSchema" }),
-  openAiGpt54MiniT01.withStructuredOutput(topicDeepScraperSchema, { name: "deep_scraper", method: "jsonSchema" })
+  deepSeekFlashT01ReasoningNone.withStructuredOutput(topicDeepScraperSchema, { name: "deep_scraper", method: "jsonMode" })
 ];
 
 export const DeepPageScraperNode = async (state: TopicThreadFactoryStateType, config?: RunnableConfig) => {
@@ -187,7 +187,8 @@ const topicHookStrategistModels = [
   googleGemini35FlashLiteT08Key2.withStructuredOutput(topicHookStrategistSchema, { name: "hook_strategist", method: "jsonSchema" }),
   googleGemini31FlashLiteT08Key1.withStructuredOutput(topicHookStrategistSchema, { name: "hook_strategist", method: "jsonSchema" }),
   googleGemini31FlashLiteT08Key2.withStructuredOutput(topicHookStrategistSchema, { name: "hook_strategist", method: "jsonSchema" }),
-  openAiGpt54MiniT08.withStructuredOutput(topicHookStrategistSchema, { name: "hook_strategist", method: "jsonSchema" })
+  openAiGpt54MiniT08.withStructuredOutput(topicHookStrategistSchema, { name: "hook_strategist", method: "jsonSchema" }),
+  deepSeekFlashT08ReasoningNone.withStructuredOutput(topicHookStrategistSchema, { name: "hook_strategist", method: "jsonMode" })
 ];
 
 export const HookStrategistNode = async (state: TopicThreadFactoryStateType, config?: RunnableConfig) => {

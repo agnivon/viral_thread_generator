@@ -156,6 +156,8 @@ test("All flash-lite and OpenAI models have no token limits (maxOutputTokens / m
 
 test("DeepSeek models use deepseek-flash identifier and aliases match", async () => {
   const {
+    deepSeekFlashT01ReasoningNone,
+    deepSeekFlashT08ReasoningNone,
     deepSeekFlashT085ReasoningNone,
     deepSeekFlashT00ReasoningHigh,
     deepSeekV4ProT085ReasoningNone,
@@ -167,6 +169,8 @@ test("DeepSeek models use deepseek-flash identifier and aliases match", async ()
     return m?.model ?? m?.modelName;
   };
 
+  expect(getModelName(deepSeekFlashT01ReasoningNone)).toBe("deepseek-flash");
+  expect(getModelName(deepSeekFlashT08ReasoningNone)).toBe("deepseek-flash");
   expect(getModelName(deepSeekFlashT085ReasoningNone)).toBe("deepseek-flash");
   expect(getModelName(deepSeekFlashT00ReasoningHigh)).toBe("deepseek-flash");
   expect(deepSeekV4ProT085ReasoningNone).toBe(deepSeekFlashT085ReasoningNone);

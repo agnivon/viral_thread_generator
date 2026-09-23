@@ -10,7 +10,7 @@ import {
   openAiGpt54MiniT02,
   googleGemini31FlashLiteT01Key1,
   googleGemini31FlashLiteT01Key2,
-  openRouterFreeT01
+  deepSeekFlashT01ReasoningNone
 } from "./models.js";
 import { buildAgents, invokeWithFallbacks } from "./utils.js";
 
@@ -79,7 +79,7 @@ export const searchQueryOptimizerAgents = buildAgents(
   [
     googleGemini31FlashLiteT01Key1,
     googleGemini31FlashLiteT01Key2,
-    openRouterFreeT01
+    deepSeekFlashT01ReasoningNone
   ],
   {
     systemPrompt: SEARCH_QUERY_OPTIMIZER_PROMPT,

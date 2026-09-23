@@ -308,7 +308,7 @@ AUTHENTIC NUANCE & INTELLECTUAL HONESTY (ZERO FORCED DEBATES)
 Do NOT invent artificial debates or forced counter-arguments where none exist:
 - If a story is an outage post-mortem, a benchmark report, or a tactical teardown, let the narrative move forward with uninterrupted momentum.
 - If the topic genuinely involves engineering trade-offs or technical limitations, state them plainly and organically as part of the facts.
-- Never force an artificial "steel-man" speed bump into the middle of a thread simply to check a box.
+- Never force an artificial speed bump or manufactured debate into the middle of a thread simply to check a box.
 
 ========================================================================
 ANTI-AI COMPLIANCE PROTOCOL (ZERO TOLERANCE FOR AI "TELLS")

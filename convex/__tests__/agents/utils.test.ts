@@ -189,8 +189,8 @@ test("normalizeResearchDossier - preserves pure markdown content", async () => {
 - Discovered critical zero-day in core runtime.
 - Affects 120,000 servers globally.
 
-### 2. THE STEEL-MANNED COUNTER-PERSPECTIVES (The Defense)
-- Vendor argues exploit requires physical console access.`;
+### 2. OPERATIONAL REALITY, TRADE-OFFS & LIMITATIONS (DEEP CONTEXT)
+- Vendor confirms exploit requires physical console access.`;
 
   expect(normalizeResearchDossier(markdown)).toBe(markdown);
 });

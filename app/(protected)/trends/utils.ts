@@ -1,26 +1,10 @@
-export interface Article {
-  id: string;
-  title: string;
-  description: string;
-  url: string;
-  image?: string;
-  category?: string[];
-  published: string;
-  published_at?: number;
-  mediaCompany?: string;
-}
+import type { ActiveTrend, GoogleTrendArticle } from "@/convex/actions/googleTrends";
 
-export interface KeywordItem {
-  id: string;
-  keyword: string;
-  traffic?: number;
-  trafficGrowthRate?: number;
-  rank?: number;
-  isActive?: boolean;
-  startedAtMs?: number;
-  relatedKeywords?: string[];
-  articleKeys?: [number, string, string][];
-}
+export type Article = GoogleTrendArticle & {
+  category?: string[];
+};
+
+export type KeywordItem = ActiveTrend;
 
 // --- Google Trends Formatter Utilities ---
 

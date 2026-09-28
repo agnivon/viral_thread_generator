@@ -19,7 +19,13 @@ export { requireAuthUserId };
 
 type ThreadInput = Infer<typeof threadDraftInputValidator>;
 
-interface InitialStateArgs {
+export interface UrlMetadata {
+  title: string;
+  description: string;
+  image: string;
+}
+
+export interface InitialStateArgs {
   input_field: ThreadInput;
   guidance?: string;
   manual_hook_selection?: boolean;
@@ -190,19 +196,7 @@ async function restartGraphFromScratch(
 // Enqueue Generation Actions
 // ─────────────────────────────────────────────────────────────
 
-interface EnqueueThreadRequest {
-  input_field: {
-    agent: "news" | "social_media";
-    url: string;
-  } | {
-    agent: "topic";
-    topic: string;
-    description?: string;
-  };
-  guidance?: string;
-  manual_hook_selection?: boolean;
-  search_query_generation?: boolean;
-}
+export type EnqueueThreadRequest = InitialStateArgs;
 
 async function enqueueThreadGenerationHelper(
   ctx: ActionCtx,

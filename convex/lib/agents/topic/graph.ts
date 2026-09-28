@@ -44,23 +44,10 @@ const route_after_hook = (state: TopicThreadFactoryStateType) => {
   return "ThreadWriterNode";
 };
 
-const route_after_writer = (state: TopicThreadFactoryStateType) => {
-  if (!state.parse_success) {
-    if ((state.retries?.writer || 0) >= 3) throw new Error("ThreadWriterNode failed after 3 retries");
-    return "ThreadWriterNode";
-  }
-  return "TopicCharacterValidatorNode";
-};
+import { createRouteAfterValidator, createRouteAfterWriter } from "../sharedRouters.js";
 
-export const route_after_validator = (state: TopicThreadFactoryStateType) => {
-  if (!state.is_character_valid) {
-    if ((state.retries?.validator || 0) >= 3) {
-      throw new Error("TopicCharacterValidatorNode failed after 3 retries");
-    }
-    return "ThreadWriterNode";
-  }
-  return "ViralityCriticNode";
-};
+const route_after_writer = createRouteAfterWriter("TopicCharacterValidatorNode");
+export const route_after_validator = createRouteAfterValidator("TopicCharacterValidatorNode");
 
 export const route_after_critic = (state: TopicThreadFactoryStateType) => {
   if (!state.parse_success) {

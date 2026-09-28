@@ -1,7 +1,7 @@
 "use node";
 
 import googleTrends from '@alkalisummer/google-trends-js';
-import { requireAuthUserId } from "./threads";
+import { requireAuthUserId } from "../auth";
 import { v } from "convex/values";
 import { action } from "../_generated/server";
 import crypto from "crypto";

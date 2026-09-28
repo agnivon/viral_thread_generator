@@ -27,7 +27,7 @@ export const SearchQueriesSchema = z.object({
 
 export type SearchQueriesType = z.infer<typeof SearchQueriesSchema>;
 
-export const visualKeywordStrategistAgents = buildAgents(
+export const visualKeywordStrategistAgents = buildAgents<SearchQueriesType>(
   [
     googleGemini31FlashLiteT02Key1, 
     googleGemini31FlashLiteT02Key2, 
@@ -75,7 +75,7 @@ export const OptimizedSearchQuerySchema = z.object({
 
 export type OptimizedSearchQueryType = z.infer<typeof OptimizedSearchQuerySchema>;
 
-export const searchQueryOptimizerAgents = buildAgents(
+export const searchQueryOptimizerAgents = buildAgents<OptimizedSearchQueryType>(
   [
     googleGemini31FlashLiteT01Key1,
     googleGemini31FlashLiteT01Key2,
@@ -128,3 +128,20 @@ export const SearchQueryOptimizerNode = async (
     optimized_query: undefined
   };
 };
+
+export function extractSelectedHook(input: unknown): string {
+  if (typeof input === "string") {
+    return input;
+  }
+  if (typeof input === "object" && input !== null && "selected_hook" in input) {
+    const val = (input as Record<string, unknown>).selected_hook;
+    if (typeof val === "string") {
+      return val;
+    }
+  }
+  if (typeof input === "number" || typeof input === "boolean") {
+    return String(input);
+  }
+  return "";
+}
+

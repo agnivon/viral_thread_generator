@@ -5,11 +5,9 @@ import { NewsThreadFactoryGraph, route_after_critic as newsRouteAfterCritic, rou
 import { SocialMediaThreadFactoryGraph, route_after_critic as socialMediaRouteAfterCritic, route_after_validator as socialMediaRouteAfterValidator } from "../../lib/agents/social_media/graph";
 import { TopicThreadFactoryGraph, route_after_critic as topicRouteAfterCritic, route_after_validator as topicRouteAfterValidator } from "../../lib/agents/topic/graph";
 import type { NewsThreadFactoryStateType } from "../../lib/agents/news/state";
-import type { SocialMediaThreadFactoryStateType } from "../../lib/agents/social_media/state";
 import type { TopicThreadFactoryStateType } from "../../lib/agents/topic/state";
 
 type RouterState = NewsThreadFactoryStateType &
-  SocialMediaThreadFactoryStateType &
   TopicThreadFactoryStateType;
 
 type RouterFn = (state: RouterState) => string;

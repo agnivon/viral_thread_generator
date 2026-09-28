@@ -87,7 +87,10 @@ test("JinaClient - read sends request with Bearer token", async () => {
   vi.stubGlobal("fetch", fetchMock);
 
   const client = new JinaClient("test-jina-key");
-  const res = (await client.read("https://example.com/article")) as any;
+  const res = (await client.read("https://example.com/article")) as {
+    code: number;
+    data: { title: string; url: string; content: string };
+  };
 
   expect(res.code).toBe(200);
   expect(res.data.title).toBe("Parsed Article");

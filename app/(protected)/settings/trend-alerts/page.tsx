@@ -783,6 +783,10 @@ export default function TrendAlertsSettingsPage() {
         selectedNiches: settings.selectedNiches ?? [],
         whitelistKeywords: settings.whitelistKeywords ?? [],
         blacklistKeywords: settings.blacklistKeywords ?? [],
+        desktopPushEnabled: settings.desktopPushEnabled ?? true,
+        quietHoursEnabled: settings.quietHoursEnabled ?? false,
+        quietHoursStart: settings.quietHoursStart ?? "22:00",
+        quietHoursEnd: settings.quietHoursEnd ?? "08:00",
       });
     }
   }, [settings, reset, isDirty]);

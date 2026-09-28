@@ -21,12 +21,14 @@ export const getLatestToken = internalQuery({
   handler: async (ctx, args): Promise<Doc<"accessTokens"> | null> => {
     return await ctx.db
       .query("accessTokens")
-      .withIndex("by_userId_platform_active", (q) =>
-        q.eq("userId", args.userId).eq("platform", args.platform).eq("active", true)
+      .withIndex("by_userId_platform_active_type", (q) =>
+        q
+          .eq("userId", args.userId)
+          .eq("platform", args.platform)
+          .eq("active", true)
+          .eq("type", args.type)
       )
       .order("desc")
-      // eslint-disable-next-line @convex-dev/no-filter-in-query
-      .filter((q) => q.eq(q.field("type"), args.type))
       .first();
   },
 });
@@ -47,12 +49,14 @@ export const hasActiveToken = query({
 
     const token = await ctx.db
       .query("accessTokens")
-      .withIndex("by_userId_platform_active", (q) =>
-        q.eq("userId", userId).eq("platform", args.platform).eq("active", true)
+      .withIndex("by_userId_platform_active_type", (q) =>
+        q
+          .eq("userId", userId)
+          .eq("platform", args.platform)
+          .eq("active", true)
+          .eq("type", args.type)
       )
       .order("desc")
-      // eslint-disable-next-line @convex-dev/no-filter-in-query
-      .filter((q) => q.eq(q.field("type"), args.type))
       .first();
 
     return !!token;
@@ -75,12 +79,14 @@ export const getTokensNearExpiry = internalQuery({
     const threshold = args.now + args.nearExpiryLimit;
     const token = await ctx.db
       .query("accessTokens")
-      .withIndex("by_userId_platform_active", (q) =>
-        q.eq("userId", args.userId).eq("platform", args.platform).eq("active", true)
+      .withIndex("by_userId_platform_active_type", (q) =>
+        q
+          .eq("userId", args.userId)
+          .eq("platform", args.platform)
+          .eq("active", true)
+          .eq("type", args.type)
       )
       .order("desc")
-      // eslint-disable-next-line @convex-dev/no-filter-in-query
-      .filter((q) => q.eq(q.field("type"), args.type))
       .first();
 
     if (token && token.expiredIn < threshold) {

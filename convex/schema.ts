@@ -80,7 +80,8 @@ export default defineSchema(
     })
       .index("by_token", ["token"])
       .index("by_platform_and_active", ["platform", "active"])
-      .index("by_userId_platform_active", ["userId", "platform", "active"]),
+      .index("by_userId_platform_active", ["userId", "platform", "active"])
+      .index("by_userId_platform_active_type", ["userId", "platform", "active", "type"]),
     threadDrafts: defineTable({
       input_field: v.optional(threadDraftInputValidator),
       agent: v.optional(v.string()),

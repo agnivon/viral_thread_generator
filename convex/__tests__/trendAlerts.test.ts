@@ -252,7 +252,7 @@ test("detectAndNotifyEmergingTrends action rejects unauthenticated callers and a
   vi.spyOn(googleTrends, "realTimeTrends").mockResolvedValue({
     error: null,
     data: [],
-  } as any);
+  } as unknown as Awaited<ReturnType<typeof googleTrends.realTimeTrends>>);
 
   const result = await tAuthed.action(api.actions.trendAlerts.detectAndNotifyEmergingTrends, {
     geo: "US",

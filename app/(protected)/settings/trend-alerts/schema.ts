@@ -6,6 +6,10 @@ export const trendAlertsSchema = z.object({
   selectedNiches: z.array(z.string()),
   whitelistKeywords: z.array(z.string()),
   blacklistKeywords: z.array(z.string()),
+  desktopPushEnabled: z.boolean().optional(),
+  quietHoursEnabled: z.boolean().optional(),
+  quietHoursStart: z.string().optional(),
+  quietHoursEnd: z.string().optional(),
 });
 
 export type TrendAlertsFormData = z.infer<typeof trendAlertsSchema>;
@@ -16,6 +20,10 @@ export const DEFAULT_TREND_ALERTS_VALUES: TrendAlertsFormData = {
   selectedNiches: [],
   whitelistKeywords: [],
   blacklistKeywords: [],
+  desktopPushEnabled: true,
+  quietHoursEnabled: false,
+  quietHoursStart: "22:00",
+  quietHoursEnd: "08:00",
 };
 
 /**

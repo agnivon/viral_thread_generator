@@ -8,6 +8,10 @@ import { NewsThreadFactoryGraph } from "../lib/agents/news/graph.js";
 import { ThreadsAPI } from "../lib/clients/threads.js";
 import { publicationPool, generationPool } from "../lib/workpool.js";
 
+type MockGraphState = Awaited<ReturnType<typeof NewsThreadFactoryGraph.getState>>;
+type MockGraphInvoke = Awaited<ReturnType<typeof NewsThreadFactoryGraph.invoke>>;
+type MockWorkpoolJobId = Awaited<ReturnType<typeof publicationPool.enqueueAction>>;
+
 const modules = import.meta.glob("../**/*.ts");
 
 afterEach(() => {
@@ -99,7 +103,7 @@ test("generateNewsThread action runs graph and saves result", async () => {
   const invokeSpy = vi.spyOn(NewsThreadFactoryGraph, "invoke").mockResolvedValue(mockGraphOutput);
 
   // Mock getState to return empty next tasks so it thinks it finished without interrupt
-  vi.spyOn(NewsThreadFactoryGraph, "getState").mockResolvedValue({ next: [] } as any);
+  vi.spyOn(NewsThreadFactoryGraph, "getState").mockResolvedValue({ next: [] } as unknown as MockGraphState);
 
   // 4. Trigger generation internal action
   const { recordId } = await t.action(internal.actions.threads.generateThreadInternal, {
@@ -192,7 +196,7 @@ test("resumeNewsThreadGeneration action resumes graph and saves result", async (
   };
 
   const invokeSpy = vi.spyOn(NewsThreadFactoryGraph, "invoke").mockResolvedValue(mockGraphOutput);
-  vi.spyOn(NewsThreadFactoryGraph, "getState").mockResolvedValue({ next: [] } as any);
+  vi.spyOn(NewsThreadFactoryGraph, "getState").mockResolvedValue({ next: [] } as unknown as MockGraphState);
 
   // 5. Resume the internal action
   const { recordId } = await t.action(internal.actions.threads.resumeThreadInternal, {
@@ -510,7 +514,7 @@ test("retryThreadInternal restarts from scratch when state.next is empty", async
   vi.spyOn(NewsThreadFactoryGraph, "getState").mockResolvedValue({
     values: { retries: { researcher: 3 }, thread_draft: [] },
     next: [],
-  } as any);
+  } as unknown as MockGraphState);
 
   const mockGraphOutput = {
     url: "https://example.com/retry-empty-next",
@@ -525,7 +529,7 @@ test("retryThreadInternal restarts from scratch when state.next is empty", async
     is_approved: true,
   };
 
-  const invokeSpy = vi.spyOn(NewsThreadFactoryGraph, "invoke").mockResolvedValue(mockGraphOutput as any);
+  const invokeSpy = vi.spyOn(NewsThreadFactoryGraph, "invoke").mockResolvedValue(mockGraphOutput as unknown as MockGraphInvoke);
 
   const { recordId } = await t.action(internal.actions.threads.retryThreadInternal, {
     recordId: draftId,
@@ -567,15 +571,15 @@ test("retryThreadInternal falls back to restart from scratch if graph.invoke(nul
     .mockResolvedValueOnce({
       values: { retries: { researcher: 1 }, thread_draft: [] },
       next: ["ContextResearcherNode"],
-    } as any)
+    } as unknown as MockGraphState)
     .mockResolvedValue({
       values: { retries: { researcher: 1 }, thread_draft: [] },
       next: [],
-    } as any);
+    } as unknown as MockGraphState);
 
   const invokeSpy = vi.spyOn(NewsThreadFactoryGraph, "invoke")
     // First call (with null) returns empty thread_draft
-    .mockResolvedValueOnce({ thread_draft: [] } as any)
+    .mockResolvedValueOnce({ thread_draft: [] } as unknown as MockGraphInvoke)
     // Second call (restartGraphFromScratch) returns valid draft
     .mockResolvedValueOnce({
       url: "https://example.com/retry-empty-draft",
@@ -586,7 +590,7 @@ test("retryThreadInternal falls back to restart from scratch if graph.invoke(nul
       virality_score: 92,
       is_approved: true,
       iterations: 1,
-    } as any);
+    } as unknown as MockGraphInvoke);
 
   const { recordId } = await t.action(internal.actions.threads.retryThreadInternal, {
     recordId: draftId,
@@ -614,8 +618,8 @@ test("generateThreadInternal marks draft as failed if thread_draft is empty and 
   vi.spyOn(NewsThreadFactoryGraph, "invoke").mockResolvedValue({
     thread_draft: [],
     raw_markdown: "Incomplete",
-  } as any);
-  vi.spyOn(NewsThreadFactoryGraph, "getState").mockResolvedValue({ next: [] } as any);
+  } as unknown as MockGraphInvoke);
+  vi.spyOn(NewsThreadFactoryGraph, "getState").mockResolvedValue({ next: [] } as unknown as MockGraphState);
 
   const { recordId } = await t.action(internal.actions.threads.generateThreadInternal, {
     input_field: { agent: "news", url: "https://example.com/empty-result" },
@@ -651,7 +655,7 @@ test("regenerateThreadInternal sets generation_status to processing immediately"
   vi.spyOn(NewsThreadFactoryGraph, "getStateHistory").mockImplementation(async function* () {
     // Return no past states before hook
   });
-  vi.spyOn(NewsThreadFactoryGraph, "getState").mockResolvedValue({ next: [] } as any);
+  vi.spyOn(NewsThreadFactoryGraph, "getState").mockResolvedValue({ next: [] } as unknown as MockGraphState);
   vi.spyOn(NewsThreadFactoryGraph, "invoke").mockImplementation(async () => {
     const current = await t.query(async (ctx) => ctx.db.get("threadDrafts", draftId));
     statusDuringInvoke = current?.generation_status;
@@ -660,7 +664,7 @@ test("regenerateThreadInternal sets generation_status to processing immediately"
       thread_draft: ["Regen 1", "Regen 2"],
       is_approved: true,
       virality_score: 90,
-    } as any;
+    } as unknown as MockGraphInvoke;
   });
 
   await t.action(internal.actions.threads.regenerateThreadInternal, {
@@ -808,7 +812,7 @@ test("getUrlMetadata action rejects unauthenticated callers and succeeds when au
 
   const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce({
     text: async () => mockHtml,
-  } as any);
+  } as unknown as Response);
 
   const tAuthed = t.withIdentity({ subject: user });
   const result = await tAuthed.action(api.actions.threads.getUrlMetadata, {
@@ -854,7 +858,7 @@ test("enqueueThreadPublication enforces authentication and IDOR ownership check"
   expect(draftBefore?.publication_status).toBe("not_published");
 
   // 3. Authorized user1 can enqueue publication
-  const enqueueSpy = vi.spyOn(publicationPool, "enqueueAction").mockResolvedValueOnce("work-123" as any);
+  const enqueueSpy = vi.spyOn(publicationPool, "enqueueAction").mockResolvedValueOnce("work-123" as unknown as MockWorkpoolJobId);
   const tUser1 = t.withIdentity({ subject: user1 });
   await tUser1.action(api.actions.threads.enqueueThreadPublication, {
     requests: [{ id: draftId }],

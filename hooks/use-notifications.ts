@@ -22,18 +22,9 @@ export const getTrendHref = getTrendSourceHref;
 
 export type NotificationKind = Doc<"notifications">["kind"];
 
-export interface AppNotificationItem {
-  _id: Id<"notifications">;
-  kind: NotificationKind;
-  data: NotificationPayload;
+export type AppNotificationItem = Omit<Doc<"notifications">, "userId" | "_creationTime"> & {
   targetId: string;
-  dedupeKey?: string;
-  isSeen: boolean;
-  isDismissed: boolean;
-  createdAt: number;
-  seenAt?: number;
-  dismissedAt?: number;
-}
+};
 
 export function isExternalUrl(url?: string): boolean {
   if (!url) return false;

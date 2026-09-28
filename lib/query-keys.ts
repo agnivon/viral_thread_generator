@@ -4,16 +4,16 @@
  */
 
 export const trendsQueryKeys = {
-  all: ["news"] as const,
-  keywords: (sourceId: string) => ["keywords", sourceId] as const,
+  all: ["trends"] as const,
+  keywords: (sourceId: string) => ["trends", "keywords", sourceId] as const,
   bySourceKeyword: (sourceId: string, keyword: string, hasArticleKeys?: boolean) =>
-    ["news", sourceId, keyword, { hasArticleKeys: Boolean(hasArticleKeys) }] as const,
+    ["trends", "news", sourceId, keyword, { hasArticleKeys: Boolean(hasArticleKeys) }] as const,
 };
 
 export const trendAlertsQueryKeys = {
   all: ["trendAlerts"] as const,
   settings: () => ["trendAlerts", "settings"] as const,
-  liveTrends: (geo: string = "US") => ["keywords", "googleTrends", { geo }] as const,
+  liveTrends: (geo: string = "US") => ["trends", "keywords", "googleTrends", { geo }] as const,
   preview: (filters: {
     minGrowthRate: number;
     selectedNiches: string[];
@@ -25,9 +25,4 @@ export const trendAlertsQueryKeys = {
 export const linkPreviewKeys = {
   all: ["urlMetadata"] as const,
   byUrl: (url: string) => ["urlMetadata", url] as const,
-};
-
-export const threadDraftsQueryKeys = {
-  all: ["threadDrafts"] as const,
-  detail: (id: string) => ["threadDrafts", id] as const,
 };

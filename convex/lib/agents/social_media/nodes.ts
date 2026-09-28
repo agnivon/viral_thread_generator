@@ -40,6 +40,7 @@ import {
   BackgroundDossierTool
 } from "./tools.js";
 import { buildAgents, invokeWithFallbacks, withTimeout, normalizeResearchDossier } from "../utils.js";
+import { extractSelectedHook } from "../nodes.js";
 
 
 const socialMediaScraperModels = [
@@ -90,7 +91,7 @@ const socialMediaResearcherSchema = z.object({
   research_context: z.string().min(1, "Must generate research context")
 });
 
-const socialMediaContextResearcherAgents = buildAgents(
+const socialMediaContextResearcherAgents = buildAgents<z.infer<typeof socialMediaResearcherSchema>>(
   [
     googleGemini35FlashLiteT02Key1,
     googleGemini35FlashLiteT02Key2,
@@ -126,7 +127,7 @@ export const ContextResearcherNode = async (state: SocialMediaThreadFactoryState
       research_context = normalizeResearchDossier(rawContext);
     } else if (Array.isArray(result.messages) && result.messages.length > 0) {
       const lastMsg = result.messages[result.messages.length - 1];
-      if (lastMsg?.content) {
+      if (typeof lastMsg?.content === "string") {
         research_context = normalizeResearchDossier(lastMsg.content);
       }
     }
@@ -152,7 +153,7 @@ const socialMediaHookSchema = z.object({
   selected_hook: z.string().min(1, "Must select a hook")
 });
 
-const socialMediaHookStrategistAgents = buildAgents(
+const socialMediaHookStrategistAgents = buildAgents<z.infer<typeof socialMediaHookSchema>>(
   [
     googleGemini35FlashLiteT08Key1,
     googleGemini35FlashLiteT08Key2,
@@ -296,7 +297,7 @@ const socialMediaCriticSchema = z.object({
   }))
 });
 
-const socialMediaViralityCriticAgents = buildAgents(
+const socialMediaViralityCriticAgents = buildAgents<z.infer<typeof socialMediaCriticSchema>>(
   [
     googleGemini38FlashT00Key1,
     withTimeout(googleGemini38FlashT00Key2, 45000),
@@ -375,5 +376,5 @@ export const ManualHookSelectionNode = async (state: SocialMediaThreadFactorySta
     core_hooks: state.core_hooks,
     action: "Please select a hook to proceed."
   });
-  return { selected_hook: selected_hook as string };
+  return { selected_hook: extractSelectedHook(selected_hook) };
 };

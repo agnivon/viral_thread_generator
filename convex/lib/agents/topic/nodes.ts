@@ -39,13 +39,14 @@ import {
   ContentAuthenticityCheckerTool
 } from "./tools.js";
 import { buildAgents, invokeWithFallbacks, withTimeout, normalizeResearchDossier } from "../utils.js";
+import { extractSelectedHook } from "../nodes.js";
 
 const topicResearchOrchestratorSchema = z.object({
   research_dossier: z.string().min(1, "Must generate research dossier"),
   urls_to_scrape: z.array(z.string()).optional()
 });
 
-const topicResearchOrchestratorAgents = buildAgents(
+const topicResearchOrchestratorAgents = buildAgents<z.infer<typeof topicResearchOrchestratorSchema>>(
   [
     googleGemini35FlashLiteT02Key1,
     googleGemini35FlashLiteT02Key2,
@@ -85,7 +86,7 @@ export const ResearchOrchestratorNode = async (state: TopicThreadFactoryStateTyp
       research_dossier = normalizeResearchDossier(rawDossier);
     } else if (Array.isArray(result.messages) && result.messages.length > 0) {
       const lastMsg = result.messages[result.messages.length - 1];
-      if (lastMsg?.content) {
+      if (typeof lastMsg?.content === "string") {
         research_dossier = normalizeResearchDossier(lastMsg.content);
       }
     }
@@ -294,7 +295,7 @@ const topicViralityCriticSchema = z.object({
   }))
 });
 
-const topicViralityCriticAgents = buildAgents(
+const topicViralityCriticAgents = buildAgents<z.infer<typeof topicViralityCriticSchema>>(
   [
     googleGemini38FlashT00Key1,
     withTimeout(googleGemini38FlashT00Key2, 45000),
@@ -393,5 +394,5 @@ export const ManualHookSelectionNode = async (state: TopicThreadFactoryStateType
     core_hooks: state.core_hooks,
     action: "Please select a hook to proceed."
   });
-  return { selected_hook: selected_hook as string };
+  return { selected_hook: extractSelectedHook(selected_hook) };
 };

@@ -9,10 +9,16 @@ import {
   attachModelIdentity,
 } from "./circuitBreaker.js";
 
+export interface AgentResponse<T = Record<string, unknown>> {
+  messages?: { content?: unknown; [key: string]: unknown }[];
+  structuredResponse?: T;
+  [key: string]: unknown;
+}
+
 export interface AgentConfig {
   tools?: Parameters<typeof createAgent>[0]["tools"];
   systemPrompt: string;
-  responseFormat?: any;
+  responseFormat?: unknown;
 }
 
 export type AgentCandidate =
@@ -25,17 +31,26 @@ export type AgentCandidate =
  * @param models Array of Chat models or model objects with custom timeouts.
  * @param config The shared tools, prompt, and response schema.
  */
-export function buildAgents(models: AgentCandidate[], config: AgentConfig) {
+export function buildAgents<T extends Record<string, unknown> = Record<string, unknown>>(
+  models: AgentCandidate[],
+  config: AgentConfig
+): FallbackCandidate<unknown, AgentResponse<T>>[] {
   return models.map((candidate) => {
     const model = "runnable" in candidate ? candidate.runnable : candidate;
     const timeout = "timeout" in candidate ? candidate.timeout : undefined;
     const identity = getModelIdentity(candidate);
-    const agent = createAgent({
-      model,
-      tools: config.tools || [],
-      systemPrompt: config.systemPrompt,
-      responseFormat: config.responseFormat,
-    });
+    const agent = config.responseFormat !== undefined
+      ? createAgent({
+          model,
+          tools: config.tools || [],
+          systemPrompt: config.systemPrompt,
+          responseFormat: config.responseFormat as never,
+        })
+      : createAgent({
+          model,
+          tools: config.tools || [],
+          systemPrompt: config.systemPrompt,
+        });
     if (identity) {
       attachModelIdentity(agent, identity);
     }
@@ -43,15 +58,15 @@ export function buildAgents(models: AgentCandidate[], config: AgentConfig) {
     if (identity && timeout !== undefined) {
       attachModelIdentity(result, identity);
     }
-    return result;
+    return result as unknown as FallbackCandidate<unknown, AgentResponse<T>>;
   });
 }
 
-export interface FallbackRunnable<RunInput = any, RunOutput = any> {
+export interface FallbackRunnable<RunInput = unknown, RunOutput = unknown> {
   invoke: (input: RunInput, config?: RunnableConfig) => Promise<RunOutput>;
 }
 
-export type FallbackCandidate<RunInput = any, RunOutput = any> =
+export type FallbackCandidate<RunInput = unknown, RunOutput = unknown> =
   | FallbackRunnable<RunInput, RunOutput>
   | { runnable: FallbackRunnable<RunInput, RunOutput>; timeout?: number };
 
@@ -59,7 +74,7 @@ export type FallbackCandidate<RunInput = any, RunOutput = any> =
  * Helper to bind a custom timeout to a specific model or agent in a fallback chain,
  * preserving ModelIdentity metadata.
  */
-export function withTimeout<T extends FallbackRunnable<any, any> | BaseChatModel>(
+export function withTimeout<T extends object>(
   target: T,
   timeoutMs: number
 ): { runnable: T; timeout: number } {
@@ -80,7 +95,7 @@ export function withTimeout<T extends FallbackRunnable<any, any> | BaseChatModel
  * @param options The runtime configuration including default per-attempt timeout.
  * @returns The successful result, or throws the final error if all models fail.
  */
-export async function invokeWithFallbacks<RunInput = any, RunOutput = any>(
+export async function invokeWithFallbacks<RunInput = unknown, RunOutput = unknown>(
   runnables: FallbackCandidate<RunInput, RunOutput>[],
   params: RunInput,
   options?: RunnableConfig

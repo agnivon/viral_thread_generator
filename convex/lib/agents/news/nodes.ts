@@ -36,6 +36,7 @@ import { NewsThreadFactoryStateType } from "./state.js";
 import { BackgroundDossierTool, ContentAuthenticityCheckerTool, WebScraperTool, YoutubeScraperTool } from "./tools.js";
 import { CharacterValidatorTool } from "../tools.js";
 import { buildAgents, invokeWithFallbacks, withTimeout, normalizeResearchDossier } from "../utils.js";
+import { extractSelectedHook } from "../nodes.js";
 
 
 const scraperModels = [
@@ -89,7 +90,7 @@ const newsResearcherSchema = z.object({
   research_context: z.string().min(1, "Must generate research context")
 });
 
-const newsContextResearcherAgents = buildAgents(
+const newsContextResearcherAgents = buildAgents<z.infer<typeof newsResearcherSchema>>(
   [
     googleGemini35FlashLiteT02Key1,
     googleGemini35FlashLiteT02Key2,
@@ -125,7 +126,7 @@ export const ContextResearcherNode = async (state: NewsThreadFactoryStateType, c
       research_context = normalizeResearchDossier(rawContext);
     } else if (Array.isArray(result.messages) && result.messages.length > 0) {
       const lastMsg = result.messages[result.messages.length - 1];
-      if (lastMsg?.content) {
+      if (typeof lastMsg?.content === "string") {
         research_context = normalizeResearchDossier(lastMsg.content);
       }
     }
@@ -151,7 +152,7 @@ const newsHookSchema = z.object({
   selected_hook: z.string().min(1, "Must select a hook")
 });
 
-const newsHookStrategistAgents = buildAgents(
+const newsHookStrategistAgents = buildAgents<z.infer<typeof newsHookSchema>>(
   [
     googleGemini35FlashLiteT08Key1,
     googleGemini35FlashLiteT08Key2,
@@ -295,7 +296,7 @@ const newsCriticSchema = z.object({
   }))
 });
 
-const newsViralityCriticAgents = buildAgents(
+const newsViralityCriticAgents = buildAgents<z.infer<typeof newsCriticSchema>>(
   [
     googleGemini38FlashT00Key1,
     withTimeout(googleGemini38FlashT00Key2, 45000),
@@ -374,5 +375,5 @@ export const ManualHookSelectionNode = async (state: NewsThreadFactoryStateType,
     core_hooks: state.core_hooks,
     action: "Please select a hook to proceed."
   });
-  return { selected_hook: selected_hook as string };
+  return { selected_hook: extractSelectedHook(selected_hook) };
 };

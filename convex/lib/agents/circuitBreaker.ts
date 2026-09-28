@@ -3,14 +3,12 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import { internal } from "../../_generated/api.js";
 import type { ActionCtx } from "../../_generated/server.js";
+import type { Doc } from "../../_generated/dataModel.js";
 
-export interface PersistentTripEntry {
-  type: "key" | "model" | "key_model";
-  target: string;
-  trippedUntil: number;
-  reason: string;
-  category: string;
-}
+export type PersistentTripEntry = Pick<
+  Doc<"circuitBreaker">,
+  "type" | "target" | "trippedUntil" | "reason" | "category"
+>;
 
 interface AsyncContextStore {
   ctx: ActionCtx;

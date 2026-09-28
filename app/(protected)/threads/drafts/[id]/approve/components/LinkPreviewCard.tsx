@@ -4,11 +4,8 @@ import { api } from "@/convex/_generated/api";
 import { ExternalLink, Globe } from "lucide-react";
 import { linkPreviewKeys } from "@/lib/query-keys";
 
-export interface UrlMetadata {
-  title: string;
-  description: string;
-  image: string;
-}
+import type { UrlMetadata } from "@/convex/actions/threads";
+export type { UrlMetadata };
 
 interface LinkPreviewCardProps {
   url: string;

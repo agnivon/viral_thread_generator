@@ -100,6 +100,7 @@ export default defineSchema(
         fix_directive: v.optional(v.string())
       }))),
       iterations: v.optional(v.number()),
+      max_iterations: v.optional(v.number()),
       is_approved: v.optional(v.boolean()),
       is_published: v.optional(v.boolean()),
       search_queries: v.optional(v.object({

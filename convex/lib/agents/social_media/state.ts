@@ -19,6 +19,7 @@ export const SocialMediaThreadFactoryState = new StateSchema({
   post_critiques: z.array(z.object({ post_index: z.number(), critique: z.string(), fix_directive: z.string().optional() })).default(() => []),
   character_critique: z.string().default(""),
   iterations: z.number().default(0),
+  max_iterations: z.number().default(3),
   is_approved: z.boolean().default(false),
   is_character_valid: z.boolean().default(true),
   parse_success: z.boolean().default(true),

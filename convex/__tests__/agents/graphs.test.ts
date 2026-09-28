@@ -183,6 +183,36 @@ describe.each<{ name: string; router: RouterFn }>([
     } as unknown as RouterState);
     expect(nextNode).toBe(END);
   });
+
+  test("custom max_iterations: allows iteration when iterations < max_iterations even if not approved", () => {
+    const nextNode = router({
+      ...baseState,
+      parse_success: true,
+      is_approved: false,
+      iterations: 3,
+      max_iterations: 4,
+      post_critiques: [],
+    } as unknown as RouterState);
+    expect(nextNode).toBe("ThreadWriterNode");
+  });
+
+  test("custom max_iterations: exits graph when iterations >= max_iterations even if not approved", () => {
+    const nextNode = router({
+      ...baseState,
+      parse_success: true,
+      is_approved: false,
+      iterations: 4,
+      max_iterations: 4,
+      post_critiques: [
+        {
+          post_index: 1,
+          critique: "Still failing",
+          fix_directive: "Fix everything",
+        },
+      ],
+    } as unknown as RouterState);
+    expect(nextNode).toBe(END);
+  });
 });
 
 describe.each<{ name: string; router: RouterFn; expectedError: string }>([

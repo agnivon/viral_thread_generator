@@ -49,6 +49,7 @@ interface LangGraphInstance {
     values: { iterations: number; [key: string]: unknown };
     config: { configurable?: { checkpoint_id?: string } };
   }>;
+  updateState: (config: unknown, values: unknown, asNode?: string) => Promise<unknown>;
 }
 
 function getGraph(agent?: string): LangGraphInstance {
@@ -102,6 +103,7 @@ async function handleGraphCompletion(
     virality_score: finalState.virality_score,
     post_critiques: finalState.post_critiques,
     iterations: finalState.iterations,
+    max_iterations: typeof finalState.max_iterations === "number" ? finalState.max_iterations : undefined,
     is_approved: finalState.is_approved,
     search_queries: finalState.search_queries,
     guidance: finalState.guidance,
@@ -436,13 +438,14 @@ export const regenerateThreadInternal = internalAction({
       generation_status: "processing",
       is_approved: false,
       iterations: 0,
+      max_iterations: 3,
       failure_reason: null,
       guidance: args.guidance,
       manual_hook_selection: args.manual_hook_selection,
       search_query_generation: args.search_query_generation,
     });
 
-    const agent = args.agent || draft.agent || "news";
+    const agent = args.agent || draft.agent || draft.input_field.agent || "news";
     console.log(`[regenerateThreadInternal] Started for Record: ${args.recordId}, Agent: ${agent}`);
 
     return await runGraphWithLifecycle(ctx, args.recordId, agent, async (graph) => {
@@ -464,7 +467,7 @@ export const regenerateThreadInternal = internalAction({
           },
         };
 
-        const stateUpdate: Record<string, unknown> = { iterations: 0, is_approved: false };
+        const stateUpdate: Record<string, unknown> = { iterations: 0, is_approved: false, max_iterations: 3 };
         if (args.guidance !== undefined) stateUpdate.guidance = args.guidance;
         if (args.manual_hook_selection !== undefined) stateUpdate.manual_hook_selection = args.manual_hook_selection;
         if (args.search_query_generation !== undefined) stateUpdate.search_query_generation = args.search_query_generation;
@@ -474,6 +477,90 @@ export const regenerateThreadInternal = internalAction({
 
       console.log(`[regenerateThreadInternal] Could not find past state before HookStrategistNode. Restarting from scratch...`);
       return await restartGraphFromScratch(ctx, args.recordId, args.userId, args, agent);
+    });
+  },
+});
+
+export const iterateThreadInternal = internalAction({
+  args: {
+    userId: v.id("users"),
+    recordId: v.id("threadDrafts"),
+    guidance: v.optional(v.string()),
+    modified_thread: v.optional(v.array(v.string())),
+    agent: v.optional(v.string()),
+  },
+  handler: async (ctx, args): Promise<{ recordId: Id<"threadDrafts"> }> => {
+    const draft = await ctx.runQuery(internal.threads.getThreadDraftInternal, { id: args.recordId, userId: args.userId });
+    if (!draft || !draft.input_field) {
+      throw new Error("Draft not found or missing input_field");
+    }
+    const inputField = draft.input_field;
+
+    const currentIterations = draft.iterations || 1;
+    const targetMaxIterations = currentIterations + 1;
+
+    const trimmedGuidance = args.guidance?.trim();
+    const directiveTag = trimmedGuidance
+      ? `[Iteration ${targetMaxIterations} Directive]: ${trimmedGuidance}`
+      : undefined;
+
+    const effectiveGuidance = directiveTag
+      ? (draft.guidance ? `${draft.guidance}\n\n${directiveTag}` : directiveTag)
+      : draft.guidance;
+
+    // Immediately mark draft as processing
+    await ctx.runMutation(internal.threads.updateThreadDraft, {
+      id: args.recordId,
+      generation_status: "processing",
+      is_approved: false,
+      failure_reason: null,
+      guidance: effectiveGuidance,
+      max_iterations: targetMaxIterations,
+    });
+
+    const agent = args.agent || draft.agent || inputField.agent || "news";
+    console.log(`[iterateThreadInternal] Started for Record: ${args.recordId}, Agent: ${agent}, Iteration: ${targetMaxIterations}`);
+
+    return await runGraphWithLifecycle(ctx, args.recordId, agent, async (graph) => {
+      const config = { configurable: { thread_id: args.recordId } };
+
+      const stateUpdate: Record<string, unknown> = {
+        thread_draft: args.modified_thread || draft.thread_draft || [],
+        critique: draft.critique || "",
+        post_critiques: draft.post_critiques || [],
+        guidance: effectiveGuidance,
+        iterations: currentIterations,
+        max_iterations: targetMaxIterations,
+        is_approved: false,
+        is_character_valid: true,
+        parse_success: true,
+        retries: { scraper: 0, researcher: 0, hook: 0, writer: 0, critic: 0, validator: 0 },
+        selected_hook: draft.selected_hook || "",
+        raw_markdown: draft.raw_markdown || "",
+        core_hooks: draft.core_hooks || [],
+        research_context: draft.research_context || "",
+        images: draft.images || [],
+        search_query_generation: draft.search_query_generation ?? false,
+      };
+
+      if (agent === "topic") {
+        if (inputField.agent === "topic") {
+          stateUpdate.topic = inputField.topic;
+          if (inputField.description !== undefined) {
+            stateUpdate.description = inputField.description;
+          }
+        }
+        if (draft.research_context) {
+          stateUpdate.research_dossier = draft.research_context;
+        }
+      } else {
+        if (inputField.agent === "news" || inputField.agent === "social_media") {
+          stateUpdate.url = inputField.url;
+        }
+      }
+
+      await graph.updateState(config, stateUpdate, "ManualHookSelectionNode");
+      return await graph.invoke(null, config);
     });
   },
 });
@@ -588,6 +675,60 @@ export const enqueueThreadRegeneration = action({
         );
       })
     );
+  },
+});
+
+export const enqueueThreadIteration = action({
+  args: {
+    id: v.id("threadDrafts"),
+    guidance: v.optional(v.string()),
+    modified_thread: v.optional(v.array(v.string())),
+  },
+  handler: async (ctx, args) => {
+    const userId = await requireAuthUserId(ctx);
+    const draft = await ctx.runQuery(internal.threads.getThreadDraftInternal, { id: args.id, userId });
+    if (!draft || !draft.input_field) {
+      throw new Error(`Draft ${args.id} not found, unauthorized, or missing input_field`);
+    }
+
+    if (draft.generation_status === "processing" || draft.generation_status === "queued") {
+      throw new Error("Draft is already currently processing or queued");
+    }
+
+    if (draft.is_published || draft.publication_status === "publishing" || draft.publication_status === "queued") {
+      throw new Error("Cannot iterate on an already published or publishing draft");
+    }
+
+    const hasExistingDraft = Array.isArray(draft.thread_draft) && draft.thread_draft.length > 0;
+    const hasModifiedDraft = Array.isArray(args.modified_thread) && args.modified_thread.length > 0;
+    if (!hasExistingDraft && !hasModifiedDraft) {
+      throw new Error("Cannot iterate on an empty draft. Please generate or regenerate the draft first.");
+    }
+
+    // Optimistically set status to queued
+    await ctx.runMutation(internal.threads.updateThreadDraft, {
+      id: args.id,
+      generation_status: "queued",
+      failure_reason: null,
+    });
+
+    await generationPool.enqueueAction(
+      ctx,
+      internal.actions.threads.iterateThreadInternal,
+      {
+        recordId: args.id,
+        userId,
+        guidance: args.guidance,
+        modified_thread: args.modified_thread,
+        agent: draft.agent || draft.input_field.agent || "news",
+      },
+      {
+        onComplete: internal.notifications.onComplete.onGenerationComplete,
+        context: { userId, threadId: args.id },
+      }
+    );
+
+    return { success: true };
   },
 });
 

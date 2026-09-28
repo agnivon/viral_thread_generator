@@ -14,7 +14,7 @@ import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { useMutation } from "@tanstack/react-query";
 import { useAction, useQuery } from "convex/react";
-import { ArrowLeft, Loader2, Sparkles, AlertCircle, Copy, Check, RotateCcw, XCircle } from "lucide-react";
+import { ArrowLeft, Loader2, Sparkles, AlertCircle, Copy, Check, RotateCcw, XCircle, RefreshCw } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -26,10 +26,17 @@ import { HookSelectionScreen } from "./components/HookSelectionScreen";
 import { ImagePickerDialog } from "./components/ImagePickerDialog";
 import { VideoPickerDialog } from "./components/VideoPickerDialog";
 import { RegenerateDialog } from "./components/RegenerateDialog";
+import { IterateDialog } from "./components/IterateDialog";
 import { SidebarHookCard } from "./components/SidebarHookCard";
 import { ViralityCard } from "./components/ViralityCard";
 import { ResearchDossierDialog } from "./components/ResearchDossierDialog";
 import { SearchQueriesDialog } from "./components/SearchQueriesDialog";
+
+function hasThreadBeenModified(currentPosts: string[], baselinePosts?: string[]): boolean {
+  if (!baselinePosts) return currentPosts.length > 0;
+  if (currentPosts.length !== baselinePosts.length) return true;
+  return currentPosts.some((post, i) => post !== baselinePosts[i]);
+}
 
 export default function ApproveDraftPage() {
   const params = useParams();
@@ -39,11 +46,14 @@ export default function ApproveDraftPage() {
   const state = useQuery(api.threads.getThreadDraft, { id });
   const enqueuePublication = useAction(api.actions.threads.enqueueThreadPublication);
   const enqueueRegeneration = useAction(api.actions.threads.enqueueThreadRegeneration);
+  const enqueueIteration = useAction(api.actions.threads.enqueueThreadIteration);
   const retryGeneration = useAction(api.actions.threads.enqueueThreadRetry);
   const resumeAction = useAction(api.actions.threads.enqueueThreadResume);
 
   const [hasCopied, setHasCopied] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isIterateDialogOpen, setIsIterateDialogOpen] = useState(false);
+  const [hasManualEdits, setHasManualEdits] = useState(false);
 
   const [selectedHookIdx, setSelectedHookIdx] = useState<number | null>(null);
   const [editedHookText, setEditedHookText] = useState("");
@@ -172,6 +182,25 @@ export default function ApproveDraftPage() {
     },
   });
 
+  const iterateMutation = useMutation({
+    mutationFn: async (payload: {
+      id: Id<"threadDrafts">;
+      guidance?: string;
+      modified_thread?: string[];
+    }) => {
+      return await enqueueIteration(payload);
+    },
+    onSuccess: () => {
+      toast.success("Additional iteration queued! AI is refining your thread.");
+      setIsIterateDialogOpen(false);
+    },
+    onError: (err: unknown) => {
+      console.error("Failed to enqueue iteration:", err);
+      const message = err instanceof Error ? err.message : "Unknown error";
+      toast.error(`Failed to iterate: ${message}`);
+    },
+  });
+
   const retryMutation = useMutation({
     mutationFn: async (payload: { ids: Id<"threadDrafts">[] }) => {
       return await retryGeneration(payload);
@@ -188,7 +217,15 @@ export default function ApproveDraftPage() {
 
   const isPublishing = publishMutation.isPending;
   const isRegenerating = regenerateMutation.isPending;
+  const isIterating = iterateMutation.isPending;
   const isRetrying = retryMutation.isPending;
+
+  const handleOpenIterateDialog = () => {
+    const formValues = getValues();
+    const currentPosts = (formValues.posts || []).map((p) => p.content);
+    setHasManualEdits(hasThreadBeenModified(currentPosts, state?.thread_draft));
+    setIsIterateDialogOpen(true);
+  };
 
   const handleConfirmHook = async () => {
     if (!editedHookText.trim()) {
@@ -213,19 +250,7 @@ export default function ApproveDraftPage() {
     }
 
     // Determine if modified
-    let isModified = false;
-    if (state?.thread_draft) {
-      if (currentPosts.length !== state.thread_draft.length) {
-        isModified = true;
-      } else {
-        for (let i = 0; i < currentPosts.length; i++) {
-          if (currentPosts[i] !== state.thread_draft[i]) {
-            isModified = true;
-            break;
-          }
-        }
-      }
-    }
+    const isModified = hasThreadBeenModified(currentPosts, state?.thread_draft);
 
     publishMutation.mutate({
       requests: [
@@ -523,11 +548,21 @@ export default function ApproveDraftPage() {
         {/* AI Critique card */}
         {state.critique?.trim() && (
           <Card className="border-amber-500/20 bg-amber-500/5 backdrop-blur-xs rounded-2xl shadow-xs hover:border-amber-500/30 transition-all duration-300">
-            <CardHeader className="pb-2">
+            <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
               <CardTitle className="text-amber-800 dark:text-amber-400 flex items-center gap-2">
                 <Sparkles className="w-5 h-5 text-amber-500" />
                 AI Critique
               </CardTitle>
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={isPublishing || isRegenerating || isIterating || state.is_published || state.publication_status === "publishing" || state.publication_status === "queued" || state.generation_status === "processing" || state.generation_status === "queued"}
+                onClick={handleOpenIterateDialog}
+                className="text-xs text-amber-900 dark:text-amber-200 hover:bg-amber-500/10 cursor-pointer h-8 px-3 rounded-xl font-semibold border border-amber-500/20"
+              >
+                <RefreshCw className="w-3.5 h-3.5 mr-1.5 text-amber-600 dark:text-amber-400" />
+                Iterate with Critic
+              </Button>
             </CardHeader>
             <CardContent>
               <p className="text-sm whitespace-pre-wrap text-amber-950 dark:text-amber-100 leading-relaxed font-medium italic pl-3 border-l-2 border-amber-500/40">
@@ -686,9 +721,26 @@ export default function ApproveDraftPage() {
               </Button>
               <Button
                 variant="outline"
+                className="w-full rounded-xl border-violet-500/30 bg-violet-500/5 text-violet-700 dark:text-violet-300 font-bold py-6 hover:bg-violet-500/10 hover:border-violet-500/50 transition-all duration-300 cursor-pointer shadow-xs"
+                size="lg"
+                disabled={isPublishing || isRegenerating || isIterating || state.is_published || state.publication_status === "publishing" || state.publication_status === "queued" || state.generation_status === "processing" || state.generation_status === "queued"}
+                onClick={handleOpenIterateDialog}
+              >
+                {isIterating ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin text-violet-500" /> Iterating...
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="mr-2 h-4 w-4 text-violet-500" /> Run Additional Iteration
+                  </>
+                )}
+              </Button>
+              <Button
+                variant="outline"
                 className="w-full rounded-xl border-border/80 text-foreground font-bold py-6 hover:bg-violet-600/5 hover:text-violet-600 dark:hover:bg-violet-500/5 dark:hover:text-violet-400 hover:border-violet-500/30 transition-all duration-300 cursor-pointer"
                 size="lg"
-                disabled={isPublishing || isRegenerating || state.is_published || state.publication_status === "publishing" || state.publication_status === "queued" || state.generation_status === "processing" || state.generation_status === "queued"}
+                disabled={isPublishing || isRegenerating || isIterating || state.is_published || state.publication_status === "publishing" || state.publication_status === "queued" || state.generation_status === "processing" || state.generation_status === "queued"}
                 onClick={() => {
                   setIsDialogOpen(true);
                 }}
@@ -748,6 +800,28 @@ export default function ApproveDraftPage() {
         }}
       />
 
+      {/* Additional Iteration Dialog Modal */}
+      <IterateDialog
+        isOpen={isIterateDialogOpen}
+        currentScore={state?.virality_score}
+        currentCritique={state?.critique || undefined}
+        currentIterations={state?.iterations ?? 1}
+        isIterating={isIterating}
+        hasManualEdits={hasManualEdits}
+        onClose={() => setIsIterateDialogOpen(false)}
+        onIterate={(guidance, useCurrentEdits) => {
+          const formValues = getValues();
+          const currentPosts = (formValues.posts || []).map((p) => p.content);
+          const isModified = hasThreadBeenModified(currentPosts, state?.thread_draft);
+
+          iterateMutation.mutate({
+            id,
+            guidance: guidance.trim() || undefined,
+            modified_thread: useCurrentEdits && isModified ? currentPosts : undefined,
+          });
+        }}
+      />
+
       {/* Select Post Image Dialog Modal */}
       <ImagePickerDialog
         activeImagePickerIdx={activeImagePickerIdx}
@@ -793,7 +867,7 @@ export default function ApproveDraftPage() {
       <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 p-3 bg-background/90 backdrop-blur-lg border-t border-border/60 shadow-2xl flex items-center gap-2">
         <Button
           className="flex-1 rounded-xl bg-linear-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white font-bold py-5 shadow-md cursor-pointer text-sm"
-          disabled={isPublishing || isRegenerating || state.is_published || state.publication_status === "publishing" || state.publication_status === "queued"}
+          disabled={isPublishing || isRegenerating || isIterating || state.is_published || state.publication_status === "publishing" || state.publication_status === "queued"}
           onClick={handlePublish}
         >
           {isPublishing || state.publication_status === "publishing" || state.publication_status === "queued" ? (
@@ -808,8 +882,24 @@ export default function ApproveDraftPage() {
         </Button>
         <Button
           variant="outline"
+          className="rounded-xl border-violet-500/40 text-violet-700 dark:text-violet-300 font-semibold py-5 px-3 hover:bg-violet-500/10 transition-all cursor-pointer text-sm shrink-0"
+          disabled={isPublishing || isRegenerating || isIterating || state.is_published || state.publication_status === "publishing" || state.publication_status === "queued" || state.generation_status === "processing" || state.generation_status === "queued"}
+          onClick={handleOpenIterateDialog}
+        >
+          {isIterating ? (
+            <>
+              <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin text-violet-500" /> ...
+            </>
+          ) : (
+            <>
+              <RefreshCw className="mr-1.5 h-3.5 w-3.5 text-violet-500" /> Iterate
+            </>
+          )}
+        </Button>
+        <Button
+          variant="outline"
           className="rounded-xl border-border/80 text-foreground font-semibold py-5 px-3.5 hover:bg-violet-600/5 hover:text-violet-600 dark:hover:bg-violet-500/5 dark:hover:text-violet-400 hover:border-violet-500/30 transition-all cursor-pointer text-sm shrink-0"
-          disabled={isPublishing || isRegenerating || state.is_published || state.publication_status === "publishing" || state.publication_status === "queued" || state.generation_status === "processing" || state.generation_status === "queued"}
+          disabled={isPublishing || isRegenerating || isIterating || state.is_published || state.publication_status === "publishing" || state.publication_status === "queued" || state.generation_status === "processing" || state.generation_status === "queued"}
           onClick={() => {
             setIsDialogOpen(true);
           }}

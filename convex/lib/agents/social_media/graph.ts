@@ -64,11 +64,12 @@ export const route_after_critic = (state: SocialMediaThreadFactoryStateType) => 
     if ((state.retries?.critic || 0) >= 3) throw new Error("ViralityCriticNode failed after 3 retries");
     return "ViralityCriticNode";
   }
-  if (state.is_approved === true || state.iterations >= 3) {
+  const maxIterations = state.max_iterations ?? 3;
+  if (state.is_approved === true || state.iterations >= maxIterations) {
     const hasFixDirectives = Boolean(
       state.post_critiques?.some((pc) => pc.fix_directive && pc.fix_directive.trim().length > 0)
     );
-    if (state.iterations === 1 && hasFixDirectives) {
+    if (state.iterations === 1 && hasFixDirectives && maxIterations > 1) {
       return "ThreadWriterNode";
     }
     return state.search_query_generation ? "VisualKeywordStrategistNode" : END;

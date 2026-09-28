@@ -6,7 +6,7 @@ import { api, internal } from "../_generated/api";
 import schema from "../schema";
 import { NewsThreadFactoryGraph } from "../lib/agents/news/graph.js";
 import { ThreadsAPI } from "../lib/clients/threads.js";
-import { publicationPool } from "../lib/workpool.js";
+import { publicationPool, generationPool } from "../lib/workpool.js";
 
 const modules = import.meta.glob("../**/*.ts");
 
@@ -86,6 +86,7 @@ test("generateNewsThread action runs graph and saves result", async () => {
     post_critiques: [],
     character_critique: "",
     iterations: 3,
+    max_iterations: 3,
     is_approved: false,
     is_character_valid: true,
     parse_success: true,
@@ -180,6 +181,7 @@ test("resumeNewsThreadGeneration action resumes graph and saves result", async (
     post_critiques: [],
     character_critique: "",
     iterations: 1,
+    max_iterations: 3,
     is_approved: true,
     is_character_valid: true,
     parse_success: true,
@@ -898,3 +900,163 @@ test("getUrlMetadata rejects invalid protocols and loopback/private hosts to pre
     vi.unstubAllGlobals();
   }
 });
+
+test("enqueueThreadIteration enforces authentication, ownership, and enqueues iteration", async () => {
+  const t = convexTest(schema, modules);
+  const user1 = await t.mutation(async (ctx) => ctx.db.insert("users", {}));
+  const user2 = await t.mutation(async (ctx) => ctx.db.insert("users", {}));
+
+  const draftId = await t.mutation(internal.threads.initializeThreadDraft, {
+    userId: user1,
+    agent: "news",
+    input_field: { agent: "news", url: "https://example.com/source" },
+  });
+
+  await t.mutation(internal.threads.updateThreadDraft, {
+    id: draftId,
+    generation_status: "success",
+    thread_draft: ["Initial post 1", "Initial post 2"],
+    iterations: 1,
+    virality_score: 75,
+    critique: "Hook needs more punch",
+  });
+
+  // 1. Unauthenticated call rejected
+  await expect(
+    t.action(api.actions.threads.enqueueThreadIteration, {
+      id: draftId,
+      guidance: "Make it more punchy",
+    })
+  ).rejects.toThrow("Unauthorized");
+
+  // 2. Cross-user invocation rejected
+  const tUser2 = t.withIdentity({ subject: user2 });
+  await expect(
+    tUser2.action(api.actions.threads.enqueueThreadIteration, {
+      id: draftId,
+      guidance: "Make it more punchy",
+    })
+  ).rejects.toThrow("Unauthorized");
+
+  // 3. Authorized user1 enqueues iteration successfully
+  const enqueueSpy = vi.spyOn(generationPool, "enqueueAction").mockResolvedValueOnce("work-456" as unknown as Awaited<ReturnType<typeof generationPool.enqueueAction>>);
+  const tUser1 = t.withIdentity({ subject: user1 });
+  const result = await tUser1.action(api.actions.threads.enqueueThreadIteration, {
+    id: draftId,
+    guidance: "Make it more punchy",
+  });
+
+  expect(result.success).toBe(true);
+  expect(enqueueSpy).toHaveBeenCalled();
+  const enqueueArgs = enqueueSpy.mock.calls[0];
+  expect(enqueueArgs[2]).toMatchObject({
+    recordId: draftId,
+    userId: user1,
+    guidance: "Make it more punchy",
+  });
+
+  const draftAfter = await t.query(async (ctx) => ctx.db.get("threadDrafts", draftId));
+  expect(draftAfter?.generation_status).toBe("queued");
+});
+
+test("enqueueThreadIteration rejects empty thread draft with no modified posts", async () => {
+  const t = convexTest(schema, modules);
+  const user1 = await t.mutation(async (ctx) => ctx.db.insert("users", {}));
+
+  const draftId = await t.mutation(internal.threads.initializeThreadDraft, {
+    userId: user1,
+    agent: "news",
+    input_field: { agent: "news", url: "https://example.com/source" },
+  });
+
+  await t.mutation(internal.threads.updateThreadDraft, {
+    id: draftId,
+    generation_status: "failed",
+    thread_draft: [],
+  });
+
+  const tUser1 = t.withIdentity({ subject: user1 });
+  await expect(
+    tUser1.action(api.actions.threads.enqueueThreadIteration, {
+      id: draftId,
+      guidance: "Make it more punchy",
+    })
+  ).rejects.toThrow("Cannot iterate on an empty draft");
+});
+
+test("iterateThreadInternal updates state on ManualHookSelectionNode and executes graph", async () => {
+  const t = convexTest(schema, modules);
+  const userId = await t.mutation(async (ctx) => ctx.db.insert("users", {}));
+
+  const draftId = await t.mutation(internal.threads.initializeThreadDraft, {
+    userId,
+    agent: "news",
+    input_field: { agent: "news", url: "https://example.com/source" },
+  });
+
+  await t.mutation(internal.threads.updateThreadDraft, {
+    id: draftId,
+    generation_status: "queued",
+    thread_draft: ["Initial post 1", "Initial post 2"],
+    iterations: 1,
+    virality_score: 75,
+    critique: "Needs more punch",
+  });
+
+  const mockIteratedOutput = {
+    url: "https://example.com/source",
+    guidance: "[Iteration 2 Directive]: Refine hook",
+    manual_hook_selection: false,
+    raw_markdown: "Source content",
+    core_hooks: ["Hook 1"],
+    selected_hook: "Hook 1",
+    core_delta: undefined,
+    thread_draft: ["Iterated post 1", "Iterated post 2"],
+    images: [],
+    critique: "Excellent improvement",
+    virality_score: 92,
+    post_critiques: [],
+    character_critique: "",
+    iterations: 2,
+    max_iterations: 2,
+    is_approved: true,
+    is_character_valid: true,
+    parse_success: true,
+    retries: { scraper: 0, researcher: 0, hook: 0, writer: 0, critic: 0, validator: 0 },
+    search_queries: undefined,
+    search_query_generation: false,
+    research_context: "",
+  };
+
+  const updateStateSpy = vi.spyOn(NewsThreadFactoryGraph, "updateState").mockResolvedValue({});
+  const invokeSpy = vi.spyOn(NewsThreadFactoryGraph, "invoke").mockResolvedValue(mockIteratedOutput);
+  vi.spyOn(NewsThreadFactoryGraph, "getState").mockResolvedValue({ next: [] } as unknown as Awaited<ReturnType<typeof NewsThreadFactoryGraph.getState>>);
+
+  const res = await t.action(internal.actions.threads.iterateThreadInternal, {
+    recordId: draftId,
+    userId,
+    guidance: "Refine hook",
+  });
+
+  expect(res.recordId).toBe(draftId);
+  expect(updateStateSpy).toHaveBeenCalledWith(
+    { configurable: { thread_id: draftId } },
+    expect.objectContaining({
+      guidance: "[Iteration 2 Directive]: Refine hook",
+      url: "https://example.com/source",
+      iterations: 1,
+      max_iterations: 2,
+      is_approved: false,
+    }),
+    "ManualHookSelectionNode"
+  );
+  expect(invokeSpy).toHaveBeenCalled();
+
+  const saved = await t.query(async (ctx) => ctx.db.get("threadDrafts", draftId));
+  expect(saved?.generation_status).toBe("success");
+  expect(saved?.virality_score).toBe(92);
+  expect(saved?.iterations).toBe(2);
+  expect(saved?.max_iterations).toBe(2);
+  expect(saved?.thread_draft).toEqual(["Iterated post 1", "Iterated post 2"]);
+});
+

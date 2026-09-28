@@ -23,6 +23,7 @@ export const TopicThreadFactoryState = new StateSchema({
     })
   ).default(() => []),
   iterations: z.number().default(0),
+  max_iterations: z.number().default(3),
   urls_to_scrape: z.array(z.string()).default(() => []),
   parse_success: z.boolean().default(true),
   is_approved: z.boolean().default(false),

@@ -39,7 +39,7 @@ import {
   WebScraperTool,
   BackgroundDossierTool
 } from "./tools.js";
-import { buildAgents, invokeWithFallbacks, withTimeout, normalizeResearchDossier } from "../utils.js";
+import { buildAgents, invokeWithFallbacks, withTimeout, normalizeResearchDossier, filterActionablePostCritiques } from "../utils.js";
 import { extractSelectedHook } from "../nodes.js";
 
 
@@ -348,7 +348,7 @@ export const ViralityCriticNode = async (state: SocialMediaThreadFactoryStateTyp
     finalCritique = result.structuredResponse.overall_critique || "";
     virality_score = result.structuredResponse.virality_score;
     finalApproval = typeof virality_score === 'number' && virality_score >= 85;
-    post_critiques = result.structuredResponse.post_critiques || [];
+    post_critiques = filterActionablePostCritiques(result.structuredResponse.post_critiques);
   } else {
     parse_success = false;
   }

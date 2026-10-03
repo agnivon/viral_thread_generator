@@ -223,11 +223,12 @@ REQUIRED JSON FORMAT SPECIFICATION:
   "post_critiques": [
     {
       "post_index": 1,
-      "critique": "Surgical feedback for this specific post index. Leave empty if this specific post passes all criteria.",
-      "fix_directive": "Surgical instruction for the writer to fix this specific post. Leave empty or omit if this post passes all criteria."
+      "critique": "Surgical feedback for this specific failing post index.",
+      "fix_directive": "Surgical instruction for the writer to fix this specific post."
     }
   ]
 }
+NOTE: 'post_critiques' must ONLY contain entries for posts requiring fixes. If no posts need fixes, output an empty array [].
 
 CRITICAL INSTRUCTION: Do not evaluate or critique numerical character counts or line break counts. This is handled programmatically by a separate node.
 
@@ -273,7 +274,14 @@ DYNAMIC ITERATION LENIENCY PROTOCOL
 - Iteration 2: Maintain strict compliance on Platform Penalties (URLs, em dashes, asterisks), but curve score by +5 for minor subjective nuances if structural fixes were made.
 - Iteration 3+: Bypassing Deadlock Mode. If zero platform alignment errors and zero formatting violations exist, award a minimum passing score of 85.
 
-Be brutally honest. Map your 'post_critiques' array elements sequentially to match the exact post positions of the input thread (post_index starts from 1). For any post requiring fixes, provide both 'critique' and 'fix_directive' (a surgical, direct instruction telling the writer how to resolve the issue).
+========================================================================
+POST-SPECIFIC CRITIQUES POLICY
+========================================================================
+- Generate entries in 'post_critiques' ONLY for posts that have actionable flaws or violations that MUST be fixed.
+- If a post passes all criteria and requires NO fixes, DO NOT include it in 'post_critiques'.
+- If the entire thread is clean and requires no post-level fixes, return an empty array: "post_critiques": [].
+- Never include placeholder entries, empty strings, positive compliments, or comments like "No issues" or "Passes" in 'post_critiques'.
+- For any post that DOES require a fix, provide both 'critique' and 'fix_directive' (a surgical, direct instruction telling the writer how to resolve the issue), with 'post_index' matching the 1-based position of the post in the input thread (post_index starts from 1).
 `;
 
 export const NEWS_SCORER_PROMPT = `

@@ -564,4 +564,102 @@ test("Social Media ThreadWriterNode - retains previous thread_draft on invocatio
   expect(result.retries.writer).toBe(2);
 });
 
+test("filterActionablePostCritiques - filters out empty, whitespace, and passing placeholders", () => {
+  const rawCritiques = [
+    { post_index: 1, critique: "Hook reveals payoff too early", fix_directive: "Cut payoff sentence" },
+    { post_index: 2, critique: "", fix_directive: "" },
+    { post_index: 3, critique: "   ", fix_directive: "   " },
+    { post_index: 4, critique: "Passes all criteria", fix_directive: "" },
+    { post_index: 5, critique: "No issues", fix_directive: "none" },
+    { post_index: 6, critique: "Looks good" },
+    { post_index: 7, critique: "Pacing drags in middle", fix_directive: "" },
+  ];
+
+  const filtered = agentUtils.filterActionablePostCritiques(rawCritiques);
+  expect(filtered).toEqual([
+    { post_index: 1, critique: "Hook reveals payoff too early", fix_directive: "Cut payoff sentence" },
+    { post_index: 7, critique: "Pacing drags in middle" },
+  ]);
+});
+
+test("News ViralityCriticNode - discards non-defect/empty post critiques", async () => {
+  const { ViralityCriticNode } = await import("../../lib/agents/news/nodes");
+
+  vi.spyOn(agentUtils, "invokeWithFallbacks").mockResolvedValue({
+    structuredResponse: {
+      virality_score: 95,
+      overall_critique: "Excellent thread.",
+      post_critiques: [
+        { post_index: 1, critique: "Passes all criteria", fix_directive: "" },
+        { post_index: 2, critique: "", fix_directive: "" },
+        { post_index: 3, critique: "No issues", fix_directive: "none" },
+      ],
+    },
+  });
+
+  const result = await ViralityCriticNode({
+    raw_markdown: "News text",
+    thread_draft: ["Hook post", "Body post", "Closer post"],
+    iterations: 0,
+    retries: { critic: 0, validator: 0 },
+  } as unknown as Parameters<typeof ViralityCriticNode>[0]);
+
+  expect(result.parse_success).toBe(true);
+  expect(result.post_critiques).toEqual([]);
+});
+
+test("Social Media ViralityCriticNode - discards non-defect/empty post critiques", async () => {
+  const { ViralityCriticNode } = await import("../../lib/agents/social_media/nodes");
+
+  vi.spyOn(agentUtils, "invokeWithFallbacks").mockResolvedValue({
+    structuredResponse: {
+      virality_score: 91,
+      overall_critique: "Clean narrative.",
+      post_critiques: [
+        { post_index: 1, critique: "Hook lacks tension", fix_directive: "Increase stakes" },
+        { post_index: 2, critique: "Looks good", fix_directive: "" },
+        { post_index: 3, critique: "Passes", fix_directive: "" },
+      ],
+    },
+  });
+
+  const result = await ViralityCriticNode({
+    raw_markdown: "Social text",
+    thread_draft: ["Hook post", "Body post", "Closer post"],
+    iterations: 0,
+    retries: { critic: 0, validator: 0 },
+  } as unknown as Parameters<typeof ViralityCriticNode>[0]);
+
+  expect(result.parse_success).toBe(true);
+  expect(result.post_critiques).toEqual([
+    { post_index: 1, critique: "Hook lacks tension", fix_directive: "Increase stakes" },
+  ]);
+});
+
+test("Topic ViralityCriticNode - discards non-defect/empty post critiques", async () => {
+  const { ViralityCriticNode } = await import("../../lib/agents/topic/nodes");
+
+  vi.spyOn(agentUtils, "invokeWithFallbacks").mockResolvedValue({
+    structuredResponse: {
+      virality_score: 93,
+      overall_critique: "Great depth.",
+      post_critiques: [
+        { post_index: 1, critique: "Passes all criteria", fix_directive: "" },
+        { post_index: 2, critique: "No fix needed", fix_directive: "" },
+      ],
+    },
+  });
+
+  const result = await ViralityCriticNode({
+    research_dossier: "Topic Dossier",
+    thread_draft: ["Hook post", "Body post"],
+    iterations: 0,
+    retries: { critic: 0, validator: 0 },
+  } as unknown as Parameters<typeof ViralityCriticNode>[0]);
+
+  expect(result.parse_success).toBe(true);
+  expect(result.post_critiques).toEqual([]);
+});
+
+
 

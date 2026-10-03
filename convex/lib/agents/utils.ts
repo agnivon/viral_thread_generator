@@ -364,3 +364,63 @@ export function normalizeResearchDossier(rawContent: unknown): string {
   return text;
 }
 
+export interface ActionablePostCritique {
+  post_index: number;
+  critique: string;
+  fix_directive?: string;
+}
+
+const NON_DEFECT_PHRASES = new Set([
+  "none",
+  "n/a",
+  "no issues",
+  "no issue",
+  "no fixes needed",
+  "no fix needed",
+  "passes",
+  "passes all criteria",
+  "looks good",
+  "solid",
+  "clean",
+]);
+
+/**
+ * Filters post-specific critiques so only posts that actually have actionable flaws
+ * or required fixes are returned.
+ */
+export function filterActionablePostCritiques(
+  rawCritiques: Array<{ post_index: number; critique?: string; fix_directive?: string }> | undefined | null
+): ActionablePostCritique[] {
+  if (!rawCritiques || !Array.isArray(rawCritiques)) {
+    return [];
+  }
+
+  return rawCritiques
+    .filter((pc) => {
+      const critiqueText = (pc.critique || "").trim();
+      const fixText = (pc.fix_directive || "").trim();
+      if (critiqueText.length === 0 && fixText.length === 0) {
+        return false;
+      }
+
+      const lowerCritique = critiqueText.toLowerCase();
+      const lowerFix = fixText.toLowerCase();
+
+      if (
+        NON_DEFECT_PHRASES.has(lowerCritique) &&
+        (fixText.length === 0 || NON_DEFECT_PHRASES.has(lowerFix))
+      ) {
+        return false;
+      }
+
+      return true;
+    })
+    .map((pc) => ({
+      post_index: pc.post_index,
+      critique: (pc.critique || "").trim(),
+      ...(pc.fix_directive && pc.fix_directive.trim().length > 0
+        ? { fix_directive: pc.fix_directive.trim() }
+        : {}),
+    }));
+}
+

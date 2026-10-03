@@ -14,7 +14,7 @@ import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { useMutation } from "@tanstack/react-query";
 import { useAction, useQuery } from "convex/react";
-import { ArrowLeft, Loader2, Sparkles, AlertCircle, Copy, Check, RotateCcw, XCircle, RefreshCw } from "lucide-react";
+import { ArrowLeft, Loader2, Sparkles, AlertCircle, Copy, Check, RotateCcw, XCircle, RefreshCw, ExternalLink } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -421,7 +421,7 @@ export default function ApproveDraftPage() {
       <div className="absolute -top-40 -right-40 w-96 h-96 bg-indigo-500/5 rounded-full blur-3xl pointer-events-none -z-10" />
       <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-cyan-500/5 rounded-full blur-3xl pointer-events-none -z-10" />
 
-      <div className="container max-w-5xl mx-auto py-8 sm:py-12 px-4 space-y-8 pb-24 md:pb-12">
+      <div className="container max-w-5xl mx-auto py-4 sm:py-8 lg:py-10 px-3.5 sm:px-6 space-y-4 sm:space-y-6 lg:space-y-8 pb-28 md:pb-12">
         {/* Navigation Link */}
         <div className="flex items-center gap-2">
           <Link
@@ -434,17 +434,17 @@ export default function ApproveDraftPage() {
         </div>
 
         {/* Header Section */}
-        <div className="flex flex-col md:flex-row md:items-start justify-between gap-6 border-b border-border/30 pb-6">
-          <div className="min-w-0 flex-1 space-y-1">
-            <h1 className="text-4xl font-extrabold tracking-tight">
+        <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 sm:gap-6 border-b border-border/30 pb-4 sm:pb-6">
+          <div className="min-w-0 flex-1 space-y-1.5">
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-tight">
               <span className="bg-linear-to-r from-violet-600 to-indigo-600 bg-clip-text text-transparent dark:from-violet-400 dark:to-indigo-400">
                 Review Thread Draft
               </span>
             </h1>
-            <p className="text-sm text-muted-foreground break-all">
-              Generated from:{" "}
+            <div className="flex items-center gap-1.5 text-xs sm:text-sm text-muted-foreground min-w-0 flex-wrap">
+              <span className="shrink-0">Generated from:</span>
               {state.input_field?.agent === "topic" ? (
-                <span className="font-medium text-foreground">
+                <span className="font-semibold text-foreground truncate">
                   {state.input_field.topic}
                 </span>
               ) : (
@@ -452,24 +452,28 @@ export default function ApproveDraftPage() {
                   href={state.input_field?.url || "#"}
                   target="_blank"
                   rel="noreferrer"
-                  className="underline hover:text-violet-600 dark:hover:text-violet-400 transition-colors break-all font-medium"
+                  className="inline-flex items-center gap-1 underline underline-offset-2 hover:text-violet-600 dark:hover:text-violet-400 transition-colors font-medium truncate max-w-[260px] sm:max-w-md"
+                  title={state.input_field?.url}
                 >
-                  {state.input_field?.url || "Unknown Source"}
+                  <span className="truncate">{state.input_field?.url || "Unknown Source"}</span>
+                  <ExternalLink className="w-3 h-3 shrink-0 opacity-70" />
                 </a>
               )}
-            </p>
+            </div>
             {state.guidance && (
-              <div className="mt-2.5">
-                <p className="text-xs text-muted-foreground bg-muted/60 px-3.5 py-2 rounded-xl border border-border/40 inline-flex items-center gap-1.5">
-                  <Sparkles className="w-3.5 h-3.5 text-violet-500" />
-                  <span className="font-semibold text-foreground">Guidance:</span> {state.guidance}
-                </p>
+              <div className="mt-2">
+                <div className="text-xs text-muted-foreground bg-muted/60 px-3.5 py-2 rounded-xl border border-border/40 flex items-start gap-1.5 max-w-2xl">
+                  <Sparkles className="w-3.5 h-3.5 text-violet-500 shrink-0 mt-0.5" />
+                  <p className="leading-relaxed">
+                    <span className="font-semibold text-foreground">Guidance:</span> {state.guidance}
+                  </p>
+                </div>
               </div>
             )}
           </div>
 
           {/* Status Badges */}
-          <div className="flex flex-wrap items-center gap-2 self-start md:self-start pt-1">
+          <div className="flex flex-wrap items-center gap-2 self-start md:self-start pt-0.5">
             <span className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap shadow-xs ${state.is_published
               ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400'
               : state.publication_status === "queued"
@@ -512,7 +516,7 @@ export default function ApproveDraftPage() {
 
         {/* Publication Failure Banner */}
         {state.publication_status === "failed" && (
-          <div className="rounded-2xl border border-rose-500/30 bg-rose-500/5 dark:bg-rose-950/20 p-4.5 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 animate-in fade-in-50 duration-300">
+          <div className="rounded-2xl border border-rose-500/30 bg-rose-500/5 dark:bg-rose-950/20 p-4 sm:p-4.5 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 animate-in fade-in-50 duration-300">
             <div className="flex items-start gap-3.5 min-w-0 flex-1">
               <div className="p-2.5 rounded-xl bg-rose-500/10 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5">
                 <AlertCircle className="w-5 h-5" />
@@ -548,24 +552,14 @@ export default function ApproveDraftPage() {
         {/* AI Critique card */}
         {state.critique?.trim() && (
           <Card className="border-amber-500/20 bg-amber-500/5 backdrop-blur-xs rounded-2xl shadow-xs hover:border-amber-500/30 transition-all duration-300">
-            <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
-              <CardTitle className="text-amber-800 dark:text-amber-400 flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-amber-500" />
+            <CardHeader className="p-4 sm:p-5 pb-2.5 sm:pb-2.5 space-y-0">
+              <CardTitle className="text-amber-800 dark:text-amber-400 flex items-center gap-2 text-sm sm:text-base">
+                <Sparkles className="w-4 sm:w-5 h-4 sm:h-5 text-amber-500 shrink-0" />
                 AI Critique
               </CardTitle>
-              <Button
-                variant="ghost"
-                size="sm"
-                disabled={isPublishing || isRegenerating || isIterating || state.is_published || state.publication_status === "publishing" || state.publication_status === "queued" || state.generation_status === "processing" || state.generation_status === "queued"}
-                onClick={handleOpenIterateDialog}
-                className="text-xs text-amber-900 dark:text-amber-200 hover:bg-amber-500/10 cursor-pointer h-8 px-3 rounded-xl font-semibold border border-amber-500/20"
-              >
-                <RefreshCw className="w-3.5 h-3.5 mr-1.5 text-amber-600 dark:text-amber-400" />
-                Iterate with Critic
-              </Button>
             </CardHeader>
-            <CardContent>
-              <p className="text-sm whitespace-pre-wrap text-amber-950 dark:text-amber-100 leading-relaxed font-medium italic pl-3 border-l-2 border-amber-500/40">
+            <CardContent className="p-4 sm:p-5 pt-0">
+              <p className="text-xs sm:text-sm whitespace-pre-wrap text-amber-950 dark:text-amber-100 leading-relaxed font-medium italic pl-3 border-l-2 border-amber-500/40">
                 "{state.critique}"
               </p>
             </CardContent>
@@ -680,31 +674,33 @@ export default function ApproveDraftPage() {
           </div>
 
           {/* Sidebar controls */}
-          <div className="space-y-6">
-            <div className="flex flex-col gap-2">
-              {sourceUrl && (
-                <div className="flex items-start space-x-2.5 p-3 rounded-xl border border-border/60 bg-card/45 backdrop-blur-xs shadow-xs mb-1">
-                  <Checkbox
-                    id="append-source-url"
-                    checked={appendSourceUrl}
-                    onCheckedChange={(checked) => setAppendSourceUrl(!!checked)}
-                    disabled={isPublishing || state.is_published || state.publication_status === "publishing" || state.publication_status === "queued"}
-                  />
-                  <div className="grid gap-1 leading-none">
-                    <Label
-                      htmlFor="append-source-url"
-                      className="text-xs font-semibold leading-none cursor-pointer text-foreground"
-                    >
-                      Append source URL on publish
-                    </Label>
-                    <p className="text-[11px] text-muted-foreground truncate max-w-[220px]" title={sourceUrl}>
-                      {sourceUrl}
-                    </p>
-                  </div>
+          <div className="space-y-4 sm:space-y-6">
+            {sourceUrl && (
+              <div className="flex items-start space-x-2.5 p-3 rounded-xl border border-border/60 bg-card/45 backdrop-blur-xs shadow-xs">
+                <Checkbox
+                  id="append-source-url"
+                  checked={appendSourceUrl}
+                  onCheckedChange={(checked) => setAppendSourceUrl(!!checked)}
+                  disabled={isPublishing || state.is_published || state.publication_status === "publishing" || state.publication_status === "queued"}
+                />
+                <div className="grid gap-1 leading-none min-w-0">
+                  <Label
+                    htmlFor="append-source-url"
+                    className="text-xs font-semibold leading-none cursor-pointer text-foreground"
+                  >
+                    Append source URL on publish
+                  </Label>
+                  <p className="text-[11px] text-muted-foreground truncate max-w-[220px]" title={sourceUrl}>
+                    {sourceUrl}
+                  </p>
                 </div>
-              )}
+              </div>
+            )}
+
+            {/* Primary Actions */}
+            <div className="flex flex-col gap-2.5">
               <Button
-                className="w-full rounded-xl bg-linear-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white font-bold py-6 shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 cursor-pointer"
+                className="hidden md:flex w-full rounded-xl bg-linear-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white font-bold h-12 shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 cursor-pointer"
                 size="lg"
                 disabled={isPublishing || isRegenerating || state.is_published || state.publication_status === "publishing" || state.publication_status === "queued"}
                 onClick={handlePublish}
@@ -721,8 +717,7 @@ export default function ApproveDraftPage() {
               </Button>
               <Button
                 variant="outline"
-                className="w-full rounded-xl border-violet-500/30 bg-violet-500/5 text-violet-700 dark:text-violet-300 font-bold py-6 hover:bg-violet-500/10 hover:border-violet-500/50 transition-all duration-300 cursor-pointer shadow-xs"
-                size="lg"
+                className="w-full rounded-xl border-violet-500/30 bg-violet-500/5 text-violet-700 dark:text-violet-300 font-semibold h-11 hover:bg-violet-500/10 hover:border-violet-500/50 transition-all duration-200 cursor-pointer shadow-xs"
                 disabled={isPublishing || isRegenerating || isIterating || state.is_published || state.publication_status === "publishing" || state.publication_status === "queued" || state.generation_status === "processing" || state.generation_status === "queued"}
                 onClick={handleOpenIterateDialog}
               >
@@ -738,8 +733,7 @@ export default function ApproveDraftPage() {
               </Button>
               <Button
                 variant="outline"
-                className="w-full rounded-xl border-border/80 text-foreground font-bold py-6 hover:bg-violet-600/5 hover:text-violet-600 dark:hover:bg-violet-500/5 dark:hover:text-violet-400 hover:border-violet-500/30 transition-all duration-300 cursor-pointer"
-                size="lg"
+                className="w-full rounded-xl border-border/80 text-foreground font-semibold h-11 hover:bg-violet-600/5 hover:text-violet-600 dark:hover:bg-violet-500/5 dark:hover:text-violet-400 hover:border-violet-500/30 transition-all duration-200 cursor-pointer shadow-xs"
                 disabled={isPublishing || isRegenerating || isIterating || state.is_published || state.publication_status === "publishing" || state.publication_status === "queued" || state.generation_status === "processing" || state.generation_status === "queued"}
                 onClick={() => {
                   setIsDialogOpen(true);
@@ -768,14 +762,16 @@ export default function ApproveDraftPage() {
               coreHooks={state.core_hooks || []}
             />
 
-            {/* Research Dossier Dialog */}
-            {state.research_context && (
-              <ResearchDossierDialog researchContext={state.research_context} />
-            )}
-
-            {/* Search Queries Dialog */}
-            {state.search_queries && (
-              <SearchQueriesDialog searchQueries={state.search_queries} />
+            {/* Secondary Intelligence Dialogs (responsive 2-col on mobile/tablet, 1-col on desktop) */}
+            {(state.research_context || state.search_queries) && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-1 gap-2.5">
+                {state.research_context && (
+                  <ResearchDossierDialog researchContext={state.research_context} />
+                )}
+                {state.search_queries && (
+                  <SearchQueriesDialog searchQueries={state.search_queries} />
+                )}
+              </div>
             )}
 
           </div>
@@ -864,9 +860,9 @@ export default function ApproveDraftPage() {
       />
 
       {/* Mobile Sticky Action Bar */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 p-3 bg-background/90 backdrop-blur-lg border-t border-border/60 shadow-2xl flex items-center gap-2">
+      <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 p-3 pb-[max(env(safe-area-inset-bottom),0.75rem)] bg-background/95 backdrop-blur-lg border-t border-border/60 shadow-2xl">
         <Button
-          className="flex-1 rounded-xl bg-linear-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white font-bold py-5 shadow-md cursor-pointer text-sm"
+          className="w-full rounded-xl bg-linear-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white font-bold h-12 shadow-md cursor-pointer text-sm"
           disabled={isPublishing || isRegenerating || isIterating || state.is_published || state.publication_status === "publishing" || state.publication_status === "queued"}
           onClick={handlePublish}
         >
@@ -878,40 +874,6 @@ export default function ApproveDraftPage() {
             "Published"
           ) : (
             "Publish Thread"
-          )}
-        </Button>
-        <Button
-          variant="outline"
-          className="rounded-xl border-violet-500/40 text-violet-700 dark:text-violet-300 font-semibold py-5 px-3 hover:bg-violet-500/10 transition-all cursor-pointer text-sm shrink-0"
-          disabled={isPublishing || isRegenerating || isIterating || state.is_published || state.publication_status === "publishing" || state.publication_status === "queued" || state.generation_status === "processing" || state.generation_status === "queued"}
-          onClick={handleOpenIterateDialog}
-        >
-          {isIterating ? (
-            <>
-              <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin text-violet-500" /> ...
-            </>
-          ) : (
-            <>
-              <RefreshCw className="mr-1.5 h-3.5 w-3.5 text-violet-500" /> Iterate
-            </>
-          )}
-        </Button>
-        <Button
-          variant="outline"
-          className="rounded-xl border-border/80 text-foreground font-semibold py-5 px-3.5 hover:bg-violet-600/5 hover:text-violet-600 dark:hover:bg-violet-500/5 dark:hover:text-violet-400 hover:border-violet-500/30 transition-all cursor-pointer text-sm shrink-0"
-          disabled={isPublishing || isRegenerating || isIterating || state.is_published || state.publication_status === "publishing" || state.publication_status === "queued" || state.generation_status === "processing" || state.generation_status === "queued"}
-          onClick={() => {
-            setIsDialogOpen(true);
-          }}
-        >
-          {isRegenerating ? (
-            <>
-              <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> ...
-            </>
-          ) : (
-            <>
-              <Sparkles className="mr-1.5 h-3.5 w-3.5 text-violet-500" /> Regenerate
-            </>
           )}
         </Button>
       </div>

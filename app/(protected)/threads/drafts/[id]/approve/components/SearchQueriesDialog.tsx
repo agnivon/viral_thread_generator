@@ -9,6 +9,8 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 
+import { cn } from "@/lib/utils";
+
 interface SearchQueriesDialogProps {
   searchQueries: {
     hero_visual_query: string;
@@ -18,9 +20,10 @@ interface SearchQueriesDialogProps {
       video_search_query: string;
     }>;
   };
+  className?: string;
 }
 
-export function SearchQueriesDialog({ searchQueries }: SearchQueriesDialogProps) {
+export function SearchQueriesDialog({ searchQueries, className }: SearchQueriesDialogProps) {
   if (!searchQueries || !searchQueries.post_visual_queries) return null;
 
   return (
@@ -29,11 +32,14 @@ export function SearchQueriesDialog({ searchQueries }: SearchQueriesDialogProps)
         render={
           <Button
             variant="outline"
-            className="w-full rounded-xl border-border/80 text-foreground font-bold py-6 hover:bg-violet-600/5 hover:text-violet-600 dark:hover:bg-violet-500/5 dark:hover:text-violet-400 hover:border-violet-500/30 transition-all duration-300 cursor-pointer"
+            className={cn(
+              "w-full rounded-xl border-border/80 text-foreground font-semibold h-11 px-3 text-xs sm:text-sm hover:bg-violet-600/5 hover:text-violet-600 dark:hover:bg-violet-500/5 dark:hover:text-violet-400 hover:border-violet-500/30 transition-all duration-200 cursor-pointer shadow-xs",
+              className
+            )}
           />
         }
       >
-        <ImagePlus className="w-4 h-4 mr-2 text-violet-500" />
+        <ImagePlus className="w-4 h-4 mr-2 text-violet-500 shrink-0" />
         View Search Queries
       </DialogTrigger>
       <DialogContent className="w-[95vw] sm:max-w-3xl md:max-w-4xl lg:max-w-5xl max-h-[85vh] p-0 overflow-hidden bg-card/95 backdrop-blur-md flex flex-col rounded-2xl border border-border/30 shadow-2xl">

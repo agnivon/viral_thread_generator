@@ -10,8 +10,11 @@ import {
 } from "@/components/ui/dialog";
 import ReactMarkdown from "react-markdown";
 
+import { cn } from "@/lib/utils";
+
 interface ResearchDossierDialogProps {
   researchContext: string;
+  className?: string;
 }
 
 function safeStringify(val: unknown): string {
@@ -74,7 +77,7 @@ function formatDossierForDisplay(text: string): string {
   return trimmed;
 }
 
-export function ResearchDossierDialog({ researchContext }: ResearchDossierDialogProps) {
+export function ResearchDossierDialog({ researchContext, className }: ResearchDossierDialogProps) {
   if (!researchContext) return null;
   const content = formatDossierForDisplay(researchContext);
 
@@ -84,11 +87,14 @@ export function ResearchDossierDialog({ researchContext }: ResearchDossierDialog
         render={
           <Button
             variant="outline"
-            className="w-full rounded-xl border-border/80 text-foreground font-bold py-6 hover:bg-violet-600/5 hover:text-violet-600 dark:hover:bg-violet-500/5 dark:hover:text-violet-400 hover:border-violet-500/30 transition-all duration-300 cursor-pointer"
+            className={cn(
+              "w-full rounded-xl border-border/80 text-foreground font-semibold h-11 px-3 text-xs sm:text-sm hover:bg-violet-600/5 hover:text-violet-600 dark:hover:bg-violet-500/5 dark:hover:text-violet-400 hover:border-violet-500/30 transition-all duration-200 cursor-pointer shadow-xs",
+              className
+            )}
           />
         }
       >
-        <FileText className="w-4 h-4 mr-2 text-violet-500" />
+        <FileText className="w-4 h-4 mr-2 text-violet-500 shrink-0" />
         View Research Dossier
       </DialogTrigger>
       <DialogContent className="w-[95vw] sm:max-w-4xl md:max-w-5xl lg:max-w-6xl max-h-[85vh] p-0 overflow-hidden bg-card/95 backdrop-blur-md flex flex-col rounded-2xl border border-border/30 shadow-2xl">

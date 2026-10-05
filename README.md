@@ -3,7 +3,7 @@
 <div align="center">
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-7c3aed.svg)](LICENSE)
-[![Version: 2.0.0](https://img.shields.io/badge/Version-2.0.0-blue.svg)](package.json)
+[![Version: 3.0.0](https://img.shields.io/badge/Version-3.0.0-blue.svg)](package.json)
 [![CI](https://github.com/agnivon/viral_thread_generator/actions/workflows/ci.yml/badge.svg)](https://github.com/agnivon/viral_thread_generator/actions/workflows/ci.yml)
 [![Next.js 16](https://img.shields.io/badge/Next.js-16%20(App%20Router)-black?logo=next.js)](https://nextjs.org/)
 [![React 19](https://img.shields.io/badge/React-19-61dafb?logo=react)](https://react.dev/)

@@ -22,10 +22,10 @@ import {
   CheckCircledIcon,
   CrossCircledIcon,
   FileTextIcon,
-  ExternalLinkIcon,
   TrashIcon,
   ClockIcon
 } from "@radix-ui/react-icons";
+import { UrlTitleDisplay } from "@/components/UrlTitleDisplay";
 
 export default function DraftsPage() {
   const { results: drafts, status, loadMore } = usePaginatedQuery(
@@ -378,12 +378,9 @@ export default function DraftsPage() {
             {drafts.map((draft) => {
               const inputField = draft.input_field;
               const isTopic = inputField?.agent === "topic";
-              const title = !inputField
-                ? "Unknown Source"
-                : inputField.agent === "topic"
-                ? inputField.topic
-                : inputField.url;
-              const externalUrl = !isTopic && title.startsWith("http") ? title : `https://${title}`;
+              const inputUrl = inputField && inputField.agent !== "topic" ? inputField.url : undefined;
+              const inputTopic = inputField && inputField.agent === "topic" ? inputField.topic : undefined;
+              const title = isTopic ? (inputTopic ?? "Topic Input") : (inputUrl ?? "Unknown Source");
               const genStatus = draft.generation_status ?? "success";
               const isSelected = selectedDrafts.has(draft._id);
 
@@ -406,23 +403,14 @@ export default function DraftsPage() {
                         className="mt-1 border-muted-foreground/45 data-[state=checked]:bg-violet-600 data-[state=checked]:border-violet-600"
                       />
                       <div className="min-w-0 flex-1">
-                        {isTopic ? (
-                          <p className="font-semibold text-foreground text-sm truncate" title={title}>
-                            {title}
-                          </p>
-                        ) : (
-                          <a
-                            href={externalUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="hover:text-violet-600 dark:hover:text-violet-400 hover:underline flex items-center gap-1.5 font-semibold text-foreground text-sm transition-colors truncate"
-                            title={title}
-                          >
-                            <span className="truncate">{title}</span>
-                            <ExternalLinkIcon className="w-3.5 h-3.5 shrink-0 text-muted-foreground" />
-                          </a>
-                        )}
-                        <p className="text-[11px] text-muted-foreground mt-0.5 font-medium">
+                        <UrlTitleDisplay
+                          url={inputUrl}
+                          topic={inputTopic}
+                          isTopic={isTopic}
+                          maxTitleWidth="w-full"
+                          maxSubtitleWidth="w-full"
+                        />
+                        <p className="text-[11px] text-muted-foreground mt-1 font-medium">
                           {formatDate(draft._creationTime)}
                         </p>
                       </div>
@@ -480,12 +468,9 @@ export default function DraftsPage() {
                 {drafts.map((draft) => {
                   const inputField = draft.input_field;
                   const isTopic = inputField?.agent === "topic";
-                  const title = !inputField
-                    ? "Unknown Source"
-                    : inputField.agent === "topic"
-                    ? inputField.topic
-                    : inputField.url;
-                  const externalUrl = !isTopic && title.startsWith("http") ? title : `https://${title}`;
+                  const inputUrl = inputField && inputField.agent !== "topic" ? inputField.url : undefined;
+                  const inputTopic = inputField && inputField.agent === "topic" ? inputField.topic : undefined;
+                  const title = isTopic ? (inputTopic ?? "Topic Input") : (inputUrl ?? "Unknown Source");
                   const genStatus = draft.generation_status ?? "success";
                   return (
                     <tr key={draft._id} className="hover:bg-muted/20 transition-colors duration-150">
@@ -499,22 +484,13 @@ export default function DraftsPage() {
                         />
                       </td>
                       <td className="px-4 py-4.5">
-                        {isTopic ? (
-                          <span className="flex items-center gap-1.5 font-semibold text-foreground max-w-45 sm:max-w-xs md:max-w-md" title={title}>
-                            <span className="truncate">{title}</span>
-                          </span>
-                        ) : (
-                          <a
-                            href={externalUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="hover:text-violet-600 dark:hover:text-violet-400 hover:underline flex items-center gap-1.5 font-semibold text-foreground max-w-45 sm:max-w-xs md:max-w-md transition-colors"
-                            title={title}
-                          >
-                            <span className="truncate">{title}</span>
-                            <ExternalLinkIcon className="w-3.5 h-3.5 shrink-0 text-muted-foreground" />
-                          </a>
-                        )}
+                        <UrlTitleDisplay
+                          url={inputUrl}
+                          topic={inputTopic}
+                          isTopic={isTopic}
+                          maxTitleWidth="max-w-45 sm:max-w-xs md:max-w-md"
+                          maxSubtitleWidth="max-w-45 sm:max-w-xs md:max-w-md"
+                        />
                       </td>
                       <td className="px-4 py-4.5">
                         {renderStatusBadge(draft)}

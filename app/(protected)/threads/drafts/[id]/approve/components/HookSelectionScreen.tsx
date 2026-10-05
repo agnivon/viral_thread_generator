@@ -3,6 +3,7 @@ import { ArrowLeft, Sparkles, Compass, Loader2, CheckCircle2 } from "lucide-reac
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { UrlTitleDisplay } from "@/components/UrlTitleDisplay";
 
 interface HookSelectionScreenProps {
   url: string;
@@ -55,21 +56,16 @@ export function HookSelectionScreen({
               Choose Your Hook
             </span>
           </h1>
-          <p className="text-sm text-muted-foreground break-all">
-            Pipeline paused for:{" "}
-            {isTopic ? (
-              <span className="font-medium text-foreground">{url}</span>
-            ) : (
-              <a 
-                href={url} 
-                target="_blank" 
-                rel="noreferrer" 
-                className="underline hover:text-violet-600 dark:hover:text-violet-400 transition-colors break-all font-medium"
-              >
-                {url}
-              </a>
-            )}
-          </p>
+          <div className="flex items-start gap-2 text-sm text-muted-foreground min-w-0">
+            <span className="shrink-0 pt-0.5 font-medium">Pipeline paused for:</span>
+            <UrlTitleDisplay
+              url={url}
+              topic={url}
+              isTopic={isTopic}
+              maxTitleWidth="max-w-md sm:max-w-xl"
+              maxSubtitleWidth="max-w-md sm:max-w-xl"
+            />
+          </div>
         </div>
 
         <div className="space-y-8">

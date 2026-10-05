@@ -1,10 +1,5 @@
-import { useQuery } from "@tanstack/react-query";
-import { useAction } from "convex/react";
-import { api } from "@/convex/_generated/api";
-import { ExternalLink, Globe } from "lucide-react";
-import { linkPreviewKeys } from "@/lib/query-keys";
-
-import type { UrlMetadata } from "@/convex/actions/threads";
+import { Globe } from "lucide-react";
+import { useUrlMetadata, type UrlMetadata } from "@/hooks/use-url-metadata";
 export type { UrlMetadata };
 
 interface LinkPreviewCardProps {
@@ -12,52 +7,7 @@ interface LinkPreviewCardProps {
 }
 
 export function LinkPreviewCard({ url }: LinkPreviewCardProps) {
-  const fetchMetadata = useAction(api.actions.threads.getUrlMetadata);
-
-  let hostname = "";
-  let cleanTitle = "";
-  
-  try {
-    const parsedUrl = new URL(url);
-    hostname = parsedUrl.hostname;
-    
-    // Extract a smart title fallback from the pathname
-    const pathParts = parsedUrl.pathname.split("/").filter(Boolean);
-    if (pathParts.length > 0) {
-      const lastPart = pathParts[pathParts.length - 1];
-      cleanTitle = decodeURIComponent(lastPart)
-        .replace(/[-_]/g, " ")
-        .replace(/\.[^/.]+$/, ""); // strip extension
-      
-      cleanTitle = cleanTitle
-        .split(" ")
-        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-        .join(" ");
-    }
-    
-    if (!cleanTitle) {
-      cleanTitle = hostname;
-    }
-  } catch (_e) {
-    hostname = url;
-    cleanTitle = url;
-  }
-
-  // Fetch OpenGraph metadata via TanStack Query and Convex Action
-  const { data: metadata, isLoading: loading } = useQuery<UrlMetadata | null>({
-    queryKey: linkPreviewKeys.byUrl(url),
-    queryFn: async (): Promise<UrlMetadata | null> => {
-      if (!url || !url.startsWith("http")) return null;
-      const result = await fetchMetadata({ url });
-      return result ?? null;
-    },
-    enabled: Boolean(url && url.startsWith("http")),
-    staleTime: 1000 * 60 * 10, // Cache for 10 minutes
-    gcTime: 1000 * 60 * 15, // Retain in cache for 15 minutes (>= staleTime)
-  });
-
-  // Use OpenGraph data if loaded, otherwise fallback to parsed title/desc
-  const displayTitle = metadata?.title || cleanTitle;
+  const { title: displayTitle, hostname, metadata, isLoading: loading } = useUrlMetadata(url);
   const displayDescription = metadata?.description || `Click to open and explore the referenced link on ${hostname}.`;
   const ogImageUrl = metadata?.image || "";
 

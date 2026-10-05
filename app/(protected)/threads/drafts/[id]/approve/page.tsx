@@ -14,12 +14,13 @@ import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { useMutation } from "@tanstack/react-query";
 import { useAction, useQuery } from "convex/react";
-import { ArrowLeft, Loader2, Sparkles, AlertCircle, Copy, Check, RotateCcw, XCircle, RefreshCw, ExternalLink } from "lucide-react";
+import { ArrowLeft, Loader2, Sparkles, AlertCircle, Copy, Check, RotateCcw, XCircle, RefreshCw } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
+import { UrlTitleDisplay } from "@/components/UrlTitleDisplay";
 
 import { DraftPostsList } from "./components/DraftPostsList";
 import { HookSelectionScreen } from "./components/HookSelectionScreen";
@@ -441,24 +442,15 @@ export default function ApproveDraftPage() {
                 Review Thread Draft
               </span>
             </h1>
-            <div className="flex items-center gap-1.5 text-xs sm:text-sm text-muted-foreground min-w-0 flex-wrap">
-              <span className="shrink-0">Generated from:</span>
-              {state.input_field?.agent === "topic" ? (
-                <span className="font-semibold text-foreground truncate">
-                  {state.input_field.topic}
-                </span>
-              ) : (
-                <a
-                  href={state.input_field?.url || "#"}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center gap-1 underline underline-offset-2 hover:text-violet-600 dark:hover:text-violet-400 transition-colors font-medium truncate max-w-[260px] sm:max-w-md"
-                  title={state.input_field?.url}
-                >
-                  <span className="truncate">{state.input_field?.url || "Unknown Source"}</span>
-                  <ExternalLink className="w-3 h-3 shrink-0 opacity-70" />
-                </a>
-              )}
+            <div className="flex flex-col sm:flex-row sm:items-start gap-1 sm:gap-2 text-xs sm:text-sm text-muted-foreground min-w-0">
+              <span className="shrink-0 sm:pt-0.5 font-medium">Generated from:</span>
+              <UrlTitleDisplay
+                url={state.input_field && state.input_field.agent !== "topic" ? state.input_field.url : undefined}
+                topic={state.input_field && state.input_field.agent === "topic" ? state.input_field.topic : undefined}
+                isTopic={state.input_field?.agent === "topic"}
+                maxTitleWidth="w-full sm:max-w-md lg:max-w-xl"
+                maxSubtitleWidth="w-full sm:max-w-md lg:max-w-xl"
+              />
             </div>
             {state.guidance && (
               <div className="mt-2">
@@ -690,9 +682,14 @@ export default function ApproveDraftPage() {
                   >
                     Append source URL on publish
                   </Label>
-                  <p className="text-[11px] text-muted-foreground truncate max-w-[220px]" title={sourceUrl}>
-                    {sourceUrl}
-                  </p>
+                  <UrlTitleDisplay
+                    url={sourceUrl}
+                    showExternalLink={false}
+                    maxTitleWidth="max-w-[220px]"
+                    maxSubtitleWidth="max-w-[220px]"
+                    titleClassName="text-xs font-medium text-foreground/85"
+                    subtitleClassName="text-[10px]"
+                  />
                 </div>
               </div>
             )}

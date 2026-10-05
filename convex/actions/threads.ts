@@ -918,6 +918,117 @@ export const deleteThreadDraft = action({
   }
 });
 
+/**
+ * Derives a clean, human-readable title from a URL path slug.
+ * Useful for Reuters links and pages where access is blocked by WAF/anti-bot.
+ */
+export function deriveTitleFromUrl(targetUrl: string): string {
+  try {
+    const parsed = new URL(targetUrl.startsWith("http://") || targetUrl.startsWith("https://") ? targetUrl : `https://${targetUrl}`);
+    const pathParts = parsed.pathname.split("/").filter(Boolean);
+    if (pathParts.length > 0) {
+      let selectedPart = pathParts[pathParts.length - 1];
+      if (/^\d+$/.test(selectedPart) && pathParts.length > 1) {
+        selectedPart = pathParts[pathParts.length - 2];
+      }
+
+      // Strip file extensions (.html, .php, etc.)
+      let cleaned = decodeURIComponent(selectedPart).replace(/\.[^/.]+$/, "");
+      // Strip trailing ISO dates (e.g. -2024-01-26, -2026-09-17)
+      cleaned = cleaned.replace(/-\d{4}-\d{2}-\d{2}$/, "");
+      // Strip trailing Reuters / AP article IDs (e.g. -idUSKBN..., -idUS...)
+      cleaned = cleaned.replace(/-id[A-Za-z0-9]+$/i, "");
+      // Replace hyphens, underscores, pluses with spaces
+      cleaned = cleaned.replace(/[-_+]+/g, " ").trim();
+
+      if (cleaned.length > 0) {
+        return cleaned
+          .split(/\s+/)
+          .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+          .join(" ");
+      }
+    }
+
+    const rawHostname = parsed.hostname.replace(/^www\./i, "");
+    const domainParts = rawHostname.split(".");
+    const mainDomain = domainParts.length > 1 ? domainParts[0] : rawHostname;
+    return mainDomain.charAt(0).toUpperCase() + mainDomain.slice(1);
+  } catch {
+    return targetUrl;
+  }
+}
+
+/**
+ * Detects if a title indicates an access-denied/WAF block page or is just a generic site domain.
+ */
+export function isAccessDeniedOrGenericTitle(titleToCheck: string | undefined | null, targetUrl: string): boolean {
+  if (!titleToCheck) return true;
+  const trimmed = titleToCheck.trim();
+  if (!trimmed) return true;
+  const lower = trimmed.toLowerCase();
+
+  const blockedPatterns = [
+    "access to this page has been denied",
+    "access denied",
+    "403 forbidden",
+    "forbidden",
+    "401 unauthorized",
+    "just a moment",
+    "attention required",
+    "cloudflare",
+    "security check",
+    "robot or human",
+    "are you a human",
+    "verify you are human",
+    "blocked",
+    "shieldsquare",
+    "perimeterx",
+    "ddos-guard",
+    "enable javascript and cookies",
+    "enable cookies",
+    "captcha",
+    "page not found",
+    "404 not found",
+    "502 bad gateway",
+    "503 service unavailable",
+    "504 gateway timeout",
+  ];
+
+  if (blockedPatterns.some((pattern) => lower.includes(pattern))) {
+    return true;
+  }
+
+  try {
+    const parsed = new URL(targetUrl.startsWith("http://") || targetUrl.startsWith("https://") ? targetUrl : `https://${targetUrl}`);
+    const rawHost = parsed.hostname.replace(/^www\./i, "").toLowerCase();
+    const domainName = rawHost.split(".")[0];
+
+    // For Reuters links, generic titles like "reuters.com" or "Reuters" should be treated as generic
+    if (rawHost === "reuters.com" || rawHost.endsWith(".reuters.com")) {
+      if (
+        lower === "reuters.com" ||
+        lower === "reuters" ||
+        lower.startsWith("reuters |") ||
+        lower.includes("breaking international news")
+      ) {
+        return true;
+      }
+    }
+
+    // If title matches hostname or site domain when path slug is present
+    const pathParts = parsed.pathname.split("/").filter(Boolean);
+    if (pathParts.length > 0) {
+      if (lower === rawHost || lower === domainName || lower === `${domainName}.com`) {
+        return true;
+      }
+    }
+  } catch {
+    // ignore URL parse errors
+  }
+
+  return false;
+}
+
 export const getUrlMetadata = action({
   args: { url: v.string() },
   handler: async (ctx, args) => {
@@ -961,6 +1072,18 @@ export const getUrlMetadata = action({
         return { title: "", description: "", image: "" };
       }
 
+      // Reuters links aggressively block bot user agents and return generic titles.
+      // Derive title directly from the URL slug as requested.
+      const normalizedHost = hostname.replace(/^www\./i, "");
+      const isReuters = normalizedHost === "reuters.com" || normalizedHost.endsWith(".reuters.com");
+      if (isReuters) {
+        return {
+          title: deriveTitleFromUrl(args.url),
+          description: "",
+          image: "",
+        };
+      }
+
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 5000);
 
@@ -971,6 +1094,16 @@ export const getUrlMetadata = action({
         },
       });
       clearTimeout(timeoutId);
+
+      // If access is denied (401, 403, 429, etc.), derive the title from the URL slug
+      if (response.ok === false || (typeof response.status === "number" && (response.status === 401 || response.status === 403 || response.status === 429 || response.status >= 400))) {
+        return {
+          title: deriveTitleFromUrl(args.url),
+          description: "",
+          image: "",
+        };
+      }
+
       const html = await response.text();
 
       const getMetaTag = (property: string) => {
@@ -983,14 +1116,45 @@ export const getUrlMetadata = action({
         return reverseMatch ? reverseMatch[1] : null;
       };
 
-      const title = getMetaTag("og:title") || getMetaTag("twitter:title") || "";
-      const description = getMetaTag("og:description") || getMetaTag("twitter:description") || getMetaTag("description") || "";
-      const image = getMetaTag("og:image") || getMetaTag("twitter:image") || "";
+      const decodeHtmlEntities = (str: string): string => {
+        return str
+          .replace(/&amp;/g, "&")
+          .replace(/&lt;/g, "<")
+          .replace(/&gt;/g, ">")
+          .replace(/&quot;/g, '"')
+          .replace(/&#39;|&apos;|&#x27;/g, "'")
+          .replace(/&mdash;/g, "—")
+          .replace(/&ndash;/g, "–")
+          .replace(/&nbsp;/g, " ")
+          .replace(/&#(\d+);/g, (_, code) => {
+            const num = parseInt(code, 10);
+            return !isNaN(num) && num > 0 ? String.fromCharCode(num) : "";
+          })
+          .trim();
+      };
+
+      const getHtmlTitle = (): string => {
+        const match = html.match(/<title[^>]*>([^<]+)<\/title>/i);
+        return match ? match[1].trim() : "";
+      };
+
+      const rawTitle = getMetaTag("og:title") || getMetaTag("twitter:title") || getHtmlTitle() || "";
+      const rawDescription = getMetaTag("og:description") || getMetaTag("twitter:description") || getMetaTag("description") || "";
+      const rawImage = getMetaTag("og:image") || getMetaTag("twitter:image") || "";
+
+      let title = decodeHtmlEntities(rawTitle);
+      const description = decodeHtmlEntities(rawDescription);
+      const image = rawImage.trim();
+
+      // If the extracted title indicates an access-denied block page or generic domain name, derive from URL
+      if (isAccessDeniedOrGenericTitle(title, args.url)) {
+        title = deriveTitleFromUrl(args.url);
+      }
 
       return { title, description, image };
     } catch (e) {
       console.error("Failed to fetch URL metadata:", e);
-      return { title: "", description: "", image: "" };
+      return { title: deriveTitleFromUrl(args.url), description: "", image: "" };
     }
   },
 });

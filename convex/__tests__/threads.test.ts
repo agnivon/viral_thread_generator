@@ -827,6 +827,83 @@ test("getUrlMetadata action rejects unauthenticated callers and succeeds when au
   });
 });
 
+test("getUrlMetadata falls back to HTML title tag and decodes entities when og:title is missing", async () => {
+  const t = convexTest(schema, modules);
+  const user = await t.mutation(async (ctx) => ctx.db.insert("users", {}));
+
+  const mockHtml = `<html><head>
+    <title>Tech &amp; AI Innovations &mdash; The Year&#39;s Best</title>
+    <meta name="description" content="Discover what&#39;s new &amp; exciting in tech." />
+  </head><body></body></html>`;
+
+  vi.spyOn(globalThis, "fetch").mockResolvedValueOnce({
+    text: async () => mockHtml,
+  } as unknown as Response);
+
+  const tAuthed = t.withIdentity({ subject: user });
+  const result = await tAuthed.action(api.actions.threads.getUrlMetadata, {
+    url: "https://example.com/fallback-page",
+  });
+
+  expect(result).toEqual({
+    title: "Tech & AI Innovations — The Year's Best",
+    description: "Discover what's new & exciting in tech.",
+    image: "",
+  });
+});
+
+test("getUrlMetadata derives title directly from URL slug for Reuters links", async () => {
+  const t = convexTest(schema, modules);
+  const user = await t.mutation(async (ctx) => ctx.db.insert("users", {}));
+  const tAuthed = t.withIdentity({ subject: user });
+
+  const result = await tAuthed.action(api.actions.threads.getUrlMetadata, {
+    url: "https://www.reuters.com/world/china/china-presses-iran-help-rein-in-houthi-red-sea-attacks-sources-say-2024-01-26/",
+  });
+
+  expect(result.title).toBe("China Presses Iran Help Rein In Houthi Red Sea Attacks Sources Say");
+});
+
+test("getUrlMetadata derives title from URL when HTTP response is 403 Forbidden (access denied)", async () => {
+  const t = convexTest(schema, modules);
+  const user = await t.mutation(async (ctx) => ctx.db.insert("users", {}));
+
+  vi.spyOn(globalThis, "fetch").mockResolvedValueOnce({
+    ok: false,
+    status: 403,
+    text: async () => "Forbidden",
+  } as unknown as Response);
+
+  const tAuthed = t.withIdentity({ subject: user });
+  const result = await tAuthed.action(api.actions.threads.getUrlMetadata, {
+    url: "https://ktla.com/weather/a-hurricane-could-form-near-southern-california/",
+  });
+
+  expect(result.title).toBe("A Hurricane Could Form Near Southern California");
+});
+
+test("getUrlMetadata derives title from URL when HTML title indicates access denied or block page", async () => {
+  const t = convexTest(schema, modules);
+  const user = await t.mutation(async (ctx) => ctx.db.insert("users", {}));
+
+  const mockHtml = `<html><head>
+    <title>Access to this page has been denied</title>
+  </head><body>Please complete the security check</body></html>`;
+
+  vi.spyOn(globalThis, "fetch").mockResolvedValueOnce({
+    ok: true,
+    status: 200,
+    text: async () => mockHtml,
+  } as unknown as Response);
+
+  const tAuthed = t.withIdentity({ subject: user });
+  const result = await tAuthed.action(api.actions.threads.getUrlMetadata, {
+    url: "https://ktla.com/weather/a-hurricane-could-form-near-southern-california/",
+  });
+
+  expect(result.title).toBe("A Hurricane Could Form Near Southern California");
+});
+
 test("enqueueThreadPublication enforces authentication and IDOR ownership check", async () => {
   const t = convexTest(schema, modules);
   const user1 = await t.mutation(async (ctx) => ctx.db.insert("users", {}));

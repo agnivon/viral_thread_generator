@@ -326,14 +326,14 @@ test("http action /auth callback", async () => {
   };
 
   // 1. Check response when code is missing (should fail with 400)
-  const reqNoCode = new Request(`https://intent-cuttlefish-35.convex.site/auth?state=${encodeURIComponent(signedState)}`);
+  const reqNoCode = new Request(`https://mock.convex.site/auth?state=${encodeURIComponent(signedState)}`);
   const resNoCode = await (route![0] as unknown as RouteHandlerWrapper)._handler(mockCtx, reqNoCode);
   expect(resNoCode.status).toBe(400);
   const htmlNoCode = await resNoCode.text();
   expect(htmlNoCode).toContain("Authorization Failed");
 
   // 2. Check response when code is provided (should succeed with 200 after stripping #_)
-  const reqWithCode = new Request(`https://intent-cuttlefish-35.convex.site/auth?code=mock-auth-code%23_&state=${encodeURIComponent(signedState)}`);
+  const reqWithCode = new Request(`https://mock.convex.site/auth?code=mock-auth-code%23_&state=${encodeURIComponent(signedState)}`);
   const resWithCode = await (route![0] as unknown as RouteHandlerWrapper)._handler(mockCtx, reqWithCode);
   expect(resWithCode.status).toBe(200);
   const htmlWithCode = await resWithCode.text();

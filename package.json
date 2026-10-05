@@ -3,6 +3,14 @@
   "version": "2.0.0",
   "description": "AI-powered viral thread generator built with Next.js 16, Convex, and LangChain",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/agnivon/viral_thread_generator.git"
+  },
+  "bugs": {
+    "url": "https://github.com/agnivon/viral_thread_generator/issues"
+  },
+  "homepage": "https://github.com/agnivon/viral_thread_generator#readme",
   "keywords": [
     "nextjs",
     "convex",

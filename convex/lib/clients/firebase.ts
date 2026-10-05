@@ -24,8 +24,11 @@ if (!getApps().length) {
     }
   }
 
-  const projectId = process.env.FIREBASE_PROJECT_ID || parsedProjectId || 'gen-lang-client-0518918161';
-  const config: AppOptions = { projectId };
+  const projectId = process.env.FIREBASE_PROJECT_ID || parsedProjectId;
+  const config: AppOptions = {};
+  if (projectId) {
+    config.projectId = projectId;
+  }
   if (credential) {
     config.credential = credential;
   }

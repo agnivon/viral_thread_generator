@@ -22,6 +22,8 @@ playground-temp
 temp
 TODOs.md
 /.vscode/
+/.convex/
+/scratch/
 
 # local env files
 .env*.local

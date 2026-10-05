@@ -43,7 +43,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Viral Thread Generator - Next-Gen AI Creator Studio",
     description: "Create high-performing, engaging Threads sequences from any source link in seconds. Connect your audience and skyrocket your reach.",
-    url: "https://viral-thread-generator.vercel.app",
+    url: "/",
     siteName: "Viral Thread Generator",
     locale: "en_US",
     type: "website",

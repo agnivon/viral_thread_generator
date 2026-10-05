@@ -308,6 +308,10 @@ viral_thread_generator/
 │           ├── newsdata.ts           # NewsData.io Client
 │           ├── jina.ts               # Jina Reader API Client
 │           └── firebase.ts           # Firebase Admin & Firestore Client
+├── docs/                             # Comprehensive Technical Documentation
+│   ├── architecture/                 # System Topology, Multi-Agent Graphs & Checkpointing
+│   ├── features/                     # Scraping, Threads Publishing, Virality Engine & Web Push
+│   └── guides/                       # Adding Agent Nodes & Configuring LLM Models
 ├── public/
 │   ├── sw.js                         # PWA Service Worker for Web Push & Notifications
 │   └── icon.svg                      # Application Brand Icon
@@ -320,6 +324,23 @@ viral_thread_generator/
 ├── SECURITY.md                       # Security & Vulnerability Policy
 └── package.json                      # Project configuration & dependencies
 ```
+
+---
+
+## 📚 Technical Documentation
+
+Deep architectural guides, state machine designs, and contributor documentation are located in [`docs/`](docs/index.md):
+
+- 🏛️ **[System Architecture Overview](docs/architecture/overview.md)**: Full-stack topology, reactive boundaries, and Workpool task scheduling.
+- 🧠 **[Multi-Agent LangGraph Architectures](docs/architecture/multi-agent-graphs.md)**: Deep dive into the News, Social Media, and Topic graph state machines.
+- 💾 **[State Checkpointing & HITL Execution](docs/architecture/state-checkpointing.md)**: PostgreSQL checkpointers, thread persistence, and Human-in-the-Loop interrupts.
+- ⚡ **[Circuit Breaker & Resilience](docs/architecture/circuit-breaker.md)**: Multi-provider failover chains across Google, DeepSeek, and OpenAI.
+- 🌐 **[Web Scraping & Verification Pipeline](docs/features/scraping-pipeline.md)**: Firecrawl, Jina fallback, Tavily claim verifier, and YouTube transcripts.
+- 📱 **[Meta Threads Publishing Engine](docs/features/threads-publishing.md)**: OAuth 2.0 token life cycles, automated cron refresh, and media containers.
+- 🎯 **[The Virality Engine](docs/features/virality-engine.md)**: Zero-shot critic evaluation, reflection loops, and algorithmic platform guardrails.
+- 🔔 **[W3C Web Push & Mobile PWA Notifications](docs/features/web-push-notifications.md)**: VAPID cryptographic setup, service worker routing, and trend crons.
+- 🛠️ **[Guide: Adding an Agent Node](docs/guides/adding-an-agent-node.md)**: Step-by-step developer tutorial for extending LangGraph workflows.
+- 🤖 **[Guide: Adding an LLM Model](docs/guides/adding-a-model.md)**: Configuring new AI providers with circuit breaker tracking.
 
 ---
 

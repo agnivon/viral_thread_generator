@@ -42,6 +42,12 @@ jobs:
   unit-tests:
     name: Vitest Test Suite
     runs-on: ubuntu-latest
+    env:
+      GOOGLE_API_KEY: "mock-google-api-key"
+      GOOGLE_API_KEY2: "mock-google-api-key-2"
+      OPENAI_API_KEY: "mock-openai-api-key"
+      DEEPSEEK_API_KEY: "mock-deepseek-api-key"
+      OPENROUTER_API_KEY: "mock-openrouter-api-key"
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4

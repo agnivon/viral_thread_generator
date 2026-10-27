@@ -23,7 +23,7 @@ const createOpenAIModel = (model: string, temperature: number, overrides: OpenAI
 
 const createDeepSeekModel = (model: string, temperature: number, overrides: DeepSeekOverrides = {}) =>
   attachModelIdentity(
-    new ChatDeepSeek({ model, temperature, maxRetries: 0, apiKey: process.env.DEEPSEEK_API_KEY, ...overrides }),
+    new ChatDeepSeek({ model, temperature, maxRetries: 0, apiKey: process.env.DEEPSEEK_API_KEY || "placeholder", ...overrides }),
     { provider: "deepseek", keyGroup: "DEEPSEEK_API_KEY", modelId: model }
   );
 
@@ -39,7 +39,7 @@ export const openRouterFreeT01 = attachModelIdentity(
     model: "openrouter/free",
     temperature: 0.1,
     maxRetries: 0,
-    apiKey: process.env.OPENROUTER_API_KEY,
+    apiKey: process.env.OPENROUTER_API_KEY || "placeholder",
   }),
   { provider: "openrouter", keyGroup: "OPENROUTER_API_KEY", modelId: "openrouter/free" }
 );
@@ -56,7 +56,7 @@ export const openRouterFreeT08 = attachModelIdentity(
     model: "openrouter/free",
     temperature: 0.8,
     maxRetries: 0,
-    apiKey: process.env.OPENROUTER_API_KEY,
+    apiKey: process.env.OPENROUTER_API_KEY || "placeholder",
   }),
   { provider: "openrouter", keyGroup: "OPENROUTER_API_KEY", modelId: "openrouter/free" }
 );

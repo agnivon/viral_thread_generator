@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { query, internalQuery, internalMutation } from "./_generated/server";
+import { query, mutation, internalQuery, internalMutation } from "./_generated/server";
 import { Doc, Id } from "./_generated/dataModel";
 import { requireAuthUserId } from "./auth";
 import { paginationOptsValidator } from "convex/server";
@@ -70,6 +70,7 @@ export const initializeThreadDraft = internalMutation({
     ...commonThreadDraftArgs,
     agent: v.optional(v.string()),
     input_field: v.optional(threadDraftInputValidator),
+    generation_status: v.optional(generationStatusValidator),
   },
   handler: async (ctx, args): Promise<Id<"threadDrafts">> => {
     const insertFields = {
@@ -81,7 +82,7 @@ export const initializeThreadDraft = internalMutation({
       agent: args.agent || "news",
       is_approved: false,
       is_published: false,
-      generation_status: "processing" as const,
+      generation_status: args.generation_status || ("processing" as const),
       publication_status: "not_published" as const,
     };
     return await ctx.db.insert("threadDrafts", insertFields);
@@ -164,5 +165,89 @@ export const deleteThreadDraftInternal = internalMutation({
     if (draft) {
       await ctx.db.delete("threadDrafts", args.id);
     }
+  },
+});
+
+/**
+ * Internal mutation: Finds drafts stuck in 'processing' or 'queued' for longer than thresholdMs
+ * (default 15 minutes, well beyond any action execution window) and marks them as failed.
+ */
+export const markStuckDraftsAsFailed = internalMutation({
+  args: {
+    thresholdMs: v.optional(v.number()),
+    userId: v.optional(v.id("users")),
+  },
+  handler: async (ctx, args) => {
+    const threshold = args.thresholdMs ?? 15 * 60 * 1000;
+    const cutoff = Date.now() - threshold;
+
+    let allDrafts: Doc<"threadDrafts">[];
+    if (args.userId) {
+      allDrafts = await ctx.db
+        .query("threadDrafts")
+        .withIndex("by_userId", (q) => q.eq("userId", args.userId!))
+        .collect();
+    } else {
+      allDrafts = await ctx.db.query("threadDrafts").collect();
+    }
+
+    const updatedIds: Id<"threadDrafts">[] = [];
+    for (const draft of allDrafts) {
+      const isStuck =
+        (draft.generation_status === "processing" || draft.generation_status === "queued") &&
+        draft._creationTime <= cutoff;
+
+      if (isStuck) {
+        await ctx.db.patch("threadDrafts", draft._id, {
+          generation_status: "failed",
+          failure_reason: "Function execution timed out",
+        });
+        updatedIds.push(draft._id);
+      }
+    }
+
+    return {
+      updatedCount: updatedIds.length,
+      updatedIds,
+    };
+  },
+});
+
+/**
+ * Public mutation: Cleans up stuck generation drafts for the authenticated user.
+ */
+export const cleanupStuckDrafts = mutation({
+  args: {
+    thresholdMs: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const userId = await requireAuthUserId(ctx);
+    const threshold = args.thresholdMs ?? 15 * 60 * 1000;
+    const cutoff = Date.now() - threshold;
+
+    const drafts = await ctx.db
+      .query("threadDrafts")
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
+      .collect();
+
+    const updatedIds: Id<"threadDrafts">[] = [];
+    for (const draft of drafts) {
+      const isStuck =
+        (draft.generation_status === "processing" || draft.generation_status === "queued") &&
+        draft._creationTime <= cutoff;
+
+      if (isStuck) {
+        await ctx.db.patch("threadDrafts", draft._id, {
+          generation_status: "failed",
+          failure_reason: "Function execution timed out",
+        });
+        updatedIds.push(draft._id);
+      }
+    }
+
+    return {
+      updatedCount: updatedIds.length,
+      updatedIds,
+    };
   },
 });

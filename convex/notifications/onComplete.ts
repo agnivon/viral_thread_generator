@@ -104,13 +104,17 @@ export const onGenerationComplete = internalMutation({
     } else if (result.kind === "failed") {
       if (context.threadId) {
         const draft = await ctx.db.get("threadDrafts", context.threadId);
-        if (draft && (!draft.failure_reason || draft.generation_status !== "failed")) {
+        if (draft) {
           await ctx.db.patch("threadDrafts", context.threadId, {
             generation_status: "failed",
-            failure_reason: result.error,
+            failure_reason: result.error || "Generation timed out or failed.",
           });
         }
       }
+
+      const href = context.threadId
+        ? `/threads/drafts/${context.threadId}/approve`
+        : "/threads/drafts";
 
       await notifications.create(ctx, {
         targetId: context.userId,
@@ -120,6 +124,7 @@ export const onGenerationComplete = internalMutation({
           title: "Thread Generation Failed",
           body: `Failed to generate thread: ${result.error}`,
           error: result.error,
+          href,
         },
         source: {
           type: "thread_generation",

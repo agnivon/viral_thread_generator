@@ -205,11 +205,25 @@ async function enqueueThreadGenerationHelper(
   const userId = await requireAuthUserId(ctx);
 
   await Promise.all(
-    requests.map((req) =>
-      generationPool.enqueueAction(
+    requests.map(async (req) => {
+      const recordId = await ctx.runMutation(
+        internal.threads.initializeThreadDraft,
+        {
+          input_field: req.input_field,
+          guidance: req.guidance,
+          manual_hook_selection: req.manual_hook_selection,
+          search_query_generation: req.search_query_generation,
+          userId,
+          agent: req.input_field.agent,
+          generation_status: "queued",
+        }
+      );
+
+      return generationPool.enqueueAction(
         ctx,
         internal.actions.threads.generateThreadInternal,
         {
+          recordId,
           input_field: req.input_field,
           guidance: req.guidance,
           manual_hook_selection: req.manual_hook_selection,
@@ -221,11 +235,12 @@ async function enqueueThreadGenerationHelper(
           onComplete: internal.notifications.onComplete.onGenerationComplete,
           context: {
             userId,
+            threadId: recordId,
             title: req.input_field.agent === "topic" ? req.input_field.topic : req.input_field.url,
           },
         }
-      )
-    )
+      );
+    })
   );
 }
 
@@ -296,25 +311,35 @@ export const enqueueTopicThreadGeneration = action({
 
 export const generateThreadInternal = internalAction({
   args: {
+    recordId: v.optional(v.id("threadDrafts")),
     input_field: threadDraftInputValidator,
     ...commonThreadDraftArgs,
     userId: v.id("users"),
     agent: v.optional(v.string()),
   },
   handler: async (ctx, args): Promise<{ recordId: Id<"threadDrafts"> }> => {
-    let recordId: Id<"threadDrafts"> | undefined = undefined;
+    let recordId: Id<"threadDrafts"> | undefined = args.recordId;
     try {
-      recordId = await ctx.runMutation(
-        internal.threads.initializeThreadDraft,
-        {
-          input_field: args.input_field,
-          guidance: args.guidance,
-          manual_hook_selection: args.manual_hook_selection,
-          search_query_generation: args.search_query_generation,
-          userId: args.userId,
-          agent: args.agent,
-        }
-      );
+      if (!recordId) {
+        recordId = await ctx.runMutation(
+          internal.threads.initializeThreadDraft,
+          {
+            input_field: args.input_field,
+            guidance: args.guidance,
+            manual_hook_selection: args.manual_hook_selection,
+            search_query_generation: args.search_query_generation,
+            userId: args.userId,
+            agent: args.agent,
+            generation_status: "processing",
+          }
+        );
+      } else {
+        await ctx.runMutation(internal.threads.updateThreadDraft, {
+          id: recordId,
+          generation_status: "processing",
+          failure_reason: null,
+        });
+      }
 
       if (!recordId) {
         throw new Error("Failed to initialize thread draft.");

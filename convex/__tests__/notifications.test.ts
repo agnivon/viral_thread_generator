@@ -186,11 +186,73 @@ test("onGenerationComplete creates thread_generation_failed notification on fail
         title: "Thread Generation Failed",
         body: "Failed to generate thread: LLM rate limit exceeded",
         error: "LLM rate limit exceeded",
+        href: "/threads/drafts",
       },
       dedupeKey: "thread_generation_failed:work_gen_failed_1",
       source: {
         type: "thread_generation",
         id: "work_gen_failed_1",
+      },
+    })
+  );
+});
+
+test("onGenerationComplete marks draft as failed when threadId is present in context on timeout", async () => {
+  const t = convexTest(schema, modules);
+  const userId = await t.mutation(async (ctx) => {
+    return await ctx.db.insert("users", {});
+  });
+
+  const threadId = await t.mutation(internal.threads.initializeThreadDraft, {
+    userId,
+    agent: "news",
+    input_field: { agent: "news", url: "https://example.com/slow-thread" },
+    generation_status: "processing",
+  });
+
+  const createSpy = vi.spyOn(notifications, "create").mockResolvedValue({
+    created: true,
+    notificationId: "n_failed" as unknown as Id<"notifications">,
+  });
+
+  await t.mutation(internal.notifications.onComplete.onGenerationComplete, {
+    workId: "work_timeout_1" as WorkId,
+    context: {
+      userId,
+      threadId,
+    },
+    result: {
+      kind: "failed",
+      error: "Function execution timed out",
+    },
+  });
+
+  // Verify that the database document was updated to 'failed'
+  const draft = await t.query(internal.threads.getThreadDraftInternal, {
+    id: threadId,
+    userId,
+  });
+
+  expect(draft?.generation_status).toBe("failed");
+  expect(draft?.failure_reason).toBe("Function execution timed out");
+
+  // Verify that notification contains direct link to the failed draft
+  expect(createSpy).toHaveBeenCalledWith(
+    expect.anything(),
+    expect.objectContaining({
+      targetId: userId,
+      kind: "thread_generation_failed",
+      data: {
+        threadId,
+        title: "Thread Generation Failed",
+        body: "Failed to generate thread: Function execution timed out",
+        error: "Function execution timed out",
+        href: `/threads/drafts/${threadId}/approve`,
+      },
+      dedupeKey: "thread_generation_failed:work_timeout_1",
+      source: {
+        type: "thread_generation",
+        id: threadId,
       },
     })
   );

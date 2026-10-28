@@ -3,6 +3,7 @@
 import { convexTest } from "convex-test";
 import { expect, test, vi, afterEach } from "vitest";
 import { api, internal } from "../_generated/api";
+import { Id } from "../_generated/dataModel";
 import schema from "../schema";
 import { NewsThreadFactoryGraph } from "../lib/agents/news/graph.js";
 import { ThreadsAPI } from "../lib/clients/threads.js";
@@ -1139,5 +1140,109 @@ test("iterateThreadInternal updates state on ManualHookSelectionNode and execute
   expect(saved?.iterations).toBe(2);
   expect(saved?.max_iterations).toBe(2);
   expect(saved?.thread_draft).toEqual(["Iterated post 1", "Iterated post 2"]);
+});
+
+test("enqueueThreadGeneration initializes draft in queued state and passes threadId in context", async () => {
+  const t = convexTest(schema, modules);
+  const userId = await t.mutation(async (ctx) => {
+    return await ctx.db.insert("users", {});
+  });
+
+  const enqueueSpy = vi.spyOn(generationPool, "enqueueAction").mockResolvedValueOnce(
+    "work-init-1" as unknown as Awaited<ReturnType<typeof generationPool.enqueueAction>>
+  );
+
+  const tUser = t.withIdentity({ subject: userId });
+  await tUser.action(api.actions.threads.enqueueThreadGeneration, {
+    requests: [
+      {
+        input_field: { agent: "news", url: "https://example.com/new-article" },
+        guidance: "Focus on virality",
+        manual_hook_selection: true,
+      },
+    ],
+  });
+
+  expect(enqueueSpy).toHaveBeenCalledTimes(1);
+  const [, , actionArgs, options] = enqueueSpy.mock.calls[0];
+
+  // Verify that recordId was created before enqueueing
+  expect(actionArgs).toMatchObject({
+    userId,
+    agent: "news",
+    guidance: "Focus on virality",
+    manual_hook_selection: true,
+  });
+  expect(actionArgs.recordId).toBeDefined();
+
+  // Verify context has threadId matching recordId
+  expect(options?.context).toMatchObject({
+    userId,
+    threadId: actionArgs.recordId,
+  });
+
+  // Verify draft exists in database with status 'queued'
+  const draft = await t.query(internal.threads.getThreadDraftInternal, {
+    id: actionArgs.recordId as Id<"threadDrafts">,
+    userId,
+  });
+  expect(draft).toBeDefined();
+  expect(draft?.generation_status).toBe("queued");
+  expect(draft?.manual_hook_selection).toBe(true);
+});
+
+test("markStuckDraftsAsFailed and cleanupStuckDrafts transition stale processing drafts to failed", async () => {
+  const t = convexTest(schema, modules);
+  const userId = await t.mutation(async (ctx) => {
+    return await ctx.db.insert("users", {});
+  });
+
+  // 1. Create a fresh draft (should not be touched)
+  const freshDraftId = await t.mutation(internal.threads.initializeThreadDraft, {
+    userId,
+    agent: "news",
+    input_field: { agent: "news", url: "https://example.com/fresh" },
+    generation_status: "processing",
+  });
+
+  // 2. Create a stale draft by setting creationTime far in the past
+  const staleDraftId = await t.mutation(internal.threads.initializeThreadDraft, {
+    userId,
+    agent: "news",
+    input_field: { agent: "news", url: "https://example.com/stale" },
+    generation_status: "processing",
+  });
+
+  // Set threshold to 0ms so stale draft is immediately eligible, fresh one with high cutoff
+  const result = await t.mutation(internal.threads.markStuckDraftsAsFailed, {
+    thresholdMs: 0,
+    userId,
+  });
+
+  expect(result.updatedCount).toBe(2);
+  expect(result.updatedIds).toContain(freshDraftId);
+  expect(result.updatedIds).toContain(staleDraftId);
+
+  const updatedFresh = await t.query(internal.threads.getThreadDraftInternal, { id: freshDraftId, userId });
+  expect(updatedFresh?.generation_status).toBe("failed");
+  expect(updatedFresh?.failure_reason).toBe("Function execution timed out");
+
+  // 3. Test cleanupStuckDrafts public mutation
+  const draft3 = await t.mutation(internal.threads.initializeThreadDraft, {
+    userId,
+    agent: "topic",
+    input_field: { agent: "topic", topic: "AI" },
+    generation_status: "queued",
+  });
+
+  const tUser = t.withIdentity({ subject: userId });
+  const cleanupRes = await tUser.mutation(api.threads.cleanupStuckDrafts, {
+    thresholdMs: 0,
+  });
+  expect(cleanupRes.updatedCount).toBe(1);
+  expect(cleanupRes.updatedIds).toContain(draft3);
+
+  const updatedDraft3 = await t.query(internal.threads.getThreadDraftInternal, { id: draft3, userId });
+  expect(updatedDraft3?.generation_status).toBe("failed");
 });
 

@@ -708,8 +708,6 @@ export default function KeywordDetailPage() {
                   <Link
                     href={`/threads/create?url=${encodeURIComponent(selectedArticle.url)}&agent=news&topic=${encodeURIComponent(
                       displayKeyword
-                    )}&guidance=${encodeURIComponent(
-                      `Focus on key takeaways and developments from ${selectedArticle.mediaCompany || "this coverage"} regarding ${displayKeyword}. Article headline: "${selectedArticle.title}".`
                     )}`}
                     className="w-full"
                   >

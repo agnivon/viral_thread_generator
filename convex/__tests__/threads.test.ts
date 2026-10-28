@@ -16,6 +16,7 @@ type MockWorkpoolJobId = Awaited<ReturnType<typeof publicationPool.enqueueAction
 const modules = import.meta.glob("../**/*.ts");
 
 afterEach(() => {
+  vi.useRealTimers();
   vi.restoreAllMocks();
 });
 
@@ -1192,57 +1193,66 @@ test("enqueueThreadGeneration initializes draft in queued state and passes threa
 });
 
 test("markStuckDraftsAsFailed and cleanupStuckDrafts transition stale processing drafts to failed", async () => {
-  const t = convexTest(schema, modules);
-  const userId = await t.mutation(async (ctx) => {
-    return await ctx.db.insert("users", {});
-  });
+  vi.useFakeTimers();
+  try {
+    const baseTime = 1_700_000_000_000;
+    vi.setSystemTime(baseTime);
 
-  // 1. Create a fresh draft (should not be touched)
-  const freshDraftId = await t.mutation(internal.threads.initializeThreadDraft, {
-    userId,
-    agent: "news",
-    input_field: { agent: "news", url: "https://example.com/fresh" },
-    generation_status: "processing",
-  });
+    const t = convexTest(schema, modules);
+    const userId = await t.mutation(async (ctx) => {
+      return await ctx.db.insert("users", {});
+    });
 
-  // 2. Create a stale draft by setting creationTime far in the past
-  const staleDraftId = await t.mutation(internal.threads.initializeThreadDraft, {
-    userId,
-    agent: "news",
-    input_field: { agent: "news", url: "https://example.com/stale" },
-    generation_status: "processing",
-  });
+    // 1. Create a stale draft at baseTime
+    const staleDraftId = await t.mutation(internal.threads.initializeThreadDraft, {
+      userId,
+      agent: "news",
+      input_field: { agent: "news", url: "https://example.com/stale" },
+      generation_status: "processing",
+    });
 
-  // Set threshold to 0ms so stale draft is immediately eligible, fresh one with high cutoff
-  const result = await t.mutation(internal.threads.markStuckDraftsAsFailed, {
-    thresholdMs: 0,
-    userId,
-  });
+    // 2. Advance time by 20 minutes (beyond default 15m threshold)
+    vi.setSystemTime(baseTime + 20 * 60 * 1000);
 
-  expect(result.updatedCount).toBe(2);
-  expect(result.updatedIds).toContain(freshDraftId);
-  expect(result.updatedIds).toContain(staleDraftId);
+    // 3. Create a fresh draft at (baseTime + 20m)
+    const freshDraftId = await t.mutation(internal.threads.initializeThreadDraft, {
+      userId,
+      agent: "news",
+      input_field: { agent: "news", url: "https://example.com/fresh" },
+      generation_status: "processing",
+    });
 
-  const updatedFresh = await t.query(internal.threads.getThreadDraftInternal, { id: freshDraftId, userId });
-  expect(updatedFresh?.generation_status).toBe("failed");
-  expect(updatedFresh?.failure_reason).toBe("Function execution timed out");
+    // 4. Run markStuckDraftsAsFailed with default 15m threshold
+    const result = await t.mutation(internal.threads.markStuckDraftsAsFailed, {
+      userId,
+    });
 
-  // 3. Test cleanupStuckDrafts public mutation
-  const draft3 = await t.mutation(internal.threads.initializeThreadDraft, {
-    userId,
-    agent: "topic",
-    input_field: { agent: "topic", topic: "AI" },
-    generation_status: "queued",
-  });
+    // Stale draft should be marked failed; fresh draft should remain processing
+    expect(result.updatedCount).toBe(1);
+    expect(result.updatedIds).toContain(staleDraftId);
+    expect(result.updatedIds).not.toContain(freshDraftId);
 
-  const tUser = t.withIdentity({ subject: userId });
-  const cleanupRes = await tUser.mutation(api.threads.cleanupStuckDrafts, {
-    thresholdMs: 0,
-  });
-  expect(cleanupRes.updatedCount).toBe(1);
-  expect(cleanupRes.updatedIds).toContain(draft3);
+    const updatedStale = await t.query(internal.threads.getThreadDraftInternal, { id: staleDraftId, userId });
+    expect(updatedStale?.generation_status).toBe("failed");
+    expect(updatedStale?.failure_reason).toBe("Function execution timed out");
 
-  const updatedDraft3 = await t.query(internal.threads.getThreadDraftInternal, { id: draft3, userId });
-  expect(updatedDraft3?.generation_status).toBe("failed");
+    const untouchedFresh = await t.query(internal.threads.getThreadDraftInternal, { id: freshDraftId, userId });
+    expect(untouchedFresh?.generation_status).toBe("processing");
+
+    // 5. Advance time by another 20 minutes so freshDraftId now becomes stale
+    vi.setSystemTime(baseTime + 40 * 60 * 1000);
+
+    // 6. Test cleanupStuckDrafts public mutation
+    const tUser = t.withIdentity({ subject: userId });
+    const cleanupRes = await tUser.mutation(api.threads.cleanupStuckDrafts, {});
+    expect(cleanupRes.updatedCount).toBe(1);
+    expect(cleanupRes.updatedIds).toContain(freshDraftId);
+
+    const finalFresh = await t.query(internal.threads.getThreadDraftInternal, { id: freshDraftId, userId });
+    expect(finalFresh?.generation_status).toBe("failed");
+    expect(finalFresh?.failure_reason).toBe("Function execution timed out");
+  } finally {
+    vi.useRealTimers();
+  }
 });
 

@@ -9,7 +9,9 @@ import {
   buildSurgicalWriterContext,
   processDifferentialEvaluation,
   filterActionablePostCritiques,
+  BANNED_ENGAGEMENT_PHRASES,
 } from "../../lib/agents/utils";
+import { extractSelectedHook } from "../../lib/agents/nodes";
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -764,6 +766,88 @@ test("processDifferentialEvaluation - merges multiple genuine violations on the 
   expect(evalResult.post_critiques[0].critique).toContain("em_dash");
   expect(evalResult.post_critiques[0].critique).toContain("banned_phrase");
   expect(evalResult.is_approved).toBe(false);
+});
+
+test("calculateMonotonicScore - handles NaN, infinite, and negative inputs safely", () => {
+  const result1 = calculateMonotonicScore({
+    previousScore: NaN,
+    suggestedScore: NaN,
+    totalIssues: -5,
+    resolvedCount: -2,
+  });
+  expect(Number.isFinite(result1)).toBe(true);
+  expect(result1).toBeGreaterThanOrEqual(70);
+
+  const result2 = calculateMonotonicScore({
+    previousScore: 80,
+    suggestedScore: Infinity,
+    totalIssues: 0,
+    resolvedCount: 0,
+    hasNewViolations: false,
+  });
+  expect(result2).toBe(90); // 80 + 10 = 90
+});
+
+test("parseFlaggedPostIndicesFromErrors - extracts indices from plural and relief valve error strings", () => {
+  const text1 = "Post 2 and Post 3 exceed 280 characters. Post #4 contains markdown.";
+  expect(parseFlaggedPostIndicesFromErrors(text1)).toEqual([2, 3, 4]);
+
+  const text2 = "Thread contains 4 posts over 280 characters. Posts exceeding 280 characters: Post 2, Post 4, Post 5.";
+  expect(parseFlaggedPostIndicesFromErrors(text2)).toEqual([2, 4, 5]);
+
+  const text3 = "No posts flagged.";
+  expect(parseFlaggedPostIndicesFromErrors(text3)).toEqual([]);
+});
+
+test("processDifferentialEvaluation - validates expanded banned phrases and formatting markdown", () => {
+  expect(BANNED_ENGAGEMENT_PHRASES).toContain("in today's fast-paced world");
+  expect(BANNED_ENGAGEMENT_PHRASES).toContain("key takeaway");
+
+  const thread = [
+    "Hook post with high density",
+    "In today's fast-paced world we must look at the key takeaway.",
+    "This post has __bold text__ and `code snippet`.",
+  ];
+
+  const evalResult = processDifferentialEvaluation({
+    threadDraft: thread,
+    iterations: 1,
+    previousScore: 78,
+    priorActionableCritiques: [],
+    structuredResponse: {
+      overall_critique: "New platform violations detected",
+      issue_evaluations: [],
+      new_violations: [
+        {
+          post_index: 2,
+          violation_type: "banned_phrase",
+          critique: "Contains 'in today's fast-paced world' and 'key takeaway'",
+        },
+        {
+          post_index: 3,
+          violation_type: "formatting",
+          critique: "Contains markdown formatting (__ and `)",
+        },
+      ],
+      suggested_score: 70,
+    },
+  });
+
+  expect(evalResult.post_critiques).toHaveLength(2);
+  expect(evalResult.post_critiques[0].post_index).toBe(2);
+  expect(evalResult.post_critiques[1].post_index).toBe(3);
+  expect(evalResult.is_approved).toBe(false);
+});
+
+test("extractSelectedHook - extracts trimmed hook from multiple input formats", () => {
+  expect(extractSelectedHook("  Hook string with spaces  ")).toBe("Hook string with spaces");
+  expect(extractSelectedHook({ selected_hook: "  Snake case hook  " })).toBe("Snake case hook");
+  expect(extractSelectedHook({ selectedHook: "  Camel case hook  " })).toBe("Camel case hook");
+  expect(extractSelectedHook({ hook: "  Generic hook  " })).toBe("Generic hook");
+  expect(extractSelectedHook({ hookText: "  Hook text property  " })).toBe("Hook text property");
+  expect(extractSelectedHook(42)).toBe("42");
+  expect(extractSelectedHook(null)).toBe("");
+  expect(extractSelectedHook(undefined)).toBe("");
 });
 
 

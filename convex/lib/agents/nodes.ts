@@ -131,12 +131,13 @@ export const SearchQueryOptimizerNode = async (
 
 export function extractSelectedHook(input: unknown): string {
   if (typeof input === "string") {
-    return input;
+    return input.trim();
   }
-  if (typeof input === "object" && input !== null && "selected_hook" in input) {
-    const val = (input as Record<string, unknown>).selected_hook;
+  if (typeof input === "object" && input !== null) {
+    const obj = input as Record<string, unknown>;
+    const val = obj.selected_hook ?? obj.selectedHook ?? obj.hook ?? obj.hookText;
     if (typeof val === "string") {
-      return val;
+      return val.trim();
     }
   }
   if (typeof input === "number" || typeof input === "boolean") {

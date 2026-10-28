@@ -229,7 +229,7 @@ export const HookStrategistNode = async (state: TopicThreadFactoryStateType, con
 };
 
 const topicThreadWriterSchema = z.object({
-  thread_draft: z.array(z.string())
+  thread_draft: z.array(z.string()).min(1, "Must generate at least one post for the thread draft")
 });
 
 const topicThreadWriterModels = [

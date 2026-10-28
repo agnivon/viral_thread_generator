@@ -365,6 +365,27 @@ export function normalizeResearchDossier(rawContent: unknown): string {
   return text;
 }
 
+export const BANNED_ENGAGEMENT_PHRASES = [
+  "a thread 🧵",
+  "read below",
+  "let's dive in",
+  "here is why",
+  "save this tweet",
+  "what do you think?",
+  "let's discuss",
+  "in today's fast-paced world",
+  "have you ever wondered",
+  "look no further",
+  "in this post, we will explore",
+  "key takeaway",
+  "crucial step",
+  "remember to",
+  "let's look at",
+  "here's the deal",
+  "retweet",
+  "like and follow",
+];
+
 export interface ActionablePostCritique {
   post_index: number;
   critique: string;
@@ -495,7 +516,7 @@ export function reconcileSurgicalDraft(
     return previousDraft;
   }
 
-  const validFlagged = flaggedIndices.filter((idx) => idx >= 1 && idx <= previousDraft.length);
+  const validFlagged = flaggedIndices.filter((idx) => typeof idx === "number" && Number.isInteger(idx) && idx >= 1 && idx <= previousDraft.length);
   if (validFlagged.length === 0) {
     return previousDraft;
   }
@@ -583,39 +604,55 @@ export function calculateMonotonicScore(options: CalculateMonotonicScoreOptions)
     hasNewViolations = false,
   } = options;
 
-  const clampedResolved = Math.min(Math.max(0, resolvedCount), Math.max(0, totalIssues));
-  const isFullResolution = (totalIssues === 0 || clampedResolved === totalIssues) && !hasNewViolations;
+  const safePrev = typeof previousScore === "number" && Number.isFinite(previousScore)
+    ? Math.min(100, Math.max(0, previousScore))
+    : 70;
+
+  const safeSuggested = typeof suggestedScore === "number" && Number.isFinite(suggestedScore)
+    ? Math.min(100, Math.max(0, suggestedScore))
+    : undefined;
+
+  const safeTotal = typeof totalIssues === "number" && Number.isFinite(totalIssues) && totalIssues > 0
+    ? Math.floor(totalIssues)
+    : 0;
+
+  const safeResolved = typeof resolvedCount === "number" && Number.isFinite(resolvedCount) && resolvedCount > 0
+    ? Math.floor(resolvedCount)
+    : 0;
+
+  const clampedResolved = Math.min(safeResolved, safeTotal);
+  const isFullResolution = (safeTotal === 0 || clampedResolved === safeTotal) && !hasNewViolations;
 
   let calculatedScore: number;
   if (isFullResolution) {
     // Guaranteed pass floor (>= 88) when all prior issues are resolved with zero violations
-    calculatedScore = Math.max(previousScore + 10, 88);
-    if (typeof suggestedScore === "number" && !isNaN(suggestedScore)) {
-      calculatedScore = Math.max(calculatedScore, suggestedScore);
+    calculatedScore = Math.max(safePrev + 10, 88);
+    if (safeSuggested !== undefined) {
+      calculatedScore = Math.max(calculatedScore, safeSuggested);
     }
   } else {
     // Proportional progress credit based on fraction of resolved issues
-    const progressRatio = totalIssues > 0 ? clampedResolved / totalIssues : 0;
+    const progressRatio = safeTotal > 0 ? clampedResolved / safeTotal : 0;
     const progressBonus = Math.round(progressRatio * 15);
-    calculatedScore = Math.max(previousScore, previousScore + progressBonus);
+    calculatedScore = Math.max(safePrev, safePrev + progressBonus);
 
     // If issues remain unresolved or platform violations exist:
     // suggestedScore CANNOT push an unresolved thread across the passing line (>= 85)
-    if (typeof suggestedScore === "number" && !isNaN(suggestedScore) && !hasNewViolations) {
-      const cappedSuggested = Math.min(84, suggestedScore);
+    if (safeSuggested !== undefined && !hasNewViolations) {
+      const cappedSuggested = Math.min(84, safeSuggested);
       calculatedScore = Math.max(calculatedScore, cappedSuggested);
     }
 
     // When issues are unresolved or platform violations exist, cap score below the passing line (85)
     // unless previousScore was already higher (monotonicity guarantee)
-    if (previousScore < 85) {
+    if (safePrev < 85) {
       calculatedScore = Math.min(84, calculatedScore);
     }
   }
 
   // Monotonic floor: Score_N >= Score_{N-1}
-  calculatedScore = Math.max(previousScore, calculatedScore);
-  return Math.min(100, Math.max(0, calculatedScore));
+  calculatedScore = Math.max(safePrev, calculatedScore);
+  return Math.min(100, Math.max(0, Math.round(calculatedScore)));
 }
 
 /**
@@ -623,7 +660,7 @@ export function calculateMonotonicScore(options: CalculateMonotonicScoreOptions)
  */
 export function parseFlaggedPostIndicesFromErrors(critiqueText: string | undefined | null): number[] {
   if (!critiqueText) return [];
-  const matches = critiqueText.matchAll(/Post\s*#?\s*(\d+)/gi);
+  const matches = critiqueText.matchAll(/Posts?\s*#?\s*(\d+)/gi);
   const indices = new Set<number>();
   for (const match of matches) {
     const num = parseInt(match[1], 10);
@@ -645,7 +682,7 @@ export function buildSurgicalWriterContext(
     return { pinnedPostsContext: "", isSurgical: false, pinnedIndices: [] };
   }
 
-  const validFlagged = flaggedIndices.filter((idx) => idx >= 1 && idx <= previousDraft.length);
+  const validFlagged = flaggedIndices.filter((idx) => typeof idx === "number" && Number.isInteger(idx) && idx >= 1 && idx <= previousDraft.length);
   if (validFlagged.length === 0 || validFlagged.length >= previousDraft.length) {
     return { pinnedPostsContext: "", isSurgical: false, pinnedIndices: [] };
   }
@@ -781,11 +818,13 @@ export function processDifferentialEvaluation(
       isGenuineViolation = /\*/.test(postText);
     } else if (vType === "character_limit") {
       isGenuineViolation = postText.length > 500;
-    } else if (vType === "formatting" || vType === "banned_phrase") {
+    } else if (vType === "formatting") {
       const lineBreaks = (postText.match(/\n/g) || []).length;
-      const bannedPhrases = ["a thread 🧵", "retweet", "what do you think?", "let's dive in", "read below"];
+      const hasMarkdown = /(__|~~|`|#\s+|>+\s+|\[.*?\]\(.*?\))/.test(postText);
+      isGenuineViolation = lineBreaks > 4 || postText.length > 500 || hasMarkdown;
+    } else if (vType === "banned_phrase") {
       const lower = postText.toLowerCase();
-      isGenuineViolation = (vType === "formatting" && lineBreaks > 4) || bannedPhrases.some((phrase) => lower.includes(phrase));
+      isGenuineViolation = BANNED_ENGAGEMENT_PHRASES.some((phrase) => lower.includes(phrase));
     }
 
     if (isGenuineViolation) {

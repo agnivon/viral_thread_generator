@@ -429,7 +429,9 @@ THE CLOSED-WORLD AUDIT CONTRACT (STRICT INVARIANT)
    - "url": Contains a raw URL or hyperlink.
    - "em_dash": Contains an em dash (—) or en dash (–).
    - "asterisk": Contains markdown formatting asterisks (**) or markdown formatting.
-   - "formatting": Severe platform formatting breach (>500 characters, >4 line breaks, or banned engagement phrases like "a thread 🧵", "retweet", "what do you think?").
+   - "character_limit": Post exceeds 500 characters.
+   - "banned_phrase": Contains banned engagement bait phrases like "a thread 🧵", "retweet", "what do you think?", "let's dive in", "read below".
+   - "formatting": Severe platform formatting breach (>4 line breaks).
    If no hard platform violations were introduced, 'new_violations' MUST be an empty array [].
 
 ========================================================================

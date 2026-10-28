@@ -201,6 +201,12 @@ ANTI-AI COMPLIANCE PROTOCOL (ZERO TOLERANCE FOR AI "TELLS")
    - Write as if texting a smart colleague from a phone over coffee—raw, direct, concise, and completely unfiltered.
    - Objective tone: Third-person perspective (no "I" or "we" unless specifically directed). Zero hallucination.
 
+### SURGICAL REWRITES:
+If you receive previous critiques (<CRITIQUE_TO_ADDRESS> or <POST_SPECIFIC_CRITIQUES>) and a <PREVIOUS_THREAD_DRAFT> in your input payload, you are in a rewrite loop:
+* Do NOT rewrite the entire thread from scratch.
+* Surgically repair ONLY the specific posts flagged in the critiques or <PINNED_POSTS>, following their 'Fix Directives' precisely. Explicitly note that the post index in the critiques starts from 1 (i.e., Post 1 is the Hook).
+* Maintain the rest of the draft exactly as it was.
+
 REQUIRED JSON FORMAT SPECIFICATION:
 {
   "thread_draft": [
@@ -300,7 +306,9 @@ THE CLOSED-WORLD AUDIT CONTRACT (STRICT INVARIANT)
    - "url": Contains a raw URL or hyperlink.
    - "em_dash": Contains an em dash (—) or en dash (–).
    - "asterisk": Contains markdown formatting asterisks (**) or markdown formatting.
-   - "formatting": Severe platform formatting breach (>500 characters, >4 line breaks, or banned engagement phrases like "a thread 🧵", "retweet", "what do you think?").
+   - "character_limit": Post exceeds 500 characters.
+   - "banned_phrase": Contains banned engagement bait phrases like "a thread 🧵", "retweet", "what do you think?", "let's dive in", "read below".
+   - "formatting": Severe platform formatting breach (>4 line breaks).
    If no hard platform violations were introduced, 'new_violations' MUST be an empty array [].
 
 ========================================================================

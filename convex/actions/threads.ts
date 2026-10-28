@@ -109,11 +109,15 @@ async function handleGraphCompletion(
     ? best_thread_draft
     : (thread_draft ?? best_thread_draft);
 
+  const hasDraft = Array.isArray(resolved_thread_draft) && resolved_thread_draft.length > 0;
+
   const resolved_virality_score = isBestDraftRestored
     ? bestScore
     : (currentScore ?? bestScore);
 
-  const resolved_is_approved = isBestDraftRestored
+  const resolved_is_approved = (!interrupted && !hasDraft)
+    ? false
+    : isBestDraftRestored
     ? (resolved_virality_score !== undefined && resolved_virality_score >= 85)
     : Boolean(finalState.is_approved);
 
@@ -129,9 +133,11 @@ async function handleGraphCompletion(
         resolved_post_critiques = bestAuditEntry.post_critiques.filter((pc) => pc.status !== "resolved");
       }
     }
+  } else if (resolved_is_approved && Array.isArray(resolved_post_critiques)) {
+    // If the newly iterated draft is approved, ensure lingering critiques are cleared
+    resolved_post_critiques = [];
   }
 
-  const hasDraft = Array.isArray(resolved_thread_draft) && resolved_thread_draft.length > 0;
   const generation_status = interrupted
     ? ("hook selection" as const)
     : hasDraft

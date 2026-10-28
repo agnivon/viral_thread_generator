@@ -2,6 +2,7 @@
 
 import { tool } from "@langchain/core/tools";
 import { z } from "zod";
+import { BANNED_ENGAGEMENT_PHRASES } from "./utils.js";
 
 export interface ThreadValidationOptions {
   thread_draft: string[];
@@ -13,21 +14,17 @@ export function validateThreadDraftContent(options: ThreadValidationOptions): { 
   const { thread_draft, check_line_breaks, ignoreSoftLimits } = options;
   const errors: string[] = [];
   let over280Count = 0;
+  const over280Indices: number[] = [];
 
-  const banned_phrases = [
-    "a thread 🧵", "read below", "let's dive in", "here is why",
-    "save this tweet", "what do you think?", "let's discuss",
-    "in today's fast-paced world", "have you ever wondered", "look no further",
-    "in this post, we will explore", "key takeaway", "crucial step",
-    "remember to", "let's look at", "here's the deal"
-  ];
+  const banned_phrases = BANNED_ENGAGEMENT_PHRASES;
 
   // 5. Thread Length Validation (The 9-Post Rule)
   if (thread_draft.length > 9) {
     errors.push("Thread exceeds the 9-post maximum limit. Condense the body.");
   }
 
-  thread_draft.forEach((post, index) => {
+  thread_draft.forEach((rawPost, index) => {
+    const post = typeof rawPost === "string" ? rawPost : "";
     let position = "Body";
     if (index === 0) position = "Hook";
     else if (index === thread_draft.length - 1) position = "CTA";
@@ -37,6 +34,7 @@ export function validateThreadDraftContent(options: ThreadValidationOptions): { 
     if (!ignoreSoftLimits && index !== 0) {
       if (post.length > 280) {
         over280Count++;
+        over280Indices.push(index + 1);
       }
     }
 
@@ -85,7 +83,8 @@ export function validateThreadDraftContent(options: ThreadValidationOptions): { 
   });
 
   if (!ignoreSoftLimits && over280Count > 3) {
-    errors.push(`Thread contains ${over280Count} posts over 280 characters (excluding the hook). Only 3 relief valve posts > 280 characters are allowed.`);
+    const postListStr = over280Indices.length > 0 ? ` Posts exceeding 280 characters: ${over280Indices.map((i) => `Post ${i}`).join(", ")}.` : "";
+    errors.push(`Thread contains ${over280Count} posts over 280 characters (excluding the hook). Only 3 relief valve posts > 280 characters are allowed.${postListStr}`);
   }
 
   return {

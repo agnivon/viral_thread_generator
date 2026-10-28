@@ -1,6 +1,15 @@
 /// <reference types="vite/client" />
 import { expect, test, vi, afterEach } from "vitest";
-import { invokeWithFallbacks, FallbackRunnable } from "../../lib/agents/utils";
+import {
+  invokeWithFallbacks,
+  FallbackRunnable,
+  reconcileSurgicalDraft,
+  calculateMonotonicScore,
+  parseFlaggedPostIndicesFromErrors,
+  buildSurgicalWriterContext,
+  processDifferentialEvaluation,
+  filterActionablePostCritiques,
+} from "../../lib/agents/utils";
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -379,5 +388,386 @@ test("invokeWithFallbacks - fails open when all candidates in fallback array are
   expect(result).toEqual({ text: "trial probe success" });
   expect(candidate1.invoke).toHaveBeenCalledTimes(1);
 });
+
+// ==========================================
+// Monotonic Critic Refinement Utilities Tests
+// ==========================================
+
+test("reconcileSurgicalDraft - pins unflagged posts character-for-character when model returns revised full array", () => {
+  const previousDraft = [
+    "Post 1: Original perfect hook.",
+    "Post 2: Weak middle content that needs more tension.",
+    "Post 3: Solid CTA closer.",
+  ];
+
+  // Model rephrases post 1 slightly (collateral regression) and changes post 2
+  const candidateDraft = [
+    "Post 1: Slightly reworded hook that drifted.",
+    "Post 2: High-stakes tension rewrite that fixes the problem.",
+    "Post 3: Reworded closer.",
+  ];
+
+  const flaggedIndices = [2]; // Only post 2 was critiqued
+  const reconciled = reconcileSurgicalDraft(previousDraft, candidateDraft, flaggedIndices);
+
+  // Post 1 and Post 3 MUST remain exact character-for-character copies of previousDraft
+  expect(reconciled[0]).toBe(previousDraft[0]);
+  expect(reconciled[1]).toBe(candidateDraft[1]);
+  expect(reconciled[2]).toBe(previousDraft[2]);
+});
+
+test("reconcileSurgicalDraft - handles model returning only revised posts corresponding to flagged count", () => {
+  const previousDraft = [
+    "Post 1: Hook",
+    "Post 2: Flawed post",
+    "Post 3: Flawed post 2",
+    "Post 4: Strong closer",
+  ];
+
+  // Model returns an array of only 2 posts (for the 2 flagged positions)
+  const candidateDraft = [
+    "Post 2: Fixed version",
+    "Post 3: Fixed version",
+  ];
+
+  const flaggedIndices = [2, 3];
+  const reconciled = reconcileSurgicalDraft(previousDraft, candidateDraft, flaggedIndices);
+
+  expect(reconciled[0]).toBe("Post 1: Hook");
+  expect(reconciled[1]).toBe("Post 2: Fixed version");
+  expect(reconciled[2]).toBe("Post 3: Fixed version");
+  expect(reconciled[3]).toBe("Post 4: Strong closer");
+});
+
+test("reconcileSurgicalDraft - edge cases: empty inputs, out-of-bounds, all flagged", () => {
+  const previousDraft = ["Post 1", "Post 2"];
+
+  // Empty previous draft
+  expect(reconcileSurgicalDraft([], ["New 1"], [1])).toEqual(["New 1"]);
+  expect(reconcileSurgicalDraft(undefined, ["New 1"], [1])).toEqual(["New 1"]);
+
+  // Empty candidate draft
+  expect(reconcileSurgicalDraft(previousDraft, [], [1])).toEqual(previousDraft);
+  expect(reconcileSurgicalDraft(previousDraft, undefined, [1])).toEqual(previousDraft);
+
+  // Empty or invalid flagged indices
+  expect(reconcileSurgicalDraft(previousDraft, ["New 1", "New 2"], [])).toEqual(previousDraft);
+  expect(reconcileSurgicalDraft(previousDraft, ["New 1", "New 2"], [99])).toEqual(previousDraft);
+
+  // All flagged and full candidate provided
+  const allFlagged = reconcileSurgicalDraft(previousDraft, ["New 1", "New 2"], [1, 2]);
+  expect(allFlagged).toEqual(["New 1", "New 2"]);
+});
+
+test("calculateMonotonicScore - guarantees Score_N >= Score_{N-1} and passes >= 88 on full resolution", () => {
+  // Case 1: All issues resolved with 0 platform violations -> guaranteed >= 88
+  const fullResolution = calculateMonotonicScore({
+    previousScore: 72,
+    suggestedScore: 75,
+    totalIssues: 3,
+    resolvedCount: 3,
+    hasNewViolations: false,
+  });
+  expect(fullResolution).toBeGreaterThanOrEqual(88);
+  expect(fullResolution).toBe(88);
+
+  // Case 2: Full resolution with already high previous score adds +10 floor
+  const highResolution = calculateMonotonicScore({
+    previousScore: 85,
+    totalIssues: 1,
+    resolvedCount: 1,
+    hasNewViolations: false,
+  });
+  expect(highResolution).toBe(95);
+
+  // Case 3: Monotonic floor prevents score decay even if critic suggests lower score
+  const scoreDecayBlocked = calculateMonotonicScore({
+    previousScore: 84,
+    suggestedScore: 70, // Critic got stricter
+    totalIssues: 2,
+    resolvedCount: 1,
+  });
+  expect(scoreDecayBlocked).toBeGreaterThanOrEqual(84);
+
+  // Case 4: Partial resolution scales proportionally
+  const partialResolution = calculateMonotonicScore({
+    previousScore: 70,
+    totalIssues: 4,
+    resolvedCount: 2, // 50% resolved -> +8 bonus
+  });
+  expect(partialResolution).toBe(78);
+
+  // Case 5: Maximum cap is 100
+  const maxCap = calculateMonotonicScore({
+    previousScore: 96,
+    suggestedScore: 105,
+    totalIssues: 1,
+    resolvedCount: 1,
+  });
+  expect(maxCap).toBe(100);
+});
+
+test("parseFlaggedPostIndicesFromErrors - extracts unique post indices from validation critique", () => {
+  const errorText = "Post 1 exceeds 500 characters. Post #3 has invalid markup. Post 1 is too verbose.";
+  const indices = parseFlaggedPostIndicesFromErrors(errorText);
+  expect(indices).toEqual([1, 3]);
+
+  expect(parseFlaggedPostIndicesFromErrors("General formatting failure")).toEqual([]);
+  expect(parseFlaggedPostIndicesFromErrors("")).toEqual([]);
+});
+
+test("buildSurgicalWriterContext - constructs surgical prompt with pinned unflagged posts", () => {
+  const draft = ["Hook post", "Body post", "Closer post"];
+  const context = buildSurgicalWriterContext(draft, [2]);
+
+  expect(context.isSurgical).toBe(true);
+  expect(context.pinnedIndices).toEqual([1, 3]);
+  expect(context.pinnedPostsContext).toContain("<PINNED_POSTS>");
+  expect(context.pinnedPostsContext).toContain('Post 1 (PINNED - DO NOT MODIFY):\n"Hook post"');
+  expect(context.pinnedPostsContext).toContain('Post 3 (PINNED - DO NOT MODIFY):\n"Closer post"');
+  expect(context.pinnedPostsContext).toContain("SURGICAL REWRITE DIRECTIVE: You must revise ONLY the flagged posts (Post 2)");
+
+  // When all posts are flagged, isSurgical should be false
+  const allFlagged = buildSurgicalWriterContext(draft, [1, 2, 3]);
+  expect(allFlagged.isSurgical).toBe(false);
+  expect(allFlagged.pinnedPostsContext).toBe("");
+});
+
+test("reconcileSurgicalDraft - handles explicitly labeled posts and respects whitespace fallbacks", () => {
+  const previousDraft = ["Hook 1", "Body 2", "Closer 3"];
+  // Candidate provides labeled rewrite for post 2 and whitespace for post 3
+  const candidateDraft = ["Post 2: Revised Body 2", "   "];
+  const result = reconcileSurgicalDraft(previousDraft, candidateDraft, [2, 3]);
+
+  expect(result[0]).toBe("Hook 1");
+  expect(result[1]).toBe("Post 2: Revised Body 2");
+  expect(result[2]).toBe("Closer 3"); // Whitespace candidate falls back to original
+});
+
+test("reconcileSurgicalDraft - candidate draft shorter than previous draft but closer to full thread correctly maps by position", () => {
+  const previousDraft = ["Post 1 (Hook)", "Post 2 (Body 1)", "Post 3 (Body 2)", "Post 4 (Body 3)", "Post 5 (Closer)"];
+  // Post 2 flagged. Candidate model outputs 4 posts (closer to full thread of 5 than flagged of 1):
+  const candidateDraft = ["Post 1 (Hook)", "Post 2 (Body 1 REVISED)", "Post 3 (Body 2)", "Post 4 (Body 3)"];
+  const result = reconcileSurgicalDraft(previousDraft, candidateDraft, [2]);
+
+  expect(result[0]).toBe("Post 1 (Hook)");
+  expect(result[1]).toBe("Post 2 (Body 1 REVISED)");
+  expect(result[2]).toBe("Post 3 (Body 2)");
+  expect(result[3]).toBe("Post 4 (Body 3)");
+  expect(result[4]).toBe("Post 5 (Closer)"); // Unflagged closer retained from previous draft
+});
+
+test("filterActionablePostCritiques - discards critiques with status resolved", () => {
+  const critiques = [
+    { post_index: 1, critique: "Hook is weak", fix_directive: "Add metrics", status: "open" as const },
+    { post_index: 2, critique: "Had an em dash", fix_directive: "Remove em dash", status: "resolved" as const },
+    { post_index: 3, critique: "Pacing drags", fix_directive: "Shorten sentences", status: "unresolved" as const },
+  ];
+
+  const actionable = filterActionablePostCritiques(critiques);
+  expect(actionable).toHaveLength(2);
+  expect(actionable.map((a) => a.post_index)).toEqual([1, 3]);
+  expect(actionable.some((a) => a.post_index === 2)).toBe(false);
+});
+
+test("calculateMonotonicScore - passes cleanly when totalIssues is 0 and no violations", () => {
+  const cleanScore = calculateMonotonicScore({
+    previousScore: 80,
+    suggestedScore: 92,
+    totalIssues: 0,
+    resolvedCount: 0,
+    hasNewViolations: false,
+  });
+
+  expect(cleanScore).toBeGreaterThanOrEqual(88);
+  expect(cleanScore).toBe(92);
+});
+
+test("calculateMonotonicScore - strictly bounds score < 85 when issues remain unresolved despite high suggestedScore", () => {
+  // Even if the LLM suggests 98, unresolved issues MUST NOT pass the thread (capped at 84)
+  const scoreWithUnresolved = calculateMonotonicScore({
+    previousScore: 70,
+    suggestedScore: 98,
+    totalIssues: 2,
+    resolvedCount: 1, // Only 1 of 2 resolved
+    hasNewViolations: false,
+  });
+  expect(scoreWithUnresolved).toBeLessThanOrEqual(84);
+  expect(scoreWithUnresolved).toBe(84);
+
+  // New platform violations also block crossing threshold
+  const scoreWithNewViolations = calculateMonotonicScore({
+    previousScore: 75,
+    suggestedScore: 92,
+    totalIssues: 1,
+    resolvedCount: 1,
+    hasNewViolations: true,
+  });
+  expect(scoreWithNewViolations).toBeLessThan(85);
+});
+
+test("processDifferentialEvaluation - enforces Closed-World invariant and drops illegal/out-of-bounds violations", () => {
+  const previousDraft = ["Hook 1", "Body 2", "Closer 3"];
+  const priorActionable = [
+    { post_index: 2, critique: "Pacing drags", fix_directive: "Cut filler words", status: "open" as const },
+  ];
+
+  const evalResult = processDifferentialEvaluation({
+    threadDraft: previousDraft,
+    iterations: 1,
+    previousScore: 75,
+    priorActionableCritiques: priorActionable,
+    structuredResponse: {
+      overall_critique: "Evaluated revision.",
+      issue_evaluations: [
+        {
+          post_index: 2,
+          prior_issue: "Pacing drags",
+          status: "resolved",
+          reasoning: "Removed filler words.",
+        },
+        // The critic tries to evaluate unflagged post 1 (Evaluation Amnesia / Whack-A-Mole breach):
+        {
+          post_index: 1,
+          prior_issue: "New complaint on post 1",
+          status: "unresolved",
+          reasoning: "I don't like the style anymore.",
+        },
+      ],
+      new_violations: [
+        // Out-of-bounds violation:
+        { post_index: 99, violation_type: "url", critique: "Out of bounds" },
+        // Disallowed subjective violation type:
+        { post_index: 2, violation_type: "tone", critique: "Tone is too informal" },
+      ],
+      suggested_score: 82,
+    },
+  });
+
+  // Post 1 complaint is dropped (Pillar 2 Closed-World constraint)
+  // Out-of-bounds post 99 violation is dropped
+  // Subjective "tone" violation is dropped
+  // Result: all legitimate issues resolved, thread approved!
+  expect(evalResult.is_approved).toBe(true);
+  expect(evalResult.virality_score).toBeGreaterThanOrEqual(88);
+  expect(evalResult.post_critiques).toEqual([]);
+  expect(evalResult.audit_history).toHaveLength(1);
+  expect(evalResult.audit_history[0].post_critiques[0].status).toBe("resolved");
+});
+
+test("reconcileSurgicalDraft - handles mixed labeled and unlabeled candidate posts in arbitrary order without collisions", () => {
+  const previousDraft = ["Post 1 (Hook)", "Post 2 (Body 1)", "Post 3 (Body 2)", "Post 4 (Body 3)", "Post 5 (Closer)"];
+  // Posts 2 and 4 flagged. Candidate returns Post 4 labeled first, followed by an unlabeled rewrite for Post 2:
+  const candidateDraft = ["Post 4: New Closer/Body 3", "New Body 1 rewrite"];
+  const result = reconcileSurgicalDraft(previousDraft, candidateDraft, [2, 4]);
+
+  expect(result[0]).toBe("Post 1 (Hook)");
+  expect(result[1]).toBe("New Body 1 rewrite");
+  expect(result[2]).toBe("Post 3 (Body 2)");
+  expect(result[3]).toBe("Post 4: New Closer/Body 3");
+  expect(result[4]).toBe("Post 5 (Closer)");
+});
+
+test("processDifferentialEvaluation - does not flag false positive violation if critique mentions em dash but postText is clean", () => {
+  const previousDraft = ["Clean hook without dashes", "Clean body without dashes"];
+  const priorActionable = [
+    { post_index: 2, critique: "Pacing drags", fix_directive: "Cut filler", status: "open" as const },
+  ];
+
+  const evalResult = processDifferentialEvaluation({
+    threadDraft: previousDraft,
+    iterations: 1,
+    previousScore: 78,
+    priorActionableCritiques: priorActionable,
+    structuredResponse: {
+      overall_critique: "Evaluated.",
+      issue_evaluations: [
+        {
+          post_index: 2,
+          prior_issue: "Pacing drags",
+          status: "resolved",
+          reasoning: "Removed filler.",
+        },
+      ],
+      new_violations: [
+        {
+          post_index: 2,
+          violation_type: "em_dash",
+          critique: "Make sure you do not use em dashes — keep text punchy.", // Critic used an em dash in explanation!
+        },
+      ],
+      suggested_score: 90,
+    },
+  });
+
+  // postText is clean, so critic hallucination/explanation is not treated as genuine violation
+  expect(evalResult.is_approved).toBe(true);
+  expect(evalResult.post_critiques).toEqual([]);
+});
+
+test("processDifferentialEvaluation - verifies banned_phrase violations", () => {
+  const threadDraft = ["Hook without engagement bait", "Retweet this if you agree! a thread 🧵"];
+  const evalResult = processDifferentialEvaluation({
+    threadDraft,
+    iterations: 1,
+    previousScore: 82,
+    priorActionableCritiques: [],
+    structuredResponse: {
+      overall_critique: "Introduced banned phrases",
+      issue_evaluations: [],
+      new_violations: [
+        {
+          post_index: 2,
+          violation_type: "banned_phrase",
+          critique: "Contains engagement bait",
+        },
+      ],
+      suggested_score: 70,
+    },
+  });
+
+  expect(evalResult.post_critiques).toHaveLength(1);
+  expect(evalResult.post_critiques[0].critique).toContain("banned_phrase");
+  expect(evalResult.virality_score).toBeLessThan(85);
+  expect(evalResult.is_approved).toBe(false);
+});
+
+test("processDifferentialEvaluation - merges multiple genuine violations on the same post", () => {
+  const threadDraft = ["Hook without issues", "Post 2 has an em dash — and a thread 🧵"];
+  const evalResult = processDifferentialEvaluation({
+    threadDraft,
+    iterations: 1,
+    previousScore: 80,
+    priorActionableCritiques: [],
+    structuredResponse: {
+      overall_critique: "Multiple violations on post 2",
+      issue_evaluations: [],
+      new_violations: [
+        {
+          post_index: 2,
+          violation_type: "em_dash",
+          critique: "Has an em dash",
+        },
+        {
+          post_index: 2,
+          violation_type: "banned_phrase",
+          critique: "Has engagement bait",
+        },
+      ],
+      suggested_score: 65,
+    },
+  });
+
+  // Both violations should be merged into a single entry for post 2
+  expect(evalResult.post_critiques).toHaveLength(1);
+  expect(evalResult.post_critiques[0].post_index).toBe(2);
+  expect(evalResult.post_critiques[0].critique).toContain("em_dash");
+  expect(evalResult.post_critiques[0].critique).toContain("banned_phrase");
+  expect(evalResult.is_approved).toBe(false);
+});
+
+
+
+
 
 

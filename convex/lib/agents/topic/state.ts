@@ -19,7 +19,24 @@ export const TopicThreadFactoryState = new StateSchema({
     z.object({ 
       post_index: z.number(), 
       critique: z.string(), 
-      fix_directive: z.string().optional() 
+      fix_directive: z.string().optional(),
+      status: z.enum(["open", "resolved", "unresolved"]).optional(),
+    })
+  ).default(() => []),
+  best_thread_draft: z.array(z.string()).optional(),
+  best_virality_score: z.number().optional(),
+  audit_history: z.array(
+    z.object({
+      iteration: z.number(),
+      virality_score: z.number(),
+      post_critiques: z.array(
+        z.object({
+          post_index: z.number(),
+          critique: z.string(),
+          fix_directive: z.string().optional(),
+          status: z.enum(["open", "resolved", "unresolved"]).default("open"),
+        })
+      ),
     })
   ).default(() => []),
   iterations: z.number().default(0),

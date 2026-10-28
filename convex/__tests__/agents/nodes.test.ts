@@ -238,7 +238,7 @@ test("News ThreadWriterNode - formats fix_directive inside POST_SPECIFIC_CRITIQU
   } as unknown as Parameters<typeof ThreadWriterNode>[0]);
 
   expect(result.parse_success).toBe(true);
-  expect(result.thread_draft).toEqual(["Revised hook", "Revised body"]);
+  expect(result.thread_draft).toEqual(["Revised hook", "Draft 2"]);
 
   expect(invokeSpy).toHaveBeenCalled();
   const calledArgs = invokeSpy.mock.calls[0];
@@ -501,7 +501,7 @@ test("Topic ThreadWriterNode - injects PREVIOUS_THREAD_DRAFT, CRITIQUE_TO_ADDRES
   } as unknown as Parameters<typeof ThreadWriterNode>[0]);
 
   expect(result.parse_success).toBe(true);
-  expect(result.thread_draft).toEqual(["Updated Hook", "Updated Body", "Updated Closer"]);
+  expect(result.thread_draft).toEqual(["Old Hook", "Updated Body", "Old Closer"]);
 
   expect(invokeSpy).toHaveBeenCalled();
   const calledArgs = invokeSpy.mock.calls[0];
@@ -660,6 +660,250 @@ test("Topic ViralityCriticNode - discards non-defect/empty post critiques", asyn
   expect(result.parse_success).toBe(true);
   expect(result.post_critiques).toEqual([]);
 });
+
+// =========================================================================
+// Monolithic Critic Refinement Tests (Pillars 1, 2, 3, 4 across all factories)
+// =========================================================================
+
+test("News ViralityCriticNode - differential verification mode marks issues resolved and guarantees monotonic score >= 88", async () => {
+  const { ViralityCriticNode } = await import("../../lib/agents/news/nodes");
+
+  vi.spyOn(agentUtils, "invokeWithFallbacks").mockResolvedValue({
+    structuredResponse: {
+      overall_critique: "The revised hook solved the curiosity deficit.",
+      issue_evaluations: [
+        {
+          post_index: 1,
+          prior_issue: "Weak opening hook",
+          status: "resolved",
+          reasoning: "Opening line now introduces concrete contrast.",
+        },
+      ],
+      new_violations: [],
+      suggested_score: 82,
+    },
+  });
+
+  const previousDraft = ["Original hook", "Original body"];
+  const revisedDraft = ["High contrast punchy hook", "Original body"];
+
+  const result = await ViralityCriticNode({
+    raw_markdown: "News content",
+    thread_draft: revisedDraft,
+    iterations: 1,
+    virality_score: 75,
+    best_virality_score: 75,
+    best_thread_draft: previousDraft,
+    audit_history: [
+      {
+        iteration: 1,
+        virality_score: 75,
+        post_critiques: [
+          { post_index: 1, critique: "Weak opening hook", fix_directive: "Add contrast", status: "open" },
+        ],
+      },
+    ],
+    post_critiques: [
+      { post_index: 1, critique: "Weak opening hook", fix_directive: "Add contrast", status: "open" },
+    ],
+    retries: { critic: 0, validator: 0 },
+  } as unknown as Parameters<typeof ViralityCriticNode>[0]);
+
+  expect(result.parse_success).toBe(true);
+  expect(result.is_approved).toBe(true);
+  expect(result.virality_score).toBeGreaterThanOrEqual(88);
+  expect(result.post_critiques).toEqual([]); // All resolved
+  expect(result.best_virality_score).toBe(result.virality_score);
+  expect(result.best_thread_draft).toEqual(revisedDraft);
+  expect(result.audit_history).toHaveLength(2);
+  expect(result.audit_history?.[1].iteration).toBe(2);
+  expect(result.audit_history?.[1].post_critiques[0].status).toBe("resolved");
+});
+
+test("Topic ViralityCriticNode - differential mode enforces monotonic floor and retains unresolved punchlist", async () => {
+  const { ViralityCriticNode } = await import("../../lib/agents/topic/nodes");
+
+  vi.spyOn(agentUtils, "invokeWithFallbacks").mockResolvedValue({
+    structuredResponse: {
+      overall_critique: "Hook is improved, but pacing in post 2 still drags.",
+      issue_evaluations: [
+        {
+          post_index: 1,
+          prior_issue: "Hook lacks clarity",
+          status: "resolved",
+          reasoning: "Hook is now crisp.",
+        },
+        {
+          post_index: 2,
+          prior_issue: "Body text drags",
+          status: "unresolved",
+          reasoning: "Still contains filler words.",
+        },
+      ],
+      new_violations: [],
+      suggested_score: 72, // Critic suggests lower score than previous!
+    },
+  });
+
+  const result = await ViralityCriticNode({
+    research_dossier: "Topic Dossier",
+    thread_draft: ["Revised hook", "Same slow body"],
+    iterations: 1,
+    virality_score: 80,
+    best_virality_score: 80,
+    best_thread_draft: ["Original hook", "Same slow body"],
+    post_critiques: [
+      { post_index: 1, critique: "Hook lacks clarity", fix_directive: "Clarify", status: "open" },
+      { post_index: 2, critique: "Body text drags", fix_directive: "Cut filler", status: "open" },
+    ],
+    retries: { critic: 0, validator: 0 },
+  } as unknown as Parameters<typeof ViralityCriticNode>[0]);
+
+  expect(result.parse_success).toBe(true);
+  expect(result.is_approved).toBe(false); // Post 2 still unresolved
+  expect(result.virality_score).toBeGreaterThanOrEqual(80); // Monotonic floor prevents score decay!
+  expect(result.post_critiques).toHaveLength(1);
+  expect(result.post_critiques?.[0].post_index).toBe(2);
+  expect(result.post_critiques?.[0].status).toBe("unresolved");
+  expect(result.best_virality_score).toBeGreaterThanOrEqual(80);
+});
+
+test("Social Media ViralityCriticNode - differential mode flags platform violations", async () => {
+  const { ViralityCriticNode } = await import("../../lib/agents/social_media/nodes");
+
+  vi.spyOn(agentUtils, "invokeWithFallbacks").mockResolvedValue({
+    structuredResponse: {
+      overall_critique: "Prior issue resolved, but a new formatting issue was introduced.",
+      issue_evaluations: [
+        {
+          post_index: 1,
+          prior_issue: "Boring hook",
+          status: "resolved",
+          reasoning: "Punchy now.",
+        },
+      ],
+      new_violations: [
+        {
+          post_index: 1,
+          violation_type: "character_limit",
+          critique: "Hook rewrite is 600 characters, exceeding 500 limit.",
+        },
+      ],
+      suggested_score: 70,
+    },
+  });
+
+  const result = await ViralityCriticNode({
+    raw_markdown: "Social source",
+    thread_draft: ["A".repeat(600), "Body"],
+    iterations: 1,
+    virality_score: 78,
+    post_critiques: [
+      { post_index: 1, critique: "Boring hook", fix_directive: "Make punchy", status: "open" },
+    ],
+    retries: { critic: 0, validator: 0 },
+  } as unknown as Parameters<typeof ViralityCriticNode>[0]);
+
+  expect(result.parse_success).toBe(true);
+  expect(result.is_approved).toBe(false);
+  expect(result.post_critiques?.some((pc) => pc.critique.includes("character_limit"))).toBe(true);
+});
+
+test("Social Media ThreadWriterNode - surgical mode preserves unflagged posts character-for-character", async () => {
+  const { ThreadWriterNode } = await import("../../lib/agents/social_media/nodes");
+
+  const originalDraft = [
+    "Post 1: Perfectly crafted hook that should never change.",
+    "Post 2: Weak middle post with no substance.",
+    "Post 3: High-converting CTA closer.",
+  ];
+
+  vi.spyOn(agentUtils, "invokeWithFallbacks").mockResolvedValue({
+    thread_draft: [
+      "Post 1: Rewritten hook with unnecessary wording drift.",
+      "Post 2: Substantive rewritten body with deep insights.",
+      "Post 3: Rewritten CTA with drift.",
+    ],
+  });
+
+  const result = await ThreadWriterNode({
+    selected_hook: "Selected hook",
+    raw_markdown: "Source content",
+    thread_draft: originalDraft,
+    iterations: 1,
+    post_critiques: [
+      { post_index: 2, critique: "Weak middle post", fix_directive: "Add insights", status: "unresolved" },
+    ],
+    retries: { writer: 0 },
+  } as unknown as Parameters<typeof ThreadWriterNode>[0]);
+
+  expect(result.parse_success).toBe(true);
+  // Post 1 and Post 3 MUST remain character-for-character identical to originalDraft
+  expect(result.thread_draft[0]).toBe(originalDraft[0]);
+  expect(result.thread_draft[1]).toBe("Post 2: Substantive rewritten body with deep insights.");
+  expect(result.thread_draft[2]).toBe(originalDraft[2]);
+});
+
+test("News ThreadWriterNode - surgical mode activates on character validation failure", async () => {
+  const { ThreadWriterNode } = await import("../../lib/agents/news/nodes");
+
+  const originalDraft = [
+    "Post 1: Valid hook under 500 chars.",
+    "Post 2: Valid body under 500 chars.",
+    "Post 3: Way too long post exceeding character limits...",
+  ];
+
+  vi.spyOn(agentUtils, "invokeWithFallbacks").mockResolvedValue({
+    thread_draft: [
+      "Post 1: Reworded",
+      "Post 2: Reworded",
+      "Post 3: Compact closer under 200 chars.",
+    ],
+  });
+
+  const result = await ThreadWriterNode({
+    selected_hook: "Hook",
+    raw_markdown: "Source content",
+    thread_draft: originalDraft,
+    character_critique: "Post 3 exceeds maximum character limit of 500 characters.",
+    retries: { writer: 0 },
+  } as unknown as Parameters<typeof ThreadWriterNode>[0]);
+
+  expect(result.parse_success).toBe(true);
+  expect(result.thread_draft[0]).toBe(originalDraft[0]);
+  expect(result.thread_draft[1]).toBe(originalDraft[1]);
+  expect(result.thread_draft[2]).toBe("Post 3: Compact closer under 200 chars.");
+});
+
+test("News ViralityCriticNode - preserves Pareto frontier in Discovery mode when prior best score exists", async () => {
+  const { ViralityCriticNode } = await import("../../lib/agents/news/nodes");
+
+  vi.spyOn(agentUtils, "invokeWithFallbacks").mockResolvedValue({
+    structuredResponse: {
+      virality_score: 72, // Raw score regressed
+      overall_critique: "Narrative needs more tension.",
+      post_critiques: [],
+    },
+  });
+
+  const priorBestDraft = ["Best Hook", "Best Body"];
+  const result = await ViralityCriticNode({
+    raw_markdown: "Source text",
+    thread_draft: ["Degraded Hook", "Degraded Body"],
+    iterations: 0,
+    best_thread_draft: priorBestDraft,
+    best_virality_score: 86,
+    retries: { critic: 0, validator: 0 },
+  } as unknown as Parameters<typeof ViralityCriticNode>[0]);
+
+  expect(result.parse_success).toBe(true);
+  expect(result.virality_score).toBe(72);
+  // Pareto frontier MUST preserve prior best
+  expect(result.best_virality_score).toBe(86);
+  expect(result.best_thread_draft).toEqual(priorBestDraft);
+});
+
+
 
 
 

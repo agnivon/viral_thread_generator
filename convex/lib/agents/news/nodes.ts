@@ -5,11 +5,6 @@ import { providerStrategy } from "langchain";
 import { z } from "zod";
 import { RunnableConfig } from "@langchain/core/runnables";
 import {
-  googleGemini38FlashT00Key1, googleGemini38FlashT00Key2,
-  googleGemini37FlashT00Key1, googleGemini37FlashT00Key2,
-  googleGemini36FlashT00Key1, googleGemini36FlashT00Key2,
-  googleGemini35FlashT00Key1, googleGemini35FlashT00Key2,
-  openAiGpt54MiniT00, googleGemini3FlashPreviewT00Key1, googleGemini3FlashPreviewT00Key2,
   openAiGpt54MiniT08, deepSeekFlashT08ReasoningNone,
   googleGemini31FlashLiteT08Key1, googleGemini31FlashLiteT08Key2,
   deepSeekFlashT01ReasoningNone,
@@ -19,23 +14,36 @@ import {
   googleGemini37FlashT08Key1, googleGemini37FlashT08Key2,
   googleGemini36FlashT08Key1, googleGemini36FlashT08Key2,
   googleGemini35FlashT08Key1, googleGemini35FlashT08Key2,
-  deepSeekFlashT085ReasoningNone, deepSeekFlashT00ReasoningHigh,
+  deepSeekFlashT085ReasoningNone,
   googleGemini31FlashLiteT02Key1, googleGemini31FlashLiteT02Key2, openAiGpt54MiniT02,
   googleGemini35FlashLiteT01Key1, googleGemini35FlashLiteT01Key2,
   googleGemini35FlashLiteT08Key1, googleGemini35FlashLiteT08Key2,
-  googleGemini35FlashLiteT02Key1, googleGemini35FlashLiteT02Key2
+  googleGemini35FlashLiteT02Key1, googleGemini35FlashLiteT02Key2,
+  criticModelCandidates
 } from "../models.js";
 import {
   NEWS_HOOK_PROMPT,
   NEWS_SCRAPER_PROMPT,
   NEWS_WRITER_PROMPT,
   NEWS_CRITIC_PROMPT,
+  NEWS_DIFFERENTIAL_CRITIC_PROMPT,
   NEWS_RESEARCHER_PROMPT
 } from "./prompts.js";
 import { NewsThreadFactoryStateType } from "./state.js";
 import { BackgroundDossierTool, ContentAuthenticityCheckerTool, WebScraperTool, YoutubeScraperTool } from "./tools.js";
 import { CharacterValidatorTool } from "../tools.js";
-import { buildAgents, invokeWithFallbacks, withTimeout, normalizeResearchDossier, filterActionablePostCritiques } from "../utils.js";
+import {
+  buildAgents,
+  invokeWithFallbacks,
+  withTimeout,
+  normalizeResearchDossier,
+  filterActionablePostCritiques,
+  reconcileSurgicalDraft,
+  parseFlaggedPostIndicesFromErrors,
+  buildSurgicalWriterContext,
+  differentialCriticSchema,
+  processDifferentialEvaluation,
+} from "../utils.js";
 import { extractSelectedHook } from "../nodes.js";
 
 
@@ -228,15 +236,11 @@ export const ThreadWriterNode = async (state: NewsThreadFactoryStateType, config
     : "";
   const critiqueContext = state.critique ? `\n\n<CRITIQUE_TO_ADDRESS>\n${state.critique}\n</CRITIQUE_TO_ADDRESS>` : "";
   let postCritiquesContext = "";
-  if (state.post_critiques && state.post_critiques.length > 0) {
-    const actionable = state.post_critiques.filter(
-      (pc) => (pc.critique && pc.critique.trim().length > 0) || (pc.fix_directive && pc.fix_directive.trim().length > 0)
-    );
-    if (actionable.length > 0) {
-      postCritiquesContext = "\n\n<POST_SPECIFIC_CRITIQUES>\n" +
-        actionable.map(pc => `Post ${pc.post_index}: ${pc.critique}${pc.fix_directive ? `\nFix Directive: ${pc.fix_directive}` : ''}`).join("\n\n") +
-        "\n</POST_SPECIFIC_CRITIQUES>";
-    }
+  const actionable = filterActionablePostCritiques(state.post_critiques);
+  if (actionable.length > 0) {
+    postCritiquesContext = "\n\n<POST_SPECIFIC_CRITIQUES>\n" +
+      actionable.map(pc => `Post ${pc.post_index}: ${pc.critique}${pc.fix_directive ? `\nFix Directive: ${pc.fix_directive}` : ''}`).join("\n\n") +
+      "\n</POST_SPECIFIC_CRITIQUES>";
   }
   const charCritiqueContext = state.character_critique ? `\n\n<CHARACTER_AND_FORMATTING_CONSTRAINTS_FAILED>\n${state.character_critique}\nFix the previous draft to respect these exact formatting constraints.\n</CHARACTER_AND_FORMATTING_CONSTRAINTS_FAILED>` : "";
   const guidanceContext = state.guidance ? `\n\n<ADDITIONAL_GUIDANCE>\n${state.guidance}\n</ADDITIONAL_GUIDANCE>` : "";
@@ -245,6 +249,19 @@ export const ThreadWriterNode = async (state: NewsThreadFactoryStateType, config
     ? `\n\n<CORE_DELTA>\n${state.core_delta}\n</CORE_DELTA>`
     : "";
 
+  // Surgical mode detection (Pillar 1: Surgical Post Pinning)
+  const formattingFlagged = parseFlaggedPostIndicesFromErrors(state.character_critique);
+  const flaggedIndices = Array.from(
+    new Set([...actionable.map(pc => pc.post_index), ...formattingFlagged])
+  ).filter(idx => state.thread_draft && idx >= 1 && idx <= state.thread_draft.length);
+
+  const hasPreviousDraft = Array.isArray(state.thread_draft) && state.thread_draft.length > 0;
+  const isSurgical = hasPreviousDraft && flaggedIndices.length > 0 && flaggedIndices.length < state.thread_draft.length;
+
+  const { pinnedPostsContext } = isSurgical
+    ? buildSurgicalWriterContext(state.thread_draft, flaggedIndices)
+    : { pinnedPostsContext: "" };
+
   let draft;
   let parse_success = true;
   try {
@@ -252,7 +269,7 @@ export const ThreadWriterNode = async (state: NewsThreadFactoryStateType, config
       newsThreadWriterModels,
       [
         { role: "system", content: NEWS_WRITER_PROMPT },
-        { role: "user", content: `<HOOK>\n${state.selected_hook}\n</HOOK>\n\n<SOURCE>\n${state.raw_markdown}\n</SOURCE>${researchContext}${deltaContext}${previousDraftContext}${critiqueContext}${postCritiquesContext}${charCritiqueContext}${guidanceContext}` }
+        { role: "user", content: `<HOOK>\n${state.selected_hook}\n</HOOK>\n\n<SOURCE>\n${state.raw_markdown}\n</SOURCE>${researchContext}${deltaContext}${previousDraftContext}${critiqueContext}${postCritiquesContext}${pinnedPostsContext}${charCritiqueContext}${guidanceContext}` }
       ],
       { ...config, timeout: 180000 }
     );
@@ -261,8 +278,17 @@ export const ThreadWriterNode = async (state: NewsThreadFactoryStateType, config
     parse_success = false;
   }
 
+  let finalThreadDraft = state.thread_draft || [];
+  if (parse_success && draft?.thread_draft) {
+    if (isSurgical) {
+      finalThreadDraft = reconcileSurgicalDraft(state.thread_draft, draft.thread_draft, flaggedIndices);
+    } else {
+      finalThreadDraft = draft.thread_draft;
+    }
+  }
+
   return {
-    thread_draft: parse_success && draft?.thread_draft ? draft.thread_draft : (state.thread_draft || []),
+    thread_draft: finalThreadDraft,
     parse_success,
     retries: { ...(state.retries || {}), writer: (state.retries?.writer || 0) + 1 }
   };
@@ -297,20 +323,7 @@ const newsCriticSchema = z.object({
 });
 
 const newsViralityCriticAgents = buildAgents<z.infer<typeof newsCriticSchema>>(
-  [
-    googleGemini38FlashT00Key1,
-    withTimeout(googleGemini38FlashT00Key2, 45000),
-    googleGemini37FlashT00Key1,
-    withTimeout(googleGemini37FlashT00Key2, 45000),
-    googleGemini36FlashT00Key1,
-    withTimeout(googleGemini36FlashT00Key2, 45000),
-    googleGemini35FlashT00Key1,
-    withTimeout(googleGemini35FlashT00Key2, 45000),
-    deepSeekFlashT00ReasoningHigh,
-    openAiGpt54MiniT00,
-    googleGemini3FlashPreviewT00Key1,
-    withTimeout(googleGemini3FlashPreviewT00Key2, 45000)
-  ],
+  criticModelCandidates,
   {
     tools: [ContentAuthenticityCheckerTool],
     systemPrompt: NEWS_CRITIC_PROMPT,
@@ -318,55 +331,159 @@ const newsViralityCriticAgents = buildAgents<z.infer<typeof newsCriticSchema>>(
   }
 );
 
+const newsDifferentialCriticAgents = buildAgents<z.infer<typeof differentialCriticSchema>>(
+  criticModelCandidates,
+  {
+    systemPrompt: NEWS_DIFFERENTIAL_CRITIC_PROMPT,
+    responseFormat: providerStrategy(differentialCriticSchema)
+  }
+);
+
 export const ViralityCriticNode = async (state: NewsThreadFactoryStateType, config?: RunnableConfig) => {
+  const guidanceContext = state.guidance ? `\n\n<ADDITIONAL_GUIDANCE>\n${state.guidance}\n</ADDITIONAL_GUIDANCE>` : "";
+  const researchContext = state.research_context ? `\n\n<RESEARCH_CONTEXT>\n${state.research_context}\n</RESEARCH_CONTEXT>` : "";
+  const deltaContext = state.core_delta
+    ? `\n\n<CORE_DELTA>\n${state.core_delta}\n</CORE_DELTA>`
+    : "";
+
+  const priorActionableCritiques = filterActionablePostCritiques(state.post_critiques);
+  const isDifferentialMode = state.iterations >= 1 && priorActionableCritiques.length > 0;
+
+  if (isDifferentialMode) {
+    // ── DIFFERENTIAL VERIFICATION MODE (Iteration >= 2, Pillars 2 & 3) ──
+    const priorPunchlistStr = priorActionableCritiques
+      .map((pc) => `Post ${pc.post_index}: ${pc.critique}${pc.fix_directive ? `\nFix Directive: ${pc.fix_directive}` : ""}`)
+      .join("\n\n");
+
+    let result;
+    let parse_success = false;
+    try {
+      result = await invokeWithFallbacks(
+        newsDifferentialCriticAgents,
+        {
+          messages: [
+            {
+              role: "user",
+              content: `<CURRENT_ITERATION_ATTEMPT>\n${state.iterations + 1}\n</CURRENT_ITERATION_ATTEMPT>\n\n<PRIOR_ISSUES_PUNCHLIST>\n${priorPunchlistStr}\n</PRIOR_ISSUES_PUNCHLIST>\n\n<THREAD>\n${JSON.stringify(state.thread_draft, null, 2)}\n</THREAD>${deltaContext}${guidanceContext}`,
+            },
+          ],
+        },
+        { ...config, timeout: 120000 }
+      );
+      parse_success = true;
+    } catch (_e) {
+      parse_success = false;
+    }
+
+    if (!parse_success || !result?.structuredResponse) {
+      return {
+        is_approved: false,
+        critique: "",
+        virality_score: state.virality_score ?? 70,
+        post_critiques: state.post_critiques || [],
+        best_thread_draft: state.best_thread_draft,
+        best_virality_score: state.best_virality_score,
+        audit_history: state.audit_history || [],
+        iterations: state.iterations,
+        retries: { ...(state.retries || {}), critic: (state.retries?.critic || 0) + 1 },
+        parse_success: false,
+      };
+    }
+
+    const evalResult = processDifferentialEvaluation({
+      threadDraft: state.thread_draft,
+      iterations: state.iterations,
+      previousScore: state.virality_score,
+      bestThreadDraft: state.best_thread_draft,
+      bestViralityScore: state.best_virality_score,
+      auditHistory: state.audit_history,
+      priorActionableCritiques,
+      structuredResponse: result.structuredResponse,
+    });
+
+    return {
+      ...evalResult,
+      iterations: state.iterations + 1,
+      retries: { ...(state.retries || {}), critic: (state.retries?.critic || 0) + 1, validator: 0 },
+      parse_success: true,
+    };
+  }
+
+  // ── DISCOVERY AUDIT MODE (Iteration 1, Pillar 2) ──
   let result;
   let parse_success = false;
-
   try {
-    const guidanceContext = state.guidance ? `\n\n<ADDITIONAL_GUIDANCE>\n${state.guidance}\n</ADDITIONAL_GUIDANCE>` : "";
-    const researchContext = state.research_context ? `\n\n<RESEARCH_CONTEXT>\n${state.research_context}\n</RESEARCH_CONTEXT>` : "";
-    const deltaContext = state.core_delta
-      ? `\n\n<CORE_DELTA>\n${state.core_delta}\n</CORE_DELTA>`
-      : "";
-    result = await invokeWithFallbacks(newsViralityCriticAgents, {
-      messages: [
-        { role: "user", content: `<CURRENT_ITERATION_ATTEMPT>\n${state.iterations + 1}\n</CURRENT_ITERATION_ATTEMPT>\n\n<SOURCE_MATERIAL>\n${state.raw_markdown}\n</SOURCE_MATERIAL>${researchContext}${deltaContext}\n\n<THREAD>\n${JSON.stringify(state.thread_draft, null, 2)}\n</THREAD>${guidanceContext}` }
-      ]
-    }, { ...config, timeout: 120000 });
+    result = await invokeWithFallbacks(
+      newsViralityCriticAgents,
+      {
+        messages: [
+          {
+            role: "user",
+            content: `<CURRENT_ITERATION_ATTEMPT>\n${state.iterations + 1}\n</CURRENT_ITERATION_ATTEMPT>\n\n<SOURCE_MATERIAL>\n${state.raw_markdown}\n</SOURCE_MATERIAL>${researchContext}${deltaContext}\n\n<THREAD>\n${JSON.stringify(state.thread_draft, null, 2)}\n</THREAD>${guidanceContext}`,
+          },
+        ],
+      },
+      { ...config, timeout: 120000 }
+    );
     parse_success = true;
   } catch (_e) {
     parse_success = false;
   }
 
-  let finalCritique = "";
-  let finalApproval = false;
-  let virality_score;
-  let post_critiques: { post_index: number; critique: string; fix_directive?: string }[] = [];
-
-  if (parse_success && result?.structuredResponse) {
-    finalCritique = result.structuredResponse.overall_critique || "";
-    virality_score = result.structuredResponse.virality_score;
-    finalApproval = typeof virality_score === 'number' && virality_score >= 85;
-    post_critiques = filterActionablePostCritiques(result.structuredResponse.post_critiques);
-  } else {
-    parse_success = false;
-  }
-
-  if (!parse_success) {
+  if (!parse_success || !result?.structuredResponse) {
     return {
+      is_approved: false,
+      critique: "",
+      virality_score: state.virality_score ?? 70,
+      post_critiques: state.post_critiques || [],
+      best_thread_draft: state.best_thread_draft,
+      best_virality_score: state.best_virality_score,
+      audit_history: state.audit_history || [],
+      iterations: state.iterations,
       retries: { ...(state.retries || {}), critic: (state.retries?.critic || 0) + 1 },
-      parse_success: false
+      parse_success: false,
     };
   }
+
+  const finalCritique = result.structuredResponse.overall_critique || "";
+  const rawScore = result.structuredResponse.virality_score;
+  const rawPostCritiques = filterActionablePostCritiques(result.structuredResponse.post_critiques);
+  const virality_score = typeof rawScore === "number" ? Math.min(100, Math.max(0, rawScore)) : 70;
+  const nextPostCritiques = rawPostCritiques;
+  const finalApproval = typeof virality_score === "number" && virality_score >= 85;
+
+  // Initialize or maintain Pareto Checkpoint
+  let best_thread_draft = state.best_thread_draft || state.thread_draft;
+  let best_virality_score = state.best_virality_score ?? virality_score;
+  if (virality_score > (state.best_virality_score ?? -1)) {
+    best_virality_score = virality_score;
+    best_thread_draft = state.thread_draft;
+  }
+
+  // Initialize Audit History
+  const auditEntry = {
+    iteration: state.iterations + 1,
+    virality_score,
+    post_critiques: nextPostCritiques.map((pc) => ({
+      post_index: pc.post_index,
+      critique: pc.critique,
+      fix_directive: pc.fix_directive,
+      status: "open" as const,
+    })),
+  };
+  const updatedAuditHistory = [...(state.audit_history || []), auditEntry];
 
   return {
     is_approved: finalApproval,
     critique: finalCritique,
     virality_score,
-    post_critiques,
+    post_critiques: nextPostCritiques,
+    best_thread_draft,
+    best_virality_score,
+    audit_history: updatedAuditHistory,
     iterations: state.iterations + 1,
     retries: { ...(state.retries || {}), critic: (state.retries?.critic || 0) + 1, validator: 0 },
-    parse_success: true
+    parse_success: true,
   };
 };
 

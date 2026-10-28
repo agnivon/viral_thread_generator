@@ -62,28 +62,11 @@ const route_after_hook = (state: NewsThreadFactoryStateType) => {
   return "ThreadWriterNode";
 };
 
-import { createRouteAfterValidator, createRouteAfterWriter } from "../sharedRouters.js";
+import { createRouteAfterValidator, createRouteAfterWriter, createRouteAfterCritic } from "../sharedRouters.js";
 
 const route_after_writer = createRouteAfterWriter("CharacterValidatorNode");
 export const route_after_validator = createRouteAfterValidator("CharacterValidatorNode");
-
-export const route_after_critic = (state: NewsThreadFactoryStateType) => {
-  if (!state.parse_success) {
-    if ((state.retries?.critic || 0) >= 3) throw new Error("ViralityCriticNode failed after 3 retries");
-    return "ViralityCriticNode";
-  }
-  const maxIterations = state.max_iterations ?? 3;
-  if (state.is_approved === true || state.iterations >= maxIterations) {
-    const hasFixDirectives = Boolean(
-      state.post_critiques?.some((pc) => pc.fix_directive && pc.fix_directive.trim().length > 0)
-    );
-    if (state.iterations === 1 && hasFixDirectives && maxIterations > 1) {
-      return "ThreadWriterNode";
-    }
-    return state.search_query_generation ? "VisualKeywordStrategistNode" : END;
-  }
-  return "ThreadWriterNode";
-};
+export const route_after_critic = createRouteAfterCritic("ViralityCriticNode");
 
 
 export const NewsThreadFactoryGraph = new StateGraph(NewsThreadFactoryState)

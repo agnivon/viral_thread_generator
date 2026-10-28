@@ -114,6 +114,25 @@ export const updateThreadDraft = internalMutation({
           post_index: v.number(),
           critique: v.string(),
           fix_directive: v.optional(v.string()),
+          status: v.optional(v.union(v.literal("open"), v.literal("resolved"), v.literal("unresolved"))),
+        })
+      )
+    ),
+    best_thread_draft: v.optional(v.array(v.string())),
+    best_virality_score: v.optional(v.number()),
+    audit_history: v.optional(
+      v.array(
+        v.object({
+          iteration: v.number(),
+          virality_score: v.number(),
+          post_critiques: v.array(
+            v.object({
+              post_index: v.number(),
+              critique: v.string(),
+              fix_directive: v.optional(v.string()),
+              status: v.optional(v.union(v.literal("open"), v.literal("resolved"), v.literal("unresolved"))),
+            })
+          ),
         })
       )
     ),

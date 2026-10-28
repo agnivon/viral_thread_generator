@@ -100,6 +100,9 @@ test("generateNewsThread action runs graph and saves result", async () => {
     search_queries: undefined,
     search_query_generation: false,
     research_context: "",
+    best_thread_draft: undefined,
+    best_virality_score: 90,
+    audit_history: [],
   };
 
   const invokeSpy = vi.spyOn(NewsThreadFactoryGraph, "invoke").mockResolvedValue(mockGraphOutput);
@@ -195,6 +198,9 @@ test("resumeNewsThreadGeneration action resumes graph and saves result", async (
     search_queries: undefined,
     search_query_generation: false,
     research_context: "",
+    best_thread_draft: undefined,
+    best_virality_score: 95,
+    audit_history: [],
   };
 
   const invokeSpy = vi.spyOn(NewsThreadFactoryGraph, "invoke").mockResolvedValue(mockGraphOutput);
@@ -1109,6 +1115,9 @@ test("iterateThreadInternal updates state on ManualHookSelectionNode and execute
     search_queries: undefined,
     search_query_generation: false,
     research_context: "",
+    best_thread_draft: undefined,
+    best_virality_score: 92,
+    audit_history: [],
   };
 
   const updateStateSpy = vi.spyOn(NewsThreadFactoryGraph, "updateState").mockResolvedValue({});
@@ -1141,6 +1150,171 @@ test("iterateThreadInternal updates state on ManualHookSelectionNode and execute
   expect(saved?.iterations).toBe(2);
   expect(saved?.max_iterations).toBe(2);
   expect(saved?.thread_draft).toEqual(["Iterated post 1", "Iterated post 2"]);
+});
+
+test("handleGraphCompletion restores best_thread_draft and synchronizes approval and critiques on Pareto frontier regression", async () => {
+  const t = convexTest(schema, modules);
+  const userId = await t.mutation(async (ctx) => ctx.db.insert("users", {}));
+
+  const draftId = await t.mutation(internal.threads.initializeThreadDraft, {
+    userId,
+    agent: "news",
+    input_field: { agent: "news", url: "https://example.com/pareto-test" },
+  });
+
+  const bestDraft = ["Superior Post 1", "Superior Post 2"];
+  await t.mutation(internal.threads.updateThreadDraft, {
+    id: draftId,
+    generation_status: "queued",
+    thread_draft: bestDraft,
+    best_thread_draft: bestDraft,
+    virality_score: 91,
+    best_virality_score: 91,
+    is_approved: true,
+    iterations: 1,
+    audit_history: [
+      {
+        iteration: 1,
+        virality_score: 91,
+        post_critiques: [],
+      },
+    ],
+  });
+
+  // Iteration 2 produces a degraded draft with a lower score and open critiques
+  const degradedDraft = ["Degraded Post 1", "Degraded Post 2"];
+  const mockDegradedOutput = {
+    url: "https://example.com/pareto-test",
+    guidance: "Refine further",
+    manual_hook_selection: false,
+    raw_markdown: "Source content",
+    core_hooks: ["Hook 1"],
+    selected_hook: "Hook 1",
+    core_delta: undefined,
+    thread_draft: degradedDraft,
+    images: [],
+    critique: "Regression observed",
+    virality_score: 72, // Score dropped!
+    best_thread_draft: bestDraft,
+    best_virality_score: 91,
+    post_critiques: [
+      { post_index: 1, critique: "Degraded hook", fix_directive: "Fix hook", status: "open" as const },
+    ],
+    character_critique: "",
+    iterations: 2,
+    max_iterations: 2,
+    is_approved: false, // Model marked it unapproved
+    is_character_valid: true,
+    parse_success: true,
+    retries: { scraper: 0, researcher: 0, hook: 0, writer: 0, critic: 0, validator: 0 },
+    search_queries: undefined,
+    search_query_generation: false,
+    research_context: "",
+    audit_history: [
+      { iteration: 1, virality_score: 91, post_critiques: [] },
+      {
+        iteration: 2,
+        virality_score: 72,
+        post_critiques: [
+          { post_index: 1, critique: "Degraded hook", fix_directive: "Fix hook", status: "open" as const },
+        ],
+      },
+    ],
+  };
+
+  vi.spyOn(NewsThreadFactoryGraph, "updateState").mockResolvedValue({});
+  vi.spyOn(NewsThreadFactoryGraph, "invoke").mockResolvedValue(mockDegradedOutput);
+  vi.spyOn(NewsThreadFactoryGraph, "getState").mockResolvedValue({ next: [] } as unknown as Awaited<ReturnType<typeof NewsThreadFactoryGraph.getState>>);
+
+  await t.action(internal.actions.threads.iterateThreadInternal, {
+    recordId: draftId,
+    userId,
+    guidance: "Refine further",
+  });
+
+  const saved = await t.query(async (ctx) => ctx.db.get("threadDrafts", draftId));
+  // Pillar 4: Saved draft must be the restored best draft (Superior Post 1 & 2), NOT the degraded draft
+  expect(saved?.thread_draft).toEqual(bestDraft);
+  expect(saved?.virality_score).toBe(91);
+  expect(saved?.is_approved).toBe(true);
+  expect(saved?.post_critiques).toEqual([]); // Critiques synchronized with restored approved draft
+  expect(saved?.generation_status).toBe("success");
+});
+
+test("handleGraphCompletion filters out resolved critiques when restoring unapproved best draft", async () => {
+  const t = convexTest(schema, modules);
+  const userId = await t.mutation(async (ctx) => ctx.db.insert("users", {}));
+
+  const draftId = await t.mutation(internal.threads.initializeThreadDraft, {
+    userId,
+    agent: "news",
+    input_field: { agent: "news", url: "https://example.com/pareto-resolved-filter" },
+  });
+
+  const bestDraft = ["Better Post 1", "Better Post 2"];
+  const mockOutput = {
+    url: "https://example.com/pareto-resolved-filter",
+    guidance: undefined,
+    manual_hook_selection: false,
+    raw_markdown: "Source",
+    core_hooks: ["Hook 1"],
+    selected_hook: "Hook 1",
+    core_delta: undefined,
+    thread_draft: ["Degraded Post 1", "Degraded Post 2"],
+    images: [],
+    critique: "Needs polish",
+    virality_score: 70, // Degraded current score
+    best_thread_draft: bestDraft,
+    best_virality_score: 82, // Best historical score < 85 (unapproved)
+    post_critiques: [
+      { post_index: 1, critique: "Degraded current issue", fix_directive: "Fix", status: "open" as const },
+    ],
+    character_critique: "",
+    iterations: 2,
+    max_iterations: 2,
+    is_approved: false,
+    is_character_valid: true,
+    parse_success: true,
+    retries: { scraper: 0, researcher: 0, hook: 0, writer: 0, critic: 0, validator: 0 },
+    search_queries: undefined,
+    search_query_generation: false,
+    research_context: "",
+    audit_history: [
+      {
+        iteration: 1,
+        virality_score: 82,
+        post_critiques: [
+          { post_index: 1, critique: "Already resolved issue", fix_directive: "None", status: "resolved" as const },
+          { post_index: 2, critique: "Still open issue", fix_directive: "Fix post 2", status: "unresolved" as const },
+        ],
+      },
+      {
+        iteration: 2,
+        virality_score: 70,
+        post_critiques: [
+          { post_index: 1, critique: "Degraded current issue", fix_directive: "Fix", status: "open" as const },
+        ],
+      },
+    ],
+  };
+
+  vi.spyOn(NewsThreadFactoryGraph, "updateState").mockResolvedValue({});
+  vi.spyOn(NewsThreadFactoryGraph, "invoke").mockResolvedValue(mockOutput);
+  vi.spyOn(NewsThreadFactoryGraph, "getState").mockResolvedValue({ next: [] } as unknown as Awaited<ReturnType<typeof NewsThreadFactoryGraph.getState>>);
+
+  await t.action(internal.actions.threads.iterateThreadInternal, {
+    recordId: draftId,
+    userId,
+  });
+
+  const saved = await t.query(async (ctx) => ctx.db.get("threadDrafts", draftId));
+  expect(saved?.thread_draft).toEqual(bestDraft);
+  expect(saved?.virality_score).toBe(82);
+  expect(saved?.is_approved).toBe(false);
+  // Must ONLY contain unresolved/open items; resolved items MUST be filtered out
+  expect(saved?.post_critiques).toEqual([
+    { post_index: 2, critique: "Still open issue", fix_directive: "Fix post 2", status: "unresolved" },
+  ]);
 });
 
 test("enqueueThreadGeneration initializes draft in queued state and passes threadId in context", async () => {

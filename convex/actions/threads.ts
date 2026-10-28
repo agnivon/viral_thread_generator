@@ -87,8 +87,51 @@ async function handleGraphCompletion(
     (await graph.getState({ configurable: { thread_id: recordId } })).next.length > 0;
 
   const thread_draft = Array.isArray(finalState.thread_draft) ? (finalState.thread_draft as string[]) : undefined;
+  const best_thread_draft = Array.isArray(finalState.best_thread_draft) && finalState.best_thread_draft.length > 0
+    ? (finalState.best_thread_draft as string[])
+    : undefined;
 
-  const hasDraft = Array.isArray(thread_draft) && thread_draft.length > 0;
+  const currentScore = typeof finalState.virality_score === "number" ? finalState.virality_score : undefined;
+  const bestScore = typeof finalState.best_virality_score === "number" ? finalState.best_virality_score : undefined;
+
+  // Pareto Frontier Checkpointing (Pillar 4):
+  // Preserve the highest-scoring thread draft produced across all passes.
+  const isBestDraftRestored = Boolean(
+    best_thread_draft &&
+    bestScore !== undefined &&
+    ((currentScore !== undefined && bestScore > currentScore) ||
+      !thread_draft ||
+      thread_draft.length === 0 ||
+      currentScore === undefined)
+  );
+
+  const resolved_thread_draft = isBestDraftRestored
+    ? best_thread_draft
+    : (thread_draft ?? best_thread_draft);
+
+  const resolved_virality_score = isBestDraftRestored
+    ? bestScore
+    : (currentScore ?? bestScore);
+
+  const resolved_is_approved = isBestDraftRestored
+    ? (resolved_virality_score !== undefined && resolved_virality_score >= 85)
+    : Boolean(finalState.is_approved);
+
+  let resolved_post_critiques = finalState.post_critiques;
+  if (isBestDraftRestored) {
+    if (resolved_is_approved) {
+      resolved_post_critiques = [];
+    } else if (Array.isArray(finalState.audit_history)) {
+      const bestAuditEntry = [...(finalState.audit_history as Array<{ virality_score: number; post_critiques: Array<{ status?: string }> }>)]
+        .reverse()
+        .find((entry) => entry.virality_score === bestScore);
+      if (bestAuditEntry?.post_critiques) {
+        resolved_post_critiques = bestAuditEntry.post_critiques.filter((pc) => pc.status !== "resolved");
+      }
+    }
+  }
+
+  const hasDraft = Array.isArray(resolved_thread_draft) && resolved_thread_draft.length > 0;
   const generation_status = interrupted
     ? ("hook selection" as const)
     : hasDraft
@@ -103,14 +146,17 @@ async function handleGraphCompletion(
     raw_markdown: finalState.raw_markdown,
     core_hooks: finalState.core_hooks,
     selected_hook: finalState.selected_hook,
-    thread_draft,
+    thread_draft: resolved_thread_draft,
+    best_thread_draft: best_thread_draft ?? resolved_thread_draft,
+    best_virality_score: bestScore ?? resolved_virality_score,
+    audit_history: finalState.audit_history,
     images: finalState.images,
     critique: finalState.critique,
-    virality_score: finalState.virality_score,
-    post_critiques: finalState.post_critiques,
+    virality_score: resolved_virality_score,
+    post_critiques: resolved_post_critiques,
     iterations: finalState.iterations,
     max_iterations: typeof finalState.max_iterations === "number" ? finalState.max_iterations : undefined,
-    is_approved: finalState.is_approved,
+    is_approved: resolved_is_approved,
     search_queries: finalState.search_queries,
     guidance: finalState.guidance,
     manual_hook_selection: finalState.manual_hook_selection,
@@ -542,9 +588,10 @@ export const iterateThreadInternal = internalAction({
 
     return await runGraphWithLifecycle(ctx, args.recordId, agent, async (graph) => {
       const config = { configurable: { thread_id: args.recordId } };
+      const hasManualEdits = Array.isArray(args.modified_thread) && args.modified_thread.length > 0;
 
       const stateUpdate: Record<string, unknown> = {
-        thread_draft: args.modified_thread || draft.thread_draft || [],
+        thread_draft: hasManualEdits ? args.modified_thread : (draft.thread_draft || []),
         critique: draft.critique || "",
         post_critiques: draft.post_critiques || [],
         guidance: effectiveGuidance,
@@ -560,6 +607,10 @@ export const iterateThreadInternal = internalAction({
         research_context: draft.research_context || "",
         images: draft.images || [],
         search_query_generation: draft.search_query_generation ?? false,
+        virality_score: draft.virality_score,
+        best_thread_draft: hasManualEdits ? args.modified_thread : (draft.best_thread_draft || draft.thread_draft),
+        best_virality_score: hasManualEdits ? undefined : (draft.best_virality_score ?? draft.virality_score),
+        audit_history: draft.audit_history || [],
       };
 
       if (agent === "topic") {

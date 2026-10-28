@@ -4,6 +4,7 @@ import { ChatOpenRouter } from "@langchain/openrouter";
 import { ChatOpenAI } from "@langchain/openai";
 import { ChatDeepSeek } from "@langchain/deepseek";
 import { attachModelIdentity } from "./circuitBreaker.js";
+import { withTimeout } from "./utils.js";
 
 type GoogleOverrides = Omit<NonNullable<ConstructorParameters<typeof ChatGoogle>[0]>, "model" | "modelName" | "temperature" | "maxRetries" | "apiKey">;
 type OpenAIOverrides = Omit<NonNullable<ConstructorParameters<typeof ChatOpenAI>[0]>, "model" | "modelName" | "temperature" | "maxRetries" | "apiKey">;
@@ -92,6 +93,22 @@ export const googleGemma431bT00Key1 = createGoogleModel("gemma-4-31b-it", 0.0, "
 export const googleGemma431bT00Key2 = createGoogleModel("gemma-4-31b-it", 0.0, "GOOGLE_API_KEY2");
 export const googleGemini3FlashPreviewT00Key1 = createGoogleModel("gemini-3-flash-preview", 0.0, "GOOGLE_API_KEY");
 export const googleGemini3FlashPreviewT00Key2 = createGoogleModel("gemini-3-flash-preview", 0.0, "GOOGLE_API_KEY2");
+
+// Unified Fallback Candidate Chain for Virality & Differential Critics
+export const criticModelCandidates = [
+  googleGemini38FlashT00Key1,
+  withTimeout(googleGemini38FlashT00Key2, 45000),
+  googleGemini37FlashT00Key1,
+  withTimeout(googleGemini37FlashT00Key2, 45000),
+  googleGemini36FlashT00Key1,
+  withTimeout(googleGemini36FlashT00Key2, 45000),
+  googleGemini35FlashT00Key1,
+  withTimeout(googleGemini35FlashT00Key2, 45000),
+  deepSeekFlashT00ReasoningHigh,
+  openAiGpt54MiniT00,
+  googleGemini3FlashPreviewT00Key1,
+  withTimeout(googleGemini3FlashPreviewT00Key2, 45000),
+];
 
 // ContextResearcherNode Models
 export const googleGemini31FlashLiteT02Key1 = createGoogleModel("gemini-3.1-flash-lite", 0.2, "GOOGLE_API_KEY");

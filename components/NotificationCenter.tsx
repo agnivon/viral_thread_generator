@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
   Bell,
@@ -14,6 +14,7 @@ import {
   ExternalLink,
   Laptop,
   TrendingUp,
+  Loader2,
 } from "lucide-react";
 import {
   Popover,
@@ -107,6 +108,11 @@ export function NotificationCenter() {
   const {
     notifications,
     unseenCount,
+    totalCount,
+    canLoadMore,
+    isLoadingMore,
+    isDone,
+    loadMore,
     permission,
     requestPermission,
     sendTestNotification,
@@ -114,7 +120,18 @@ export function NotificationCenter() {
     markAllSeen,
     dismiss,
     dismissAll,
-  } = useNotifications();
+  } = useNotifications({ filter });
+
+  const listContainerRef = useRef<HTMLDivElement | null>(null);
+
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
+    if (scrollHeight - scrollTop - clientHeight < 120) {
+      if (canLoadMore && !isLoadingMore) {
+        loadMore();
+      }
+    }
+  };
 
   const filteredNotifications = notifications.filter((item) => {
     if (filter === "unread") {
@@ -257,7 +274,7 @@ export function NotificationCenter() {
                 : "text-muted-foreground hover:text-foreground"
             )}
           >
-            All ({notifications.length})
+            All ({totalCount})
           </button>
           <button
             type="button"
@@ -274,7 +291,11 @@ export function NotificationCenter() {
         </div>
 
         {/* Notification Items List */}
-        <div className="max-h-[460px] sm:max-h-[500px] overflow-y-auto divide-y divide-border/30">
+        <div
+          ref={listContainerRef}
+          onScroll={handleScroll}
+          className="max-h-[460px] sm:max-h-[500px] overflow-y-auto divide-y divide-border/30"
+        >
           {filteredNotifications.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-14 px-6 text-center">
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted text-muted-foreground/60 mb-3">
@@ -413,6 +434,40 @@ export function NotificationCenter() {
                 </div>
               </div>
             ))
+          )}
+
+          {/* Pagination Controls */}
+          {canLoadMore && (
+            <div className="p-2.5 flex justify-center bg-muted/5 border-t border-border/20">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => loadMore()}
+                disabled={isLoadingMore}
+                className="h-8 text-xs text-muted-foreground hover:text-foreground cursor-pointer flex items-center gap-1.5"
+              >
+                {isLoadingMore ? (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    <span>Loading more...</span>
+                  </>
+                ) : (
+                  <span>Load older notifications</span>
+                )}
+              </Button>
+            </div>
+          )}
+          {isLoadingMore && !canLoadMore && (
+            <div className="p-3 flex items-center justify-center gap-2 text-xs text-muted-foreground border-t border-border/20">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              <span>Loading...</span>
+            </div>
+          )}
+          {isDone && notifications.length > 5 && (
+            <div className="p-3 text-center text-[11px] text-muted-foreground/60 border-t border-border/20">
+              You&apos;ve reached the end
+            </div>
           )}
         </div>
 

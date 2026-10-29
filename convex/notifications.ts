@@ -1,4 +1,5 @@
 import { v } from "convex/values";
+import { paginationOptsValidator } from "convex/server";
 import { query, mutation, internalMutation } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { requireAuthUserId } from "./auth";
@@ -45,6 +46,58 @@ export const list = query({
   },
 });
 
+export const paginate = query({
+  args: {
+    paginationOpts: paginationOptsValidator,
+    includeDismissed: v.optional(v.boolean()),
+    unreadOnly: v.optional(v.boolean()),
+  },
+  handler: async (ctx, args) => {
+    const userId = await requireAuthUserId(ctx);
+
+    let queryBuilder;
+    if (args.includeDismissed) {
+      queryBuilder = ctx.db
+        .query("notifications")
+        .withIndex("by_userId", (q) => q.eq("userId", userId))
+        .order("desc");
+    } else if (args.unreadOnly) {
+      queryBuilder = ctx.db
+        .query("notifications")
+        .withIndex("by_userId_unseen", (q) =>
+          q.eq("userId", userId).eq("isDismissed", false).eq("isSeen", false)
+        )
+        .order("desc");
+    } else {
+      queryBuilder = ctx.db
+        .query("notifications")
+        .withIndex("by_userId_active", (q) =>
+          q.eq("userId", userId).eq("isDismissed", false)
+        )
+        .order("desc");
+    }
+
+    const paginated = await queryBuilder.paginate(args.paginationOpts);
+
+    return {
+      ...paginated,
+      page: paginated.page.map((doc) => ({
+        _id: doc._id,
+        targetId: doc.userId,
+        kind: doc.kind,
+        data: doc.data,
+        source: doc.source,
+        dedupeKey: doc.dedupeKey,
+        isSeen: doc.isSeen,
+        isDismissed: doc.isDismissed,
+        seenAt: doc.seenAt,
+        dismissedAt: doc.dismissedAt,
+        createdAt: doc.createdAt,
+      })),
+    };
+  },
+});
+
 export const unseenCount = query({
   args: {},
   handler: async (ctx) => {
@@ -65,16 +118,25 @@ export const counts = query({
   handler: async (ctx) => {
     const userId = await requireAuthUserId(ctx);
 
-    const allDocs = await ctx.db
+    const activeDocs = await ctx.db
       .query("notifications")
-      .withIndex("by_userId", (q) => q.eq("userId", userId))
+      .withIndex("by_userId_active", (q) =>
+        q.eq("userId", userId).eq("isDismissed", false)
+      )
       .collect();
 
-    const total = allDocs.length;
-    const active = allDocs.filter((d) => !d.isDismissed).length;
-    const unseen = allDocs.filter((d) => !d.isDismissed && !d.isSeen).length;
+    const unseenDocs = await ctx.db
+      .query("notifications")
+      .withIndex("by_userId_unseen", (q) =>
+        q.eq("userId", userId).eq("isDismissed", false).eq("isSeen", false)
+      )
+      .collect();
 
-    return { total, active, unseen };
+    return {
+      total: activeDocs.length,
+      active: activeDocs.length,
+      unseen: unseenDocs.length,
+    };
   },
 });
 

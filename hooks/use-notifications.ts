@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useQuery, useMutation, useAction, useConvexAuth } from "convex/react";
+import { useQuery, useMutation, useAction, useConvexAuth, usePaginatedQuery } from "convex/react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { api } from "@/convex/_generated/api";
@@ -155,20 +155,43 @@ export function showDesktopNotification(
   }
 }
 
-export function useNotifications() {
+export function useNotifications(options?: {
+  filter?: "all" | "unread";
+  pageSize?: number;
+}) {
   const router = useRouter();
   const { isAuthenticated } = useConvexAuth();
   const { isInactive, isActive } = useWindowActivity();
 
+  const filter = options?.filter ?? "all";
+  const pageSize = options?.pageSize ?? 25;
+
   const [permission, setPermission] = useState<NotificationPermission>("default");
 
-  // Query notifications from Convex
-  const rawNotifications = useQuery(
-    api.notifications.list,
-    isAuthenticated ? { limit: 50, includeDismissed: false } : "skip"
+  // Paginated notifications from Convex
+  const {
+    results,
+    status,
+    loadMore: loadMoreInternal,
+    isLoading: isPaginatedLoading,
+  } = usePaginatedQuery(
+    api.notifications.paginate,
+    isAuthenticated
+      ? {
+          includeDismissed: false,
+          unreadOnly: filter === "unread",
+        }
+      : "skip",
+    { initialNumItems: pageSize }
   );
+
   const unseenCount = useQuery(
     api.notifications.unseenCount,
+    isAuthenticated ? {} : "skip"
+  );
+
+  const counts = useQuery(
+    api.notifications.counts,
     isAuthenticated ? {} : "skip"
   );
 
@@ -182,13 +205,20 @@ export function useNotifications() {
   const saveSubscriptionMutation = useMutation(api.pushSubscriptions.saveSubscription);
   const sendTestPushAction = useAction(api.actions.pushNotifications.sendTestPush);
 
-  const notifications: AppNotificationItem[] = (rawNotifications ?? []) as AppNotificationItem[];
+  const notifications: AppNotificationItem[] = (results ?? []) as AppNotificationItem[];
 
   // Track initial load & processed IDs
   const initialLoadDoneRef = useRef<boolean>(false);
   const processedIdsRef = useRef<Set<string>>(new Set());
+  const mountTimestampRef = useRef<number>(Date.now());
   const originalTitleRef = useRef<string>("");
   const syncedEndpointRef = useRef<string | null>(null);
+
+  const loadMore = useCallback(() => {
+    if (status === "CanLoadMore") {
+      loadMoreInternal(pageSize);
+    }
+  }, [status, loadMoreInternal, pageSize]);
 
   // Sync notification permission state
   useEffect(() => {
@@ -346,7 +376,7 @@ export function useNotifications() {
 
   // Handle incoming notifications (active toast or inactive desktop notification)
   useEffect(() => {
-    if (!rawNotifications) {
+    if (status === "LoadingFirstPage") {
       return;
     }
 
@@ -359,10 +389,18 @@ export function useNotifications() {
       return;
     }
 
-    // Process new unseen items
+    // Process new unseen items strictly created after mount to prevent historical paging toasts
     const newItems = notifications.filter(
-      (item) => !processedIdsRef.current.has(item._id) && !item.isSeen && !item.isDismissed
+      (item) =>
+        !processedIdsRef.current.has(item._id) &&
+        !item.isSeen &&
+        !item.isDismissed &&
+        item.createdAt >= mountTimestampRef.current
     );
+
+    for (const item of notifications) {
+      processedIdsRef.current.add(item._id);
+    }
 
     for (const item of newItems) {
       processedIdsRef.current.add(item._id);
@@ -460,7 +498,7 @@ export function useNotifications() {
         }
       }
     }
-  }, [rawNotifications, notifications, isInactive, unseenCount, router, markSeen]);
+  }, [status, notifications, isInactive, unseenCount, router, markSeen]);
 
   // Reset document title when window becomes active
   useEffect(() => {
@@ -511,7 +549,13 @@ export function useNotifications() {
   return {
     notifications,
     unseenCount: unseenCount ?? 0,
-    isLoading: rawNotifications === undefined,
+    totalCount: counts?.active ?? notifications.length,
+    canLoadMore: status === "CanLoadMore",
+    isLoadingMore: status === "LoadingMore",
+    isDone: status === "Exhausted",
+    loadMore,
+    status,
+    isLoading: isPaginatedLoading && results.length === 0,
     permission,
     requestPermission,
     sendTestNotification,

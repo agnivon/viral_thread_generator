@@ -621,3 +621,76 @@ test("runBackfillAllNotifications creates notifications from existing thread dra
   expect(res2.createdNotifications).toBe(0);
 });
 
+test("paginate and counts queries support infinite scroll and true total counts", async () => {
+  const t = convexTest(schema, modules);
+  const userId = await t.mutation(async (ctx) => {
+    return await ctx.db.insert("users", {});
+  });
+  const authedT = t.withIdentity({ subject: userId });
+
+  // Insert 5 notifications: 3 unread active, 1 seen active, 1 dismissed
+  await t.mutation(async (ctx) => {
+    // 3 unread active
+    for (let i = 1; i <= 3; i++) {
+      await ctx.db.insert("notifications", {
+        userId,
+        kind: "emerging_trend_alert",
+        data: { title: `Unread Trend ${i}` },
+        isSeen: false,
+        isDismissed: false,
+        createdAt: Date.now() - i * 1000,
+      });
+    }
+    // 1 seen active
+    await ctx.db.insert("notifications", {
+      userId,
+      kind: "thread_generation_success",
+      data: { title: "Seen Active Draft" },
+      isSeen: true,
+      seenAt: Date.now() - 4000,
+      isDismissed: false,
+      createdAt: Date.now() - 4000,
+    });
+    // 1 dismissed
+    await ctx.db.insert("notifications", {
+      userId,
+      kind: "thread_publication_success",
+      data: { title: "Dismissed Item" },
+      isSeen: true,
+      seenAt: Date.now() - 5000,
+      isDismissed: true,
+      dismissedAt: Date.now() - 5000,
+      createdAt: Date.now() - 5000,
+    });
+  });
+
+  // Verify counts query returns true total active and unseen counts
+  const counts = await authedT.query(api.notifications.counts, {});
+  expect(counts.active).toBe(4); // 3 unread + 1 seen
+  expect(counts.unseen).toBe(3);
+  expect(counts.total).toBe(4);
+
+  // Paginate active notifications with page size 2
+  const page1 = await authedT.query(api.notifications.paginate, {
+    paginationOpts: { numItems: 2, cursor: null },
+  });
+  expect(page1.page.length).toBe(2);
+  expect(page1.isDone).toBe(false);
+  expect(page1.continueCursor).toBeDefined();
+
+  // Load page 2 using cursor
+  const page2 = await authedT.query(api.notifications.paginate, {
+    paginationOpts: { numItems: 2, cursor: page1.continueCursor },
+  });
+  expect(page2.page.length).toBe(2);
+  expect(page2.isDone).toBe(true);
+
+  // Paginate with unreadOnly: true
+  const unreadPage = await authedT.query(api.notifications.paginate, {
+    paginationOpts: { numItems: 10, cursor: null },
+    unreadOnly: true,
+  });
+  expect(unreadPage.page.length).toBe(3);
+  expect(unreadPage.page.every((n: { isSeen: boolean }) => !n.isSeen)).toBe(true);
+});
+

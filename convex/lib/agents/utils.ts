@@ -6,7 +6,7 @@ import {
 } from "@langchain/core/language_models/chat_models";
 import { BaseLanguageModelInput } from "@langchain/core/language_models/base";
 import { BaseMessage, AIMessage, AIMessageChunk } from "@langchain/core/messages";
-import { ChatResult } from "@langchain/core/outputs";
+import { ChatResult, ChatGenerationChunk } from "@langchain/core/outputs";
 import { CallbackManagerForLLMRun } from "@langchain/core/callbacks/manager";
 import { Runnable, RunnableConfig } from "@langchain/core/runnables";
 import { createAgent } from "langchain";
@@ -141,12 +141,13 @@ export async function invokeWithFallbacks<RunInput = unknown, RunOutput = unknow
 
     const attemptController = new AbortController();
     let attemptSignal: AbortSignal = attemptController.signal;
+    let onParentAbort: (() => void) | undefined;
 
     if (parentSignal) {
       if (typeof AbortSignal.any === "function") {
         attemptSignal = AbortSignal.any([parentSignal, attemptController.signal]);
       } else {
-        const onParentAbort = () => attemptController.abort(parentSignal.reason);
+        onParentAbort = () => attemptController.abort(parentSignal.reason);
         parentSignal.addEventListener("abort", onParentAbort, { once: true });
       }
     }
@@ -183,7 +184,11 @@ export async function invokeWithFallbacks<RunInput = unknown, RunOutput = unknow
       }
       return result;
     } catch (e) {
-      console.warn(`[Agent Fallback] Model at index ${i} failed/timed out. Trying next...`, e);
+      if (i < runnables.length - 1) {
+        console.warn(`[Agent Fallback] Model at index ${i} failed/timed out. Trying next candidate...`, e);
+      } else {
+        console.warn(`[Agent Fallback] Final candidate at index ${i} failed/timed out. No more fallbacks available.`, e);
+      }
       lastError = e;
 
       if (identity) {
@@ -199,6 +204,9 @@ export async function invokeWithFallbacks<RunInput = unknown, RunOutput = unknow
     } finally {
       if (timeoutTimer) {
         clearTimeout(timeoutTimer);
+      }
+      if (parentSignal && onParentAbort) {
+        parentSignal.removeEventListener("abort", onParentAbort);
       }
     }
   }
@@ -223,9 +231,16 @@ export class FallbackChatModel extends BaseChatModel {
       throw new Error("FallbackChatModel requires at least one candidate model.");
     }
     this.candidates = candidates;
-    const firstIdentity = getModelIdentity(candidates[0]);
+    const firstCandidate = candidates[0];
+    const candidateRunnable = "runnable" in firstCandidate ? firstCandidate.runnable : firstCandidate;
+    const firstIdentity = getModelIdentity(firstCandidate);
+    const candidateObj = candidateRunnable as unknown as Record<string, unknown>;
     if (firstIdentity?.modelId) {
       this.name = firstIdentity.modelId;
+    } else if (typeof candidateObj.modelName === "string") {
+      this.name = candidateObj.modelName;
+    } else if (typeof candidateObj.model === "string") {
+      this.name = candidateObj.model;
     }
   }
 
@@ -338,7 +353,7 @@ export class FallbackChatModel extends BaseChatModel {
         additional_kwargs?: Record<string, unknown>;
       };
       const chunk = new AIMessageChunk({
-        content: typeof obj.content === "string" ? obj.content : safeStringify(obj.content),
+        content: typeof obj.content === "string" || Array.isArray(obj.content) ? (obj.content as never) : safeStringify(obj.content),
         tool_calls: Array.isArray(obj.tool_calls) ? (obj.tool_calls as never) : undefined,
         usage_metadata: obj.usage_metadata as never,
         response_metadata: obj.response_metadata,
@@ -364,12 +379,26 @@ export class FallbackChatModel extends BaseChatModel {
     return {
       generations: [
         {
-          text: typeof aiMessage.content === "string" ? aiMessage.content : safeStringify(aiMessage.content),
+          text: extractMessageText(aiMessage.content),
           message: aiMessage,
         },
       ],
       llmOutput: aiMessage.usage_metadata ? { tokenUsage: aiMessage.usage_metadata } : undefined,
     };
+  }
+
+  override async *_streamResponseChunks(
+    messages: BaseMessage[],
+    options: this["ParsedCallOptions"],
+    runManager?: CallbackManagerForLLMRun
+  ): AsyncGenerator<ChatGenerationChunk> {
+    const res = await this.invoke(messages, options);
+    const chunk = new ChatGenerationChunk({
+      message: res,
+      text: extractMessageText(res.content),
+    });
+    yield chunk;
+    await runManager?.handleLLMNewToken(extractMessageText(res.content));
   }
 }
 
@@ -410,6 +439,27 @@ export function buildAgents<T extends Record<string, unknown> = Record<string, u
   });
 
   return [agent as unknown as FallbackCandidate<unknown, AgentResponse<T>>];
+}
+
+/**
+ * Safely extracts human-readable string text from message content,
+ * supporting plain strings, arrays of text/thinking blocks, and objects.
+ */
+export function extractMessageText(content: unknown): string {
+  if (typeof content === "string") return content;
+  if (Array.isArray(content)) {
+    const textParts = content
+      .map((block) => {
+        if (typeof block === "string") return block;
+        if (typeof block === "object" && block !== null && "text" in block && typeof (block as { text: unknown }).text === "string") {
+          return (block as { text: string }).text;
+        }
+        return "";
+      })
+      .filter(Boolean);
+    if (textParts.length > 0) return textParts.join("\n");
+  }
+  return safeStringify(content);
 }
 
 function safeStringify(val: unknown): string {

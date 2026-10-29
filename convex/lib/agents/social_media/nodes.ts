@@ -135,7 +135,7 @@ export const ContextResearcherNode = async (state: SocialMediaThreadFactoryState
       research_context = normalizeResearchDossier(rawContext);
     } else if (Array.isArray(result.messages) && result.messages.length > 0) {
       const lastMsg = result.messages[result.messages.length - 1];
-      if (typeof lastMsg?.content === "string") {
+      if (lastMsg?.content) {
         research_context = normalizeResearchDossier(lastMsg.content);
       }
     }

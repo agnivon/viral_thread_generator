@@ -94,7 +94,7 @@ export const ResearchOrchestratorNode = async (state: TopicThreadFactoryStateTyp
       research_dossier = normalizeResearchDossier(rawDossier);
     } else if (Array.isArray(result.messages) && result.messages.length > 0) {
       const lastMsg = result.messages[result.messages.length - 1];
-      if (typeof lastMsg?.content === "string") {
+      if (lastMsg?.content) {
         research_dossier = normalizeResearchDossier(lastMsg.content);
       }
     }

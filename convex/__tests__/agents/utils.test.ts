@@ -460,6 +460,68 @@ test("buildAgents - maintains independent circuit breaker state per candidate wi
   expect(run2.messages?.[run2.messages.length - 1]?.content).toBe("Candidate 1 succeeded");
 });
 
+test("extractMessageText - extracts clean text from strings, block arrays, and thinking outputs", async () => {
+  const { extractMessageText } = await import("../../lib/agents/utils");
+
+  expect(extractMessageText("Plain text")).toBe("Plain text");
+  expect(extractMessageText(["First block", "Second block"])).toBe("First block\nSecond block");
+  expect(extractMessageText([
+    { type: "thinking", thinking: "Internal reasoning" },
+    { type: "text", text: "Answer line 1" },
+    { type: "text", text: "Answer line 2" }
+  ])).toBe("Answer line 1\nAnswer line 2");
+  expect(extractMessageText({ custom: 123 })).toBe('{"custom":123}');
+});
+
+test("FallbackChatModel - yields ChatGenerationChunk via _streamResponseChunks", async () => {
+  const { BaseChatModel } = await import("@langchain/core/language_models/chat_models");
+  const { HumanMessage } = await import("@langchain/core/messages");
+
+  class MockStreamModel extends BaseChatModel {
+    _llmType(): string { return "mock_stream"; }
+    async _generate(): Promise<ChatResult> { throw new Error("Unused"); }
+    override async invoke(): Promise<AIMessageChunk> {
+      return new AIMessageChunk({ content: "Streamed chunk content" });
+    }
+  }
+
+  const fallback = new FallbackChatModel([new MockStreamModel({})]);
+  const chunks = [];
+  for await (const chunk of fallback._streamResponseChunks([new HumanMessage("hello")], {})) {
+    chunks.push(chunk);
+  }
+
+  expect(chunks).toHaveLength(1);
+  expect(chunks[0].text).toBe("Streamed chunk content");
+});
+
+test("FallbackChatModel - preserves array content blocks for thinking and multimodal models", async () => {
+  const { BaseChatModel } = await import("@langchain/core/language_models/chat_models");
+  const { HumanMessage } = await import("@langchain/core/messages");
+
+  const blocks = [
+    { type: "thinking", thinking: "deep thoughts" },
+    { type: "text", text: "final answer" }
+  ];
+
+  class MockBlockModel extends BaseChatModel {
+    _llmType(): string { return "mock_blocks"; }
+    async _generate(): Promise<ChatResult> { throw new Error("Unused"); }
+    override async invoke(): Promise<AIMessageChunk> {
+      return {
+        content: blocks,
+      } as unknown as AIMessageChunk;
+    }
+  }
+
+  const fallback = new FallbackChatModel([new MockBlockModel({})]);
+  const result = await fallback.invoke([new HumanMessage("hello")]);
+
+  expect(result.content).toEqual(blocks);
+  const genResult = await fallback._generate([new HumanMessage("hello")], {});
+  expect(genResult.generations[0].text).toBe("final answer");
+});
+
 test("normalizeResearchDossier - preserves pure markdown content", async () => {
   const { normalizeResearchDossier } = await import("../../lib/agents/utils");
 

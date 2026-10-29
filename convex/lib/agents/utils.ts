@@ -1,7 +1,14 @@
 "use node";
 
-import { BaseChatModel } from "@langchain/core/language_models/chat_models";
-import { RunnableConfig } from "@langchain/core/runnables";
+import {
+  BaseChatModel,
+  BaseChatModelCallOptions,
+} from "@langchain/core/language_models/chat_models";
+import { BaseLanguageModelInput } from "@langchain/core/language_models/base";
+import { BaseMessage, AIMessage, AIMessageChunk } from "@langchain/core/messages";
+import { ChatResult } from "@langchain/core/outputs";
+import { CallbackManagerForLLMRun } from "@langchain/core/callbacks/manager";
+import { Runnable, RunnableConfig } from "@langchain/core/runnables";
 import { createAgent } from "langchain";
 import { z } from "zod";
 import {
@@ -24,44 +31,8 @@ export interface AgentConfig {
 
 export type AgentCandidate =
   | BaseChatModel
-  | { runnable: BaseChatModel; timeout?: number };
-
-/**
- * Builds an array of identical agents configured with different fallback models,
- * preserving any custom per-model timeout overrides and ModelIdentity metadata.
- * @param models Array of Chat models or model objects with custom timeouts.
- * @param config The shared tools, prompt, and response schema.
- */
-export function buildAgents<T extends Record<string, unknown> = Record<string, unknown>>(
-  models: AgentCandidate[],
-  config: AgentConfig
-): FallbackCandidate<unknown, AgentResponse<T>>[] {
-  return models.map((candidate) => {
-    const model = "runnable" in candidate ? candidate.runnable : candidate;
-    const timeout = "timeout" in candidate ? candidate.timeout : undefined;
-    const identity = getModelIdentity(candidate);
-    const agent = config.responseFormat !== undefined
-      ? createAgent({
-          model,
-          tools: config.tools || [],
-          systemPrompt: config.systemPrompt,
-          responseFormat: config.responseFormat as never,
-        })
-      : createAgent({
-          model,
-          tools: config.tools || [],
-          systemPrompt: config.systemPrompt,
-        });
-    if (identity) {
-      attachModelIdentity(agent, identity);
-    }
-    const result = timeout !== undefined ? { runnable: agent, timeout } : agent;
-    if (identity && timeout !== undefined) {
-      attachModelIdentity(result, identity);
-    }
-    return result as unknown as FallbackCandidate<unknown, AgentResponse<T>>;
-  });
-}
+  | Runnable
+  | { runnable: BaseChatModel | Runnable; timeout?: number };
 
 export interface FallbackRunnable<RunInput = unknown, RunOutput = unknown> {
   invoke: (input: RunInput, config?: RunnableConfig) => Promise<RunOutput>;
@@ -236,6 +207,186 @@ export async function invokeWithFallbacks<RunInput = unknown, RunOutput = unknow
     throw lastError;
   }
   throw new Error(typeof lastError === "string" ? lastError : "All fallback models failed.");
+}
+
+/**
+ * A resilient BaseChatModel wrapper that executes candidate models sequentially using invokeWithFallbacks.
+ * Enables an agent's multi-turn tool loops to survive model failures without losing intermediate
+ * state, tool executions, or message history.
+ */
+export class FallbackChatModel extends BaseChatModel {
+  readonly candidates: AgentCandidate[];
+
+  constructor(candidates: AgentCandidate[]) {
+    super({});
+    this.candidates = candidates;
+  }
+
+  _llmType(): string {
+    return "fallback_chat_model";
+  }
+
+  override get profile(): { structuredOutput: boolean } {
+    return { structuredOutput: true };
+  }
+
+  override bindTools(
+    tools: Parameters<NonNullable<BaseChatModel["bindTools"]>>[0],
+    kwargs?: Parameters<NonNullable<BaseChatModel["bindTools"]>>[1]
+  ): Runnable<BaseLanguageModelInput, AIMessageChunk, BaseChatModelCallOptions> {
+    const boundCandidates: AgentCandidate[] = this.candidates.map((candidate) => {
+      const model = "runnable" in candidate ? candidate.runnable : candidate;
+      const timeout = "timeout" in candidate ? candidate.timeout : undefined;
+      const identity = getModelIdentity(candidate);
+
+      let boundModel: BaseChatModel | Runnable;
+      if ("bindTools" in model && typeof (model as { bindTools: unknown }).bindTools === "function") {
+        boundModel = (model as { bindTools: (t: unknown[], o?: unknown) => Runnable }).bindTools(
+          tools,
+          kwargs
+        );
+      } else {
+        boundModel = model;
+      }
+
+      if (identity) {
+        attachModelIdentity(boundModel, identity);
+      }
+      const result = timeout !== undefined
+        ? { runnable: boundModel, timeout }
+        : boundModel;
+      if (identity && timeout !== undefined) {
+        attachModelIdentity(result, identity);
+      }
+      return result;
+    });
+
+    const boundFallback = new FallbackChatModel(boundCandidates);
+    const primaryIdentity = getModelIdentity(this);
+    if (primaryIdentity) {
+      attachModelIdentity(boundFallback, primaryIdentity);
+    }
+    return boundFallback;
+  }
+
+  override async invoke(
+    input: BaseLanguageModelInput,
+    options?: Partial<BaseChatModelCallOptions>
+  ): Promise<AIMessageChunk> {
+    const rawResult = await invokeWithFallbacks<BaseLanguageModelInput, unknown>(
+      this.candidates as FallbackCandidate<BaseLanguageModelInput, unknown>[],
+      input,
+      options as RunnableConfig
+    );
+
+    if (rawResult instanceof AIMessageChunk) {
+      return rawResult;
+    }
+    if (rawResult instanceof AIMessage) {
+      return new AIMessageChunk({
+        content: rawResult.content,
+        tool_calls: rawResult.tool_calls,
+        response_metadata: rawResult.response_metadata,
+        id: rawResult.id,
+        additional_kwargs: rawResult.additional_kwargs,
+      });
+    }
+    if (typeof rawResult === "object" && rawResult !== null && "generations" in rawResult) {
+      const chatResult = rawResult as ChatResult;
+      const firstGen = chatResult.generations?.[0];
+      if (firstGen?.message instanceof AIMessageChunk) {
+        return firstGen.message;
+      }
+      if (firstGen?.message instanceof AIMessage) {
+        return new AIMessageChunk({
+          content: firstGen.message.content,
+          tool_calls: firstGen.message.tool_calls,
+          response_metadata: firstGen.message.response_metadata,
+          id: firstGen.message.id,
+          additional_kwargs: firstGen.message.additional_kwargs,
+        });
+      }
+      return new AIMessageChunk({
+        content: firstGen?.text ?? "",
+      });
+    }
+    if (typeof rawResult === "object" && rawResult !== null && "content" in rawResult) {
+      const obj = rawResult as { content: unknown; tool_calls?: unknown[]; response_metadata?: Record<string, unknown>; id?: string; additional_kwargs?: Record<string, unknown> };
+      return new AIMessageChunk({
+        content: typeof obj.content === "string" ? obj.content : JSON.stringify(obj.content),
+        tool_calls: Array.isArray(obj.tool_calls) ? (obj.tool_calls as never) : undefined,
+        response_metadata: obj.response_metadata,
+        id: obj.id,
+        additional_kwargs: obj.additional_kwargs,
+      });
+    }
+    return new AIMessageChunk({
+      content: typeof rawResult === "string" ? rawResult : JSON.stringify(rawResult),
+    });
+  }
+
+  async _generate(
+    messages: BaseMessage[],
+    options: this["ParsedCallOptions"],
+    _runManager?: CallbackManagerForLLMRun
+  ): Promise<ChatResult> {
+    const aiMessage = await this.invoke(messages, options);
+    return {
+      generations: [
+        {
+          text: typeof aiMessage.content === "string" ? aiMessage.content : JSON.stringify(aiMessage.content),
+          message: aiMessage,
+        },
+      ],
+    };
+  }
+}
+
+/**
+ * Builds a resilient agent configured with a FallbackChatModel,
+ * preserving any custom per-model timeout overrides and ModelIdentity metadata.
+ * Executes model fallbacks within the single agent graph so intermediate tool executions,
+ * web searches, and message history are never lost if a model fails during multi-turn loops.
+ * @param models Array of Chat models or model objects with custom timeouts.
+ * @param config The shared tools, prompt, and response schema.
+ */
+export function buildAgents<T extends Record<string, unknown> = Record<string, unknown>>(
+  models: AgentCandidate[],
+  config: AgentConfig
+): FallbackCandidate<unknown, AgentResponse<T>>[] {
+  if (models.length === 0) return [];
+
+  const fallbackModel = new FallbackChatModel(models);
+  const primaryIdentity = getModelIdentity(models[0]);
+  if (primaryIdentity) {
+    attachModelIdentity(fallbackModel, primaryIdentity);
+  }
+
+  const agent = config.responseFormat !== undefined
+    ? createAgent({
+        model: fallbackModel,
+        tools: config.tools || [],
+        systemPrompt: config.systemPrompt,
+        responseFormat: config.responseFormat as never,
+      })
+    : createAgent({
+        model: fallbackModel,
+        tools: config.tools || [],
+        systemPrompt: config.systemPrompt,
+      });
+
+  if (primaryIdentity) {
+    attachModelIdentity(agent, primaryIdentity);
+  }
+
+  // Attach reference to fallbackModel for introspection and testing
+  Object.defineProperty(agent, "fallbackModel", {
+    value: fallbackModel,
+    enumerable: false,
+    configurable: true,
+  });
+
+  return [agent as unknown as FallbackCandidate<unknown, AgentResponse<T>>];
 }
 
 function safeStringify(val: unknown): string {

@@ -79,15 +79,6 @@ export function getModelIdentity(candidate: unknown): ModelIdentity | undefined 
     if (meta) return meta;
   }
 
-  if (
-    "candidates" in obj &&
-    Array.isArray((obj as { candidates: unknown[] }).candidates) &&
-    (obj as { candidates: unknown[] }).candidates.length > 0
-  ) {
-    const meta = getModelIdentity((obj as { candidates: unknown[] }).candidates[0]);
-    if (meta) return meta;
-  }
-
   if (Array.isArray(obj.steps) && obj.steps.length > 0) {
     const meta = getModelIdentity(obj.steps[0]);
     if (meta) return meta;

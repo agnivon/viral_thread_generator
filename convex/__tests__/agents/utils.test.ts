@@ -4,6 +4,7 @@ import {
   invokeWithFallbacks,
   FallbackRunnable,
   FallbackChatModel,
+  buildAgents,
   reconcileSurgicalDraft,
   calculateMonotonicScore,
   parseFlaggedPostIndicesFromErrors,
@@ -338,6 +339,125 @@ test("FallbackChatModel - works with providerStrategy structured outputs", async
     headline: "Breakthrough in AI",
     confidence: 0.98
   });
+});
+
+test("FallbackChatModel - throws when instantiated with empty candidates", () => {
+  expect(() => new FallbackChatModel([])).toThrow("FallbackChatModel requires at least one candidate model.");
+});
+
+test("FallbackChatModel - preserves usage_metadata and invalid_tool_calls", async () => {
+  const { BaseChatModel } = await import("@langchain/core/language_models/chat_models");
+  const { AIMessage } = await import("@langchain/core/messages");
+
+  class MockMetadataModel extends BaseChatModel {
+    _llmType(): string { return "mock_metadata"; }
+    async _generate(_messages: BaseMessage[], _options?: unknown): Promise<ChatResult> {
+      throw new Error("Unused");
+    }
+    override async invoke(_input: BaseLanguageModelInput): Promise<AIMessageChunk> {
+      return new AIMessage({
+        content: "Response with tokens",
+        usage_metadata: {
+          input_tokens: 150,
+          output_tokens: 42,
+          total_tokens: 192,
+        },
+        invalid_tool_calls: [
+          { name: "bad_tool", args: "malformed", id: "bad_1", error: "syntax error" }
+        ],
+      }) as unknown as AIMessageChunk;
+    }
+  }
+
+  const model = new MockMetadataModel({});
+  const fallbackModel = new FallbackChatModel([model]);
+
+  const chunk = await fallbackModel.invoke([{ role: "user", content: "Count tokens" }]);
+  expect(chunk.usage_metadata).toEqual({
+    input_tokens: 150,
+    output_tokens: 42,
+    total_tokens: 192,
+  });
+  expect(chunk.invalid_tool_calls).toEqual([
+    { name: "bad_tool", args: "malformed", id: "bad_1", error: "syntax error" }
+  ]);
+
+  const { HumanMessage } = await import("@langchain/core/messages");
+  const genResult = await fallbackModel._generate([new HumanMessage("Test generate")], {});
+  expect(genResult.llmOutput?.tokenUsage).toEqual({
+    input_tokens: 150,
+    output_tokens: 42,
+    total_tokens: 192,
+  });
+});
+
+test("buildAgents - maintains independent circuit breaker state per candidate without outer identity pollution", async () => {
+  const { BaseChatModel } = await import("@langchain/core/language_models/chat_models");
+  const { attachModelIdentity, modelCircuitBreaker } = await import("../../lib/agents/circuitBreaker");
+
+  const identityCandidate0 = { provider: "google" as const, keyGroup: "GOOGLE_KEY_TEST", modelId: "gemini-test-0" };
+  const identityCandidate1 = { provider: "openai" as const, keyGroup: "OPENAI_KEY_TEST", modelId: "gpt-test-1" };
+
+  let candidate0Calls = 0;
+  let candidate1Calls = 0;
+
+  class Candidate0Model extends BaseChatModel {
+    _llmType(): string { return "cand_0"; }
+    bindTools(): this { return this; }
+    async _generate(): Promise<ChatResult> { throw new Error("Unused"); }
+    override async invoke(): Promise<AIMessageChunk> {
+      candidate0Calls++;
+      // Fails with a 429 rate limit
+      const err = new Error("429 Resource exhausted: Rate limit reached");
+      (err as unknown as { status: number }).status = 429;
+      throw err;
+    }
+  }
+
+  class Candidate1Model extends BaseChatModel {
+    _llmType(): string { return "cand_1"; }
+    bindTools(): this { return this; }
+    async _generate(): Promise<ChatResult> { throw new Error("Unused"); }
+    override async invoke(): Promise<AIMessageChunk> {
+      candidate1Calls++;
+      return new AIMessageChunk({ content: "Candidate 1 succeeded" });
+    }
+  }
+
+  const m0 = attachModelIdentity(new Candidate0Model({}), identityCandidate0);
+  const m1 = attachModelIdentity(new Candidate1Model({}), identityCandidate1);
+
+  const [agentWrapper] = buildAgents([m0, m1], {
+    systemPrompt: "You are resilient.",
+  });
+
+  // Run 1: Candidate 0 fails with 429, Candidate 1 takes over and succeeds
+  const run1 = await invokeWithFallbacks([agentWrapper], {
+    messages: [{ role: "user", content: "Run 1" }]
+  });
+
+  expect(candidate0Calls).toBe(1);
+  expect(candidate1Calls).toBe(1);
+  expect(run1.messages?.[run1.messages.length - 1]?.content).toBe("Candidate 1 succeeded");
+
+  // Invariant 1: Candidate 0 is properly marked as tripped in modelCircuitBreaker
+  const c0Status = modelCircuitBreaker.isAvailable(identityCandidate0);
+  expect(c0Status.available).toBe(false);
+  expect(c0Status.reason).toContain("429 Rate Limit");
+
+  // Invariant 2: Candidate 1 is recorded as available
+  expect(modelCircuitBreaker.isAvailable(identityCandidate1).available).toBe(true);
+
+  // Run 2: Candidate 0 is skipped immediately (circuit breaker tripped), Candidate 1 runs directly
+  const run2 = await invokeWithFallbacks([agentWrapper], {
+    messages: [{ role: "user", content: "Run 2" }]
+  });
+
+  // Candidate 0 calls did NOT increase (fast-skipped with 0ms overhead)
+  expect(candidate0Calls).toBe(1);
+  // Candidate 1 was called again
+  expect(candidate1Calls).toBe(2);
+  expect(run2.messages?.[run2.messages.length - 1]?.content).toBe("Candidate 1 succeeded");
 });
 
 test("normalizeResearchDossier - preserves pure markdown content", async () => {

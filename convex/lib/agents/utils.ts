@@ -219,7 +219,14 @@ export class FallbackChatModel extends BaseChatModel {
 
   constructor(candidates: AgentCandidate[]) {
     super({});
+    if (candidates.length === 0) {
+      throw new Error("FallbackChatModel requires at least one candidate model.");
+    }
     this.candidates = candidates;
+    const firstIdentity = getModelIdentity(candidates[0]);
+    if (firstIdentity?.modelId) {
+      this.name = firstIdentity.modelId;
+    }
   }
 
   _llmType(): string {
@@ -241,10 +248,15 @@ export class FallbackChatModel extends BaseChatModel {
 
       let boundModel: BaseChatModel | Runnable;
       if ("bindTools" in model && typeof (model as { bindTools: unknown }).bindTools === "function") {
-        boundModel = (model as { bindTools: (t: unknown[], o?: unknown) => Runnable }).bindTools(
-          tools,
-          kwargs
-        );
+        try {
+          boundModel = (model as { bindTools: (t: unknown[], o?: unknown) => Runnable }).bindTools(
+            tools,
+            kwargs
+          );
+        } catch (err) {
+          console.warn("[FallbackChatModel] Failed to bind tools to candidate model, falling back to unbound model:", err);
+          boundModel = model;
+        }
       } else {
         boundModel = model;
       }
@@ -261,12 +273,7 @@ export class FallbackChatModel extends BaseChatModel {
       return result;
     });
 
-    const boundFallback = new FallbackChatModel(boundCandidates);
-    const primaryIdentity = getModelIdentity(this);
-    if (primaryIdentity) {
-      attachModelIdentity(boundFallback, primaryIdentity);
-    }
-    return boundFallback;
+    return new FallbackChatModel(boundCandidates);
   }
 
   override async invoke(
@@ -283,13 +290,18 @@ export class FallbackChatModel extends BaseChatModel {
       return rawResult;
     }
     if (rawResult instanceof AIMessage) {
-      return new AIMessageChunk({
+      const chunk = new AIMessageChunk({
         content: rawResult.content,
         tool_calls: rawResult.tool_calls,
+        usage_metadata: rawResult.usage_metadata,
         response_metadata: rawResult.response_metadata,
         id: rawResult.id,
         additional_kwargs: rawResult.additional_kwargs,
       });
+      if (rawResult.invalid_tool_calls && rawResult.invalid_tool_calls.length > 0) {
+        chunk.invalid_tool_calls = rawResult.invalid_tool_calls;
+      }
+      return chunk;
     }
     if (typeof rawResult === "object" && rawResult !== null && "generations" in rawResult) {
       const chatResult = rawResult as ChatResult;
@@ -298,30 +310,48 @@ export class FallbackChatModel extends BaseChatModel {
         return firstGen.message;
       }
       if (firstGen?.message instanceof AIMessage) {
-        return new AIMessageChunk({
+        const chunk = new AIMessageChunk({
           content: firstGen.message.content,
           tool_calls: firstGen.message.tool_calls,
+          usage_metadata: firstGen.message.usage_metadata,
           response_metadata: firstGen.message.response_metadata,
           id: firstGen.message.id,
           additional_kwargs: firstGen.message.additional_kwargs,
         });
+        if (firstGen.message.invalid_tool_calls && firstGen.message.invalid_tool_calls.length > 0) {
+          chunk.invalid_tool_calls = firstGen.message.invalid_tool_calls;
+        }
+        return chunk;
       }
       return new AIMessageChunk({
         content: firstGen?.text ?? "",
       });
     }
     if (typeof rawResult === "object" && rawResult !== null && "content" in rawResult) {
-      const obj = rawResult as { content: unknown; tool_calls?: unknown[]; response_metadata?: Record<string, unknown>; id?: string; additional_kwargs?: Record<string, unknown> };
-      return new AIMessageChunk({
-        content: typeof obj.content === "string" ? obj.content : JSON.stringify(obj.content),
+      const obj = rawResult as {
+        content: unknown;
+        tool_calls?: unknown[];
+        invalid_tool_calls?: unknown[];
+        usage_metadata?: unknown;
+        response_metadata?: Record<string, unknown>;
+        id?: string;
+        additional_kwargs?: Record<string, unknown>;
+      };
+      const chunk = new AIMessageChunk({
+        content: typeof obj.content === "string" ? obj.content : safeStringify(obj.content),
         tool_calls: Array.isArray(obj.tool_calls) ? (obj.tool_calls as never) : undefined,
+        usage_metadata: obj.usage_metadata as never,
         response_metadata: obj.response_metadata,
         id: obj.id,
         additional_kwargs: obj.additional_kwargs,
       });
+      if (Array.isArray(obj.invalid_tool_calls) && obj.invalid_tool_calls.length > 0) {
+        chunk.invalid_tool_calls = obj.invalid_tool_calls as never;
+      }
+      return chunk;
     }
     return new AIMessageChunk({
-      content: typeof rawResult === "string" ? rawResult : JSON.stringify(rawResult),
+      content: typeof rawResult === "string" ? rawResult : safeStringify(rawResult),
     });
   }
 
@@ -334,10 +364,11 @@ export class FallbackChatModel extends BaseChatModel {
     return {
       generations: [
         {
-          text: typeof aiMessage.content === "string" ? aiMessage.content : JSON.stringify(aiMessage.content),
+          text: typeof aiMessage.content === "string" ? aiMessage.content : safeStringify(aiMessage.content),
           message: aiMessage,
         },
       ],
+      llmOutput: aiMessage.usage_metadata ? { tokenUsage: aiMessage.usage_metadata } : undefined,
     };
   }
 }
@@ -357,10 +388,6 @@ export function buildAgents<T extends Record<string, unknown> = Record<string, u
   if (models.length === 0) return [];
 
   const fallbackModel = new FallbackChatModel(models);
-  const primaryIdentity = getModelIdentity(models[0]);
-  if (primaryIdentity) {
-    attachModelIdentity(fallbackModel, primaryIdentity);
-  }
 
   const agent = config.responseFormat !== undefined
     ? createAgent({
@@ -374,10 +401,6 @@ export function buildAgents<T extends Record<string, unknown> = Record<string, u
         tools: config.tools || [],
         systemPrompt: config.systemPrompt,
       });
-
-  if (primaryIdentity) {
-    attachModelIdentity(agent, primaryIdentity);
-  }
 
   // Attach reference to fallbackModel for introspection and testing
   Object.defineProperty(agent, "fallbackModel", {

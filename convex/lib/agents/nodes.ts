@@ -7,7 +7,7 @@ import { VISUAL_KEYWORD_STRATEGIST_PROMPT, SEARCH_QUERY_OPTIMIZER_PROMPT } from 
 import { 
   googleGemini31FlashLiteT02Key1, 
   googleGemini31FlashLiteT02Key2, 
-  openAiGpt54MiniT02,
+  deepSeekFlashT02ReasoningNone,
   googleGemini31FlashLiteT01Key1,
   googleGemini31FlashLiteT01Key2,
   deepSeekFlashT01ReasoningNone
@@ -31,7 +31,7 @@ export const visualKeywordStrategistAgents = buildAgents<SearchQueriesType>(
   [
     googleGemini31FlashLiteT02Key1, 
     googleGemini31FlashLiteT02Key2, 
-    openAiGpt54MiniT02
+    deepSeekFlashT02ReasoningNone
   ],
   {
     systemPrompt: VISUAL_KEYWORD_STRATEGIST_PROMPT,

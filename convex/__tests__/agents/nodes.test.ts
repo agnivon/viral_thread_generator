@@ -156,12 +156,18 @@ test("All flash-lite and OpenAI models have no token limits (maxOutputTokens / m
 
 test("DeepSeek models use deepseek-flash identifier and aliases match", async () => {
   const {
+    deepSeekFlashT00ReasoningNone,
     deepSeekFlashT01ReasoningNone,
+    deepSeekFlashT02ReasoningNone,
     deepSeekFlashT08ReasoningNone,
     deepSeekFlashT085ReasoningNone,
     deepSeekFlashT00ReasoningHigh,
     deepSeekV4ProT085ReasoningNone,
     deepSeekV4ProT00ReasoningHigh,
+    openAiGpt54MiniT00,
+    openAiGpt54MiniT01,
+    openAiGpt54MiniT02,
+    openAiGpt54MiniT08,
   } = await import("../../lib/agents/models");
 
   const getModelName = (model: unknown): string | undefined => {
@@ -169,10 +175,16 @@ test("DeepSeek models use deepseek-flash identifier and aliases match", async ()
     return m?.model ?? m?.modelName;
   };
 
+  expect(getModelName(deepSeekFlashT00ReasoningNone)).toBe("deepseek-flash");
   expect(getModelName(deepSeekFlashT01ReasoningNone)).toBe("deepseek-flash");
+  expect(getModelName(deepSeekFlashT02ReasoningNone)).toBe("deepseek-flash");
   expect(getModelName(deepSeekFlashT08ReasoningNone)).toBe("deepseek-flash");
   expect(getModelName(deepSeekFlashT085ReasoningNone)).toBe("deepseek-flash");
   expect(getModelName(deepSeekFlashT00ReasoningHigh)).toBe("deepseek-flash");
+  expect(getModelName(openAiGpt54MiniT00)).toBe("deepseek-flash");
+  expect(getModelName(openAiGpt54MiniT01)).toBe("deepseek-flash");
+  expect(getModelName(openAiGpt54MiniT02)).toBe("deepseek-flash");
+  expect(getModelName(openAiGpt54MiniT08)).toBe("deepseek-flash");
   expect(deepSeekV4ProT085ReasoningNone).toBe(deepSeekFlashT085ReasoningNone);
   expect(deepSeekV4ProT00ReasoningHigh).toBe(deepSeekFlashT00ReasoningHigh);
 });

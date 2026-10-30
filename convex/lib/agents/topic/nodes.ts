@@ -5,14 +5,14 @@ import { interrupt } from "@langchain/langgraph";
 import { RunnableConfig } from "@langchain/core/runnables";
 import { providerStrategy } from "langchain";
 import {
-  googleGemini31FlashLiteT08Key1, googleGemini31FlashLiteT08Key2, openAiGpt54MiniT08,
+  googleGemini31FlashLiteT08Key1, googleGemini31FlashLiteT08Key2,
   googleGemini31FlashLiteT01Key1, googleGemini31FlashLiteT01Key2, deepSeekFlashT01ReasoningNone,
   googleGemini38FlashT08Key1, googleGemini38FlashT08Key2,
   googleGemini37FlashT08Key1, googleGemini37FlashT08Key2,
   googleGemini36FlashT08Key1, googleGemini36FlashT08Key2,
   googleGemini35FlashT08Key1, googleGemini35FlashT08Key2,
   deepSeekFlashT085ReasoningNone, openAiGpt54T08Penalty04, googleGemini3FlashPreviewT08Key1, googleGemini3FlashPreviewT08Key2,
-  googleGemini31FlashLiteT02Key1, googleGemini31FlashLiteT02Key2, openAiGpt54MiniT02,
+  googleGemini31FlashLiteT02Key1, googleGemini31FlashLiteT02Key2, deepSeekFlashT02ReasoningNone,
   googleGemini35FlashLiteT01Key1, googleGemini35FlashLiteT01Key2,
   googleGemini35FlashLiteT08Key1, googleGemini35FlashLiteT08Key2, deepSeekFlashT08ReasoningNone,
   googleGemini35FlashLiteT02Key1, googleGemini35FlashLiteT02Key2,
@@ -60,7 +60,7 @@ const topicResearchOrchestratorAgents = buildAgents<z.infer<typeof topicResearch
     googleGemini35FlashLiteT02Key2,
     googleGemini31FlashLiteT02Key1,
     googleGemini31FlashLiteT02Key2,
-    openAiGpt54MiniT02
+    deepSeekFlashT02ReasoningNone
   ],
   {
     tools: [DuckDuckGoSearchTool, TavilySearchTool],
@@ -196,7 +196,6 @@ const topicHookStrategistModels = [
   googleGemini35FlashLiteT08Key2.withStructuredOutput(topicHookStrategistSchema, { name: "hook_strategist", method: "jsonSchema" }),
   googleGemini31FlashLiteT08Key1.withStructuredOutput(topicHookStrategistSchema, { name: "hook_strategist", method: "jsonSchema" }),
   googleGemini31FlashLiteT08Key2.withStructuredOutput(topicHookStrategistSchema, { name: "hook_strategist", method: "jsonSchema" }),
-  openAiGpt54MiniT08.withStructuredOutput(topicHookStrategistSchema, { name: "hook_strategist", method: "jsonSchema" }),
   deepSeekFlashT08ReasoningNone.withStructuredOutput(topicHookStrategistSchema, { name: "hook_strategist", method: "jsonMode" })
 ];
 

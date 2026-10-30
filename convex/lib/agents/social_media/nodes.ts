@@ -5,7 +5,7 @@ import { providerStrategy } from "langchain";
 import { z } from "zod";
 import { RunnableConfig } from "@langchain/core/runnables";
 import {
-  openAiGpt54MiniT08, deepSeekFlashT08ReasoningNone,
+  deepSeekFlashT08ReasoningNone,
   googleGemini31FlashLiteT08Key1, googleGemini31FlashLiteT08Key2,
   deepSeekFlashT01ReasoningNone,
   googleGemini31FlashLiteT01Key1, googleGemini31FlashLiteT01Key2,
@@ -15,7 +15,7 @@ import {
   googleGemini36FlashT08Key1, googleGemini36FlashT08Key2,
   googleGemini35FlashT08Key1, googleGemini35FlashT08Key2,
   deepSeekFlashT085ReasoningNone,
-  googleGemini31FlashLiteT02Key1, googleGemini31FlashLiteT02Key2, openAiGpt54MiniT02,
+  googleGemini31FlashLiteT02Key1, googleGemini31FlashLiteT02Key2, deepSeekFlashT02ReasoningNone,
   googleGemini35FlashLiteT01Key1, googleGemini35FlashLiteT01Key2,
   googleGemini35FlashLiteT08Key1, googleGemini35FlashLiteT08Key2,
   googleGemini35FlashLiteT02Key1, googleGemini35FlashLiteT02Key2,
@@ -105,7 +105,7 @@ const socialMediaContextResearcherAgents = buildAgents<z.infer<typeof socialMedi
     googleGemini35FlashLiteT02Key2,
     googleGemini31FlashLiteT02Key1,
     googleGemini31FlashLiteT02Key2,
-    openAiGpt54MiniT02
+    deepSeekFlashT02ReasoningNone
   ],
   {
     tools: [BackgroundDossierTool],
@@ -167,7 +167,6 @@ const socialMediaHookStrategistAgents = buildAgents<z.infer<typeof socialMediaHo
     googleGemini35FlashLiteT08Key2,
     googleGemini31FlashLiteT08Key1,
     googleGemini31FlashLiteT08Key2,
-    openAiGpt54MiniT08,
     deepSeekFlashT08ReasoningNone
   ],
   {

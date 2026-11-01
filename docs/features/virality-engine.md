@@ -74,7 +74,71 @@ Rather than returning a vague summary, the critic outputs structured JSON contai
 
 ---
 
-## 📏 3. Deterministic Platform Rules (`CharacterValidatorTool`)
+## 🎯 3. Closed-World Differential Critic (Iteration $\ge 2$)
+
+A persistent vulnerability in iterative LLM pipelines is **moving goalposts**: on iteration 2, an open-ended critic evaluates the newly revised thread from scratch and invents completely new, subjective complaints about previously passing posts. This leads to infinite oscillation and creative degradation.
+
+**Viral Thread Generator** solves this with the **Closed-World Differential Critic**:
+
+```
+Iteration 1: [Open-Ended Virality Critic]
+   │
+   ▼
+Produces Issue Punchlist: [Post 0: needs_fix, Post 2: needs_fix]
+   │
+   ▼
+Iteration 2+: [Closed-World Differential Critic]
+   │
+   ├─► 1. Verify Prior Defects: Are Post 0 and Post 2 resolved?
+   ├─► 2. Objective Violations Only: Did the rewrite breach char limits or banned phrases?
+   └─► 3. Forbid New Subjective Complaints on Pinned Passing Posts.
+```
+
+### The Differential Contract (`differentialCriticSchema`):
+```typescript
+export const differentialCriticSchema = z.object({
+  previous_issues_resolution: z.array(
+    z.object({
+      post_index: z.number(),
+      status: z.enum(["resolved", "unresolved"]),
+      notes: z.string(),
+    })
+  ),
+  new_platform_violations: z.array(
+    z.object({
+      post_index: z.number(),
+      violation_type: z.enum(["char_limit", "banned_phrase", "formatting", "syntax"]),
+      fix_directive: z.string(),
+    })
+  ),
+  virality_score: z.number().min(0).max(100),
+  is_approved: z.boolean(),
+  critique: z.string(),
+});
+```
+
+---
+
+## ✂️ 4. Surgical Post Pinning in `ThreadWriterNode`
+
+When defects are detected, asking an LLM to rewrite the entire thread from scratch frequently damages the posts that were already excellent.
+
+Instead, the **Surgical Thread Writer** uses post pinning:
+1. **Pinned Posts**: Passing posts from iteration 1 are tagged `[PINNED - DO NOT MODIFY]`.
+2. **Flagged Posts**: Only posts tagged `needs_fix` or `re_flagged` receive rewrite directives.
+3. **Draft Reconciliation**: `reconcileSurgicalDraft` merges rewritten posts back into their exact sequential positions while preserving tone, pacing, and continuity.
+
+---
+
+## 📈 5. Monotonic Virality Scoring & Pareto Frontier Checkpointing
+
+To guarantee steady progress toward publication:
+- **`calculateMonotonicScore`**: Computes virality scores that are mathematically bounded. If a writer resolves the defects on Post 0 and Post 2, the virality score is guaranteed not to fall below the previous iteration's baseline.
+- **Pareto Frontier Checkpointing**: Throughout graph execution, `handleGraphCompletion` records `best_thread_draft`, `best_virality_score`, and the complete `audit_history`. If an iteration causes an unexpected regression, the Pareto-optimal candidate is automatically restored as the final deliverable.
+
+---
+
+## 📏 6. Deterministic Platform Rules (`CharacterValidatorTool`)
 
 Located in `convex/lib/agents/tools.ts`:
 
@@ -90,10 +154,11 @@ Located in `convex/lib/agents/tools.ts`:
    - *"save this tweet"*
    - *"look no further"*
 6. **Hyperlink Restriction**: Links are banned from the hook and body posts. External URLs are only allowed in the final CTA post to protect algorithmic distribution.
+7. **Anti-AI Formatting & Em Dash Prohibition**: Complete ban on em dashes (`—`) and generic artificial transitions (*"Furthermore"*, *"In conclusion"*), enforcing natural human momentum and authentic sentence breaks.
 
 ---
 
-## 🖼️ 4. Visual Keyword Strategist (`VisualKeywordStrategistNode`)
+## 🖼️ 7. Visual Keyword Strategist (`VisualKeywordStrategistNode`)
 
 The final node generates contextual image and video search prompts tailored for stock footage, Unsplash, or AI image generators:
 - **Hero Visual Query**: Conceptual visual for the opening post (e.g., *"dramatic cinematic split view of classical library vs modern server room"*).

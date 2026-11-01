@@ -12,17 +12,17 @@ This documentation is designed for software engineers, AI system architects, and
 docs/
 ├── architecture/
 │   ├── overview.md               # High-level architecture: Next.js + Convex + LangGraph
-│   ├── multi-agent-graphs.md     # Deep dive into News, Social Media, and Topic graphs & routing
-│   ├── state-checkpointing.md    # PostgresSaver, thread persistence & Human-in-the-Loop interrupts
-│   └── circuit-breaker.md        # Multi-provider LLM failover, tripping rules & resilience
+│   ├── multi-agent-graphs.md     # Deep dive into News, Social Media, and Topic graphs & differential routing
+│   ├── state-checkpointing.md    # PostgresSaver, Pareto Frontier Checkpointing & Human-in-the-Loop interrupts
+│   └── circuit-breaker.md        # FallbackChatModel, multi-provider failover, tripping rules & resilience
 ├── features/
 │   ├── scraping-pipeline.md      # Firecrawl, Jina fallback, Tavily claim verifier & YouTube parser
 │   ├── threads-publishing.md     # OAuth token lifecycle & Threads Graph API media containers
-│   ├── virality-engine.md        # ViralityCriticNode, reflection loops & CharacterValidator rules
-│   └── web-push-notifications.md # VAPID setup, service worker routing & emerging trend crons
+│   ├── virality-engine.md        # Closed-World Differential Critic, Surgical Writer, monotonic scoring & rules
+│   └── web-push-notifications.md # VAPID setup, service worker routing, cursor-paginated notification center & crons
 └── guides/
     ├── adding-an-agent-node.md   # Step-by-step guide to implement a new LangGraph node
-    └── adding-a-model.md         # Guide to configuring new LLM models in models.ts
+    └── adding-a-model.md         # Guide to configuring new LLM models in models.ts with circuit breaker keys
 ```
 
 ---

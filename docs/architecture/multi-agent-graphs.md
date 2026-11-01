@@ -95,17 +95,32 @@ export interface BaseThreadFactoryStateType {
   // Drafting & Hooks
   core_hooks: string[];
   selected_hook: string | null;
+  core_delta?: string;
   thread_draft: string[];
 
-  // Critique & Iteration
+  // Critique, Differential Audit & Pareto State
   virality_score: number;
   critique: string | null;
   post_critiques: Array<{
     post_index: number;
     critique: string;
     fix_directive?: string;
+    status?: "open" | "resolved" | "unresolved";
+  }>;
+  best_thread_draft?: string[];
+  best_virality_score?: number;
+  audit_history: Array<{
+    iteration: number;
+    virality_score: number;
+    post_critiques: Array<{
+      post_index: number;
+      critique: string;
+      fix_directive?: string;
+      status: "open" | "resolved" | "unresolved";
+    }>;
   }>;
   iterations: number;
+  max_iterations: number;
   is_approved: boolean;
 
   // Visual Assets
@@ -126,10 +141,19 @@ export interface BaseThreadFactoryStateType {
 
 ---
 
-## ⚙️ Conditional Routing & Error Escalation
+## ⚙️ Conditional Routing, Differential Audits & Pareto Checkpointing
 
 Each state machine enforces bounded execution limits to prevent infinite loops:
 
-1. **Node Retry Quotas**: If a node fails to produce valid JSON or crashes, the conditional router increments `retries[node]`. If retries reach `3`, the graph throws a fatal error that records the exact failure reason in Convex.
-2. **Character Validation Relief**: If character formatting errors persist after 3 attempts, but only line-break violations remain (without breaching the 500-char hard ceiling), the router gracefully advances to `ViralityCriticNode` rather than aborting.
-3. **Iteration Caps**: The reflection loop between `ViralityCriticNode` and `ThreadWriterNode` is capped at **3 iterations**. If the thread is not approved after 3 passes, the best draft is finalized and forwarded to `VisualKeywordStrategistNode`.
+1. **Closed-World Differential Critique (iteration $\ge 2$)**:
+   - Initial drafts (iteration 1) undergo zero-shot editorial critique.
+   - For all subsequent passes (iterations 2 and 3), the graph transitions to the **Closed-World Differential Critic**. Instead of performing an open-ended review that risks hallucinations and "moving goalposts", it takes the exact punchlist of previously flagged post defects and strictly checks whether they are resolved, verifying that no new objective platform rules (character limits, banned phrases) were violated.
+2. **Surgical Post Pinning**:
+   - In iteration $\ge 2$, `ThreadWriterNode` does not discard and rewrite the entire thread.
+   - Passing posts are pinned in place. The writer context explicitly isolates only posts marked `needs_fix` or `re_flagged`, and `reconcileSurgicalDraft` merges the revisions back while preserving global context and voice.
+3. **Monotonic Scoring & Pareto Frontier Checkpointing**:
+   - `calculateMonotonicScore` prevents virality scores from declining when previously flagged defects are fixed.
+   - Throughout iteration loops, `handleGraphCompletion` evaluates candidate states against the Pareto frontier (`best_virality_score`, `best_thread_draft`). If an iteration results in a lower score or unapproved state, the system automatically restores the highest-scoring candidate draft.
+4. **Node Retry Quotas**: If a node fails to produce valid JSON or crashes, the conditional router increments `retries[node]`. If retries reach `3`, the graph throws a fatal error that records the exact failure reason in Convex.
+5. **Character Validation Relief**: If character formatting errors persist after 3 attempts, but only line-break violations remain (without breaching the 500-char hard ceiling), the router gracefully advances to `ViralityCriticNode` rather than aborting.
+6. **Iteration Caps**: The reflection loop between `ViralityCriticNode` and `ThreadWriterNode` is capped at **3 iterations** (`max_iterations: 3`). Once complete, the finalized Pareto-optimal draft is forwarded to `VisualKeywordStrategistNode`.

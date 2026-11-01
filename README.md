@@ -74,17 +74,21 @@ Instead of generic single-prompt generation, the platform orchestrates three spe
 
 ---
 
-### 🔄 2. Self-Healing Reflection & Critique Engine
-The built-in **`ViralityCriticNode`** introduces automated self-correction loops:
-- **Zero-Shot Virality Scoring**: Evaluates drafted threads on hook strength, cognitive momentum, tension resolution, and audience call-to-action effectiveness.
-- **Post-by-Post Critique & Fix Directives**: Generates granular feedback on individual posts, automatically routing failing drafts back to the `ThreadWriterNode` with structured rewrite instructions.
+### 🔄 2. Self-Healing Reflection & Closed-World Critique Engine
+The built-in **`ViralityCriticNode`** and **`ThreadWriterNode`** introduce an advanced self-correction loop engineered to eliminate moving goalposts and preserve creative quality:
+- **Zero-Shot Virality Scoring**: Evaluates initial drafts on hook strength, cognitive momentum, tension resolution, and audience call-to-action effectiveness.
+- **Closed-World Differential Critic (iteration ≥ 2)**: Rather than re-auditing from scratch and inventing new complaints, subsequent passes verify against an exact issue punchlist, auditing strictly whether previously flagged defects were resolved or objective platform rules were breached.
+- **Surgical Post Pinning**: Automatically locks and pins passing posts while directing the writer to revise only flagged posts (`needs_fix` / `re_flagged`), preserving narrative flow and preventing regression.
+- **Monotonic Scoring & Pareto Frontier Checkpointing**: Prevents score degradation when defects are resolved. Automatically tracks `best_thread_draft`, `best_virality_score`, and full `audit_history` in Convex schema, ensuring the highest-scoring candidate is always restored if a later pass regresses.
 - **Persistent LangGraph Checkpointing**: State graphs are backed by PostgreSQL (`PostgresSaver`) for resilience across serverless execution and human-in-the-loop workflows.
 
 ---
 
-### ⚡ 3. Enterprise Circuit Breaker & Model Failover
-Integrated with **`convex/lib/agents/circuitBreaker.ts`**:
+### ⚡ 3. Enterprise Circuit Breaker & Model-Level Fallbacks
+Integrated with **`convex/lib/agents/circuitBreaker.ts`** and **`convex/lib/agents/utils.ts`**:
+- **Model-Level `FallbackChatModel`**: Implements a unified `BaseChatModel` abstraction that preserves LangChain tool bindings (`bindTools`), thinking content blocks, streaming responses, and abort signals across candidate failover cascades without dropping state.
 - **Automatic Fallback Chains**: If an LLM provider encounters rate limits (`429`), server errors (`5xx`), or timeouts, calls are instantly rerouted to healthy backup providers.
+- **Candidate Circuit Isolation & In-Flight Fast-Skipping**: Isolates failure state per provider/key group with 0ms fast-skipping if a key or model has already failed in the current execution cycle.
 - **Dynamic Circuit Tripping**: Automatically suppresses failing model/provider pairs for configurable cooling-off periods to conserve tokens and prevent cascaded failures.
 - **Zero Data Loss**: In-flight graph state remains safely check-pointed in PostgreSQL throughout provider outages.
 
@@ -123,16 +127,17 @@ Dynamically routes tasks to specialized models optimized for cost, speed, and re
 
 | Task / Node | Primary Models | Temperature | Purpose |
 | :--- | :--- | :--- | :--- |
-| **Web Scraping & Parsing** | Gemini 3.5 / 3.1 Flash-Lite | `0.10` | High-fidelity data extraction with zero hallucinations |
-| **Hook Strategy & Ideation** | Gemini 3.5 Flash-Lite / GPT-5.4 Mini | `0.80` | High creative variance & compelling psychological angles |
-| **Thread Writing** | Gemini 3.8 / 3.7 / 3.6 / 3.5 Flash, DeepSeek Flash, GPT-5.4 | `0.80` | Narrative pacing, voice emulation & engaging prose |
-| **Virality Critique & Audit** | Gemini 3.7 Flash / DeepSeek Flash (High Reasoning) | `0.00` | Cold, analytical appraisal and structural diagnosis |
-| **Context Research** | Gemini 3.5 Flash-Lite | `0.20` | Structured background dossier assembly |
+| **Web Scraping & Parsing** | Gemini 3.5 / 3.1 Flash-Lite, DeepSeek Flash (Reasoning None) | `0.10` | High-fidelity data extraction with zero hallucinations |
+| **Hook Strategy & Ideation** | Gemini 3.5 / 3.1 Flash-Lite, DeepSeek Flash (Reasoning None) | `0.80` | High creative variance & compelling psychological angles |
+| **Thread Writing** | Gemini 3.8 / 3.7 / 3.6 / 3.5 Flash, DeepSeek Flash, GPT-5.4 | `0.80–0.85` | Narrative pacing, voice emulation & surgical post revision |
+| **Virality Critique & Audit** | Gemini 3.8 / 3.7 / 3.6 / 3.5 Flash, DeepSeek Flash (High & None) | `0.00` | Cold, analytical appraisal, closed-world punchlists & monotonic scoring |
+| **Context Research & Visuals** | Gemini 3.5 / 3.1 Flash-Lite, DeepSeek Flash (Reasoning None) | `0.20` | Structured background dossier assembly & visual prompt synthesis |
 
 ---
 
-### 🔔 8. W3C Web Push & Trend Notifications (PWA)
+### 🔔 8. W3C Web Push & Notification Center (PWA)
 - **Background Service Worker**: [`public/sw.js`](public/sw.js) receives push messages from FCM/Web Push on Android WebAPK and desktop browsers.
+- **Cursor-Paginated Notification Center**: Backed by Convex's reactive `paginate` query with infinite scrolling, live active/unread counters (`counts`, `unseenCount`), and bulk actions (`markAllSeen`, `dismissAll`).
 - **VAPID Cryptographic Authentication**: Type-safe subscription management in `convex/pushSubscriptions.ts` with automatic dead endpoint pruning.
 - **Quiet Hours & Preferences**: User-configurable delivery windows and quiet-hour silencing.
 - **Emerging Trend Crons**: 15-minute background cron monitoring trending keywords with one-click direct navigation to thread drafting.
@@ -143,6 +148,12 @@ Dynamically routes tasks to specialized models optimized for cost, speed, and re
 - **OAuth Token Lifecycle**: Handles automatic exchange from short-lived tokens to long-lived tokens with recurring Convex cron auto-refreshes.
 - **Rich Media Publishing**: Supports single image uploads, multi-image carousels, video attachments, and multi-post reply chains.
 - **Asynchronous Container Polling**: Monitors Meta media container processing states (`IN_PROGRESS`, `FINISHED`, `ERROR`) for guaranteed delivery.
+
+---
+
+### 🛡️ 10. Workpool Timeout Resilience & State Safeguards
+- **Pre-Initialized Draft Allocation**: Thread generation pre-allocates the `threadDrafts` document ID before workpool dispatch, ensuring the background worker and `@convex-dev/workpool`'s `onGenerationComplete` hook can always locate and flag the draft record upon execution timeouts.
+- **Automated Stuck Draft Sweeper**: Includes both internal scheduled cleanup (`markStuckDraftsAsFailed`) and authenticated client recovery (`cleanupStuckDrafts`) to automatically transition jobs exceeding the 15-minute threshold from `processing` to `failed` with actionable failure reasons and error navigation links.
 
 ---
 
@@ -166,7 +177,7 @@ The frontend is designed around a modern, high-contrast AI Creator Studio aesthe
 - **Checkpointer**: PostgreSQL via `@langchain/langgraph-checkpoint-postgres`
 - **Styling**: [Tailwind CSS 4](https://tailwindcss.com/), Radix UI, Base UI, Sonner Toasts
 - **Data Fetching**: TanStack React Query v5
-- **Tooling**: TypeScript 6, ESLint 9, Secretlint, Vitest, Husky
+- **Tooling**: Node.js 24+, TypeScript 6, ESLint 9, Secretlint, Vitest 5, Husky
 
 ---
 
@@ -174,7 +185,7 @@ The frontend is designed around a modern, high-contrast AI Creator Studio aesthe
 
 ### Prerequisites
 
-- **Node.js**: v20.0.0 or higher
+- **Node.js**: v24.22.1 or higher (configured via `.nvmrc`)
 - **pnpm**: v10.0.0 or higher (`npm install -g pnpm`)
 - **Convex Account**: [Sign up for free at convex.dev](https://convex.dev)
 - **PostgreSQL Database**: Required for LangGraph state persistence (e.g. Neon, Supabase, Aiven, or local Postgres)
@@ -261,7 +272,7 @@ This concurrently starts:
 | `pnpm logs` | Streams live backend logs from Convex |
 | `pnpm type-check` | Runs TypeScript compilation verification across Next.js and Convex |
 | `pnpm lint` | Runs Convex TypeScript check and ESLint with strict zero-warnings policy |
-| `pnpm test` | Runs the full Vitest automated test suite (`28 test files, 261 tests`) |
+| `pnpm test` | Runs the full Vitest automated test suite (`28 test files, 301 tests`) |
 | `pnpm exec secretlint "**/*"` | Audits the codebase for exposed API keys or secrets |
 | `pnpm run create-user` | Seeds an initial user into Convex auth (`scripts/create-user.js`) |
 | `pnpm run clear-auth` | Cleans orphaned auth records from Convex (`scripts/clear-auth.js`) |
@@ -288,9 +299,13 @@ viral_thread_generator/
 │   └── ConvexClientProvider.tsx      # Real-time Convex Provider
 ├── components/                       # Shared UI & Component Primitives
 ├── convex/                           # Convex Reactive Backend
-│   ├── actions/                      # Asynchronous Actions (AI & Network APIs)
-│   ├── mutations/                    # Database Mutations & State Changes
-│   ├── queries/                      # Real-time Subscriptions & Queries
+│   ├── actions/                      # Asynchronous Actions (AI & Outbound Network APIs)
+│   ├── notifications/                # Workpool Hooks & Lifecycle Event Handlers
+│   ├── threads.ts                    # Thread Draft Domain Queries & Mutations
+│   ├── notifications.ts              # Notification Queries, Mutations & Pagination
+│   ├── tokens.ts                     # Threads OAuth Token Storage & Inspection
+│   ├── trendAlerts.ts                # Real-Time Emerging Trends & Alerts
+│   ├── pushSubscriptions.ts         # Web Push Subscription Lifecycle
 │   ├── crons.ts                      # Scheduled Background Tasks & Token Refresh
 │   ├── schema.ts                     # Strictly Typed Database Schema
 │   └── lib/
@@ -317,6 +332,7 @@ viral_thread_generator/
 │   └── icon.svg                      # Application Brand Icon
 ├── scripts/                          # Administrative Node Scripts (create-user, clear-auth)
 ├── .env.example                      # Template for all environment variables
+├── .nvmrc                            # Node.js runtime configuration (>=24.22.1)
 ├── CODE_OF_CONDUCT.md                # Contributor Covenant v2.1
 ├── CONTRIBUTING.md                    # Contribution Guidelines & Workflow
 ├── DESIGN.md                         # Design System specifications

@@ -84,6 +84,52 @@ The circuit breaker categorizes errors into distinct failure types:
 
 ---
 
+## 🧩 Model-Level `FallbackChatModel` & Tool Preservation
+
+In complex multi-agent architectures, wrapping model calls with standard `try/catch` blocks often drops critical LangChain bindings—specifically bound tools (`bindTools`), structured output schemas, streaming event listeners, and usage metadata.
+
+To solve this, **`convex/lib/agents/utils.ts`** implements **`FallbackChatModel`**, a full-fledged LangChain `BaseChatModel`:
+
+```typescript
+export class FallbackChatModel extends BaseChatModel {
+  readonly candidates: AgentCandidate[];
+
+  constructor(candidates: AgentCandidate[]) {
+    super({});
+    this.candidates = candidates;
+  }
+
+  override bindTools(tools: unknown[], kwargs?: unknown): Runnable {
+    // Propagates tools to every candidate while attaching model identities
+  }
+
+  async _generate(messages: BaseMessage[], options: this["ParsedCallOptions"]): Promise<ChatResult> {
+    // Iterates through candidates via invokeWithFallbacks, handling circuit breaker checks,
+    // in-flight fast-skipping, thinking content block retention, and token usage accounting
+  }
+
+  async *_streamResponseChunks(messages: BaseMessage[], options: this["ParsedCallOptions"]) {
+    // True streaming fallbacks yielding AIMessageChunk with clean abort listener disposal
+  }
+}
+```
+
+### Key Capabilities:
+1. **Tool Binding Preservation**: Dynamically binds tools to each candidate model in the chain (`Gemini`, `DeepSeek`, `OpenAI`), preserving structured schemas even when failing over.
+2. **Thinking Content Blocks**: Retains internal `<thinking>` blocks emitted by high-reasoning models (such as `deepseek-flash`), preventing serialization errors when passing message history across disparate providers.
+3. **Usage Metadata Passthrough**: Preserves input/output token counts and finish reasons on returned `AIMessage` objects.
+4. **Abort Signal Cleanup**: Registers and cleanly detaches abort listeners to prevent memory leaks during long-running streaming invocations.
+
+---
+
+## ⚡ In-Flight Fast-Skipping (0ms Overhead)
+
+Beyond database-backed cooldown tracking, `invokeWithFallbacks` employs in-memory in-flight fast-skipping:
+- Maintains sets of `inFlightFailedKeys`, `inFlightFailedModels`, and `inFlightFailedKeyModels` for the duration of a single request.
+- If Candidate 1 fails due to an invalid or rate-limited API key (`GOOGLE_API_KEY`), Candidate 2 (sharing `GOOGLE_API_KEY`) is bypassed immediately with **0ms network delay**, instantly advancing to Candidate 3 (`GOOGLE_API_KEY2` or `DEEPSEEK_API_KEY`).
+
+---
+
 ## 🔀 Fallback Cascade Ordering
 
 When an agent node runs, it accepts an array of model candidates ordered from highest quality/cost efficiency to resilient backups:
@@ -91,9 +137,11 @@ When an agent node runs, it accepts an array of model candidates ordered from hi
 ### Thread Writer Fallback Cascade:
 1. **Google Gemini 3.8 Flash** (`GOOGLE_API_KEY`)
 2. **Google Gemini 3.8 Flash** (`GOOGLE_API_KEY2` — secondary key)
-3. **Google Gemini 3.7 Flash**
-4. **DeepSeek Flash** (`DEEPSEEK_API_KEY`)
-5. **OpenAI GPT-5.4** (`OPENAI_API_KEY`)
-6. **OpenRouter Free Tier** (`OPENROUTER_API_KEY`)
+3. **Google Gemini 3.7 Flash** (`GOOGLE_API_KEY`)
+4. **Google Gemini 3.7 Flash** (`GOOGLE_API_KEY2`)
+5. **Google Gemini 3.6 Flash / 3.5 Flash**
+6. **DeepSeek Flash** (`DEEPSEEK_API_KEY` — reasoning disabled, high speed)
+7. **OpenAI GPT-5.4** (`OPENAI_API_KEY` — presence penalty 0.4)
+8. **OpenRouter Free Tier** (`OPENROUTER_API_KEY`)
 
 If Gemini hits a rate limit, the circuit breaker flags Gemini as tripped, saves the cooldown state to the Convex database, and instantly executes DeepSeek without dropping the user's thread generation request.

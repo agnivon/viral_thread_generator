@@ -112,3 +112,47 @@ If a user requests an iteration with custom guidance (e.g., *"Make it more punch
 - The action loads past state from the checkpointer.
 - It resets the state to `ManualHookSelectionNode` with the updated user guidance.
 - It re-invokes the graph without re-scraping the original URL or rebuilding the background research dossier.
+
+---
+
+## 🎯 Pareto Frontier Checkpointing
+
+During multi-iteration reflection loops or manual user regenerations, an AI model may occasionally produce a regression (e.g., fixing one flagged post while introducing clunky wording in another).
+
+To guarantee that creators never lose high-quality drafts:
+1. **Pareto State Channels**:
+   The state machine maintains `best_thread_draft` and `best_virality_score`.
+2. **Restoration Logic in `handleGraphCompletion`**:
+   Before finalizing and saving to Convex, the completion handler compares the current iteration's score and approval status against the best recorded score:
+   ```typescript
+   const isBestDraftRestored = Boolean(
+     best_thread_draft &&
+     bestScore !== undefined &&
+     ((currentScore !== undefined && bestScore > currentScore) ||
+       !thread_draft ||
+       thread_draft.length === 0 ||
+       currentScore === undefined)
+   );
+   ```
+   If the newest pass scored lower or produced an empty draft, the system seamlessly restores `best_thread_draft` and `best_virality_score`, guaranteeing monotonic quality delivery.
+
+---
+
+## ⏱️ Pre-Initialized Drafts & Timeout Resilience
+
+Long-running generative pipelines running in serverless workpool environments require deterministic failure handling:
+
+1. **Pre-Allocation in `initializeThreadDraft`**:
+   Before a generation task is enqueued to `@convex-dev/workpool`, Convex creates the `threadDrafts` document in `"processing"` state. The resulting document ID is passed as task context.
+2. **Workpool Lifecycle Failure Hook (`onGenerationComplete`)**:
+   If an action times out or crashes at the V8 isolate level, the workpool completion handler fires with `result.kind === "failed"`. It immediately patches the pre-allocated draft:
+   ```typescript
+   await ctx.db.patch("threadDrafts", context.threadId, {
+     generation_status: "failed",
+     failure_reason: result.error || "Generation timed out or failed.",
+   });
+   ```
+   And dispatches a real-time notification linking directly to the draft approval page with actionable failure diagnostics.
+3. **Stuck Draft Sweepers**:
+   - `markStuckDraftsAsFailed`: Internal cron/maintenance mutation that sweeps drafts remaining in `"processing"` or `"queued"` for longer than 15 minutes.
+   - `cleanupStuckDrafts`: Authenticated public mutation allowing creators to clean up any orphaned or stalled generation runs.

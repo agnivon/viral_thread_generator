@@ -32,6 +32,7 @@ import { SidebarHookCard } from "./components/SidebarHookCard";
 import { ViralityCard } from "./components/ViralityCard";
 import { ResearchDossierDialog } from "./components/ResearchDossierDialog";
 import { SearchQueriesDialog } from "./components/SearchQueriesDialog";
+import { InfographicDialog } from "./components/InfographicDialog";
 
 function hasThreadBeenModified(currentPosts: string[], baselinePosts?: string[]): boolean {
   if (!baselinePosts) return currentPosts.length > 0;
@@ -168,6 +169,7 @@ export default function ApproveDraftPage() {
       guidance?: string;
       manual_hook_selection?: boolean;
       search_query_generation?: boolean;
+      infographic_generation?: boolean;
     }) => {
       return await enqueueRegeneration(payload);
     },
@@ -760,13 +762,17 @@ export default function ApproveDraftPage() {
             />
 
             {/* Secondary Intelligence Dialogs (responsive 2-col on mobile/tablet, 1-col on desktop) */}
-            {(state.research_context || state.search_queries) && (
+            {(state.research_context || state.infographic_url || state.infographic_spec || state.search_queries) && (
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-1 gap-2.5">
                 {state.research_context && (
                   <ResearchDossierDialog researchContext={state.research_context} />
                 )}
-                {state.search_queries && (
-                  <SearchQueriesDialog searchQueries={state.search_queries} />
+                {(state.infographic_url || state.infographic_spec || state.search_queries) && (
+                  <InfographicDialog
+                    infographicUrl={state.infographic_url || (Array.isArray(state.images) ? state.images[0] : undefined)}
+                    infographicSpec={state.infographic_spec}
+                    searchQueries={state.search_queries}
+                  />
                 )}
               </div>
             )}
@@ -781,14 +787,16 @@ export default function ApproveDraftPage() {
         initialGuidance={state?.guidance || ""}
         initialManualHookSelection={state?.manual_hook_selection || false}
         initialSearchQueryGeneration={state?.search_query_generation || false}
+        initialInfographicGeneration={Boolean(state?.infographic_generation ?? state?.search_query_generation ?? false)}
         isRegenerating={isRegenerating}
         onClose={() => setIsDialogOpen(false)}
-        onRegenerate={(guidance, manualHook, searchQueryGeneration) => {
+        onRegenerate={(guidance, manualHook, infographicGen) => {
           regenerateMutation.mutate({
             ids: [id],
             guidance: guidance.trim() || undefined,
             manual_hook_selection: manualHook,
-            search_query_generation: searchQueryGeneration,
+            search_query_generation: infographicGen,
+            infographic_generation: infographicGen,
           });
         }}
       />

@@ -57,6 +57,9 @@ export const TopicThreadFactoryState = new StateSchema({
   }).default({ orchestrator: 0, scraper: 0, hook: 0, writer: 0, critic: 0, validator: 0 }),
   search_queries: SearchQueriesSchema.optional(),
   search_query_generation: z.boolean().default(false),
+  infographic_generation: z.boolean().default(false),
+  infographic_spec: z.any().optional(),
+  infographic_url: z.string().optional(),
 });
 
 export type TopicThreadFactoryStateType = typeof TopicThreadFactoryState.State;

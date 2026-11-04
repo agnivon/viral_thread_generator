@@ -14,6 +14,8 @@ import { ThreadsAPI } from "../lib/clients/threads.js";
 import { modelCircuitBreaker } from "../lib/agents/circuitBreaker.js";
 import { generationPool, publicationPool } from "../lib/workpool.js";
 import { requireAuthUserId } from "../auth";
+import { renderInfographicToPng } from "../lib/infographics/renderer.js";
+import { InfographicSpec, InfographicSpecSchema } from "../lib/infographics/schema.js";
 
 export { requireAuthUserId };
 
@@ -30,13 +32,16 @@ export interface InitialStateArgs {
   guidance?: string;
   manual_hook_selection?: boolean;
   search_query_generation?: boolean;
+  infographic_generation?: boolean;
 }
 
 function createInitialState(args: InitialStateArgs) {
+  const infographic_generation = args.infographic_generation ?? args.search_query_generation ?? false;
   const base = {
     guidance: args.guidance,
     manual_hook_selection: args.manual_hook_selection ?? false,
     search_query_generation: args.search_query_generation ?? false,
+    infographic_generation,
     iterations: 0,
     is_approved: false,
   };
@@ -147,6 +152,26 @@ async function handleGraphCompletion(
     ? "Thread generation finished without producing any thread draft."
     : null;
 
+  let generatedInfographicUrl = (typeof finalState.infographic_url === "string" && finalState.infographic_url) || undefined;
+  if (finalState.infographic_spec && !generatedInfographicUrl) {
+    try {
+      const pngBuffer = await renderInfographicToPng(finalState.infographic_spec as InfographicSpec);
+      const blob = new Blob([new Uint8Array(pngBuffer)], { type: "image/png" });
+      const storageId = await ctx.storage.store(blob);
+      const url = await ctx.storage.getUrl(storageId);
+      if (url) {
+        generatedInfographicUrl = url;
+      }
+    } catch (err) {
+      console.error("[handleGraphCompletion] Error rendering and storing infographic:", err);
+    }
+  }
+
+  const currentImages = Array.isArray(finalState.images) ? (finalState.images as string[]) : [];
+  const updatedImages = generatedInfographicUrl
+    ? [generatedInfographicUrl, ...currentImages.filter((img) => img !== generatedInfographicUrl)]
+    : currentImages;
+
   const stateToSave: Record<string, unknown> = {
     id: recordId,
     raw_markdown: finalState.raw_markdown,
@@ -156,7 +181,7 @@ async function handleGraphCompletion(
     best_thread_draft: best_thread_draft ?? resolved_thread_draft,
     best_virality_score: bestScore ?? resolved_virality_score,
     audit_history: finalState.audit_history,
-    images: finalState.images,
+    images: updatedImages,
     critique: finalState.critique,
     virality_score: resolved_virality_score,
     post_critiques: resolved_post_critiques,
@@ -167,6 +192,9 @@ async function handleGraphCompletion(
     guidance: finalState.guidance,
     manual_hook_selection: finalState.manual_hook_selection,
     search_query_generation: finalState.search_query_generation,
+    infographic_generation: finalState.infographic_generation ?? finalState.search_query_generation,
+    infographic_spec: finalState.infographic_spec,
+    infographic_url: generatedInfographicUrl,
     research_context: finalState.research_context,
     generation_status,
     failure_reason,
@@ -217,6 +245,7 @@ async function restartGraphFromScratch(
     guidance?: string;
     manual_hook_selection?: boolean;
     search_query_generation?: boolean;
+    infographic_generation?: boolean;
   },
   agentOverride?: string
 ): Promise<Record<string, unknown>> {
@@ -239,6 +268,7 @@ async function restartGraphFromScratch(
     guidance: overrides?.guidance ?? draft.guidance,
     manual_hook_selection: overrides?.manual_hook_selection ?? draft.manual_hook_selection,
     search_query_generation: overrides?.search_query_generation ?? draft.search_query_generation,
+    infographic_generation: overrides?.infographic_generation ?? overrides?.search_query_generation ?? draft.infographic_generation ?? draft.search_query_generation,
   });
 
   return await graph.invoke(initialState, config);
@@ -258,6 +288,7 @@ async function enqueueThreadGenerationHelper(
 
   await Promise.all(
     requests.map(async (req) => {
+      const infographic_generation = req.infographic_generation ?? req.search_query_generation ?? false;
       const recordId = await ctx.runMutation(
         internal.threads.initializeThreadDraft,
         {
@@ -265,6 +296,7 @@ async function enqueueThreadGenerationHelper(
           guidance: req.guidance,
           manual_hook_selection: req.manual_hook_selection,
           search_query_generation: req.search_query_generation,
+          infographic_generation,
           userId,
           agent: req.input_field.agent,
           generation_status: "queued",
@@ -280,6 +312,7 @@ async function enqueueThreadGenerationHelper(
           guidance: req.guidance,
           manual_hook_selection: req.manual_hook_selection,
           search_query_generation: req.search_query_generation,
+          infographic_generation,
           userId,
           agent: req.input_field.agent,
         },
@@ -380,6 +413,7 @@ export const generateThreadInternal = internalAction({
             guidance: args.guidance,
             manual_hook_selection: args.manual_hook_selection,
             search_query_generation: args.search_query_generation,
+            infographic_generation: args.infographic_generation ?? args.search_query_generation,
             userId: args.userId,
             agent: args.agent,
             generation_status: "processing",
@@ -405,6 +439,7 @@ export const generateThreadInternal = internalAction({
           guidance: args.guidance,
           manual_hook_selection: args.manual_hook_selection,
           search_query_generation: args.search_query_generation,
+          infographic_generation: args.infographic_generation ?? args.search_query_generation,
         });
         return await graph.invoke(initialState, { configurable: { thread_id: recordId } });
       });
@@ -514,6 +549,7 @@ export const regenerateThreadInternal = internalAction({
       guidance: args.guidance,
       manual_hook_selection: args.manual_hook_selection,
       search_query_generation: args.search_query_generation,
+      infographic_generation: args.infographic_generation ?? args.search_query_generation,
     });
 
     const agent = args.agent || draft.agent || draft.input_field.agent || "news";
@@ -542,6 +578,11 @@ export const regenerateThreadInternal = internalAction({
         if (args.guidance !== undefined) stateUpdate.guidance = args.guidance;
         if (args.manual_hook_selection !== undefined) stateUpdate.manual_hook_selection = args.manual_hook_selection;
         if (args.search_query_generation !== undefined) stateUpdate.search_query_generation = args.search_query_generation;
+        if (args.infographic_generation !== undefined) {
+          stateUpdate.infographic_generation = args.infographic_generation;
+        } else if (args.search_query_generation !== undefined) {
+          stateUpdate.infographic_generation = args.search_query_generation;
+        }
 
         return await graph.invoke(stateUpdate, forkConfig);
       }
@@ -613,6 +654,9 @@ export const iterateThreadInternal = internalAction({
         research_context: draft.research_context || "",
         images: draft.images || [],
         search_query_generation: draft.search_query_generation ?? false,
+        infographic_generation: draft.infographic_generation ?? draft.search_query_generation ?? false,
+        infographic_spec: draft.infographic_spec,
+        infographic_url: draft.infographic_url,
         virality_score: draft.virality_score,
         best_thread_draft: hasManualEdits ? args.modified_thread : (draft.best_thread_draft || draft.thread_draft),
         best_virality_score: hasManualEdits ? undefined : (draft.best_virality_score ?? draft.virality_score),
@@ -726,6 +770,9 @@ export const enqueueThreadRegeneration = action({
         const guidance = args.guidance !== undefined ? args.guidance : draft.guidance;
         const manual_hook_selection = args.manual_hook_selection !== undefined ? args.manual_hook_selection : draft.manual_hook_selection;
         const search_query_generation = args.search_query_generation !== undefined ? args.search_query_generation : draft.search_query_generation;
+        const infographic_generation = args.infographic_generation !== undefined
+          ? args.infographic_generation
+          : (draft.infographic_generation ?? draft.search_query_generation);
 
         // Optimistically set the status to "queued" so the UI immediately reflects it as queued
         await ctx.runMutation(internal.threads.updateThreadDraft, {
@@ -740,6 +787,7 @@ export const enqueueThreadRegeneration = action({
             guidance,
             manual_hook_selection,
             search_query_generation,
+            infographic_generation,
             userId,
             recordId: id,
             agent: draft.agent,
@@ -1238,5 +1286,19 @@ export const getUrlMetadata = action({
       console.error("Failed to fetch URL metadata:", e);
       return { title: deriveTitleFromUrl(args.url), description: "", image: "" };
     }
+  },
+});
+
+export const renderInfographicAction = action({
+  args: {
+    spec: v.any(),
+  },
+  handler: async (ctx, args): Promise<string | null> => {
+    await requireAuthUserId(ctx);
+    const parsedSpec = InfographicSpecSchema.parse(args.spec);
+    const pngBuffer = await renderInfographicToPng(parsedSpec);
+    const blob = new Blob([new Uint8Array(pngBuffer)], { type: "image/png" });
+    const storageId = await ctx.storage.store(blob);
+    return await ctx.storage.getUrl(storageId);
   },
 });

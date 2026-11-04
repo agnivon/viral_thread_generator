@@ -8,10 +8,11 @@ interface RegenerateDialogProps {
   isOpen: boolean;
   initialGuidance: string;
   initialManualHookSelection: boolean;
-  initialSearchQueryGeneration: boolean;
+  initialSearchQueryGeneration?: boolean;
+  initialInfographicGeneration?: boolean;
   isRegenerating: boolean;
   onClose: () => void;
-  onRegenerate: (guidance: string, manualHookSelection: boolean, searchQueryGeneration: boolean) => void;
+  onRegenerate: (guidance: string, manualHookSelection: boolean, infographicGeneration: boolean) => void;
 }
 
 export function RegenerateDialog({
@@ -19,26 +20,28 @@ export function RegenerateDialog({
   initialGuidance,
   initialManualHookSelection,
   initialSearchQueryGeneration,
+  initialInfographicGeneration,
   isRegenerating,
   onClose,
   onRegenerate,
 }: RegenerateDialogProps) {
+  const effectiveInitialInfographic = initialInfographicGeneration ?? initialSearchQueryGeneration ?? false;
   const [guidance, setGuidance] = useState(initialGuidance);
   const [manualHookSelection, setManualHookSelection] = useState(initialManualHookSelection);
-  const [searchQueryGeneration, setSearchQueryGeneration] = useState(initialSearchQueryGeneration);
+  const [infographicGeneration, setInfographicGeneration] = useState(effectiveInitialInfographic);
 
   useEffect(() => {
     if (isOpen) {
       setGuidance(initialGuidance);
       setManualHookSelection(initialManualHookSelection);
-      setSearchQueryGeneration(initialSearchQueryGeneration);
+      setInfographicGeneration(initialInfographicGeneration ?? initialSearchQueryGeneration ?? false);
     }
-  }, [isOpen, initialGuidance, initialManualHookSelection, initialSearchQueryGeneration]);
+  }, [isOpen, initialGuidance, initialManualHookSelection, initialSearchQueryGeneration, initialInfographicGeneration]);
 
   if (!isOpen) return null;
 
   const handleSubmit = () => {
-    onRegenerate(guidance, manualHookSelection, searchQueryGeneration);
+    onRegenerate(guidance, manualHookSelection, infographicGeneration);
   };
 
   return (
@@ -89,23 +92,23 @@ export function RegenerateDialog({
             </div>
           </div>
 
-          {/* Auto-generate Image Search Queries Checkbox */}
+          {/* Auto-generate Editorial Infographics Checkbox */}
           <div className="flex items-start space-x-3 pt-2 bg-muted/10 p-3.5 rounded-xl border border-border/30">
             <Checkbox
-              id="search-query-gen-regenerate"
-              checked={searchQueryGeneration}
-              onCheckedChange={(checked) => setSearchQueryGeneration(!!checked)}
+              id="infographic-gen-regenerate"
+              checked={infographicGeneration}
+              onCheckedChange={(checked) => setInfographicGeneration(!!checked)}
               disabled={isRegenerating}
             />
             <div className="grid gap-1.5 leading-none">
               <Label
-                htmlFor="search-query-gen-regenerate"
+                htmlFor="infographic-gen-regenerate"
                 className="text-sm font-semibold leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-75 cursor-pointer text-foreground"
               >
-                Auto-generate media queries
+                Generate Editorial Infographic
               </Label>
               <p className="text-xs text-muted-foreground">
-                Automatically generate highly specific visual search queries for images and videos based on the generated thread content.
+                Design and generate a high-authority data infographic card (FT / Bloomberg style) for this thread.
               </p>
             </div>
           </div>

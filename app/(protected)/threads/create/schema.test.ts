@@ -10,6 +10,7 @@ describe("createDefaultEntry", () => {
     const entry = createDefaultEntry();
     expect(entry.manual_hook_selection).toBe(false);
     expect(entry.search_query_generation).toBe(false);
+    expect(entry.infographic_generation).toBe(false);
     expect(entry.agent).toBe("news");
     expect(entry.url).toBe("");
     expect(entry.topic).toBe("");
@@ -27,6 +28,7 @@ describe("createDefaultEntry", () => {
     // Both checkboxes MUST be false by default on pre-seeding
     expect(preSeeded.manual_hook_selection).toBe(false);
     expect(preSeeded.search_query_generation).toBe(false);
+    expect(preSeeded.infographic_generation).toBe(false);
     expect(preSeeded.agent).toBe("topic");
     expect(preSeeded.topic).toBe("Artificial Intelligence Breakthrough");
     expect(preSeeded.description).toBe("Discussion on new LLMs");

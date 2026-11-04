@@ -79,6 +79,7 @@ export const initializeThreadDraft = internalMutation({
       guidance: args.guidance,
       manual_hook_selection: args.manual_hook_selection,
       search_query_generation: args.search_query_generation,
+      infographic_generation: args.infographic_generation ?? args.search_query_generation,
       agent: args.agent || "news",
       is_approved: false,
       is_published: false,
@@ -153,6 +154,8 @@ export const updateThreadDraft = internalMutation({
         ),
       })
     ),
+    infographic_spec: v.optional(v.any()),
+    infographic_url: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const { id, failure_reason, publication_error, ...updates } = args;

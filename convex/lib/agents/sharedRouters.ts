@@ -19,6 +19,7 @@ export interface CriticState {
   max_iterations?: number;
   post_critiques?: Array<{ fix_directive?: string }>;
   search_query_generation?: boolean;
+  infographic_generation?: boolean;
   retries?: { critic?: number };
 }
 
@@ -62,7 +63,10 @@ export function createRouteAfterCritic(criticNodeName = "ViralityCriticNode") {
       if (state.iterations === 1 && hasFixDirectives && maxIterations > 1) {
         return "ThreadWriterNode";
       }
-      return state.search_query_generation ? "VisualKeywordStrategistNode" : END;
+      if (state.infographic_generation || state.search_query_generation) {
+        return "InfographicGeneratorNode";
+      }
+      return END;
     }
     return "ThreadWriterNode";
   };

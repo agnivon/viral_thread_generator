@@ -244,29 +244,32 @@ function ThreadEntryCard({
             </div>
           </div>
 
-          {/* Auto-generate Image & Video Search Queries Checkbox */}
+          {/* Generate Editorial Infographic Checkbox */}
           <div className="flex items-start space-x-3 bg-muted/10 p-3 rounded-lg border border-border/30 hover:border-violet-500/30 transition-colors">
             <Controller
               control={control}
-              name={`entries.${index}.search_query_generation`}
+              name={`entries.${index}.infographic_generation`}
               render={({ field }) => (
                 <Checkbox
-                  id={`search-query-gen-${index}`}
+                  id={`infographic-gen-${index}`}
                   checked={field.value}
-                  onCheckedChange={field.onChange}
+                  onCheckedChange={(checked) => {
+                    field.onChange(checked);
+                    setValue(`entries.${index}.search_query_generation`, Boolean(checked));
+                  }}
                   disabled={isLoading}
                 />
               )}
             />
             <div className="grid gap-1.5 leading-none">
               <Label
-                htmlFor={`search-query-gen-${index}`}
+                htmlFor={`infographic-gen-${index}`}
                 className="text-sm font-semibold leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-75 cursor-pointer text-foreground"
               >
-                Auto-generate media queries
+                Generate Editorial Infographic
               </Label>
               <p className="text-xs text-muted-foreground">
-                Generate visual search queries for images and videos based on the thread.
+                Design and generate a high-authority data infographic card (FT / Bloomberg style) for this thread.
               </p>
             </div>
           </div>
@@ -334,6 +337,7 @@ function CreateThreadForm() {
         guidance?: string;
         manual_hook_selection?: boolean;
         search_query_generation?: boolean;
+        infographic_generation?: boolean;
       }>;
     }) => {
       return await enqueueThreadGeneration(payload);
@@ -392,7 +396,8 @@ function CreateThreadForm() {
         input_field,
         guidance: entry.guidance?.trim() || undefined,
         manual_hook_selection: Boolean(entry.manual_hook_selection),
-        search_query_generation: Boolean(entry.search_query_generation),
+        search_query_generation: Boolean(entry.search_query_generation || entry.infographic_generation),
+        infographic_generation: Boolean(entry.infographic_generation ?? entry.search_query_generation),
       };
     });
 

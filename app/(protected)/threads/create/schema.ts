@@ -9,6 +9,7 @@ export const threadEntrySchema = z
     guidance: z.string().optional(),
     manual_hook_selection: z.boolean().optional(),
     search_query_generation: z.boolean().optional(),
+    infographic_generation: z.boolean().optional(),
   })
   .superRefine((val, ctx) => {
     if (val.agent === "topic") {
@@ -59,11 +60,12 @@ export interface DefaultEntryOptions {
   agent?: "news" | "social_media" | "topic";
   manual_hook_selection?: boolean;
   search_query_generation?: boolean;
+  infographic_generation?: boolean;
 }
 
 /**
  * Creates default form values for a thread entry card.
- * NOTE: Per product guidelines, checkboxes (manual_hook_selection and search_query_generation)
+ * NOTE: Per product guidelines, checkboxes (manual_hook_selection, search_query_generation, and infographic_generation)
  * must default to false (deselected) even when pre-seeding from URLs or trend alerts.
  */
 export function createDefaultEntry(options?: DefaultEntryOptions): ThreadEntryFormData {
@@ -76,5 +78,6 @@ export function createDefaultEntry(options?: DefaultEntryOptions): ThreadEntryFo
     // Checkboxes are deselected by default on pre-seeding and blank entries
     manual_hook_selection: options?.manual_hook_selection ?? false,
     search_query_generation: options?.search_query_generation ?? false,
+    infographic_generation: options?.infographic_generation ?? options?.search_query_generation ?? false,
   };
 }

@@ -62,6 +62,7 @@ export const commonThreadDraftArgs = {
   guidance: v.optional(v.string()),
   manual_hook_selection: v.optional(v.boolean()),
   search_query_generation: v.optional(v.boolean()),
+  infographic_generation: v.optional(v.boolean()),
 };
 
 export default defineSchema(
@@ -133,6 +134,9 @@ export default defineSchema(
           })
         )
       })),
+      infographic_generation: v.optional(v.boolean()),
+      infographic_spec: v.optional(v.any()),
+      infographic_url: v.optional(v.string()),
       generation_status: generationStatusValidator,
       failure_reason: v.optional(v.string()),
       publication_status: v.optional(publicationStatusValidator),

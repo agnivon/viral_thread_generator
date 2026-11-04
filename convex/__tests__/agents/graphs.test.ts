@@ -109,13 +109,13 @@ describe.each<{ name: string; router: RouterFn }>([
     expect(nextNodeWithoutFix).toBe(END);
   });
 
-  test("iteration 1: routes to VisualKeywordStrategistNode when approved and no fix_directive if search_query_generation is true", () => {
+  test("iteration 1: routes to InfographicGeneratorNode when approved and no fix_directive if infographic_generation or search_query_generation is true", () => {
     const nextNode = router({
       ...baseState,
       parse_success: true,
       is_approved: true,
       iterations: 1,
-      search_query_generation: true,
+      infographic_generation: true,
       post_critiques: [
         {
           post_index: 1,
@@ -123,7 +123,17 @@ describe.each<{ name: string; router: RouterFn }>([
         },
       ],
     } as unknown as RouterState);
-    expect(nextNode).toBe("VisualKeywordStrategistNode");
+    expect(nextNode).toBe("InfographicGeneratorNode");
+
+    const nextNodeLegacy = router({
+      ...baseState,
+      parse_success: true,
+      is_approved: true,
+      iterations: 1,
+      search_query_generation: true,
+      post_critiques: [],
+    } as unknown as RouterState);
+    expect(nextNodeLegacy).toBe("InfographicGeneratorNode");
   });
 
   test("iteration 1: routes to END when approved with empty post_critiques", () => {

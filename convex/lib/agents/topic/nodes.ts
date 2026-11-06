@@ -7,16 +7,12 @@ import { providerStrategy } from "langchain";
 import {
   googleGemini31FlashLiteT08Key1, googleGemini31FlashLiteT08Key2,
   googleGemini31FlashLiteT01Key1, googleGemini31FlashLiteT01Key2, deepSeekFlashT01ReasoningNone,
-  googleGemini38FlashT08Key1, googleGemini38FlashT08Key2,
-  googleGemini37FlashT08Key1, googleGemini37FlashT08Key2,
-  googleGemini36FlashT08Key1, googleGemini36FlashT08Key2,
-  googleGemini35FlashT08Key1, googleGemini35FlashT08Key2,
-  deepSeekFlashT085ReasoningNone, openAiGpt54T08Penalty04, googleGemini3FlashPreviewT08Key1, googleGemini3FlashPreviewT08Key2,
   googleGemini31FlashLiteT02Key1, googleGemini31FlashLiteT02Key2, deepSeekFlashT02ReasoningNone,
   googleGemini35FlashLiteT01Key1, googleGemini35FlashLiteT01Key2,
   googleGemini35FlashLiteT08Key1, googleGemini35FlashLiteT08Key2, deepSeekFlashT08ReasoningNone,
   googleGemini35FlashLiteT02Key1, googleGemini35FlashLiteT02Key2,
-  criticModelCandidates
+  criticModelCandidates,
+  threadWriterModelCandidates
 } from "../models.js";
 import {
   TOPIC_RESEARCH_ORCHESTRATOR_PROMPT,
@@ -38,7 +34,6 @@ import {
 import {
   buildAgents,
   invokeWithFallbacks,
-  withTimeout,
   normalizeResearchDossier,
   filterActionablePostCritiques,
   reconcileSurgicalDraft,
@@ -227,25 +222,6 @@ export const HookStrategistNode = async (state: TopicThreadFactoryStateType, con
   };
 };
 
-const topicThreadWriterSchema = z.object({
-  thread_draft: z.array(z.string()).min(1, "Must generate at least one post for the thread draft")
-});
-
-const topicThreadWriterModels = [
-  googleGemini38FlashT08Key1.withStructuredOutput(topicThreadWriterSchema, { name: "thread_writer", method: "jsonSchema" }),
-  withTimeout(googleGemini38FlashT08Key2.withStructuredOutput(topicThreadWriterSchema, { name: "thread_writer", method: "jsonSchema" }), 45000),
-  googleGemini37FlashT08Key1.withStructuredOutput(topicThreadWriterSchema, { name: "thread_writer", method: "jsonSchema" }),
-  withTimeout(googleGemini37FlashT08Key2.withStructuredOutput(topicThreadWriterSchema, { name: "thread_writer", method: "jsonSchema" }), 45000),
-  googleGemini36FlashT08Key1.withStructuredOutput(topicThreadWriterSchema, { name: "thread_writer", method: "jsonSchema" }),
-  withTimeout(googleGemini36FlashT08Key2.withStructuredOutput(topicThreadWriterSchema, { name: "thread_writer", method: "jsonSchema" }), 45000),
-  googleGemini35FlashT08Key1.withStructuredOutput(topicThreadWriterSchema, { name: "thread_writer", method: "jsonSchema" }),
-  withTimeout(googleGemini35FlashT08Key2.withStructuredOutput(topicThreadWriterSchema, { name: "thread_writer", method: "jsonSchema" }), 45000),
-  deepSeekFlashT085ReasoningNone.withStructuredOutput(topicThreadWriterSchema, { name: "thread_writer", method: "jsonMode" }),
-  openAiGpt54T08Penalty04.withStructuredOutput(topicThreadWriterSchema, { name: "thread_writer", method: "jsonSchema" }),
-  googleGemini3FlashPreviewT08Key1.withStructuredOutput(topicThreadWriterSchema, { name: "thread_writer", method: "jsonSchema" }),
-  withTimeout(googleGemini3FlashPreviewT08Key2.withStructuredOutput(topicThreadWriterSchema, { name: "thread_writer", method: "jsonSchema" }), 45000)
-];
-
 export const ThreadWriterNode = async (state: TopicThreadFactoryStateType, config?: RunnableConfig) => {
   const previousDraftContext = state.thread_draft && state.thread_draft.length > 0
     ? `\n\n<PREVIOUS_THREAD_DRAFT>\n${JSON.stringify(state.thread_draft, null, 2)}\n</PREVIOUS_THREAD_DRAFT>`
@@ -282,7 +258,7 @@ export const ThreadWriterNode = async (state: TopicThreadFactoryStateType, confi
 
   try {
     result = await invokeWithFallbacks(
-      topicThreadWriterModels,
+      threadWriterModelCandidates,
       [
         { role: "system", content: TOPIC_THREAD_WRITER_PROMPT },
         { role: "user", content: `<HOOK>\n${state.selected_hook}\n</HOOK>\n<DOSSIER>\n${state.research_dossier}\n</DOSSIER>${deltaContext}${previousDraftContext}${critiqueContext}${postCritiquesContext}${pinnedPostsContext}${charCritiqueContext}${guidanceContext}` }

@@ -809,6 +809,39 @@ test("deleteThreadDraftInternal authorization and deletion", async () => {
   expect(deletedDraft2).toBeNull();
 });
 
+test("deleteThreadDraft action rejects unauthenticated callers and deletes draft even when postgres checkpointer fails", async () => {
+  const t = convexTest(schema, modules);
+  const user = await t.mutation(async (ctx) => ctx.db.insert("users", {}));
+
+  const draftId = await t.mutation(internal.threads.initializeThreadDraft, {
+    userId: user,
+    agent: "news",
+    input_field: { agent: "news", url: "https://news.example.com/item" },
+  });
+
+  // 1. Unauthenticated invocation must fail with Unauthorized
+  await expect(
+    t.action(api.actions.threads.deleteThreadDraft, { id: draftId })
+  ).rejects.toThrow("Unauthorized");
+
+  // 2. Mock postgres pool query to reject with an error (deadlock/interruption scenario)
+  const { pool } = await import("../lib/agents/checkpointer.js");
+  vi.spyOn(pool, "query").mockRejectedValue(new Error("Connection terminated unexpectedly"));
+  const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+  // 3. Authorized caller invokes deleteThreadDraft
+  const tUser = t.withIdentity({ subject: user });
+  await tUser.action(api.actions.threads.deleteThreadDraft, { id: draftId });
+
+  // 4. Draft should be deleted from Convex database despite Postgres failure
+  const deletedDraft = await t.query(async (ctx) => ctx.db.get("threadDrafts", draftId));
+  expect(deletedDraft).toBeNull();
+  expect(warnSpy).toHaveBeenCalledWith(
+    expect.stringContaining("Failed to delete postgres checkpoints (continuing draft deletion):"),
+    expect.any(Error)
+  );
+});
+
 test("getUrlMetadata action rejects unauthenticated callers and succeeds when authenticated", async () => {
   const t = convexTest(schema, modules);
   const user = await t.mutation(async (ctx) => ctx.db.insert("users", {}));

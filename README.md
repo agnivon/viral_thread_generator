@@ -319,10 +319,7 @@ viral_thread_generator/
 │       └── clients/                  # Consolidated Third-Party Service Clients
 │           ├── threads.ts            # Meta Threads Graph API SDK
 │           ├── brave.ts              # Brave Search API Client
-│           ├── currents.ts           # Currents News API Client
-│           ├── newsdata.ts           # NewsData.io Client
-│           ├── jina.ts               # Jina Reader API Client
-│           └── firebase.ts           # Firebase Admin & Firestore Client
+│           └── jina.ts               # Jina Reader API Client
 ├── docs/                             # Comprehensive Technical Documentation
 │   ├── architecture/                 # System Topology, Multi-Agent Graphs & Checkpointing
 │   ├── features/                     # Scraping, Threads Publishing, Virality Engine & Web Push

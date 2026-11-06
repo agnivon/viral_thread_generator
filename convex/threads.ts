@@ -8,6 +8,7 @@ import {
   commonThreadDraftArgs,
   generationStatusValidator,
   publicationStatusValidator,
+  infographicSpecValidator,
 } from "./schema";
 
 /**
@@ -154,7 +155,7 @@ export const updateThreadDraft = internalMutation({
         ),
       })
     ),
-    infographic_spec: v.optional(v.any()),
+    infographic_spec: v.optional(infographicSpecValidator),
     infographic_url: v.optional(v.string()),
   },
   handler: async (ctx, args) => {

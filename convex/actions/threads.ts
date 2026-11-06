@@ -5,7 +5,7 @@ import { isInterrupted, Command } from "@langchain/langgraph";
 import { action, internalAction, ActionCtx } from "../_generated/server";
 import { v, Infer } from "convex/values";
 import { internal } from "../_generated/api";
-import { threadDraftInputValidator, commonThreadDraftArgs } from "../schema";
+import { threadDraftInputValidator, commonThreadDraftArgs, infographicSpecValidator } from "../schema";
 import { Id } from "../_generated/dataModel";
 import { NewsThreadFactoryGraph } from "../lib/agents/news/graph.js";
 import { SocialMediaThreadFactoryGraph } from "../lib/agents/social_media/graph.js";
@@ -15,7 +15,7 @@ import { modelCircuitBreaker } from "../lib/agents/circuitBreaker.js";
 import { generationPool, publicationPool } from "../lib/workpool.js";
 import { requireAuthUserId } from "../auth";
 import { renderInfographicToPng } from "../lib/infographics/renderer.js";
-import { InfographicSpec, InfographicSpecSchema } from "../lib/infographics/schema.js";
+import { InfographicSpecSchema } from "../lib/infographics/schema.js";
 
 export { requireAuthUserId };
 
@@ -153,9 +153,11 @@ async function handleGraphCompletion(
     : null;
 
   let generatedInfographicUrl = (typeof finalState.infographic_url === "string" && finalState.infographic_url) || undefined;
-  if (finalState.infographic_spec && !generatedInfographicUrl) {
+  const parsedSpec = InfographicSpecSchema.safeParse(finalState.infographic_spec);
+  const validatedInfographicSpec = parsedSpec.success ? parsedSpec.data : undefined;
+  if (validatedInfographicSpec && !generatedInfographicUrl) {
     try {
-      const pngBuffer = await renderInfographicToPng(finalState.infographic_spec as InfographicSpec);
+      const pngBuffer = await renderInfographicToPng(validatedInfographicSpec);
       const blob = new Blob([new Uint8Array(pngBuffer)], { type: "image/png" });
       const storageId = await ctx.storage.store(blob);
       const url = await ctx.storage.getUrl(storageId);
@@ -193,7 +195,7 @@ async function handleGraphCompletion(
     manual_hook_selection: finalState.manual_hook_selection,
     search_query_generation: finalState.search_query_generation,
     infographic_generation: finalState.infographic_generation ?? finalState.search_query_generation,
-    infographic_spec: finalState.infographic_spec,
+    infographic_spec: validatedInfographicSpec,
     infographic_url: generatedInfographicUrl,
     research_context: finalState.research_context,
     generation_status,
@@ -1033,15 +1035,14 @@ export const deleteThreadDraft = action({
     if (!draft) return;
 
     try {
-      const { pool } = await import("../lib/agents/news/graph.js");
+      const { pool } = await import("../lib/agents/checkpointer.js");
       const resWrites = await pool.query("DELETE FROM checkpoint_writes WHERE thread_id = $1", [args.id]);
       const resBlobs = await pool.query("DELETE FROM checkpoint_blobs WHERE thread_id = $1", [args.id]);
       const resCheckpoints = await pool.query("DELETE FROM checkpoints WHERE thread_id = $1", [args.id]);
 
       console.log(`Deleted ${resCheckpoints.rowCount} checkpoints, ${resWrites.rowCount} writes, and ${resBlobs.rowCount} blobs for thread ${args.id}`);
     } catch (e) {
-      console.error("Failed to delete postgres checkpoints:", e);
-      throw e;
+      console.warn("Failed to delete postgres checkpoints (continuing draft deletion):", e);
     }
 
     await ctx.runMutation(internal.threads.deleteThreadDraftInternal, { id: args.id, userId });
@@ -1291,7 +1292,7 @@ export const getUrlMetadata = action({
 
 export const renderInfographicAction = action({
   args: {
-    spec: v.any(),
+    spec: infographicSpecValidator,
   },
   handler: async (ctx, args): Promise<string | null> => {
     await requireAuthUserId(ctx);

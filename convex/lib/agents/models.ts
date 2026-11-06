@@ -1,4 +1,5 @@
 "use node";
+import { z } from "zod";
 import { ChatGoogle } from "@langchain/google";
 import { ChatOpenRouter } from "@langchain/openrouter";
 import { ChatOpenAI } from "@langchain/openai";
@@ -75,6 +76,25 @@ export const googleGemma426bT08Key1 = createGoogleModel("gemma-4-26b-a4b-it", 0.
 export const googleGemma426bT08Key2 = createGoogleModel("gemma-4-26b-a4b-it", 0.8, "GOOGLE_API_KEY2");
 export const googleGemini3FlashPreviewT08Key1 = createGoogleModel("gemini-3-flash-preview", 0.8, "GOOGLE_API_KEY");
 export const googleGemini3FlashPreviewT08Key2 = createGoogleModel("gemini-3-flash-preview", 0.8, "GOOGLE_API_KEY2");
+
+export const threadWriterSchema = z.object({
+  thread_draft: z.array(z.string()).min(1, "Must generate at least one post for the thread draft")
+});
+
+export const threadWriterModelCandidates = [
+  googleGemini38FlashT08Key1.withStructuredOutput(threadWriterSchema, { name: "thread_writer", method: "jsonSchema" }),
+  withTimeout(googleGemini38FlashT08Key2.withStructuredOutput(threadWriterSchema, { name: "thread_writer", method: "jsonSchema" }), 45000),
+  googleGemini37FlashT08Key1.withStructuredOutput(threadWriterSchema, { name: "thread_writer", method: "jsonSchema" }),
+  withTimeout(googleGemini37FlashT08Key2.withStructuredOutput(threadWriterSchema, { name: "thread_writer", method: "jsonSchema" }), 45000),
+  googleGemini36FlashT08Key1.withStructuredOutput(threadWriterSchema, { name: "thread_writer", method: "jsonSchema" }),
+  withTimeout(googleGemini36FlashT08Key2.withStructuredOutput(threadWriterSchema, { name: "thread_writer", method: "jsonSchema" }), 45000),
+  googleGemini35FlashT08Key1.withStructuredOutput(threadWriterSchema, { name: "thread_writer", method: "jsonSchema" }),
+  withTimeout(googleGemini35FlashT08Key2.withStructuredOutput(threadWriterSchema, { name: "thread_writer", method: "jsonSchema" }), 45000),
+  deepSeekFlashT085ReasoningNone.withStructuredOutput(threadWriterSchema, { name: "thread_writer", method: "jsonMode" }),
+  openAiGpt54T08Penalty04.withStructuredOutput(threadWriterSchema, { name: "thread_writer", method: "jsonSchema" }),
+  googleGemini3FlashPreviewT08Key1.withStructuredOutput(threadWriterSchema, { name: "thread_writer", method: "jsonSchema" }),
+  withTimeout(googleGemini3FlashPreviewT08Key2.withStructuredOutput(threadWriterSchema, { name: "thread_writer", method: "jsonSchema" }), 45000)
+];
 
 // ViralityCriticNode Models
 export const googleGemini38FlashT00Key1 = createGoogleModel("gemini-3.8-flash", 0.0, "GOOGLE_API_KEY");

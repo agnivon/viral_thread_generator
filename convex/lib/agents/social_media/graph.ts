@@ -3,7 +3,7 @@
 import { StateGraph, START, END } from "@langchain/langgraph";
 import { VisualKeywordStrategistNode } from "../nodes.js";
 import { InfographicGeneratorNode } from "../../infographics/nodes.js";
-import { checkpointSaver } from "../news/graph.js"; // Reuse the postgres saver
+import { checkpointSaver } from "../checkpointer.js";
 import { SocialMediaThreadFactoryState, SocialMediaThreadFactoryStateType } from "./state.js";
 import { 
   PostScraperNode, 

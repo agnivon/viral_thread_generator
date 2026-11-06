@@ -151,9 +151,9 @@ Convex agent skills for common tasks can be installed by running
   - Convex actions requiring the Node.js runtime (`"use node";`), LangChain agents, or external network calls must live in `convex/actions/`.
   - **No Redundant Suffixes**: Never append `*Actions.ts` to action files. Use clean, canonical domain names (`convex/actions/threads.ts`, `convex/actions/googleTrends.ts`, `convex/actions/tokens.ts`).
 - **Consolidated External Service Clients**:
-  - All third-party REST, scraping, or SDK clients must be placed directly under `convex/lib/clients/` (e.g. `threads.ts`, `brave.ts`, `jina.ts`, `currents.ts`, `newsdata.ts`, `firebase.ts`).
+  - All third-party REST, scraping, or SDK clients must be placed directly under `convex/lib/clients/` (e.g. `threads.ts`, `brave.ts`, `jina.ts`).
   - **No Redundant Single-File Directories**: Never create isolated, single-file subdirectories for a service client (e.g. do not create `convex/lib/brave/api.ts` or `convex/lib/jina/api.ts`).
-  - **No Unsafe Barrel Exports Bridging Runtimes**: Avoid barrel files in `convex/lib/clients/` that combine Node-only modules (like `firebase.ts`) with V8 modules, as this triggers bundler conflicts in Convex's default runtime.
+  - **No Unsafe Barrel Exports Bridging Runtimes**: Avoid barrel files in `convex/lib/clients/` that combine Node-only modules with V8 modules, as this triggers bundler conflicts in Convex's default runtime.
 - **Strict Test File Isolation**:
   - **No Test Files in Production Source Folders**: Never place `.test.ts`, `.spec.ts`, or test mock files directly in `convex/` root, `convex/actions/`, `convex/lib/`, or `hooks/`.
   - **Private Underscore Folders for Convex Tests**: All Convex tests must reside inside `convex/__tests__/` (e.g. `convex/__tests__/actions/`, `convex/__tests__/agents/`, `convex/__tests__/lib/`, `convex/__tests__/`). Directories prefixed with an underscore are strictly private and ignored by Convex API route generation.

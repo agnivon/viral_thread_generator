@@ -40,6 +40,89 @@ export const notificationKindValidator = v.union(
   v.literal("emerging_trend_alert")
 );
 
+export const infographicSpecValidator = v.object({
+  archetype: v.union(
+    v.literal("kpi_flow"),
+    v.literal("entity_comparison"),
+    v.literal("comparison_bars"),
+    v.literal("stat_callout"),
+    v.literal("custom_layout")
+  ),
+  kicker: v.string(),
+  headline: v.string(),
+  subheading: v.string(),
+  kpiCards: v.optional(
+    v.array(
+      v.object({
+        value: v.string(),
+        label: v.string(),
+        subtext: v.optional(v.string()),
+      })
+    )
+  ),
+  flowSteps: v.optional(
+    v.array(
+      v.object({
+        title: v.string(),
+        description: v.optional(v.string()),
+      })
+    )
+  ),
+  entityColumns: v.optional(
+    v.array(
+      v.object({
+        name: v.string(),
+        badge: v.optional(v.string()),
+        items: v.array(
+          v.object({
+            title: v.string(),
+            description: v.string(),
+          })
+        ),
+      })
+    )
+  ),
+  milestoneBadge: v.optional(
+    v.object({
+      label: v.string(),
+      value: v.string(),
+    })
+  ),
+  barCharts: v.optional(
+    v.array(
+      v.object({
+        title: v.string(),
+        subtitle: v.optional(v.string()),
+        bars: v.array(
+          v.object({
+            label: v.string(),
+            value: v.number(),
+            displayValue: v.string(),
+            color: v.optional(v.string()),
+          })
+        ),
+      })
+    )
+  ),
+  statCallout: v.optional(
+    v.object({
+      primaryStat: v.string(),
+      statLabel: v.string(),
+      secondaryStat: v.optional(v.string()),
+      secondaryLabel: v.optional(v.string()),
+      comparisonNote: v.optional(v.string()),
+    })
+  ),
+  takeawayBox: v.optional(
+    v.object({
+      title: v.optional(v.string()),
+      text: v.string(),
+    })
+  ),
+  sourceCitation: v.string(),
+  notes: v.optional(v.string()),
+});
+
 const NewsInput = v.object({
   agent: v.literal("news"),
   url: v.string(),
@@ -135,7 +218,7 @@ export default defineSchema(
         )
       })),
       infographic_generation: v.optional(v.boolean()),
-      infographic_spec: v.optional(v.any()),
+      infographic_spec: v.optional(infographicSpecValidator),
       infographic_url: v.optional(v.string()),
       generation_status: generationStatusValidator,
       failure_reason: v.optional(v.string()),

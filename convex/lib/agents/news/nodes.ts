@@ -9,17 +9,12 @@ import {
   googleGemini31FlashLiteT08Key1, googleGemini31FlashLiteT08Key2,
   deepSeekFlashT01ReasoningNone,
   googleGemini31FlashLiteT01Key1, googleGemini31FlashLiteT01Key2,
-  openAiGpt54T08Penalty04, googleGemini3FlashPreviewT08Key1, googleGemini3FlashPreviewT08Key2,
-  googleGemini38FlashT08Key1, googleGemini38FlashT08Key2,
-  googleGemini37FlashT08Key1, googleGemini37FlashT08Key2,
-  googleGemini36FlashT08Key1, googleGemini36FlashT08Key2,
-  googleGemini35FlashT08Key1, googleGemini35FlashT08Key2,
-  deepSeekFlashT085ReasoningNone,
   googleGemini31FlashLiteT02Key1, googleGemini31FlashLiteT02Key2, deepSeekFlashT02ReasoningNone,
   googleGemini35FlashLiteT01Key1, googleGemini35FlashLiteT01Key2,
   googleGemini35FlashLiteT08Key1, googleGemini35FlashLiteT08Key2,
   googleGemini35FlashLiteT02Key1, googleGemini35FlashLiteT02Key2,
-  criticModelCandidates
+  criticModelCandidates,
+  threadWriterModelCandidates
 } from "../models.js";
 import {
   NEWS_HOOK_PROMPT,
@@ -35,7 +30,6 @@ import { CharacterValidatorTool } from "../tools.js";
 import {
   buildAgents,
   invokeWithFallbacks,
-  withTimeout,
   normalizeResearchDossier,
   filterActionablePostCritiques,
   reconcileSurgicalDraft,
@@ -210,25 +204,6 @@ export const HookStrategistNode = async (state: NewsThreadFactoryStateType, conf
   };
 };
 
-const newsWriterSchema = z.object({
-  thread_draft: z.array(z.string()).min(1, "Must generate at least one post for the thread draft")
-});
-
-const newsThreadWriterModels = [
-  googleGemini38FlashT08Key1.withStructuredOutput(newsWriterSchema, { name: "thread_writer", method: "jsonSchema" }),
-  withTimeout(googleGemini38FlashT08Key2.withStructuredOutput(newsWriterSchema, { name: "thread_writer", method: "jsonSchema" }), 45000),
-  googleGemini37FlashT08Key1.withStructuredOutput(newsWriterSchema, { name: "thread_writer", method: "jsonSchema" }),
-  withTimeout(googleGemini37FlashT08Key2.withStructuredOutput(newsWriterSchema, { name: "thread_writer", method: "jsonSchema" }), 45000),
-  googleGemini36FlashT08Key1.withStructuredOutput(newsWriterSchema, { name: "thread_writer", method: "jsonSchema" }),
-  withTimeout(googleGemini36FlashT08Key2.withStructuredOutput(newsWriterSchema, { name: "thread_writer", method: "jsonSchema" }), 45000),
-  googleGemini35FlashT08Key1.withStructuredOutput(newsWriterSchema, { name: "thread_writer", method: "jsonSchema" }),
-  withTimeout(googleGemini35FlashT08Key2.withStructuredOutput(newsWriterSchema, { name: "thread_writer", method: "jsonSchema" }), 45000),
-  deepSeekFlashT085ReasoningNone.withStructuredOutput(newsWriterSchema, { name: "thread_writer", method: "jsonMode" }),
-  openAiGpt54T08Penalty04.withStructuredOutput(newsWriterSchema, { name: "thread_writer", method: "jsonSchema" }),
-  googleGemini3FlashPreviewT08Key1.withStructuredOutput(newsWriterSchema, { name: "thread_writer", method: "jsonSchema" }),
-  withTimeout(googleGemini3FlashPreviewT08Key2.withStructuredOutput(newsWriterSchema, { name: "thread_writer", method: "jsonSchema" }), 45000)
-];
-
 export const ThreadWriterNode = async (state: NewsThreadFactoryStateType, config?: RunnableConfig) => {
   const previousDraftContext = state.thread_draft && state.thread_draft.length > 0
     ? `\n\n<PREVIOUS_THREAD_DRAFT>\n${JSON.stringify(state.thread_draft, null, 2)}\n</PREVIOUS_THREAD_DRAFT>`
@@ -265,7 +240,7 @@ export const ThreadWriterNode = async (state: NewsThreadFactoryStateType, config
   let parse_success = true;
   try {
     draft = await invokeWithFallbacks(
-      newsThreadWriterModels,
+      threadWriterModelCandidates,
       [
         { role: "system", content: NEWS_WRITER_PROMPT },
         { role: "user", content: `<HOOK>\n${state.selected_hook}\n</HOOK>\n\n<SOURCE>\n${state.raw_markdown}\n</SOURCE>${researchContext}${deltaContext}${previousDraftContext}${critiqueContext}${postCritiquesContext}${pinnedPostsContext}${charCritiqueContext}${guidanceContext}` }

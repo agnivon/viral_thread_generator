@@ -8,9 +8,7 @@
  * @module
  */
 
-import type * as actions_currentsNews from "../actions/currentsNews.js";
 import type * as actions_googleTrends from "../actions/googleTrends.js";
-import type * as actions_newsdata from "../actions/newsdata.js";
 import type * as actions_pushNotifications from "../actions/pushNotifications.js";
 import type * as actions_setup from "../actions/setup.js";
 import type * as actions_threads from "../actions/threads.js";
@@ -21,6 +19,7 @@ import type * as circuitBreaker from "../circuitBreaker.js";
 import type * as clearAuth from "../clearAuth.js";
 import type * as crons from "../crons.js";
 import type * as http from "../http.js";
+import type * as lib_agents_checkpointer from "../lib/agents/checkpointer.js";
 import type * as lib_agents_circuitBreaker from "../lib/agents/circuitBreaker.js";
 import type * as lib_agents_models from "../lib/agents/models.js";
 import type * as lib_agents_news_graph from "../lib/agents/news/graph.js";
@@ -48,10 +47,7 @@ import type * as lib_agents_topic_state from "../lib/agents/topic/state.js";
 import type * as lib_agents_topic_tools from "../lib/agents/topic/tools.js";
 import type * as lib_agents_utils from "../lib/agents/utils.js";
 import type * as lib_clients_brave from "../lib/clients/brave.js";
-import type * as lib_clients_currents from "../lib/clients/currents.js";
-import type * as lib_clients_firebase from "../lib/clients/firebase.js";
 import type * as lib_clients_jina from "../lib/clients/jina.js";
-import type * as lib_clients_newsdata from "../lib/clients/newsdata.js";
 import type * as lib_clients_threads from "../lib/clients/threads.js";
 import type * as lib_env from "../lib/env.js";
 import type * as lib_trends_index from "../lib/trends/index.js";
@@ -75,9 +71,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
-  "actions/currentsNews": typeof actions_currentsNews;
   "actions/googleTrends": typeof actions_googleTrends;
-  "actions/newsdata": typeof actions_newsdata;
   "actions/pushNotifications": typeof actions_pushNotifications;
   "actions/setup": typeof actions_setup;
   "actions/threads": typeof actions_threads;
@@ -88,6 +82,7 @@ declare const fullApi: ApiFromModules<{
   clearAuth: typeof clearAuth;
   crons: typeof crons;
   http: typeof http;
+  "lib/agents/checkpointer": typeof lib_agents_checkpointer;
   "lib/agents/circuitBreaker": typeof lib_agents_circuitBreaker;
   "lib/agents/models": typeof lib_agents_models;
   "lib/agents/news/graph": typeof lib_agents_news_graph;
@@ -115,10 +110,7 @@ declare const fullApi: ApiFromModules<{
   "lib/agents/topic/tools": typeof lib_agents_topic_tools;
   "lib/agents/utils": typeof lib_agents_utils;
   "lib/clients/brave": typeof lib_clients_brave;
-  "lib/clients/currents": typeof lib_clients_currents;
-  "lib/clients/firebase": typeof lib_clients_firebase;
   "lib/clients/jina": typeof lib_clients_jina;
-  "lib/clients/newsdata": typeof lib_clients_newsdata;
   "lib/clients/threads": typeof lib_clients_threads;
   "lib/env": typeof lib_env;
   "lib/trends/index": typeof lib_trends_index;

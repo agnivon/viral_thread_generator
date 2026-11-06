@@ -307,7 +307,7 @@ export default function TrendsPage() {
             paginatedKeywords.map((item, idx) => {
               const itemGrowth = formatGrowthRate(item.trafficGrowthRate);
               const displayRank = item.rank ?? ((currentPage - 1) * pageSize + idx + 1);
-              const articleCount = item.articleKeys?.length || 0;
+              const hasNewsCoverage = Boolean(item.articleKeys && item.articleKeys.length > 0);
 
               return (
                 <Link
@@ -390,18 +390,22 @@ export default function TrendsPage() {
                           </span>
                         </div>
 
-                        {/* Article Count */}
-                        {articleCount > 0 && (
-                          <div className="flex flex-col items-start lg:items-end hidden md:flex">
-                            <span className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wider">
-                              Coverage
-                            </span>
+                        {/* Coverage Indicator */}
+                        <div className="flex flex-col items-start lg:items-end hidden md:flex">
+                          <span className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wider">
+                            Coverage
+                          </span>
+                          {hasNewsCoverage ? (
                             <span className="inline-flex items-center gap-1 text-xs text-violet-600 dark:text-violet-400 font-medium">
                               <Newspaper className="w-3 h-3 text-violet-500" />
-                              {articleCount} {articleCount === 1 ? "story" : "stories"}
+                              News Coverage
                             </span>
-                          </div>
-                        )}
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-xs text-muted-foreground font-medium">
+                              Search Trend
+                            </span>
+                          )}
+                        </div>
 
                         {/* CTA Arrow */}
                         <div className="inline-flex items-center gap-1 pl-2 text-xs font-semibold text-violet-600 dark:text-violet-400 group-hover:translate-x-1 transition-transform">

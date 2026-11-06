@@ -324,6 +324,7 @@ function CreateThreadForm() {
   });
 
   const enqueueThreadGeneration = useAction(api.actions.threads.enqueueThreadGeneration);
+  const resolveArticleUrlAction = useAction(api.actions.googleTrends.resolveArticleUrl);
   const router = useRouter();
 
   const [error, setError] = useState<string | null>(null);
@@ -371,6 +372,25 @@ function CreateThreadForm() {
       });
     }
   }, [urlTopic, urlUrl, urlDescription, urlGuidance, urlAgent, reset]);
+
+  // Automatically resolve Google News redirect URLs to canonical publisher links if passed in query params
+  useEffect(() => {
+    if (urlUrl && urlUrl.includes("news.google.com/rss/articles/")) {
+      let isMounted = true;
+      resolveArticleUrlAction({ url: urlUrl })
+        .then((resolvedUrl) => {
+          if (isMounted && resolvedUrl && resolvedUrl !== urlUrl) {
+            setValue("entries.0.url", resolvedUrl, { shouldValidate: true, shouldDirty: true });
+          }
+        })
+        .catch((err) => {
+          console.warn("Failed to resolve Google News URL in create form:", err);
+        });
+      return () => {
+        isMounted = false;
+      };
+    }
+  }, [urlUrl, resolveArticleUrlAction, setValue]);
 
   const handleAddEntry = () => {
     append(createDefaultEntry());

@@ -1,6 +1,6 @@
 "use node";
 
-import googleTrends from '@alkalisummer/google-trends-js';
+import { googleTrends, decodeGoogleNewsUrl } from "../lib/clients/googleTrends.js";
 import { requireAuthUserId } from "../auth";
 import { v } from "convex/values";
 import { action } from "../_generated/server";
@@ -40,7 +40,7 @@ export function isValidArticleKey(k: unknown): k is [number, string, string] {
 }
 
 /**
- * Fetches real-time trending keywords directly via @alkalisummer/google-trends-js on-demand.
+ * Fetches real-time trending keywords directly via Google Trends client on-demand.
  * Zero database storage - returns trends in natural Google Trends relevance rank order.
  */
 export const getTrendingKeywords = action({
@@ -131,6 +131,7 @@ export const fetchArticlesForKeyword = action({
     }
 
     const response = await googleTrends.trendingArticles({
+      keyword: args.keyword,
       articleKeys: validKeys,
       articleCount: 20,
     });
@@ -159,5 +160,19 @@ export const fetchArticlesForKeyword = action({
     });
 
     return articles;
+  },
+});
+
+/**
+ * Resolves a Google News redirect URL (`https://news.google.com/rss/articles/...`)
+ * to its canonical publisher destination URL on-demand.
+ */
+export const resolveArticleUrl = action({
+  args: {
+    url: v.string(),
+  },
+  handler: async (ctx, args): Promise<string> => {
+    await requireAuthUserId(ctx);
+    return await decodeGoogleNewsUrl(args.url);
   },
 });

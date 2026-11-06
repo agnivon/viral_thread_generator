@@ -4,7 +4,7 @@ import { convexTest } from "convex-test";
 import { expect, test, vi, afterEach } from "vitest";
 import { api } from "../../_generated/api";
 import schema from "../../schema";
-import googleTrends, { TrendingKeyword, Article as GoogleArticle } from "@alkalisummer/google-trends-js";
+import { googleTrends, type TrendingKeyword, type Article as GoogleArticle } from "../../lib/clients/googleTrends.js";
 
 const modules = import.meta.glob("../../**/*.ts");
 
@@ -15,7 +15,7 @@ afterEach(() => {
   process.env = { ...originalEnv };
 });
 
-test("googleTrends - getTrendingKeywords fetches live trends via @alkalisummer/google-trends-js on-demand", async () => {
+test("googleTrends - getTrendingKeywords fetches live trends via Google Trends client on-demand", async () => {
   const t = convexTest(schema, modules);
   const userId = await t.mutation(async (ctx) => ctx.db.insert("users", {}));
   const authedT = t.withIdentity({ subject: userId });
@@ -100,6 +100,7 @@ test("googleTrends - fetchArticlesForKeyword fetches articles on-demand using ar
   });
 
   expect(articlesSpy).toHaveBeenCalledWith({
+    keyword: "rams",
     articleKeys: [[4800202104, "en", "US"]],
     articleCount: 20,
   });
@@ -159,6 +160,7 @@ test("googleTrends - fetchArticlesForKeyword resolves articleKeys via realTimeTr
   });
 
   expect(articlesSpy).toHaveBeenCalledWith({
+    keyword: "rams",
     articleKeys: [[4800202104, "en", "US"]],
     articleCount: 20,
   });

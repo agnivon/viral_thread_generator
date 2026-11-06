@@ -6,7 +6,7 @@ import { expect, test, vi, afterEach } from "vitest";
 import schema from "../../schema";
 import { api } from "../../_generated/api";
 import { isValidArticleKey } from "../../actions/googleTrends.js";
-import googleTrends from "@alkalisummer/google-trends-js";
+import { googleTrends } from "../../lib/clients/googleTrends.js";
 
 const modules = import.meta.glob("../../**/*.ts");
 
@@ -120,4 +120,27 @@ test("fetchArticlesForKeyword - returns empty array if no valid keys", async () 
   });
 
   expect(articles).toEqual([]);
+});
+
+test("resolveArticleUrl - throws UnauthenticatedError if not authenticated", async () => {
+  const t = convexTest(schema, modules);
+  await expect(
+    t.action(api.actions.googleTrends.resolveArticleUrl, {
+      url: "https://news.google.com/rss/articles/123",
+    })
+  ).rejects.toThrow(/Unauthorized/i);
+});
+
+test("resolveArticleUrl - resolves URL when authenticated", async () => {
+  const t = convexTest(schema, modules);
+  const userId = await t.mutation(async (ctx) => {
+    return await ctx.db.insert("users", {});
+  });
+
+  const authed = t.withIdentity({ subject: userId });
+  // Non-google URL returns directly
+  const res = await authed.action(api.actions.googleTrends.resolveArticleUrl, {
+    url: "https://www.nba.com/game/123",
+  });
+  expect(res).toBe("https://www.nba.com/game/123");
 });

@@ -72,6 +72,26 @@ export default function KeywordDetailPage() {
 
   const getTrendingKeywordsAction = useAction(api.actions.googleTrends.getTrendingKeywords);
   const fetchArticlesAction = useAction(api.actions.googleTrends.fetchArticlesForKeyword);
+  const resolveArticleUrlAction = useAction(api.actions.googleTrends.resolveArticleUrl);
+
+  // Ensure selected article URL is resolved to canonical publisher link if a redirect is present
+  useEffect(() => {
+    if (selectedArticle && selectedArticle.url.includes("news.google.com/rss/articles/")) {
+      let isMounted = true;
+      resolveArticleUrlAction({ url: selectedArticle.url })
+        .then((resolvedUrl) => {
+          if (isMounted && resolvedUrl && resolvedUrl !== selectedArticle.url) {
+            setSelectedArticle((prev) => (prev ? { ...prev, url: resolvedUrl } : null));
+          }
+        })
+        .catch((err) => {
+          console.warn("Failed to resolve Google News URL client-side:", err);
+        });
+      return () => {
+        isMounted = false;
+      };
+    }
+  }, [selectedArticle, resolveArticleUrlAction]);
 
   // Fetch all keywords on-demand (cached for fast transitions & back/forward)
   const {

@@ -6,7 +6,7 @@ import { expect, test, vi, afterEach } from "vitest";
 import schema from "../schema";
 import { api, internal } from "../_generated/api";
 import { evaluateEmergence } from "../actions/trendAlerts";
-import googleTrends from "@alkalisummer/google-trends-js";
+import { googleTrends } from "../lib/clients/googleTrends.js";
 
 const modules = import.meta.glob("../**/*.ts");
 

@@ -8,6 +8,7 @@ import schema from "../schema";
 import { NewsThreadFactoryGraph } from "../lib/agents/news/graph.js";
 import { ThreadsAPI } from "../lib/clients/threads.js";
 import { publicationPool, generationPool } from "../lib/workpool.js";
+import * as rendererModule from "../lib/infographics/renderer.js";
 
 type MockGraphState = Awaited<ReturnType<typeof NewsThreadFactoryGraph.getState>>;
 type MockGraphInvoke = Awaited<ReturnType<typeof NewsThreadFactoryGraph.invoke>>;
@@ -1477,5 +1478,104 @@ test("markStuckDraftsAsFailed and cleanupStuckDrafts transition stale processing
   } finally {
     vi.useRealTimers();
   }
+});
+
+test("handleGraphCompletion re-renders infographic PNG when infographic_spec updates during manual iteration", async () => {
+  const t = convexTest(schema, modules);
+  const userId = await t.mutation(async (ctx) => ctx.db.insert("users", {}));
+
+  const initialSpec = {
+    archetype: "stat_callout" as const,
+    kicker: "INITIAL METRIC",
+    headline: "Initial Headline",
+    subheading: "Initial Subheading",
+    statCallout: { primaryStat: "10%", statLabel: "Initial Growth" },
+    sourceCitation: "Source A",
+  };
+
+  const updatedSpec = {
+    archetype: "stat_callout" as const,
+    kicker: "REFINED METRIC",
+    headline: "Refined Headline After Iteration",
+    subheading: "Refined Subheading",
+    statCallout: { primaryStat: "25%", statLabel: "Refined Growth" },
+    sourceCitation: "Source B",
+  };
+
+  const oldUrl = "https://intent-sardine-738.convex.cloud/api/storage/old-infographic-id";
+
+  const draftId = await t.mutation(internal.threads.initializeThreadDraft, {
+    userId,
+    agent: "news",
+    input_field: { agent: "news", url: "https://example.com/infographic-iteration-test" },
+  });
+
+  await t.mutation(internal.threads.updateThreadDraft, {
+    id: draftId,
+    generation_status: "queued",
+    thread_draft: ["Draft 1", "Draft 2"],
+    iterations: 1,
+    virality_score: 80,
+    infographic_generation: true,
+    infographic_spec: initialSpec,
+    infographic_url: oldUrl,
+    images: [oldUrl],
+  });
+
+  const renderSpy = vi.spyOn(rendererModule, "renderInfographicToPng").mockResolvedValue(
+    Buffer.from("mock-png-buffer")
+  );
+
+  const mockIteratedOutput = {
+    url: "https://example.com/infographic-iteration-test",
+    guidance: "Make it more data heavy",
+    manual_hook_selection: false,
+    raw_markdown: "Source content",
+    core_hooks: ["Hook 1"],
+    selected_hook: "Hook 1",
+    core_delta: undefined,
+    thread_draft: ["Iterated post 1", "Iterated post 2"],
+    images: [oldUrl],
+    critique: "Greatly improved with metrics",
+    virality_score: 93,
+    post_critiques: [],
+    character_critique: "",
+    iterations: 2,
+    max_iterations: 2,
+    is_approved: true,
+    is_character_valid: true,
+    parse_success: true,
+    retries: { scraper: 0, researcher: 0, hook: 0, writer: 0, critic: 0, validator: 0 },
+    search_queries: undefined,
+    search_query_generation: true,
+    infographic_generation: true,
+    infographic_spec: updatedSpec,
+    infographic_url: oldUrl,
+    research_context: "",
+    best_thread_draft: undefined,
+    best_virality_score: 93,
+    audit_history: [],
+  };
+
+  vi.spyOn(NewsThreadFactoryGraph, "updateState").mockResolvedValue({});
+  vi.spyOn(NewsThreadFactoryGraph, "invoke").mockResolvedValue(mockIteratedOutput);
+  vi.spyOn(NewsThreadFactoryGraph, "getState").mockResolvedValue({ next: [] } as unknown as Awaited<ReturnType<typeof NewsThreadFactoryGraph.getState>>);
+
+  const res = await t.action(internal.actions.threads.iterateThreadInternal, {
+    recordId: draftId,
+    userId,
+    guidance: "Make it more data heavy",
+  });
+
+  expect(res.recordId).toBe(draftId);
+  expect(renderSpy).toHaveBeenCalledWith(updatedSpec);
+
+  const saved = await t.query(async (ctx) => ctx.db.get("threadDrafts", draftId));
+  expect(saved?.infographic_spec).toEqual(updatedSpec);
+  expect(saved?.infographic_url).toBeDefined();
+  expect(saved?.infographic_url).not.toBe(oldUrl);
+  // Old URL should be removed from images, new URL should be present
+  expect(saved?.images).toContain(saved?.infographic_url);
+  expect(saved?.images).not.toContain(oldUrl);
 });
 

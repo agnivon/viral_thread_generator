@@ -63,6 +63,19 @@ export const getThreadDraftInternal = internalQuery({
 });
 
 /**
+ * Internal query: Retrieves a thread draft record by ID without requiring userId.
+ * Used internally by backend lifecycle actions with recordId.
+ */
+export const getThreadDraftRecord = internalQuery({
+  args: {
+    id: v.id("threadDrafts"),
+  },
+  handler: async (ctx, args): Promise<Doc<"threadDrafts"> | null> => {
+    return await ctx.db.get("threadDrafts", args.id);
+  },
+});
+
+/**
  * Internal mutation: Initializes a new thread draft record in the processing state.
  */
 export const initializeThreadDraft = internalMutation({

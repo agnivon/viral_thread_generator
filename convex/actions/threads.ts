@@ -152,10 +152,23 @@ async function handleGraphCompletion(
     ? "Thread generation finished without producing any thread draft."
     : null;
 
-  let generatedInfographicUrl = (typeof finalState.infographic_url === "string" && finalState.infographic_url) || undefined;
+  const existingDraft = await ctx.runQuery(internal.threads.getThreadDraftRecord, { id: recordId });
+  const oldInfographicUrl = typeof existingDraft?.infographic_url === "string" ? existingDraft.infographic_url : undefined;
+  let generatedInfographicUrl = (typeof finalState.infographic_url === "string" && finalState.infographic_url) || oldInfographicUrl;
   const parsedSpec = InfographicSpecSchema.safeParse(finalState.infographic_spec);
   const validatedInfographicSpec = parsedSpec.success ? parsedSpec.data : undefined;
-  if (validatedInfographicSpec && !generatedInfographicUrl) {
+
+  const specChanged = Boolean(
+    validatedInfographicSpec &&
+    existingDraft?.infographic_spec &&
+    JSON.stringify(validatedInfographicSpec) !== JSON.stringify(existingDraft.infographic_spec)
+  );
+
+  const shouldRenderInfographic = Boolean(
+    validatedInfographicSpec && (!generatedInfographicUrl || specChanged)
+  );
+
+  if (shouldRenderInfographic && validatedInfographicSpec) {
     try {
       const pngBuffer = await renderInfographicToPng(validatedInfographicSpec);
       const blob = new Blob([new Uint8Array(pngBuffer)], { type: "image/png" });
@@ -170,9 +183,12 @@ async function handleGraphCompletion(
   }
 
   const currentImages = Array.isArray(finalState.images) ? (finalState.images as string[]) : [];
+  const filteredImages = currentImages.filter(
+    (img) => img !== generatedInfographicUrl && img !== oldInfographicUrl
+  );
   const updatedImages = generatedInfographicUrl
-    ? [generatedInfographicUrl, ...currentImages.filter((img) => img !== generatedInfographicUrl)]
-    : currentImages;
+    ? [generatedInfographicUrl, ...filteredImages]
+    : filteredImages;
 
   const stateToSave: Record<string, unknown> = {
     id: recordId,
@@ -1302,9 +1318,15 @@ export const renderInfographicInternal = internalAction({
     const storageId = await ctx.storage.store(blob);
     const url = await ctx.storage.getUrl(storageId);
     if (url && args.draftId) {
+      const existingDraft = await ctx.runQuery(internal.threads.getThreadDraftRecord, { id: args.draftId });
+      const currentImages = Array.isArray(existingDraft?.images) ? existingDraft.images : [];
+      const oldUrl = typeof existingDraft?.infographic_url === "string" ? existingDraft.infographic_url : undefined;
+      const filteredImages = currentImages.filter((img) => img !== url && img !== oldUrl);
       await ctx.runMutation(internal.threads.updateThreadDraft, {
         id: args.draftId,
         infographic_url: url,
+        infographic_spec: parsedSpec,
+        images: [url, ...filteredImages],
       });
     }
     return url;

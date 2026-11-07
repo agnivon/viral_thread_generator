@@ -11,6 +11,7 @@ import { NewsThreadFactoryGraph } from "../lib/agents/news/graph.js";
 import { SocialMediaThreadFactoryGraph } from "../lib/agents/social_media/graph.js";
 import { TopicThreadFactoryGraph } from "../lib/agents/topic/graph.js";
 import { ThreadsAPI } from "../lib/clients/threads.js";
+import { decodeGoogleNewsUrl } from "../lib/clients/googleTrends.js";
 import { modelCircuitBreaker } from "../lib/agents/circuitBreaker.js";
 import { generationPool, publicationPool } from "../lib/workpool.js";
 import { requireAuthUserId } from "../auth";
@@ -1182,9 +1183,21 @@ export const getUrlMetadata = action({
     await requireAuthUserId(ctx);
 
     try {
+      let targetUrl = args.url.trim();
+      if (targetUrl.includes("news.google.com/rss/articles/")) {
+        try {
+          const resolved = await decodeGoogleNewsUrl(targetUrl);
+          if (resolved && resolved !== targetUrl) {
+            targetUrl = resolved;
+          }
+        } catch {
+          // Gracefully continue with targetUrl
+        }
+      }
+
       let parsedUrl: URL;
       try {
-        parsedUrl = new URL(args.url);
+        parsedUrl = new URL(targetUrl);
       } catch {
         return { title: "", description: "", image: "" };
       }
@@ -1225,7 +1238,7 @@ export const getUrlMetadata = action({
       const isReuters = normalizedHost === "reuters.com" || normalizedHost.endsWith(".reuters.com");
       if (isReuters) {
         return {
-          title: deriveTitleFromUrl(args.url),
+          title: deriveTitleFromUrl(targetUrl),
           description: "",
           image: "",
         };
@@ -1234,7 +1247,7 @@ export const getUrlMetadata = action({
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 5000);
 
-      const response = await fetch(args.url, {
+      const response = await fetch(targetUrl, {
         signal: controller.signal,
         headers: {
           "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
@@ -1245,7 +1258,7 @@ export const getUrlMetadata = action({
       // If access is denied (401, 403, 429, etc.), derive the title from the URL slug
       if (response.ok === false || (typeof response.status === "number" && (response.status === 401 || response.status === 403 || response.status === 429 || response.status >= 400))) {
         return {
-          title: deriveTitleFromUrl(args.url),
+          title: deriveTitleFromUrl(targetUrl),
           description: "",
           image: "",
         };
@@ -1287,15 +1300,28 @@ export const getUrlMetadata = action({
 
       const rawTitle = getMetaTag("og:title") || getMetaTag("twitter:title") || getHtmlTitle() || "";
       const rawDescription = getMetaTag("og:description") || getMetaTag("twitter:description") || getMetaTag("description") || "";
-      const rawImage = getMetaTag("og:image") || getMetaTag("twitter:image") || "";
+      const rawImage =
+        getMetaTag("og:image") ||
+        getMetaTag("og:image:url") ||
+        getMetaTag("og:image:secure_url") ||
+        getMetaTag("twitter:image") ||
+        getMetaTag("twitter:image:src") ||
+        "";
 
       let title = decodeHtmlEntities(rawTitle);
       const description = decodeHtmlEntities(rawDescription);
-      const image = rawImage.trim();
+      let image = decodeHtmlEntities(rawImage).trim();
+      if (image) {
+        try {
+          image = new URL(image, targetUrl).toString();
+        } catch {
+          // Keep raw string if URL resolution fails
+        }
+      }
 
       // If the extracted title indicates an access-denied block page or generic domain name, derive from URL
-      if (isAccessDeniedOrGenericTitle(title, args.url)) {
-        title = deriveTitleFromUrl(args.url);
+      if (isAccessDeniedOrGenericTitle(title, targetUrl)) {
+        title = deriveTitleFromUrl(targetUrl);
       }
 
       return { title, description, image };

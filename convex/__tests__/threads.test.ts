@@ -901,6 +901,28 @@ test("getUrlMetadata falls back to HTML title tag and decodes entities when og:t
   });
 });
 
+test("getUrlMetadata resolves relative og:image URLs to absolute URLs and handles og:image:url", async () => {
+  const t = convexTest(schema, modules);
+  const user = await t.mutation(async (ctx) => ctx.db.insert("users", {}));
+
+  const mockHtml = `<html><head>
+    <meta property="og:title" content="Article With Relative Image" />
+    <meta property="og:image:url" content="/static/news-hero.png" />
+  </head><body></body></html>`;
+
+  vi.spyOn(globalThis, "fetch").mockResolvedValueOnce({
+    text: async () => mockHtml,
+  } as unknown as Response);
+
+  const tAuthed = t.withIdentity({ subject: user });
+  const result = await tAuthed.action(api.actions.threads.getUrlMetadata, {
+    url: "https://publisher.example.com/section/article-123",
+  });
+
+  expect(result.title).toBe("Article With Relative Image");
+  expect(result.image).toBe("https://publisher.example.com/static/news-hero.png");
+});
+
 test("getUrlMetadata derives title directly from URL slug for Reuters links", async () => {
   const t = convexTest(schema, modules);
   const user = await t.mutation(async (ctx) => ctx.db.insert("users", {}));

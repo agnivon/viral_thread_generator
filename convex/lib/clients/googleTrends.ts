@@ -5,6 +5,7 @@ export interface RawGoogleTrend {
   activeTime: Date;
   relatedKeywords: string[];
   articleKeys: [number, string, string][];
+  picture?: string;
 }
 
 export type TrendingKeyword = RawGoogleTrend;
@@ -277,6 +278,7 @@ export class GoogleTrendsClient {
           const titleMatch = itemXml.match(/<title>([\s\S]*?)<\/title>/);
           const trafficMatch = itemXml.match(/<ht:approx_traffic>([\s\S]*?)<\/ht:approx_traffic>/);
           const pubDateMatch = itemXml.match(/<pubDate>([\s\S]*?)<\/pubDate>/);
+          const pictureMatch = itemXml.match(/<ht:picture>([\s\S]*?)<\/ht:picture>/);
 
           if (titleMatch && titleMatch[1]) {
             const rawTitle = decodeXmlEntities(titleMatch[1]);
@@ -284,6 +286,7 @@ export class GoogleTrendsClient {
             const traffic = parseTrafficVolume(trafficStr);
             const parsedTime = pubDateMatch ? new Date(pubDateMatch[1]).getTime() : Date.now();
             const activeTime = !isNaN(parsedTime) && parsedTime > 0 ? new Date(parsedTime) : new Date();
+            const picture = pictureMatch ? decodeXmlEntities(pictureMatch[1]) : undefined;
 
             trends.push({
               keyword: rawTitle,
@@ -292,6 +295,7 @@ export class GoogleTrendsClient {
               activeTime,
               relatedKeywords: [],
               articleKeys: [],
+              picture,
             });
           }
         }
@@ -364,12 +368,20 @@ export class GoogleTrendsClient {
                 ? Math.floor(parsedTime / 1000)
                 : Math.floor(Date.now() / 1000);
 
+            // Extract image if present in XML (e.g. media:content, enclosure, or ht tags)
+            const imgMatch =
+              itemXml.match(/<media:content[^>]+url=["']([^"']+)["']/i) ||
+              itemXml.match(/<enclosure[^>]+url=["']([^"']+)["']/i) ||
+              itemXml.match(/<ht:news_item_picture>([\s\S]*?)<\/ht:news_item_picture>/i) ||
+              itemXml.match(/<ht:picture>([\s\S]*?)<\/ht:picture>/i);
+            const image = imgMatch ? decodeXmlEntities(imgMatch[1]) : "";
+
             articles.push({
               title,
               link,
               mediaCompany: source,
               pressDate: [unixSeconds],
-              image: "",
+              image,
             });
           }
         }

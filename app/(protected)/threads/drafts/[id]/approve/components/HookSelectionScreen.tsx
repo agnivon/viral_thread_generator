@@ -37,7 +37,7 @@ export function HookSelectionScreen({
       <div className="absolute -top-40 -right-40 w-96 h-96 bg-indigo-500/5 rounded-full blur-3xl pointer-events-none -z-10" />
       <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-cyan-500/5 rounded-full blur-3xl pointer-events-none -z-10" />
 
-      <div className="container max-w-4xl mx-auto py-12 px-4 space-y-8">
+      <div className="container max-w-4xl mx-auto py-6 sm:py-10 px-3.5 sm:px-4 space-y-5 sm:space-y-8">
         {/* Navigation Link */}
         <div className="flex items-center gap-2">
           <Link 
@@ -50,13 +50,13 @@ export function HookSelectionScreen({
         </div>
 
         {/* Header Section */}
-        <div className="space-y-2 border-b border-border/30 pb-6">
-          <h1 className="text-4xl font-extrabold tracking-tight">
+        <div className="space-y-2 border-b border-border/30 pb-4 sm:pb-6">
+          <h1 className="text-2xl sm:text-4xl font-extrabold tracking-tight">
             <span className="bg-linear-to-r from-violet-600 to-indigo-600 bg-clip-text text-transparent dark:from-violet-400 dark:to-indigo-400">
               Choose Your Hook
             </span>
           </h1>
-          <div className="flex items-start gap-2 text-sm text-muted-foreground min-w-0">
+          <div className="flex items-start gap-2 text-xs sm:text-sm text-muted-foreground min-w-0">
             <span className="shrink-0 pt-0.5 font-medium">Pipeline paused for:</span>
             <UrlTitleDisplay
               url={url}
@@ -68,7 +68,7 @@ export function HookSelectionScreen({
           </div>
         </div>
 
-        <div className="space-y-8">
+        <div className="space-y-5 sm:space-y-8">
           {/* Candidate Hooks Grid */}
           <div className="space-y-4">
             <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
@@ -185,7 +185,7 @@ export function HookSelectionScreen({
                 Refine the selected hook text below to dictate the exact angle for the thread.
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6 pt-6">
+            <CardContent className="space-y-4 sm:space-y-6 pt-4 sm:pt-6 p-4 sm:p-6">
               <div className="space-y-2">
                 <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
                   Hook Text
@@ -194,15 +194,15 @@ export function HookSelectionScreen({
                   value={editedHookText}
                   onChange={(e) => onEditHookTextChange(e.target.value)}
                   placeholder="Select a hook card or type a custom one..."
-                  rows={8}
-                  className="w-full text-base bg-muted/40 text-foreground p-5 rounded-xl border border-border focus:border-violet-500/50 focus:ring-1 focus:ring-violet-500/50 focus:outline-none resize-y leading-relaxed"
+                  rows={5}
+                  className="w-full text-sm sm:text-base bg-muted/40 text-foreground p-3.5 sm:p-5 rounded-xl border border-border focus:border-violet-500/50 focus:ring-1 focus:ring-violet-500/50 focus:outline-none resize-y leading-relaxed"
                 />
                 <div className="flex justify-between items-center text-xs text-muted-foreground pt-1">
                   <span className={editedHookText.length > 500 ? "text-destructive font-bold animate-pulse" : "font-medium"}>
                     {editedHookText.length} / 500 characters
                   </span>
                   {editedHookText.length > 500 ? (
-                    <span className="text-destructive font-bold">Exceeds Threads limit (500)</span>
+                    <span className="text-destructive font-bold">Exceeds limit (500)</span>
                   ) : (
                     <span>{500 - editedHookText.length} remaining</span>
                   )}
@@ -213,12 +213,12 @@ export function HookSelectionScreen({
                 <Button
                   onClick={onConfirmHook}
                   disabled={isResuming || !editedHookText.trim()}
-                  className="w-full sm:w-auto sm:min-w-[280px] rounded-xl bg-linear-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white font-bold py-6 shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 cursor-pointer"
+                  className="w-full sm:w-auto sm:min-w-[280px] rounded-xl bg-linear-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white font-bold py-4 sm:py-6 text-sm sm:text-base shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 cursor-pointer"
                   size="lg"
                 >
                   {isResuming ? (
                     <>
-                      <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Drafting Thread...
+                      <Loader2 className="mr-2 h-4 sm:h-5 w-4 sm:w-5 animate-spin" /> Drafting Thread...
                     </>
                   ) : (
                     <>

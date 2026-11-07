@@ -117,6 +117,37 @@ test("trendingArticles - extracts articles with non-standard tag order and missi
   expect(res.data![0].pressDate).toHaveLength(1);
 });
 
+test("trendingArticles - extracts images from RSS items when media:content or ht:news_item_picture is present", async () => {
+  const client = new GoogleTrendsClient();
+
+  const mockNewsXmlWithImage = `
+    <?xml version="1.0" encoding="UTF-8"?>
+    <rss version="2.0" xmlns:media="http://search.yahoo.com/mrss/" xmlns:ht="https://trends.google.com/trending/rss">
+      <channel>
+        <item>
+          <title>Space Exploration Update</title>
+          <link>https://news.example.com/space-update</link>
+          <pubDate>Fri, 06 Nov 2026 12:00:00 GMT</pubDate>
+          <source url="https://space.example.com">SpaceNews</source>
+          <ht:news_item_picture>https://encrypted-tbn0.gstatic.com/images?q=tbn:test-pic</ht:news_item_picture>
+        </item>
+      </channel>
+    </rss>
+  `;
+
+  vi.spyOn(globalThis, "fetch").mockResolvedValueOnce({
+    ok: true,
+    text: async () => mockNewsXmlWithImage,
+  } as unknown as Response);
+
+  const res = await client.trendingArticles({ keyword: "Space Exploration", articleCount: 5 });
+  expect(res.error).toBeUndefined();
+  expect(res.data).toHaveLength(1);
+  expect(res.data![0].title).toBe("Space Exploration Update");
+  expect(res.data![0].image).toBe("https://encrypted-tbn0.gstatic.com/images?q=tbn:test-pic");
+  expect(res.data![0].mediaCompany).toBe("SpaceNews");
+});
+
 test("trendingArticles - falls back to Brave Search when Google News fails and API key present", async () => {
   const client = new GoogleTrendsClient();
   const origKey = process.env.BRAVE_SEARCH_API_KEY;

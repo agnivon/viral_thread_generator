@@ -455,8 +455,8 @@ export default function ApproveDraftPage() {
               />
             </div>
             {state.guidance && (
-              <div className="mt-2">
-                <div className="text-xs text-muted-foreground bg-muted/60 px-3.5 py-2 rounded-xl border border-border/40 flex items-start gap-1.5 max-w-2xl">
+              <div className="mt-1.5 sm:mt-2">
+                <div className="text-xs text-muted-foreground bg-muted/60 px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl border border-border/40 flex items-start gap-1.5 max-w-2xl">
                   <Sparkles className="w-3.5 h-3.5 text-violet-500 shrink-0 mt-0.5" />
                   <p className="leading-relaxed">
                     <span className="font-semibold text-foreground">Guidance:</span> {state.guidance}
@@ -467,7 +467,7 @@ export default function ApproveDraftPage() {
           </div>
 
           {/* Status Badges */}
-          <div className="flex flex-wrap items-center gap-2 self-start md:self-start pt-0.5">
+          <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 self-start md:self-start pt-0.5">
             <span className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap shadow-xs ${state.is_published
               ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400'
               : state.publication_status === "queued"
@@ -528,7 +528,7 @@ export default function ApproveDraftPage() {
               onClick={handlePublish}
               disabled={isPublishing}
               size="sm"
-              className="shrink-0 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-medium shadow-sm cursor-pointer"
+              className="w-full sm:w-auto shrink-0 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-medium shadow-sm cursor-pointer"
             >
               {isPublishing ? (
                 <>
@@ -563,7 +563,80 @@ export default function ApproveDraftPage() {
         {/* Two Column Grid */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {/* Main Draft Content */}
-          <div className="md:col-span-2 space-y-6">
+          <div className="md:col-span-2 space-y-4 sm:space-y-6">
+            {/* Mobile Quick Action Buttons Bar */}
+            <div className="md:hidden flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-9 rounded-xl border-violet-500/30 bg-violet-500/5 text-violet-700 dark:text-violet-300 font-semibold text-xs shrink-0 cursor-pointer shadow-xs"
+                disabled={isPublishing || isRegenerating || isIterating || state.is_published || state.publication_status === "publishing" || state.publication_status === "queued" || state.generation_status === "processing" || state.generation_status === "queued"}
+                onClick={handleOpenIterateDialog}
+              >
+                <RefreshCw className="mr-1.5 h-3.5 w-3.5 text-violet-500" />
+                Iterate
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-9 rounded-xl border-border/80 text-foreground font-semibold text-xs shrink-0 cursor-pointer shadow-xs"
+                disabled={isPublishing || isRegenerating || isIterating || state.is_published || state.publication_status === "publishing" || state.publication_status === "queued" || state.generation_status === "processing" || state.generation_status === "queued"}
+                onClick={() => setIsDialogOpen(true)}
+              >
+                <Sparkles className="mr-1.5 h-3.5 w-3.5 text-violet-500" />
+                Regenerate
+              </Button>
+              {state.research_context && (
+                <div className="shrink-0">
+                  <ResearchDossierDialog
+                    researchContext={state.research_context}
+                    triggerText="Dossier"
+                    className="h-9 px-3 text-xs w-auto shadow-xs"
+                  />
+                </div>
+              )}
+              {(state.infographic_url || state.infographic_spec || state.search_queries) && (
+                <div className="shrink-0">
+                  <InfographicDialog
+                    infographicUrl={state.infographic_url}
+                    infographicSpec={state.infographic_spec}
+                    searchQueries={state.search_queries}
+                    draftId={id}
+                    triggerText="Infographic"
+                    className="h-9 px-3 text-xs w-auto shadow-xs"
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Mobile Append Source URL Toggle */}
+            {sourceUrl && (
+              <div className="md:hidden flex items-start space-x-2.5 p-3 rounded-xl border border-border/60 bg-card/45 backdrop-blur-xs shadow-xs">
+                <Checkbox
+                  id="mobile-append-source-url"
+                  checked={appendSourceUrl}
+                  onCheckedChange={(checked) => setAppendSourceUrl(!!checked)}
+                  disabled={isPublishing || state.is_published || state.publication_status === "publishing" || state.publication_status === "queued"}
+                />
+                <div className="grid gap-1 leading-none min-w-0 flex-1">
+                  <Label
+                    htmlFor="mobile-append-source-url"
+                    className="text-xs font-semibold leading-none cursor-pointer text-foreground"
+                  >
+                    Append source URL on publish
+                  </Label>
+                  <UrlTitleDisplay
+                    url={sourceUrl}
+                    showExternalLink={false}
+                    maxTitleWidth="w-full"
+                    maxSubtitleWidth="w-full"
+                    titleClassName="text-xs font-medium text-foreground/85"
+                    subtitleClassName="text-[10px]"
+                  />
+                </div>
+              </div>
+            )}
+
             <Card className="border-border/80 bg-card/45 backdrop-blur-xs shadow-xs rounded-2xl overflow-hidden">
               <CardHeader className="border-b border-border/30 p-4 sm:p-6 pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 space-y-0">
                 <div>
@@ -670,7 +743,7 @@ export default function ApproveDraftPage() {
           {/* Sidebar controls */}
           <div className="space-y-4 sm:space-y-6">
             {sourceUrl && (
-              <div className="flex items-start space-x-2.5 p-3 rounded-xl border border-border/60 bg-card/45 backdrop-blur-xs shadow-xs">
+              <div className="hidden md:flex items-start space-x-2.5 p-3 rounded-xl border border-border/60 bg-card/45 backdrop-blur-xs shadow-xs">
                 <Checkbox
                   id="append-source-url"
                   checked={appendSourceUrl}
@@ -867,21 +940,41 @@ export default function ApproveDraftPage() {
 
       {/* Mobile Sticky Action Bar */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 p-3 pb-[max(env(safe-area-inset-bottom),0.75rem)] bg-background/95 backdrop-blur-lg border-t border-border/60 shadow-2xl">
-        <Button
-          className="w-full rounded-xl bg-linear-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white font-bold h-12 shadow-md cursor-pointer text-sm"
-          disabled={isPublishing || isRegenerating || isIterating || state.is_published || state.publication_status === "publishing" || state.publication_status === "queued"}
-          onClick={handlePublish}
-        >
-          {isPublishing || state.publication_status === "publishing" || state.publication_status === "queued" ? (
-            <>
-              <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> {state.publication_status === "queued" ? "Queued..." : "Publishing..."}
-            </>
-          ) : state.is_published ? (
-            "Published"
-          ) : (
-            "Publish Thread"
-          )}
-        </Button>
+        {isEditingPosts ? (
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              className="flex-1 rounded-xl border-border text-foreground font-semibold h-12 cursor-pointer text-sm"
+              disabled={isPublishing || isRegenerating}
+              onClick={handleCancelEditing}
+            >
+              Discard
+            </Button>
+            <Button
+              className="flex-1 rounded-xl bg-linear-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white font-bold h-12 shadow-md cursor-pointer text-sm"
+              disabled={isPublishing || isRegenerating}
+              onClick={() => setIsEditingPosts(false)}
+            >
+              Keep Edits
+            </Button>
+          </div>
+        ) : (
+          <Button
+            className="w-full rounded-xl bg-linear-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white font-bold h-12 shadow-md cursor-pointer text-sm"
+            disabled={isPublishing || isRegenerating || isIterating || state.is_published || state.publication_status === "publishing" || state.publication_status === "queued"}
+            onClick={handlePublish}
+          >
+            {isPublishing || state.publication_status === "publishing" || state.publication_status === "queued" ? (
+              <>
+                <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> {state.publication_status === "queued" ? "Queued..." : "Publishing..."}
+              </>
+            ) : state.is_published ? (
+              "Published"
+            ) : (
+              "Publish Thread"
+            )}
+          </Button>
+        )}
       </div>
     </div>
   );

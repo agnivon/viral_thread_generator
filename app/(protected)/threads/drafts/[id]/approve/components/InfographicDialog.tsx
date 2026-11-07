@@ -30,6 +30,7 @@ interface InfographicDialogProps {
     }>;
   };
   className?: string;
+  triggerText?: string;
 }
 
 export function InfographicDialog({
@@ -38,6 +39,7 @@ export function InfographicDialog({
   draftId,
   searchQueries,
   className,
+  triggerText,
 }: InfographicDialogProps) {
   const [copied, setCopied] = useState(false);
   const [renderedUrl, setRenderedUrl] = useState<string | undefined>(infographicUrl);
@@ -117,7 +119,7 @@ export function InfographicDialog({
         }
       >
         <BarChart3 className="w-4 h-4 mr-2 text-violet-500 shrink-0" />
-        View Editorial Infographic
+        {triggerText || "View Editorial Infographic"}
       </DialogTrigger>
       <DialogContent className="w-[95vw] sm:max-w-4xl lg:max-w-5xl max-h-[90vh] p-0 overflow-hidden bg-card/95 backdrop-blur-md flex flex-col rounded-2xl border border-border/30 shadow-2xl">
         <DialogHeader className="p-4 sm:p-6 pb-4 border-b border-border/30 shrink-0 bg-muted/10">
@@ -157,15 +159,15 @@ export function InfographicDialog({
                   ) : null}
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="grid grid-cols-3 sm:flex items-center gap-2 w-full sm:w-auto">
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={handleCopy}
-                    className="cursor-pointer gap-1.5 text-xs font-medium rounded-lg"
+                    className="cursor-pointer gap-1 text-xs font-medium rounded-lg px-2 sm:px-3 justify-center"
                   >
-                    {copied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
-                    {copied ? "Copied" : "Copy URL"}
+                    {copied ? <Check className="w-3.5 h-3.5 text-emerald-500 shrink-0" /> : <Copy className="w-3.5 h-3.5 shrink-0" />}
+                    <span className="truncate">{copied ? "Copied" : "Copy URL"}</span>
                   </Button>
                   <a
                     href={renderedUrl}
@@ -173,22 +175,22 @@ export function InfographicDialog({
                     rel="noopener noreferrer"
                     className={cn(
                       buttonVariants({ variant: "outline", size: "sm" }),
-                      "cursor-pointer gap-1.5 text-xs font-medium rounded-lg"
+                      "cursor-pointer gap-1 text-xs font-medium rounded-lg px-2 sm:px-3 justify-center"
                     )}
                   >
-                    <ExternalLink className="w-3.5 h-3.5" />
-                    Open Full
+                    <ExternalLink className="w-3.5 h-3.5 shrink-0" />
+                    <span className="truncate">Open Full</span>
                   </a>
                   <a
                     href={renderedUrl}
                     download="infographic.png"
                     className={cn(
                       buttonVariants({ size: "sm" }),
-                      "cursor-pointer gap-1.5 text-xs font-medium rounded-lg bg-violet-600 hover:bg-violet-700 text-white"
+                      "cursor-pointer gap-1 text-xs font-medium rounded-lg bg-violet-600 hover:bg-violet-700 text-white px-2 sm:px-3 justify-center"
                     )}
                   >
-                    <Download className="w-3.5 h-3.5" />
-                    Download PNG
+                    <Download className="w-3.5 h-3.5 shrink-0" />
+                    <span className="truncate">Download</span>
                   </a>
                 </div>
               </div>

@@ -124,33 +124,33 @@ function DraftPostItem({
 
         {/* Action Controls */}
         {isEditingPosts ? (
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 sm:gap-2">
             {/* Reorder Buttons: Move Up & Move Down */}
-            <div className="inline-flex items-center rounded-lg border border-border/60 bg-muted/20 p-0.5">
+            <div className="inline-flex items-center rounded-xl border border-border/60 bg-muted/20 p-0.5">
               <Button
                 type="button"
                 variant="ghost"
                 size="sm"
                 disabled={!onMoveUp}
                 onClick={onMoveUp}
-                className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground disabled:opacity-20 cursor-pointer disabled:cursor-not-allowed rounded"
+                className="h-9 w-9 sm:h-7.5 sm:w-7.5 p-0 text-muted-foreground hover:text-foreground disabled:opacity-20 cursor-pointer disabled:cursor-not-allowed rounded-lg"
                 title="Move post up"
                 aria-label={`Move post ${index + 1} up`}
               >
-                <ChevronUp className="w-3.5 h-3.5" />
+                <ChevronUp className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
               </Button>
-              <div className="w-px h-3.5 bg-border/60" />
+              <div className="w-px h-4 sm:h-3.5 bg-border/60" />
               <Button
                 type="button"
                 variant="ghost"
                 size="sm"
                 disabled={!onMoveDown}
                 onClick={onMoveDown}
-                className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground disabled:opacity-20 cursor-pointer disabled:cursor-not-allowed rounded"
+                className="h-9 w-9 sm:h-7.5 sm:w-7.5 p-0 text-muted-foreground hover:text-foreground disabled:opacity-20 cursor-pointer disabled:cursor-not-allowed rounded-lg"
                 title="Move post down"
                 aria-label={`Move post ${index + 1} down`}
               >
-                <ChevronDown className="w-3.5 h-3.5" />
+                <ChevronDown className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
               </Button>
             </div>
 
@@ -161,7 +161,7 @@ function DraftPostItem({
                 variant="ghost"
                 size="sm"
                 onClick={() => onRemovePost(index)}
-                className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive h-8 w-8 p-0 rounded-lg cursor-pointer transition-colors"
+                className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive h-9 w-9 sm:h-8 sm:w-8 p-0 rounded-xl cursor-pointer transition-colors"
                 title="Remove post"
                 aria-label={`Remove post ${index + 1}`}
               >
@@ -196,9 +196,9 @@ function DraftPostItem({
                   variant="outline"
                   size="sm"
                   onClick={() => onAttachImage(index)}
-                  className="h-8 rounded-lg border-dashed border-border/80 hover:border-violet-500 hover:text-violet-600 dark:hover:text-violet-400 hover:bg-violet-500/5 text-xs transition-colors cursor-pointer px-2.5"
+                  className="h-8.5 sm:h-8 rounded-lg border-dashed border-border/80 hover:border-violet-500 hover:text-violet-600 dark:hover:text-violet-400 hover:bg-violet-500/5 text-xs transition-colors cursor-pointer px-2.5"
                 >
-                  <ImageIcon className="w-3.5 h-3.5 mr-1.5 text-violet-500" />
+                  <ImageIcon className="w-3.5 h-3.5 mr-1.5 text-violet-500 shrink-0" />
                   Add Image
                 </Button>
               )}
@@ -208,16 +208,16 @@ function DraftPostItem({
                   variant="outline"
                   size="sm"
                   onClick={() => onAttachVideo(index)}
-                  className="h-8 rounded-lg border-dashed border-border/80 hover:border-violet-500 hover:text-violet-600 dark:hover:text-violet-400 hover:bg-violet-500/5 text-xs transition-colors cursor-pointer px-2.5"
+                  className="h-8.5 sm:h-8 rounded-lg border-dashed border-border/80 hover:border-violet-500 hover:text-violet-600 dark:hover:text-violet-400 hover:bg-violet-500/5 text-xs transition-colors cursor-pointer px-2.5"
                 >
-                  <VideoIcon className="w-3.5 h-3.5 mr-1.5 text-indigo-500" />
+                  <VideoIcon className="w-3.5 h-3.5 mr-1.5 text-indigo-500 shrink-0" />
                   Add Video
                 </Button>
               )}
             </div>
 
             {/* Character Count & Threads Limit Status */}
-            <div className="flex items-center gap-1.5 text-xs ml-auto select-none">
+            <div className="flex items-center gap-1.5 text-xs ml-auto shrink-0 select-none py-0.5">
               <span
                 className={`font-mono text-xs font-semibold ${
                   charCount > 500
@@ -249,13 +249,13 @@ function DraftPostItem({
                 alt={`Post ${index + 1} image`}
                 className="w-full h-auto max-h-60 object-cover"
               />
-              <div className="absolute top-2 right-2 flex gap-1.5">
+              <div className="absolute top-2 right-2 flex gap-2">
                 <Button
                   type="button"
                   variant="secondary"
                   size="sm"
                   onClick={() => onAttachImage(index)}
-                  className="rounded-lg h-7.5 px-2.5 bg-background/90 hover:bg-background backdrop-blur-xs text-xs font-semibold shadow-xs cursor-pointer"
+                  className="rounded-lg h-8 sm:h-7.5 px-3 bg-background/90 hover:bg-background backdrop-blur-xs text-xs font-semibold shadow-xs cursor-pointer"
                 >
                   <ImageIcon className="w-3.5 h-3.5 mr-1" />
                   Change
@@ -265,10 +265,10 @@ function DraftPostItem({
                   variant="destructive"
                   size="sm"
                   onClick={() => onRemoveImage(index)}
-                  className="rounded-lg h-7.5 w-7.5 p-0 bg-red-600/90 hover:bg-red-600 backdrop-blur-xs shadow-xs cursor-pointer"
+                  className="rounded-lg h-8 w-8 sm:h-7.5 sm:w-7.5 p-0 bg-red-600/90 hover:bg-red-600 backdrop-blur-xs shadow-xs cursor-pointer"
                   aria-label="Remove image"
                 >
-                  <X className="w-3.5 h-3.5" />
+                  <X className="w-4 h-4" />
                 </Button>
               </div>
             </div>
@@ -285,13 +285,13 @@ function DraftPostItem({
                   controls
                 />
               </div>
-              <div className="absolute top-2 right-2 flex gap-1.5">
+              <div className="absolute top-2 right-2 flex gap-2">
                 <Button
                   type="button"
                   variant="secondary"
                   size="sm"
                   onClick={() => onAttachVideo(index)}
-                  className="rounded-lg h-7.5 px-2.5 bg-background/90 hover:bg-background backdrop-blur-xs text-xs font-semibold shadow-xs cursor-pointer"
+                  className="rounded-lg h-8 sm:h-7.5 px-3 bg-background/90 hover:bg-background backdrop-blur-xs text-xs font-semibold shadow-xs cursor-pointer"
                 >
                   <VideoIcon className="w-3.5 h-3.5 mr-1" />
                   Change
@@ -301,10 +301,10 @@ function DraftPostItem({
                   variant="destructive"
                   size="sm"
                   onClick={() => onRemoveVideo(index)}
-                  className="rounded-lg h-7.5 w-7.5 p-0 bg-red-600/90 hover:bg-red-600 backdrop-blur-xs shadow-xs cursor-pointer"
+                  className="rounded-lg h-8 w-8 sm:h-7.5 sm:w-7.5 p-0 bg-red-600/90 hover:bg-red-600 backdrop-blur-xs shadow-xs cursor-pointer"
                   aria-label="Remove video"
                 >
-                  <X className="w-3.5 h-3.5" />
+                  <X className="w-4 h-4" />
                 </Button>
               </div>
             </div>
@@ -470,7 +470,7 @@ export function DraftPostsList({
         <Button
           type="button"
           variant="outline"
-          className="w-full rounded-2xl border-2 border-dashed border-border/80 hover:border-violet-500/50 hover:text-violet-600 dark:hover:text-violet-400 hover:bg-violet-500/5 transition-all py-6 font-semibold flex items-center justify-center gap-2 cursor-pointer"
+          className="w-full rounded-2xl border-2 border-dashed border-border/80 hover:border-violet-500/50 hover:text-violet-600 dark:hover:text-violet-400 hover:bg-violet-500/5 transition-all py-4 sm:py-6 text-sm font-semibold flex items-center justify-center gap-2 cursor-pointer"
           onClick={() => append({ content: "", originalIndex: undefined })}
         >
           <Plus className="w-4 h-4" />

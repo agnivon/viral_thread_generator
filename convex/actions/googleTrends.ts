@@ -16,6 +16,7 @@ export interface ActiveTrend {
   relatedKeywords: string[];
   articleKeys: [number, string, string][];
   rank: number;
+  picture?: string;
 }
 
 export interface GoogleTrendArticle {
@@ -86,6 +87,7 @@ export const getTrendingKeywords = action({
         relatedKeywords: Array.isArray(item.relatedKeywords) ? item.relatedKeywords.map(String) : [],
         articleKeys: Array.isArray(item.articleKeys) ? item.articleKeys.filter(isValidArticleKey) : [],
         rank: trends.length + 1,
+        picture: item.picture,
       });
     }
 

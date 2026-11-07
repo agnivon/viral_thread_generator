@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils";
 interface ResearchDossierDialogProps {
   researchContext: string;
   className?: string;
+  triggerText?: string;
 }
 
 function safeStringify(val: unknown): string {
@@ -77,7 +78,7 @@ function formatDossierForDisplay(text: string): string {
   return trimmed;
 }
 
-export function ResearchDossierDialog({ researchContext, className }: ResearchDossierDialogProps) {
+export function ResearchDossierDialog({ researchContext, className, triggerText }: ResearchDossierDialogProps) {
   if (!researchContext) return null;
   const content = formatDossierForDisplay(researchContext);
 
@@ -95,7 +96,7 @@ export function ResearchDossierDialog({ researchContext, className }: ResearchDo
         }
       >
         <FileText className="w-4 h-4 mr-2 text-violet-500 shrink-0" />
-        View Research Dossier
+        {triggerText || "View Research Dossier"}
       </DialogTrigger>
       <DialogContent className="w-[95vw] sm:max-w-4xl md:max-w-5xl lg:max-w-6xl max-h-[85vh] p-0 overflow-hidden bg-card/95 backdrop-blur-md flex flex-col rounded-2xl border border-border/30 shadow-2xl">
         <DialogHeader className="p-4 sm:p-6 pb-3 sm:pb-4 border-b border-border/30 shrink-0 bg-muted/10">

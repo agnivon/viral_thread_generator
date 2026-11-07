@@ -67,12 +67,12 @@ export function IterateDialog({
     >
       <div className="relative w-full max-w-lg overflow-hidden border border-border/80 bg-card/90 backdrop-blur-lg rounded-2xl shadow-xl p-4 sm:p-6 space-y-4 sm:space-y-6">
         <div className="space-y-1.5 sm:space-y-2">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <h2 className="text-lg sm:text-xl font-bold flex items-center gap-2 text-foreground">
-              <RefreshCw className="w-5 h-5 text-violet-500" />
+              <RefreshCw className="w-5 h-5 text-violet-500 shrink-0" />
               Run Additional Iteration
             </h2>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-muted text-muted-foreground border border-border/50">
                 Iteration {currentIterations}
               </span>

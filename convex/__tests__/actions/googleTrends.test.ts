@@ -44,6 +44,7 @@ test("getTrendingKeywords - returns formatted trends for authenticated user", as
         activeTime: new Date("2026-09-11T12:00:00Z"),
         relatedKeywords: ["Machine Learning", "DeepSeek"],
         articleKeys: [[1, "ai-boom", "TechCrunch"], ["invalid-key"] as unknown as [number, string, string]],
+        picture: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ai-pic",
       },
     ],
   });
@@ -60,6 +61,7 @@ test("getTrendingKeywords - returns formatted trends for authenticated user", as
   expect(result[0].trafficGrowthRate).toBe(250);
   expect(result[0].isActive).toBe(true);
   expect(result[0].rank).toBe(1);
+  expect(result[0].picture).toBe("https://encrypted-tbn0.gstatic.com/images?q=tbn:ai-pic");
   // Invalid key was filtered out by isValidArticleKey
   expect(result[0].articleKeys).toEqual([[1, "ai-boom", "TechCrunch"]]);
 });

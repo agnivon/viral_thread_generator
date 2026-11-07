@@ -47,6 +47,7 @@ import {
 import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
 import { trendsQueryKeys } from "@/lib/query-keys";
+import { ArticleSidebarImage } from "@/components/ArticleSidebarImage";
 import {
   type Article,
   type KeywordItem,
@@ -704,16 +705,13 @@ export default function KeywordDetailPage() {
                   )}
                 </SheetHeader>
 
-                {selectedArticle.image && (
-                  <div className="rounded-2xl overflow-hidden border border-border/40 bg-muted/20 max-h-60 flex items-center justify-center">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={selectedArticle.image}
-                      alt={selectedArticle.title}
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                )}
+                <ArticleSidebarImage
+                  url={selectedArticle.url}
+                  title={selectedArticle.title}
+                  initialImage={selectedArticle.image}
+                  fallbackPicture={currentKeywordObj?.picture}
+                  mediaCompany={selectedArticle.mediaCompany}
+                />
 
                 <div className="pt-2 flex flex-col gap-2.5">
                   <a

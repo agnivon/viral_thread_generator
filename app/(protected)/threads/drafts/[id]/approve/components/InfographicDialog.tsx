@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { BarChart3, Download, ExternalLink, Copy, Check, Info, Layers } from "lucide-react";
+import { useState, useEffect } from "react";
+import { BarChart3, Download, ExternalLink, Copy, Check, Info, Layers, Loader2 } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Dialog,
@@ -12,18 +12,15 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
+import { useAction } from "convex/react";
+import { api } from "@/convex/_generated/api";
+import { Id } from "@/convex/_generated/dataModel";
+import type { InfographicSpec } from "@/convex/lib/infographics/schema";
 
 interface InfographicDialogProps {
   infographicUrl?: string;
-  infographicSpec?: {
-    archetype?: string;
-    kicker?: string;
-    headline?: string;
-    subheading?: string;
-    sourceCitation?: string;
-    notes?: string;
-    [key: string]: unknown;
-  };
+  infographicSpec?: InfographicSpec;
+  draftId?: Id<"threadDrafts">;
   searchQueries?: {
     hero_visual_query: string;
     post_visual_queries: Array<{
@@ -38,18 +35,67 @@ interface InfographicDialogProps {
 export function InfographicDialog({
   infographicUrl,
   infographicSpec,
+  draftId,
   searchQueries,
   className,
 }: InfographicDialogProps) {
   const [copied, setCopied] = useState(false);
+  const [renderedUrl, setRenderedUrl] = useState<string | undefined>(infographicUrl);
+  const [isRendering, setIsRendering] = useState(false);
+  const [renderError, setRenderError] = useState<string | null>(null);
+  const [isOpen, setIsOpen] = useState(false);
+
+  const renderInfographicAction = useAction(api.actions.threads.renderInfographicAction);
+
+  useEffect(() => {
+    if (infographicUrl) {
+      setRenderedUrl(infographicUrl);
+    }
+  }, [infographicUrl]);
+
+  // When dialog is opened and a spec exists without a rendered URL, automatically render on-demand!
+  useEffect(() => {
+    if (isOpen && !renderedUrl && infographicSpec && !isRendering && !renderError) {
+      let isMounted = true;
+      setIsRendering(true);
+      setRenderError(null);
+      renderInfographicAction({
+        spec: infographicSpec,
+        draftId,
+      })
+        .then((url) => {
+          if (isMounted) {
+            if (url) {
+              setRenderedUrl(url);
+            } else {
+              setRenderError("Failed to generate infographic image URL.");
+            }
+          }
+        })
+        .catch((err) => {
+          if (isMounted) {
+            console.error("Failed to render infographic on-demand:", err);
+            setRenderError(err instanceof Error ? err.message : "Failed to render infographic.");
+          }
+        })
+        .finally(() => {
+          if (isMounted) {
+            setIsRendering(false);
+          }
+        });
+      return () => {
+        isMounted = false;
+      };
+    }
+  }, [isOpen, renderedUrl, infographicSpec, isRendering, renderError, renderInfographicAction, draftId]);
 
   // If neither infographic nor searchQueries exists, don't show the trigger button
   if (!infographicUrl && !infographicSpec && !searchQueries) return null;
 
   const handleCopy = async () => {
-    if (!infographicUrl) return;
+    if (!renderedUrl) return;
     try {
-      await navigator.clipboard.writeText(infographicUrl);
+      await navigator.clipboard.writeText(renderedUrl);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (e) {
@@ -58,7 +104,7 @@ export function InfographicDialog({
   };
 
   return (
-    <Dialog>
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger
         render={
           <Button
@@ -85,12 +131,12 @@ export function InfographicDialog({
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
-          {infographicUrl ? (
+          {renderedUrl ? (
             <div className="space-y-4">
               <div className="relative rounded-xl overflow-hidden border border-border/50 shadow-md bg-white">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src={infographicUrl}
+                  src={renderedUrl}
                   alt={infographicSpec?.headline || "Generated Editorial Infographic"}
                   className="w-full h-auto object-contain block"
                 />
@@ -122,7 +168,7 @@ export function InfographicDialog({
                     {copied ? "Copied" : "Copy URL"}
                   </Button>
                   <a
-                    href={infographicUrl}
+                    href={renderedUrl}
                     target="_blank"
                     rel="noopener noreferrer"
                     className={cn(
@@ -134,7 +180,7 @@ export function InfographicDialog({
                     Open Full
                   </a>
                   <a
-                    href={infographicUrl}
+                    href={renderedUrl}
                     download="infographic.png"
                     className={cn(
                       buttonVariants({ size: "sm" }),
@@ -153,6 +199,27 @@ export function InfographicDialog({
                   <span>{infographicSpec.sourceCitation}</span>
                 </div>
               ) : null}
+            </div>
+          ) : isRendering ? (
+            <div className="flex flex-col items-center justify-center py-16 space-y-3">
+              <Loader2 className="w-8 h-8 animate-spin text-violet-500" />
+              <p className="text-sm font-medium text-foreground">Rendering editorial infographic card...</p>
+              <p className="text-xs text-muted-foreground">Synthesizing typography and visual data layout via Satori & Resvg.</p>
+            </div>
+          ) : renderError ? (
+            <div className="text-center py-12 space-y-3">
+              <p className="text-sm text-destructive font-medium">{renderError}</p>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setRenderError(null);
+                  setIsRendering(false);
+                }}
+                className="cursor-pointer text-xs"
+              >
+                Retry Render
+              </Button>
             </div>
           ) : searchQueries ? (
             <div className="space-y-4">

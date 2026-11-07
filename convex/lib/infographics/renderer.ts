@@ -703,7 +703,7 @@ export function buildInfographicReactElement(spec: InfographicSpec): React.React
  * Renders an InfographicSpec to an SVG string using Satori.
  */
 export async function renderInfographicToSvg(spec: InfographicSpec): Promise<string> {
-  const fontData = getInfographicFont();
+  const fontData = await getInfographicFont();
   const element = buildInfographicReactElement(spec) as React.ReactElement;
 
   return await satori(element, {

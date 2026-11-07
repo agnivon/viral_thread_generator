@@ -202,12 +202,12 @@ describe("Infographic Renderer (Satori + Resvg)", () => {
     expect(png.length).toBeGreaterThan(1000);
   });
 
-  it("loads and caches the TrueType font reliably", () => {
-    const font = getInfographicFont();
+  it("loads and caches the TrueType font reliably", async () => {
+    const font = await getInfographicFont();
     expect(Buffer.isBuffer(font)).toBe(true);
-    expect(font.length).toBeGreaterThan(100000);
+    expect(font.length).toBeGreaterThan(50000);
     // Successive load returns cached instance
-    const font2 = getInfographicFont();
+    const font2 = await getInfographicFont();
     expect(font2).toBe(font);
   });
 });

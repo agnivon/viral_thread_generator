@@ -769,9 +769,10 @@ export default function ApproveDraftPage() {
                 )}
                 {(state.infographic_url || state.infographic_spec || state.search_queries) && (
                   <InfographicDialog
-                    infographicUrl={state.infographic_url || (Array.isArray(state.images) ? state.images[0] : undefined)}
+                    infographicUrl={state.infographic_url}
                     infographicSpec={state.infographic_spec}
                     searchQueries={state.search_queries}
+                    draftId={id}
                   />
                 )}
               </div>

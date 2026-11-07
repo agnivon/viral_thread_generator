@@ -1293,6 +1293,7 @@ export const getUrlMetadata = action({
 export const renderInfographicAction = action({
   args: {
     spec: infographicSpecValidator,
+    draftId: v.optional(v.id("threadDrafts")),
   },
   handler: async (ctx, args): Promise<string | null> => {
     await requireAuthUserId(ctx);
@@ -1300,6 +1301,13 @@ export const renderInfographicAction = action({
     const pngBuffer = await renderInfographicToPng(parsedSpec);
     const blob = new Blob([new Uint8Array(pngBuffer)], { type: "image/png" });
     const storageId = await ctx.storage.store(blob);
-    return await ctx.storage.getUrl(storageId);
+    const url = await ctx.storage.getUrl(storageId);
+    if (url && args.draftId) {
+      await ctx.runMutation(internal.threads.updateThreadDraft, {
+        id: args.draftId,
+        infographic_url: url,
+      });
+    }
+    return url;
   },
 });

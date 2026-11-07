@@ -28,8 +28,10 @@ function resolveFontDirectory(): string | null {
 /**
  * Loads the bundled Inter TrueType font file for Satori rendering.
  * Caches in memory to ensure sub-millisecond subsequent renders.
+ * In serverless environments where local font files are not on disk,
+ * falls back to remote CDN font download.
  */
-export function getInfographicFont(): Buffer {
+export async function getInfographicFont(): Promise<Buffer> {
   if (cachedFont) {
     return cachedFont;
   }
@@ -66,8 +68,28 @@ export function getInfographicFont(): Buffer {
     }
   }
 
+  // When running in serverless / cloud environments (like Convex Cloud) where local font files are not on disk,
+  // fetch the font from trusted CDN and cache in memory for all subsequent renders.
+  const remoteFontUrls = [
+    "https://cdn.jsdelivr.net/fontsource/fonts/inter@latest/latin-400-normal.ttf",
+    "https://raw.githubusercontent.com/google/fonts/main/ofl/inter/Inter%5Bopsz%2Cwght%5D.ttf",
+  ];
+
+  for (const url of remoteFontUrls) {
+    try {
+      const res = await fetch(url, { headers: { "User-Agent": "Convex-Serverless" } });
+      if (res.ok) {
+        const arrayBuf = await res.arrayBuffer();
+        cachedFont = Buffer.from(arrayBuf);
+        return cachedFont;
+      }
+    } catch {
+      // Continue to next remote URL
+    }
+  }
+
   throw new Error(
-    "Could not locate font file for infographic rendering. Checked: " +
+    "Could not locate font file for infographic rendering locally or remotely. Checked: " +
       possiblePaths.join(", ")
   );
 }

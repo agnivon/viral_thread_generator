@@ -14,13 +14,14 @@ import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { useMutation } from "@tanstack/react-query";
 import { useAction, useQuery } from "convex/react";
-import { ArrowLeft, Loader2, Sparkles, AlertCircle, Copy, Check, RotateCcw, XCircle, RefreshCw } from "lucide-react";
+import { ArrowLeft, Loader2, Sparkles, AlertCircle, Copy, Check, RotateCcw, XCircle, RefreshCw, ChevronDown } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { UrlTitleDisplay } from "@/components/UrlTitleDisplay";
+import { cn } from "@/lib/utils";
 
 import { DraftPostsList } from "./components/DraftPostsList";
 import { HookSelectionScreen } from "./components/HookSelectionScreen";
@@ -53,6 +54,7 @@ export default function ApproveDraftPage() {
   const resumeAction = useAction(api.actions.threads.enqueueThreadResume);
 
   const [hasCopied, setHasCopied] = useState(false);
+  const [isCritiqueExpanded, setIsCritiqueExpanded] = useState<boolean | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isIterateDialogOpen, setIsIterateDialogOpen] = useState(false);
   const [hasManualEdits, setHasManualEdits] = useState(false);
@@ -545,16 +547,68 @@ export default function ApproveDraftPage() {
 
         {/* AI Critique card */}
         {state.critique?.trim() && (
-          <Card className="border-amber-500/20 bg-amber-500/5 backdrop-blur-xs rounded-2xl shadow-xs hover:border-amber-500/30 transition-all duration-300">
-            <CardHeader className="p-4 sm:p-5 pb-2.5 sm:pb-2.5 space-y-0">
-              <CardTitle className="text-amber-800 dark:text-amber-400 flex items-center gap-2 text-sm sm:text-base">
+          <Card className="border-amber-500/20 bg-amber-500/5 backdrop-blur-xs rounded-2xl shadow-xs hover:border-amber-500/30 transition-all duration-300 overflow-hidden">
+            <div
+              role="button"
+              tabIndex={0}
+              onClick={() => setIsCritiqueExpanded((prev) => (prev === null ? true : !prev))}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  setIsCritiqueExpanded((prev) => (prev === null ? true : !prev));
+                }
+              }}
+              aria-expanded={isCritiqueExpanded === true}
+              className="p-3.5 sm:p-5 flex items-center justify-between cursor-pointer select-none group/critique"
+            >
+              <div className="flex items-center gap-2 min-w-0 flex-1">
                 <Sparkles className="w-4 sm:w-5 h-4 sm:h-5 text-amber-500 shrink-0" />
-                AI Critique
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-4 sm:p-5 pt-0">
+                <span className="font-bold text-amber-800 dark:text-amber-400 text-sm sm:text-base shrink-0">
+                  AI Critique
+                </span>
+                {/* On small screens when collapsed, show snippet preview */}
+                <span
+                  className={cn(
+                    "text-xs text-amber-900/60 dark:text-amber-200/60 truncate italic font-normal max-w-[200px] sm:hidden",
+                    isCritiqueExpanded === true ? "hidden" : "inline"
+                  )}
+                >
+                  &ldquo;{state.critique}&rdquo;
+                </span>
+              </div>
+
+              {/* Collapse toggle control */}
+              <div className="flex items-center gap-1.5 shrink-0 text-amber-700 dark:text-amber-400">
+                <span className="text-[11px] font-semibold sm:hidden">
+                  {isCritiqueExpanded === true ? "Hide" : "Show"}
+                </span>
+                <div className="p-1 rounded-lg hover:bg-amber-500/10 transition-colors">
+                  <ChevronDown
+                    className={cn(
+                      "w-4 h-4 transition-transform duration-200",
+                      isCritiqueExpanded === null
+                        ? "rotate-0 sm:rotate-180"
+                        : isCritiqueExpanded
+                        ? "rotate-180"
+                        : "rotate-0"
+                    )}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <CardContent
+              className={cn(
+                "px-3.5 sm:px-5 pb-3.5 sm:pb-5 pt-0 transition-all duration-200",
+                isCritiqueExpanded === null
+                  ? "hidden sm:block"
+                  : isCritiqueExpanded
+                  ? "block"
+                  : "hidden"
+              )}
+            >
               <p className="text-xs sm:text-sm whitespace-pre-wrap text-amber-950 dark:text-amber-100 leading-relaxed font-medium italic pl-3 border-l-2 border-amber-500/40">
-                "{state.critique}"
+                &ldquo;{state.critique}&rdquo;
               </p>
             </CardContent>
           </Card>

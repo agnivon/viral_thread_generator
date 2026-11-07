@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { CardContent } from "@/components/ui/card";
 import { LinkPreviewCard } from "./LinkPreviewCard";
 import { useWatch, useFieldArray, type Control, type UseFormRegister } from "react-hook-form";
+import { cn } from "@/lib/utils";
 
 export interface ThreadDraftFormData {
   posts: { content: string; originalIndex?: number }[];
@@ -79,6 +80,7 @@ function DraftPostItem({
   onDragEnd,
 }: DraftPostItemProps) {
   const [dragEnabled, setDragEnabled] = useState(false);
+  const [isPostCritiqueExpanded, setIsPostCritiqueExpanded] = useState<boolean | null>(null);
   // Use isolated useWatch at the post-item level to avoid re-rendering entire thread list
   const watchedValue = useWatch({ control, name: `posts.${index}.content` }) ?? post;
   const charCount = watchedValue?.length || 0;
@@ -345,19 +347,73 @@ function DraftPostItem({
       )}
 
       {(postCritique?.critique?.trim() || postCritique?.fix_directive?.trim()) && (
-        <div className="p-3.5 rounded-xl bg-amber-500/5 border border-amber-500/20 text-amber-800 dark:text-amber-300 text-xs mt-1 space-y-1.5">
-          <span className="font-bold flex items-center gap-1.5 text-amber-900 dark:text-amber-400">
-            <Sparkles className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-            AI Critique
-          </span>
-          {postCritique.critique?.trim() && (
-            <p className="leading-relaxed font-medium pl-5">{postCritique.critique}</p>
-          )}
-          {postCritique.fix_directive?.trim() && (
-            <p className="leading-relaxed font-medium pl-5 text-amber-700/90 dark:text-amber-300/90">
-              <span className="font-semibold text-amber-900 dark:text-amber-200">Fix Directive:</span> {postCritique.fix_directive}
-            </p>
-          )}
+        <div className="p-3 sm:p-3.5 rounded-xl bg-amber-500/5 border border-amber-500/20 text-amber-800 dark:text-amber-300 text-xs mt-1 space-y-1.5">
+          <div
+            role="button"
+            tabIndex={0}
+            onClick={() => setIsPostCritiqueExpanded((prev) => (prev === null ? true : !prev))}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                setIsPostCritiqueExpanded((prev) => (prev === null ? true : !prev));
+              }
+            }}
+            aria-expanded={isPostCritiqueExpanded === true}
+            className="flex items-center justify-between cursor-pointer select-none gap-2"
+          >
+            <div className="flex items-center gap-1.5 min-w-0">
+              <Sparkles className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+              <span className="font-bold text-amber-900 dark:text-amber-400 shrink-0">
+                AI Critique
+              </span>
+              <span
+                className={cn(
+                  "text-[11px] text-amber-800/70 dark:text-amber-300/70 truncate italic font-normal max-w-[150px] sm:hidden",
+                  isPostCritiqueExpanded === true ? "hidden" : "inline"
+                )}
+              >
+                {postCritique.critique?.trim() || postCritique.fix_directive?.trim()}
+              </span>
+            </div>
+
+            <div className="flex items-center gap-1 shrink-0 text-amber-700 dark:text-amber-400">
+              <span className="text-[10px] font-semibold sm:hidden">
+                {isPostCritiqueExpanded === true ? "Hide" : "Show"}
+              </span>
+              <div className="p-0.5">
+                <ChevronDown
+                  className={cn(
+                    "w-3.5 h-3.5 transition-transform duration-200",
+                    isPostCritiqueExpanded === null
+                      ? "rotate-0 sm:rotate-180"
+                      : isPostCritiqueExpanded
+                      ? "rotate-180"
+                      : "rotate-0"
+                  )}
+                />
+              </div>
+            </div>
+          </div>
+
+          <div
+            className={cn(
+              "space-y-1.5 transition-all duration-200",
+              isPostCritiqueExpanded === null
+                ? "hidden sm:block"
+                : isPostCritiqueExpanded
+                ? "block"
+                : "hidden"
+            )}
+          >
+            {postCritique.critique?.trim() && (
+              <p className="leading-relaxed font-medium pl-5">{postCritique.critique}</p>
+            )}
+            {postCritique.fix_directive?.trim() && (
+              <p className="leading-relaxed font-medium pl-5 text-amber-700/90 dark:text-amber-300/90">
+                <span className="font-semibold text-amber-900 dark:text-amber-200">Fix Directive:</span> {postCritique.fix_directive}
+              </p>
+            )}
+          </div>
         </div>
       )}
     </div>

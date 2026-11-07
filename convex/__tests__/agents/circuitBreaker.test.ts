@@ -145,10 +145,10 @@ describe("ModelCircuitBreaker", () => {
     modelId: "gemini-3.8-flash",
   };
 
-  const gemini37Key1: ModelIdentity = {
+  const gemini36Key1: ModelIdentity = {
     provider: "google",
     keyGroup: "GOOGLE_API_KEY",
-    modelId: "gemini-3.7-flash",
+    modelId: "gemini-3.6-flash",
   };
 
   const gemini38Key2: ModelIdentity = {
@@ -166,8 +166,8 @@ describe("ModelCircuitBreaker", () => {
     expect(status1.available).toBe(false);
     expect(status1.reason).toContain('Model "gemini-3.8-flash" on key "GOOGLE_API_KEY" tripped');
 
-    // gemini-3.7-flash on Key 1 (different model, same key) is STILL AVAILABLE!
-    const status2 = cb.isAvailable(gemini37Key1, now + 1000);
+    // gemini-3.6-flash on Key 1 (different model, same key) is STILL AVAILABLE!
+    const status2 = cb.isAvailable(gemini36Key1, now + 1000);
     expect(status2.available).toBe(true);
 
     // gemini-3.8-flash on Key 2 (same model, different key) should still be available!
@@ -186,7 +186,7 @@ describe("ModelCircuitBreaker", () => {
     // gemini-3.8-flash on Key 1 should be unavailable
     expect(cb.isAvailable(gemini38Key1, now + 1000).available).toBe(false);
     // Other models on Key 1 remain available
-    expect(cb.isAvailable(gemini37Key1, now + 1000).available).toBe(true);
+    expect(cb.isAvailable(gemini36Key1, now + 1000).available).toBe(true);
     // Same model on Key 2 remains available
     expect(cb.isAvailable(gemini38Key2, now + 1000).available).toBe(true);
 
@@ -200,7 +200,7 @@ describe("ModelCircuitBreaker", () => {
 
     // All models on Key 1 should be unavailable
     expect(cb.isAvailable(gemini38Key1, now + 1000).available).toBe(false);
-    expect(cb.isAvailable(gemini37Key1, now + 1000).available).toBe(false);
+    expect(cb.isAvailable(gemini36Key1, now + 1000).available).toBe(false);
 
     // Key 2 is still available
     expect(cb.isAvailable(gemini38Key2, now + 1000).available).toBe(true);
@@ -231,8 +231,8 @@ describe("ModelCircuitBreaker", () => {
     expect(cb.isAvailable(gemini38Key1, now + 1000).available).toBe(false);
     expect(cb.isAvailable(gemini38Key2, now + 1000).available).toBe(false);
 
-    // gemini-3.7-flash on Key 1 is STILL available!
-    expect(cb.isAvailable(gemini37Key1, now + 1000).available).toBe(true);
+    // gemini-3.6-flash on Key 1 is STILL available!
+    expect(cb.isAvailable(gemini36Key1, now + 1000).available).toBe(true);
 
     // After cooldown (10 mins), gemini-3.8-flash recovers
     expect(cb.isAvailable(gemini38Key1, now + 10 * 60 * 1000 + 1000).available).toBe(true);

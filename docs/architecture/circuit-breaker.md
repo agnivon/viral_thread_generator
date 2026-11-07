@@ -137,11 +137,10 @@ When an agent node runs, it accepts an array of model candidates ordered from hi
 ### Thread Writer Fallback Cascade:
 1. **Google Gemini 3.8 Flash** (`GOOGLE_API_KEY`)
 2. **Google Gemini 3.8 Flash** (`GOOGLE_API_KEY2` — secondary key)
-3. **Google Gemini 3.7 Flash** (`GOOGLE_API_KEY`)
-4. **Google Gemini 3.7 Flash** (`GOOGLE_API_KEY2`)
-5. **Google Gemini 3.6 Flash / 3.5 Flash**
-6. **DeepSeek Flash** (`DEEPSEEK_API_KEY` — reasoning disabled, high speed)
-7. **OpenAI GPT-5.4** (`OPENAI_API_KEY` — presence penalty 0.4)
-8. **OpenRouter Free Tier** (`OPENROUTER_API_KEY`)
+3. **Google Gemini 3.6 Flash** (`GOOGLE_API_KEY`)
+4. **Google Gemini 3.6 Flash** (`GOOGLE_API_KEY2`)
+5. **DeepSeek Flash** (`DEEPSEEK_API_KEY` — reasoning disabled, high speed)
+6. **OpenAI GPT-5.4** (`OPENAI_API_KEY` — presence penalty 0.4)
+7. **Google Gemini 3 Flash Preview** (`GOOGLE_API_KEY` / `GOOGLE_API_KEY2`)
 
 If Gemini hits a rate limit, the circuit breaker flags Gemini as tripped, saves the cooldown state to the Convex database, and instantly executes DeepSeek without dropping the user's thread generation request.

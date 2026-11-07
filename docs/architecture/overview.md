@@ -56,7 +56,7 @@
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                         EXTERNAL INTEGRATION ECOSYSTEM                      │
 │                                                                             │
-│  • LLMs: Google Gemini 3.8/3.7/3.5, OpenAI GPT-5.4, DeepSeek, OpenRouter   │
+│  • LLMs: Google Gemini 3.8/3.6, OpenAI GPT-5.4, DeepSeek, OpenRouter        │
 │  • Scraping & Search: Firecrawl, Jina Reader, Tavily AI, Brave, DuckDuckGo  │
 │  • Media: Meta Threads Graph API (OAuth, Container Polling, Publishing)     │
 │  • Security & Push: Cloudflare Turnstile, VAPID Web Push Gateways (FCM)     │

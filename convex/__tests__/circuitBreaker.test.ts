@@ -170,7 +170,7 @@ test("circuitBreaker - syncFromDatabase integrates with ModelCircuitBreaker clas
   cb.syncFromDatabase(active, now);
 
   const check1 = cb.isAvailable(
-    { provider: "google", keyGroup: "google:key1", modelId: "gemini-3.7-flash" },
+    { provider: "google", keyGroup: "google:key1", modelId: "gemini-3.6-flash" },
     now
   );
   expect(check1.available).toBe(false);
@@ -184,7 +184,7 @@ test("circuitBreaker - syncFromDatabase integrates with ModelCircuitBreaker clas
   expect(check2.reason).toContain('Model "gemini-3.8-flash" tripped');
 
   const check3 = cb.isAvailable(
-    { provider: "google", keyGroup: "google:key2", modelId: "gemini-3.7-flash" },
+    { provider: "google", keyGroup: "google:key2", modelId: "gemini-3.6-flash" },
     now
   );
   expect(check3.available).toBe(true);

@@ -64,12 +64,8 @@ export const openRouterFreeT08 = attachModelIdentity(
 // ThreadWriterNode Models
 export const googleGemini38FlashT08Key1 = createGoogleModel("gemini-3.8-flash", 0.8, "GOOGLE_API_KEY");
 export const googleGemini38FlashT08Key2 = createGoogleModel("gemini-3.8-flash", 0.8, "GOOGLE_API_KEY2");
-export const googleGemini37FlashT08Key1 = createGoogleModel("gemini-3.7-flash", 0.8, "GOOGLE_API_KEY");
-export const googleGemini37FlashT08Key2 = createGoogleModel("gemini-3.7-flash", 0.8, "GOOGLE_API_KEY2");
 export const googleGemini36FlashT08Key1 = createGoogleModel("gemini-3.6-flash", 0.8, "GOOGLE_API_KEY");
 export const googleGemini36FlashT08Key2 = createGoogleModel("gemini-3.6-flash", 0.8, "GOOGLE_API_KEY2");
-export const googleGemini35FlashT08Key1 = createGoogleModel("gemini-3.5-flash", 0.8, "GOOGLE_API_KEY");
-export const googleGemini35FlashT08Key2 = createGoogleModel("gemini-3.5-flash", 0.8, "GOOGLE_API_KEY2");
 export const deepSeekFlashT085ReasoningNone = createDeepSeekModel("deepseek-flash", 0.85, { reasoning: { effort: "none" }, modelKwargs: { thinking: { type: "disabled" }, response_format: { type: "json_object" } } });
 export const openAiGpt54T08Penalty04 = createOpenAIModel("gpt-5.4", 0.8, { presencePenalty: 0.4 });
 export const googleGemma426bT08Key1 = createGoogleModel("gemma-4-26b-a4b-it", 0.8, "GOOGLE_API_KEY");
@@ -84,12 +80,8 @@ export const threadWriterSchema = z.object({
 export const threadWriterModelCandidates = [
   googleGemini38FlashT08Key1.withStructuredOutput(threadWriterSchema, { name: "thread_writer", method: "jsonSchema" }),
   withTimeout(googleGemini38FlashT08Key2.withStructuredOutput(threadWriterSchema, { name: "thread_writer", method: "jsonSchema" }), 45000),
-  googleGemini37FlashT08Key1.withStructuredOutput(threadWriterSchema, { name: "thread_writer", method: "jsonSchema" }),
-  withTimeout(googleGemini37FlashT08Key2.withStructuredOutput(threadWriterSchema, { name: "thread_writer", method: "jsonSchema" }), 45000),
   googleGemini36FlashT08Key1.withStructuredOutput(threadWriterSchema, { name: "thread_writer", method: "jsonSchema" }),
   withTimeout(googleGemini36FlashT08Key2.withStructuredOutput(threadWriterSchema, { name: "thread_writer", method: "jsonSchema" }), 45000),
-  googleGemini35FlashT08Key1.withStructuredOutput(threadWriterSchema, { name: "thread_writer", method: "jsonSchema" }),
-  withTimeout(googleGemini35FlashT08Key2.withStructuredOutput(threadWriterSchema, { name: "thread_writer", method: "jsonSchema" }), 45000),
   deepSeekFlashT085ReasoningNone.withStructuredOutput(threadWriterSchema, { name: "thread_writer", method: "jsonMode" }),
   openAiGpt54T08Penalty04.withStructuredOutput(threadWriterSchema, { name: "thread_writer", method: "jsonSchema" }),
   googleGemini3FlashPreviewT08Key1.withStructuredOutput(threadWriterSchema, { name: "thread_writer", method: "jsonSchema" }),
@@ -99,12 +91,8 @@ export const threadWriterModelCandidates = [
 // ViralityCriticNode Models
 export const googleGemini38FlashT00Key1 = createGoogleModel("gemini-3.8-flash", 0.0, "GOOGLE_API_KEY");
 export const googleGemini38FlashT00Key2 = createGoogleModel("gemini-3.8-flash", 0.0, "GOOGLE_API_KEY2");
-export const googleGemini37FlashT00Key1 = createGoogleModel("gemini-3.7-flash", 0.0, "GOOGLE_API_KEY");
-export const googleGemini37FlashT00Key2 = createGoogleModel("gemini-3.7-flash", 0.0, "GOOGLE_API_KEY2");
 export const googleGemini36FlashT00Key1 = createGoogleModel("gemini-3.6-flash", 0.0, "GOOGLE_API_KEY");
 export const googleGemini36FlashT00Key2 = createGoogleModel("gemini-3.6-flash", 0.0, "GOOGLE_API_KEY2");
-export const googleGemini35FlashT00Key1 = createGoogleModel("gemini-3.5-flash", 0.0, "GOOGLE_API_KEY");
-export const googleGemini35FlashT00Key2 = createGoogleModel("gemini-3.5-flash", 0.0, "GOOGLE_API_KEY2");
 export const deepSeekFlashT00ReasoningHigh = createDeepSeekModel("deepseek-flash", 0.0, { reasoning: { effort: "high" }, modelKwargs: { thinking: { type: "enabled" }, response_format: { type: "json_object" } } });
 export const deepSeekFlashT00ReasoningNone = createDeepSeekModel("deepseek-flash", 0.0, { reasoning: { effort: "none" }, modelKwargs: { thinking: { type: "disabled" }, response_format: { type: "json_object" } } });
 export const googleGemma431bT00Key1 = createGoogleModel("gemma-4-31b-it", 0.0, "GOOGLE_API_KEY");
@@ -116,12 +104,8 @@ export const googleGemini3FlashPreviewT00Key2 = createGoogleModel("gemini-3-flas
 export const criticModelCandidates = [
   googleGemini38FlashT00Key1,
   withTimeout(googleGemini38FlashT00Key2, 45000),
-  googleGemini37FlashT00Key1,
-  withTimeout(googleGemini37FlashT00Key2, 45000),
   googleGemini36FlashT00Key1,
   withTimeout(googleGemini36FlashT00Key2, 45000),
-  googleGemini35FlashT00Key1,
-  withTimeout(googleGemini35FlashT00Key2, 45000),
   deepSeekFlashT00ReasoningHigh,
   deepSeekFlashT00ReasoningNone,
   googleGemini3FlashPreviewT00Key1,
@@ -154,3 +138,13 @@ export const googleGemini35FlashLiteT02Key2Max3k = googleGemini35FlashLiteT02Key
 export const openAiGpt54MiniT02Max2k = openAiGpt54MiniT02;
 export const deepSeekV4ProT085ReasoningNone = deepSeekFlashT085ReasoningNone;
 export const deepSeekV4ProT00ReasoningHigh = deepSeekFlashT00ReasoningHigh;
+
+// Backward compatibility aliases for phased-out models (gemini-3.7-flash and gemini-3.5-flash aliased to gemini-3.8-flash and gemini-3.6-flash)
+export const googleGemini37FlashT08Key1 = googleGemini38FlashT08Key1;
+export const googleGemini37FlashT08Key2 = googleGemini38FlashT08Key2;
+export const googleGemini35FlashT08Key1 = googleGemini36FlashT08Key1;
+export const googleGemini35FlashT08Key2 = googleGemini36FlashT08Key2;
+export const googleGemini37FlashT00Key1 = googleGemini38FlashT00Key1;
+export const googleGemini37FlashT00Key2 = googleGemini38FlashT00Key2;
+export const googleGemini35FlashT00Key1 = googleGemini36FlashT00Key1;
+export const googleGemini35FlashT00Key2 = googleGemini36FlashT00Key2;

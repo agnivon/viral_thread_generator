@@ -42,7 +42,7 @@ Social media algorithms prioritize engagement signals: high retention, fast scro
 
 ## 🎯 2. The Virality Critic (`ViralityCriticNode`)
 
-The critic operates at **temperature `0.0`** using high-reasoning models (DeepSeek Flash with reasoning enabled or Google Gemini 3.7 Flash) to ensure a cold, objective appraisal.
+The critic operates at **temperature `0.0`** using high-reasoning models (DeepSeek Flash with reasoning enabled or Google Gemini 3.8 / 3.6 Flash) to ensure a cold, objective appraisal.
 
 ### Evaluation Dimensions:
 1. **Hook Strength (0–30 pts)**: Does the opening line create an unavoidable curiosity gap without feeling like cheap clickbait?

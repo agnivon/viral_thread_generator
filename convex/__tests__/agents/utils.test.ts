@@ -608,7 +608,7 @@ test("invokeWithFallbacks - fast-skips matching key_model combination when candi
   const model2Key1: FallbackRunnable = {
     invoke: vi.fn().mockResolvedValue({ text: "key 1 model 2 success" }),
   };
-  attachModelIdentity(model2Key1, { provider: "google", keyGroup: "GOOGLE_API_KEY", modelId: "gemini-3.7-flash" });
+  attachModelIdentity(model2Key1, { provider: "google", keyGroup: "GOOGLE_API_KEY", modelId: "gemini-3.6-flash" });
 
   const result = await invokeWithFallbacks([model1Key1, model1Key1Dup, model2Key1], { prompt: "test" });
 
@@ -635,7 +635,7 @@ test("invokeWithFallbacks - fast-skips matching key_model combination when candi
   const model2Key1: FallbackRunnable = {
     invoke: vi.fn().mockResolvedValue({ text: "key 1 model 2 recovered" }),
   };
-  attachModelIdentity(model2Key1, { provider: "google", keyGroup: "GOOGLE_API_KEY", modelId: "gemini-3.7-flash" });
+  attachModelIdentity(model2Key1, { provider: "google", keyGroup: "GOOGLE_API_KEY", modelId: "gemini-3.6-flash" });
 
   const result = await invokeWithFallbacks([model1Key1, model1Key1Dup, model2Key1], { prompt: "test" });
 
@@ -657,7 +657,7 @@ test("invokeWithFallbacks - fast-skips entire key when candidate fails with 401/
   const model2Key1: FallbackRunnable = {
     invoke: vi.fn().mockResolvedValue({ text: "should not be called" }),
   };
-  attachModelIdentity(model2Key1, { provider: "google", keyGroup: "GOOGLE_API_KEY", modelId: "gemini-3.7-flash" });
+  attachModelIdentity(model2Key1, { provider: "google", keyGroup: "GOOGLE_API_KEY", modelId: "gemini-3.6-flash" });
 
   const model1Key2: FallbackRunnable = {
     invoke: vi.fn().mockResolvedValue({ text: "key 2 success" }),
@@ -686,17 +686,17 @@ test("invokeWithFallbacks - skips model only on 500 server error, trying differe
   };
   attachModelIdentity(gemini38Key2, { provider: "google", keyGroup: "GOOGLE_API_KEY2", modelId: "gemini-3.8-flash" });
 
-  const gemini37Key1: FallbackRunnable = {
-    invoke: vi.fn().mockResolvedValue({ text: "gemini 3.7 on key 1 success" }),
+  const gemini36Key1: FallbackRunnable = {
+    invoke: vi.fn().mockResolvedValue({ text: "gemini 3.6 on key 1 success" }),
   };
-  attachModelIdentity(gemini37Key1, { provider: "google", keyGroup: "GOOGLE_API_KEY", modelId: "gemini-3.7-flash" });
+  attachModelIdentity(gemini36Key1, { provider: "google", keyGroup: "GOOGLE_API_KEY", modelId: "gemini-3.6-flash" });
 
-  const result = await invokeWithFallbacks([gemini38Key1, gemini38Key2, gemini37Key1], { prompt: "test" });
+  const result = await invokeWithFallbacks([gemini38Key1, gemini38Key2, gemini36Key1], { prompt: "test" });
 
-  expect(result).toEqual({ text: "gemini 3.7 on key 1 success" });
+  expect(result).toEqual({ text: "gemini 3.6 on key 1 success" });
   expect(gemini38Key1.invoke).toHaveBeenCalledTimes(1);
   expect(gemini38Key2.invoke).not.toHaveBeenCalled(); // gemini-3.8-flash skipped!
-  expect(gemini37Key1.invoke).toHaveBeenCalledTimes(1); // gemini-3.7-flash on Key 1 succeeded!
+  expect(gemini36Key1.invoke).toHaveBeenCalledTimes(1); // gemini-3.6-flash on Key 1 succeeded!
 });
 
 test("invokeWithFallbacks - fails open when all candidates in fallback array are tripped", async () => {

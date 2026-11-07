@@ -11,8 +11,8 @@ function renderArrowIcon(): React.ReactNode {
   return h(
     "svg",
     {
-      width: 22,
-      height: 22,
+      width: 20,
+      height: 20,
       viewBox: "0 0 24 24",
       fill: "none",
       stroke: "#0284c7",
@@ -28,7 +28,7 @@ function renderArrowIcon(): React.ReactNode {
 
 export function buildInfographicReactElement(spec: InfographicSpec): React.ReactNode {
   const headlineLen = spec.headline ? spec.headline.length : 0;
-  const headlineFontSize = headlineLen > 90 ? 25 : headlineLen > 60 ? 29 : 33;
+  const headlineFontSize = headlineLen > 90 ? 24 : headlineLen > 60 ? 28 : 31;
 
   // 1. Header component
   const header = h(
@@ -38,7 +38,6 @@ export function buildInfographicReactElement(spec: InfographicSpec): React.React
         display: "flex",
         flexDirection: "column",
         width: "100%",
-        marginBottom: 14,
       },
     },
     h(
@@ -72,10 +71,10 @@ export function buildInfographicReactElement(spec: InfographicSpec): React.React
           style: {
             display: "flex",
             fontSize: 11,
-            fontWeight: 800,
+            fontWeight: 700,
             color: "#475569",
             backgroundColor: "#f1f5f9",
-            padding: "2px 8px",
+            padding: "3px 8px",
             borderRadius: 4,
             textTransform: "uppercase",
             letterSpacing: "0.5px",
@@ -93,7 +92,7 @@ export function buildInfographicReactElement(spec: InfographicSpec): React.React
           fontWeight: 800,
           color: "#0f172a",
           marginTop: 6,
-          lineHeight: 1.18,
+          lineHeight: 1.2,
         },
       },
       spec.headline
@@ -104,11 +103,11 @@ export function buildInfographicReactElement(spec: InfographicSpec): React.React
           {
             style: {
               display: "flex",
-              fontSize: 15,
+              fontSize: 14,
               fontWeight: 500,
               color: "#475569",
               marginTop: 4,
-              lineHeight: 1.3,
+              lineHeight: 1.35,
             },
           },
           spec.subheading
@@ -139,7 +138,8 @@ export function buildInfographicReactElement(spec: InfographicSpec): React.React
           display: "flex",
           flexDirection: "column",
           flex: 1,
-          gap: 12,
+          gap: 18,
+          justifyContent: "space-between",
         },
       },
       h(
@@ -148,7 +148,7 @@ export function buildInfographicReactElement(spec: InfographicSpec): React.React
           style: {
             display: "flex",
             flexDirection: "row",
-            gap: 18,
+            gap: 20,
             width: "100%",
             flex: 1,
           },
@@ -179,7 +179,7 @@ export function buildInfographicReactElement(spec: InfographicSpec): React.React
                 marginBottom: 12,
               },
             },
-            h("div", { style: { display: "flex", fontSize: 20, fontWeight: 800, color: "#0284c7" } }, colA.name),
+            h("div", { style: { display: "flex", fontSize: 19, fontWeight: 800, color: "#0284c7" } }, colA.name),
             colA.badge
               ? h(
                   "div",
@@ -204,7 +204,7 @@ export function buildInfographicReactElement(spec: InfographicSpec): React.React
               style: {
                 display: "flex",
                 flexDirection: "column",
-                gap: 8,
+                gap: 10,
                 flex: 1,
               },
             },
@@ -222,11 +222,11 @@ export function buildInfographicReactElement(spec: InfographicSpec): React.React
                     border: "1px solid #e2e8f0",
                     borderLeft: "4px solid #0284c7",
                     borderRadius: 6,
-                    padding: "10px 14px",
+                    padding: "12px 14px",
                   },
                 },
                 h("div", { style: { display: "flex", fontSize: 14, fontWeight: 700, color: "#0f172a" } }, item.title),
-                h("div", { style: { display: "flex", fontSize: 12, color: "#475569", marginTop: 3, lineHeight: 1.3 } }, item.description)
+                h("div", { style: { display: "flex", fontSize: 12, color: "#475569", marginTop: 2, lineHeight: 1.3 } }, item.description)
               )
             )
           )
@@ -257,7 +257,7 @@ export function buildInfographicReactElement(spec: InfographicSpec): React.React
                 marginBottom: 12,
               },
             },
-            h("div", { style: { display: "flex", fontSize: 20, fontWeight: 800, color: "#0f172a" } }, colB.name),
+            h("div", { style: { display: "flex", fontSize: 19, fontWeight: 800, color: "#0f172a" } }, colB.name),
             colB.badge
               ? h(
                   "div",
@@ -282,7 +282,7 @@ export function buildInfographicReactElement(spec: InfographicSpec): React.React
               style: {
                 display: "flex",
                 flexDirection: "column",
-                gap: 8,
+                gap: 10,
                 flex: 1,
               },
             },
@@ -300,11 +300,11 @@ export function buildInfographicReactElement(spec: InfographicSpec): React.React
                     border: "1px solid #e2e8f0",
                     borderLeft: "4px solid #94a3b8",
                     borderRadius: 6,
-                    padding: "10px 14px",
+                    padding: "12px 14px",
                   },
                 },
                 h("div", { style: { display: "flex", fontSize: 14, fontWeight: 700, color: "#0f172a" } }, item.title),
-                h("div", { style: { display: "flex", fontSize: 12, color: "#475569", marginTop: 3, lineHeight: 1.3 } }, item.description)
+                h("div", { style: { display: "flex", fontSize: 12, color: "#475569", marginTop: 2, lineHeight: 1.3 } }, item.description)
               )
             )
           )
@@ -317,7 +317,7 @@ export function buildInfographicReactElement(spec: InfographicSpec): React.React
               style: {
                 display: "flex",
                 flexDirection: "row",
-                gap: 12,
+                gap: 14,
                 width: "100%",
               },
             },
@@ -332,7 +332,7 @@ export function buildInfographicReactElement(spec: InfographicSpec): React.React
                       alignItems: "center",
                       backgroundColor: "#f0fdf4",
                       border: "1px solid #bbf7d0",
-                      padding: "10px 18px",
+                      padding: "12px 18px",
                       borderRadius: 8,
                       flex: spec.takeawayBox ? 1 : 1,
                     },
@@ -353,7 +353,7 @@ export function buildInfographicReactElement(spec: InfographicSpec): React.React
                       backgroundColor: "#eff6ff",
                       border: "1px solid #bfdbfe",
                       borderLeft: "4px solid #2563eb",
-                      padding: "10px 18px",
+                      padding: "12px 18px",
                       borderRadius: 8,
                       flex: spec.milestoneBadge ? 1.5 : 1,
                     },
@@ -361,7 +361,7 @@ export function buildInfographicReactElement(spec: InfographicSpec): React.React
                   spec.takeawayBox.title
                     ? h("div", { style: { display: "flex", fontSize: 11, fontWeight: 800, color: "#1e40af", textTransform: "uppercase", whiteSpace: "nowrap" } }, spec.takeawayBox.title + ":")
                     : null,
-                  h("div", { style: { display: "flex", fontSize: 12, color: "#1e3a8a", lineHeight: 1.3 } }, spec.takeawayBox.text)
+                  h("div", { style: { display: "flex", fontSize: 12, color: "#1e3a8a", lineHeight: 1.35 } }, spec.takeawayBox.text)
                 )
               : null
           )
@@ -375,7 +375,8 @@ export function buildInfographicReactElement(spec: InfographicSpec): React.React
           display: "flex",
           flexDirection: "column",
           flex: 1,
-          gap: 12,
+          gap: 18,
+          justifyContent: "space-between",
         },
       },
       h(
@@ -384,7 +385,7 @@ export function buildInfographicReactElement(spec: InfographicSpec): React.React
           style: {
             display: "flex",
             flexDirection: "row",
-            gap: 18,
+            gap: 20,
             flex: 1,
           },
         },
@@ -422,7 +423,7 @@ export function buildInfographicReactElement(spec: InfographicSpec): React.React
                   flexDirection: "column",
                   gap: 12,
                   width: "100%",
-                  marginTop: 8,
+                  marginTop: 10,
                   flex: 1,
                   justifyContent: "center",
                 },
@@ -461,7 +462,7 @@ export function buildInfographicReactElement(spec: InfographicSpec): React.React
                       style: {
                         display: "flex",
                         width: "100%",
-                        height: 32,
+                        height: 30,
                         backgroundColor: "#e2e8f0",
                         borderRadius: 6,
                         overflow: "hidden",
@@ -494,7 +495,7 @@ export function buildInfographicReactElement(spec: InfographicSpec): React.React
                   },
                 },
                 h("div", { style: { display: "flex" } }, "0"),
-                h("div", { style: { display: "flex" } }, "Metric Baseline"),
+                h("div", { style: { display: "flex" } }, "Baseline"),
                 h("div", { style: { display: "flex" } }, `Max: ${chart.bars[0]?.displayValue || maxValue}`)
               )
             )
@@ -512,20 +513,20 @@ export function buildInfographicReactElement(spec: InfographicSpec): React.React
                 border: "1px solid #bfdbfe",
                 borderLeft: "4px solid #2563eb",
                 borderRadius: 8,
-                padding: "10px 18px",
+                padding: "12px 20px",
               },
             },
             spec.takeawayBox.title
               ? h("div", { style: { display: "flex", fontSize: 11, fontWeight: 800, color: "#1e40af", textTransform: "uppercase", letterSpacing: "0.5px" } }, spec.takeawayBox.title)
               : null,
-            h("div", { style: { display: "flex", fontSize: 12, color: "#1e3a8a", marginTop: 2, lineHeight: 1.3 } }, spec.takeawayBox.text)
+            h("div", { style: { display: "flex", fontSize: 12, color: "#1e3a8a", marginTop: 2, lineHeight: 1.35 } }, spec.takeawayBox.text)
           )
         : null
     );
   } else if (spec.archetype === "stat_callout" && spec.statCallout) {
     const sc = spec.statCallout;
     const statLen = sc.primaryStat ? sc.primaryStat.length : 0;
-    const statFontSize = statLen > 25 ? 40 : statLen > 15 ? 50 : 64;
+    const statFontSize = statLen > 25 ? 38 : statLen > 15 ? 48 : 58;
 
     bodyContent = h(
       "div",
@@ -534,7 +535,8 @@ export function buildInfographicReactElement(spec: InfographicSpec): React.React
           display: "flex",
           flexDirection: "column",
           flex: 1,
-          gap: 14,
+          gap: 18,
+          justifyContent: "space-between",
         },
       },
       // 1. Primary Hero Card
@@ -549,9 +551,9 @@ export function buildInfographicReactElement(spec: InfographicSpec): React.React
             backgroundColor: "#f0f9ff",
             border: "1px solid #bae6fd",
             borderTop: "5px solid #0284c7",
-            padding: "24px 36px",
+            padding: "26px 36px",
             borderRadius: 10,
-            flex: 1.3,
+            flex: 1.2,
           },
         },
         h(
@@ -613,7 +615,7 @@ export function buildInfographicReactElement(spec: InfographicSpec): React.React
               flex: 1,
             },
           },
-          h("div", { style: { display: "flex", fontSize: 22, fontWeight: 800, color: "#0f172a", lineHeight: 1.25 } }, sc.statLabel),
+          h("div", { style: { display: "flex", fontSize: 21, fontWeight: 800, color: "#0f172a", lineHeight: 1.25 } }, sc.statLabel),
           sc.comparisonNote
             ? h("div", { style: { display: "flex", fontSize: 14, color: "#334155", marginTop: 8, lineHeight: 1.4 } }, sc.comparisonNote)
             : null
@@ -627,7 +629,7 @@ export function buildInfographicReactElement(spec: InfographicSpec): React.React
           style: {
             display: "flex",
             flexDirection: "row",
-            gap: 14,
+            gap: 16,
             flex: 1,
           },
         },
@@ -641,7 +643,7 @@ export function buildInfographicReactElement(spec: InfographicSpec): React.React
               backgroundColor: "#f8fafc",
               border: "1px solid #e2e8f0",
               borderTop: "4px solid #64748b",
-              padding: "16px 20px",
+              padding: "18px 24px",
               borderRadius: 8,
               flexDirection: "column",
               justifyContent: "center",
@@ -673,7 +675,7 @@ export function buildInfographicReactElement(spec: InfographicSpec): React.React
               backgroundColor: "#eff6ff",
               border: "1px solid #bfdbfe",
               borderLeft: "4px solid #2563eb",
-              padding: "16px 22px",
+              padding: "18px 26px",
               borderRadius: 8,
               flexDirection: "column",
               justifyContent: "center",
@@ -707,7 +709,8 @@ export function buildInfographicReactElement(spec: InfographicSpec): React.React
           display: "flex",
           flexDirection: "column",
           flex: 1,
-          gap: 12,
+          justifyContent: "space-between",
+          margin: "18px 0",
         },
       },
       // 1. Top row: KPI cards
@@ -717,14 +720,14 @@ export function buildInfographicReactElement(spec: InfographicSpec): React.React
           style: {
             display: "flex",
             flexDirection: "row",
-            gap: 14,
+            gap: 16,
             width: "100%",
-            flex: hasFlow ? 1 : 1.1,
+            height: 125,
           },
         },
         cards.map((card, idx) => {
           const cardValLen = card.value ? card.value.length : 0;
-          const cardFontSize = cardValLen > 14 ? 24 : cardValLen > 9 ? 28 : 34;
+          const cardFontSize = cardValLen > 14 ? 22 : cardValLen > 9 ? 26 : 32;
 
           return h(
             "div",
@@ -738,7 +741,7 @@ export function buildInfographicReactElement(spec: InfographicSpec): React.React
                 border: "1px solid #e2e8f0",
                 borderTop: idx === 0 ? "4px solid #0284c7" : "4px solid #cbd5e1",
                 borderRadius: 8,
-                padding: "14px 18px",
+                padding: "16px 20px",
                 justifyContent: "center",
               },
             },
@@ -789,7 +792,7 @@ export function buildInfographicReactElement(spec: InfographicSpec): React.React
                   {
                     style: {
                       display: "flex",
-                      fontSize: 12,
+                      fontSize: 11,
                       color: "#64748b",
                       marginTop: 2,
                     },
@@ -810,9 +813,9 @@ export function buildInfographicReactElement(spec: InfographicSpec): React.React
                 display: "flex",
                 flexDirection: "row",
                 alignItems: "stretch",
-                gap: 8,
+                gap: 12,
                 width: "100%",
-                flex: 1.4,
+                height: 155,
               },
             },
             spec.flowSteps!.map((step, idx) => {
@@ -828,7 +831,7 @@ export function buildInfographicReactElement(spec: InfographicSpec): React.React
                     flexDirection: "row",
                     alignItems: "center",
                     flex: 1,
-                    gap: 8,
+                    gap: 12,
                   },
                 },
                 h(
@@ -842,7 +845,7 @@ export function buildInfographicReactElement(spec: InfographicSpec): React.React
                       backgroundColor: "#ffffff",
                       border: "1px solid #cbd5e1",
                       borderRadius: 8,
-                      padding: "12px 14px",
+                      padding: "16px 16px",
                       justifyContent: "space-between",
                     },
                   },
@@ -879,7 +882,7 @@ export function buildInfographicReactElement(spec: InfographicSpec): React.React
                     ),
                     h("div", { style: { display: "flex", fontSize: 13, fontWeight: 700, color: "#0f172a" } }, step.title),
                     step.description
-                      ? h("div", { style: { display: "flex", fontSize: 11, color: "#475569", marginTop: 4, lineHeight: 1.3 } }, step.description)
+                      ? h("div", { style: { display: "flex", fontSize: 11.5, color: "#475569", marginTop: 5, lineHeight: 1.4 } }, step.description)
                       : null
                   ),
                   h(
@@ -915,9 +918,9 @@ export function buildInfographicReactElement(spec: InfographicSpec): React.React
               style: {
                 display: "flex",
                 flexDirection: "row",
-                gap: 14,
+                gap: 16,
                 width: "100%",
-                flex: 1.3,
+                height: 140,
               },
             },
             h(
@@ -930,14 +933,14 @@ export function buildInfographicReactElement(spec: InfographicSpec): React.React
                   border: "1px solid #cbd5e1",
                   borderLeft: "4px solid #0284c7",
                   borderRadius: 8,
-                  padding: "16px 20px",
+                  padding: "18px 22px",
                   flexDirection: "column",
                   justifyContent: "center",
                 },
               },
               h("div", { style: { display: "flex", fontSize: 11, fontWeight: 800, color: "#0284c7", textTransform: "uppercase", letterSpacing: "0.5px" } }, "EXECUTIVE BRIEF"),
-              h("div", { style: { display: "flex", fontSize: 16, fontWeight: 800, color: "#0f172a", marginTop: 4 } }, "Core Structural Thesis"),
-              h("div", { style: { display: "flex", fontSize: 13, color: "#475569", marginTop: 6, lineHeight: 1.4 } }, spec.subheading || spec.headline)
+              h("div", { style: { display: "flex", fontSize: 15, fontWeight: 800, color: "#0f172a", marginTop: 4 } }, "Core Structural Thesis"),
+              h("div", { style: { display: "flex", fontSize: 12.5, color: "#475569", marginTop: 5, lineHeight: 1.4 } }, spec.subheading || spec.headline)
             ),
             h(
               "div",
@@ -949,14 +952,14 @@ export function buildInfographicReactElement(spec: InfographicSpec): React.React
                   border: "1px solid #cbd5e1",
                   borderLeft: "4px solid #475569",
                   borderRadius: 8,
-                  padding: "16px 20px",
+                  padding: "18px 22px",
                   flexDirection: "column",
                   justifyContent: "center",
                 },
               },
               h("div", { style: { display: "flex", fontSize: 11, fontWeight: 800, color: "#475569", textTransform: "uppercase", letterSpacing: "0.5px" } }, "MARKET IMPACT"),
-              h("div", { style: { display: "flex", fontSize: 16, fontWeight: 800, color: "#0f172a", marginTop: 4 } }, "Downstream Consequences"),
-              h("div", { style: { display: "flex", fontSize: 13, color: "#475569", marginTop: 6, lineHeight: 1.4 } }, spec.takeawayBox?.text || spec.notes || "Key systemic dynamics impacting stakeholders across the market.")
+              h("div", { style: { display: "flex", fontSize: 15, fontWeight: 800, color: "#0f172a", marginTop: 4 } }, "Downstream Consequences"),
+              h("div", { style: { display: "flex", fontSize: 12.5, color: "#475569", marginTop: 5, lineHeight: 1.4 } }, spec.takeawayBox?.text || spec.notes || "Key systemic dynamics impacting stakeholders across the market.")
             )
           ),
 
@@ -972,7 +975,7 @@ export function buildInfographicReactElement(spec: InfographicSpec): React.React
                 border: "1px solid #bfdbfe",
                 borderLeft: "4px solid #2563eb",
                 borderRadius: 8,
-                padding: "10px 18px",
+                padding: "14px 20px",
               },
             },
             spec.takeawayBox.title
@@ -991,7 +994,7 @@ export function buildInfographicReactElement(spec: InfographicSpec): React.React
                   spec.takeawayBox.title
                 )
               : null,
-            h("div", { style: { display: "flex", fontSize: 12, color: "#1e3a8a", marginTop: 2, lineHeight: 1.35 } }, spec.takeawayBox.text)
+            h("div", { style: { display: "flex", fontSize: 12.5, color: "#1e3a8a", marginTop: 2, lineHeight: 1.35 } }, spec.takeawayBox.text)
           )
         : null
     );
@@ -1005,7 +1008,6 @@ export function buildInfographicReactElement(spec: InfographicSpec): React.React
         display: "flex",
         flexDirection: "column",
         width: "100%",
-        marginTop: 10,
       },
     },
     h("div", {
@@ -1058,7 +1060,7 @@ export function buildInfographicReactElement(spec: InfographicSpec): React.React
     )
   );
 
-  // Return top-level canvas (1200x675)
+  // Return top-level canvas (1200x675) with generous outer padding & comfortable vertical distribution
   return h(
     "div",
     {
@@ -1068,7 +1070,7 @@ export function buildInfographicReactElement(spec: InfographicSpec): React.React
         width: 1200,
         height: 675,
         backgroundColor: "#ffffff",
-        padding: "30px 40px",
+        padding: "36px 44px",
         boxSizing: "border-box",
         justifyContent: "space-between",
         fontFamily: "Inter",

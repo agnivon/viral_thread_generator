@@ -390,6 +390,14 @@ Contributions, feature requests, and improvements are welcome! Please check out 
 
 ---
 
+## 👨‍💻 Author
+
+**Agnivo Neogi**
+- Website: [agnivon.dev](https://agnivon.dev)
+- GitHub: [@agnivon](https://github.com/agnivon)
+
+---
+
 ## 🔒 Security
 
 For security vulnerability disclosures, please review our [Security Policy](SECURITY.md).

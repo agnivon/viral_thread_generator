@@ -45,12 +45,24 @@ export function LandingFooter() {
 
       {/* Main Footer Links & Copyright */}
       <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 border-t border-border/40 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-muted-foreground">
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-linear-to-br from-violet-600 to-indigo-600 text-white">
             <Sparkles className="h-3.5 w-3.5" />
           </div>
           <span className="font-bold text-foreground">Viral Thread Generator</span>
-          <span>&copy; {new Date().getFullYear()} All rights reserved.</span>
+          <span>&copy; {new Date().getFullYear()}</span>
+          <span>&middot;</span>
+          <span>
+            Crafted by{" "}
+            <a
+              href="https://agnivon.dev"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-medium text-foreground hover:text-violet-600 dark:hover:text-violet-400 underline underline-offset-2 transition-colors"
+            >
+              Agnivo Neogi
+            </a>
+          </span>
         </div>
 
         <div className="flex items-center gap-6">
@@ -58,6 +70,14 @@ export function LandingFooter() {
             <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
             <span>Systems Operational</span>
           </div>
+          <a
+            href="https://agnivon.dev"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:text-foreground transition-colors"
+          >
+            Author
+          </a>
           <Link href="/login" className="hover:text-foreground transition-colors">
             Login
           </Link>

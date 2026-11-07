@@ -1,7 +1,5 @@
 import { ImageResponse } from "next/og";
 
-export const runtime = "edge";
-
 // Image metadata for OpenGraph
 export const alt = "Viral Thread Generator - Next-Gen AI Creator Studio";
 export const size = {
@@ -145,7 +143,7 @@ export default async function Image() {
                 textTransform: "uppercase",
               }}
             >
-              ★ Next-Gen AI Creator Studio
+              Next-Gen AI Creator Studio
             </span>
           </div>
 

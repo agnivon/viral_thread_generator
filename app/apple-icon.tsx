@@ -1,7 +1,5 @@
 import { ImageResponse } from "next/og";
 
-export const runtime = "edge";
-
 // Image metadata for Apple touch icon
 export const size = {
   width: 180,

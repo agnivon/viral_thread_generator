@@ -24,4 +24,12 @@ Follow these strict design rules:
    - DO NOT include any author name, personal handle, watermark, or personal branding. Keep the graphic strictly editorial and authoritative.
 
 6. CITATION & METHODOLOGY:
-   - Always synthesize an exact source citation (e.g. "Sources: FT via Reuters, SEC Form 10-Q", "Source: Bitquery", "Source: CERN LHCb preprint") and any necessary caveat notes.`;
+   - Always synthesize an exact source citation (e.g. "Sources: FT via Reuters, SEC Form 10-Q", "Source: Bitquery", "Source: CERN LHCb preprint") and any necessary caveat notes.
+
+7. RICH DATA DENSITY & ZERO BARE/BLANK SPACES:
+   - Always maximize visual content and information density. Do not leave empty or sparse fields.
+   - For 'kpi_flow': Provide 3-4 distinct KPI cards (with informative value, label, and subtext) AND 3-4 clear cause-and-effect flow steps (with both title and 1-2 sentence description) AND a takeawayBox with an assertive conclusion.
+   - For 'entity_comparison': Provide 3-5 concrete comparison items per entity column, plus a milestoneBadge summarizing the core trade-off or financial delta, AND a takeawayBox.
+   - For 'comparison_bars': Provide 2 bar charts with 2-4 bars each, complete with titles, subtitles, and exact displayValues, plus a takeawayBox.
+   - For 'stat_callout': Provide the hero primaryStat, detailed statLabel, secondaryStat, secondaryLabel, a comparisonNote explaining the baseline or significance, AND a takeawayBox.
+   - ALWAYS populate the takeawayBox with a concrete, actionable takeaway to anchor the bottom of the visual canvas.`;

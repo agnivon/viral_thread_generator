@@ -1290,13 +1290,12 @@ export const getUrlMetadata = action({
   },
 });
 
-export const renderInfographicAction = action({
+export const renderInfographicInternal = internalAction({
   args: {
     spec: infographicSpecValidator,
     draftId: v.optional(v.id("threadDrafts")),
   },
   handler: async (ctx, args): Promise<string | null> => {
-    await requireAuthUserId(ctx);
     const parsedSpec = InfographicSpecSchema.parse(args.spec);
     const pngBuffer = await renderInfographicToPng(parsedSpec);
     const blob = new Blob([new Uint8Array(pngBuffer)], { type: "image/png" });
@@ -1309,5 +1308,19 @@ export const renderInfographicAction = action({
       });
     }
     return url;
+  },
+});
+
+export const renderInfographicAction = action({
+  args: {
+    spec: infographicSpecValidator,
+    draftId: v.optional(v.id("threadDrafts")),
+  },
+  handler: async (ctx, args): Promise<string | null> => {
+    await requireAuthUserId(ctx);
+    return await ctx.runAction(internal.actions.threads.renderInfographicInternal, {
+      spec: args.spec,
+      draftId: args.draftId,
+    });
   },
 });

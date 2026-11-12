@@ -3,7 +3,7 @@
 import { z } from "zod";
 import { interrupt } from "@langchain/langgraph";
 import { RunnableConfig } from "@langchain/core/runnables";
-import { providerStrategy } from "langchain";
+import { providerStrategy, toolStrategy } from "langchain";
 import {
   googleGemini31FlashLiteT08Key1, googleGemini31FlashLiteT08Key2,
   googleGemini31FlashLiteT01Key1, googleGemini31FlashLiteT01Key2, deepSeekFlashT01ReasoningNone,
@@ -301,7 +301,7 @@ const topicViralityCriticAgents = buildAgents<z.infer<typeof topicViralityCritic
   {
     tools: [ContentAuthenticityCheckerTool],
     systemPrompt: TOPIC_VIRALITY_CRITIC_PROMPT,
-    responseFormat: providerStrategy(topicViralityCriticSchema)
+    responseFormat: toolStrategy(topicViralityCriticSchema)
   }
 );
 
@@ -309,7 +309,7 @@ const topicDifferentialCriticAgents = buildAgents<z.infer<typeof differentialCri
   criticModelCandidates,
   {
     systemPrompt: TOPIC_DIFFERENTIAL_CRITIC_PROMPT,
-    responseFormat: providerStrategy(differentialCriticSchema)
+    responseFormat: toolStrategy(differentialCriticSchema)
   }
 );
 

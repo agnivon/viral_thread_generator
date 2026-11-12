@@ -341,6 +341,58 @@ test("FallbackChatModel - works with providerStrategy structured outputs", async
   });
 });
 
+test("FallbackChatModel - works with toolStrategy structured outputs", async () => {
+  const { createAgent, toolStrategy } = await import("langchain");
+  const { BaseChatModel } = await import("@langchain/core/language_models/chat_models");
+  const { z } = await import("zod");
+
+  const testSchema = z.object({
+    headline: z.string(),
+    confidence: z.number()
+  });
+
+  const strat = toolStrategy(testSchema);
+  const toolName = (strat[0] as unknown as { tool: { function: { name: string } } }).tool.function.name;
+
+  class MockToolModel extends BaseChatModel {
+    _llmType(): string { return "mock_tool"; }
+    bindTools(): this { return this; }
+    async _generate(_messages: BaseMessage[], _options?: unknown): Promise<ChatResult> {
+      throw new Error("Unused");
+    }
+    override async invoke(_input: BaseLanguageModelInput): Promise<AIMessageChunk> {
+      return new AIMessageChunk({
+        content: "",
+        tool_calls: [
+          {
+            name: toolName,
+            args: { headline: "Breakthrough in AI", confidence: 0.98 },
+            id: "call-1"
+          }
+        ]
+      });
+    }
+  }
+
+  const model = new MockToolModel({});
+  const fallbackModel = new FallbackChatModel([model]);
+
+  const agent = createAgent({
+    model: fallbackModel,
+    systemPrompt: "Structured extractor",
+    responseFormat: strat
+  });
+
+  const result = await agent.invoke({
+    messages: [{ role: "user", content: "Extract headline" }]
+  });
+
+  expect(result.structuredResponse).toEqual({
+    headline: "Breakthrough in AI",
+    confidence: 0.98
+  });
+});
+
 test("FallbackChatModel - throws when instantiated with empty candidates", () => {
   expect(() => new FallbackChatModel([])).toThrow("FallbackChatModel requires at least one candidate model.");
 });

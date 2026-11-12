@@ -1,7 +1,7 @@
 "use node";
 
 import { interrupt } from "@langchain/langgraph";
-import { providerStrategy } from "langchain";
+import { providerStrategy, toolStrategy } from "langchain";
 import { z } from "zod";
 import { RunnableConfig } from "@langchain/core/runnables";
 import {
@@ -301,7 +301,7 @@ const newsViralityCriticAgents = buildAgents<z.infer<typeof newsCriticSchema>>(
   {
     tools: [ContentAuthenticityCheckerTool],
     systemPrompt: NEWS_CRITIC_PROMPT,
-    responseFormat: providerStrategy(newsCriticSchema)
+    responseFormat: toolStrategy(newsCriticSchema)
   }
 );
 
@@ -309,7 +309,7 @@ const newsDifferentialCriticAgents = buildAgents<z.infer<typeof differentialCrit
   criticModelCandidates,
   {
     systemPrompt: NEWS_DIFFERENTIAL_CRITIC_PROMPT,
-    responseFormat: providerStrategy(differentialCriticSchema)
+    responseFormat: toolStrategy(differentialCriticSchema)
   }
 );
 

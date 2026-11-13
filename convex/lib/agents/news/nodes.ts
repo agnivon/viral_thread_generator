@@ -39,6 +39,8 @@ import {
   processDifferentialEvaluation,
 } from "../utils.js";
 import { extractSelectedHook } from "../nodes.js";
+import { DiscoveryAgentGraph } from "../discovery/graph.js";
+import { extractDiscoveryTopic } from "../discovery/nodes.js";
 
 
 const scraperModels = [
@@ -148,6 +150,37 @@ export const ContextResearcherNode = async (state: NewsThreadFactoryStateType, c
   }
 };
 
+export const NewsDiscoveryNode = async (state: NewsThreadFactoryStateType, config?: RunnableConfig) => {
+  try {
+    const topicCandidate = extractDiscoveryTopic(state.url, state.raw_markdown, "News topic");
+    console.log(`[NewsDiscoveryNode] Running Deep Discovery Subgraph for news topic: "${topicCandidate}"...`);
+
+    const discoveryResult = await DiscoveryAgentGraph.invoke(
+      {
+        topic: topicCandidate,
+        raw_markdown: state.raw_markdown,
+        guidance: state.guidance,
+      },
+      { signal: config?.signal }
+    );
+
+    console.log(`[NewsDiscoveryNode] Deep Discovery completed with ${discoveryResult.discovery_angles?.length || 0} angles.`);
+    return {
+      discovery_angles: discoveryResult.discovery_angles,
+      core_delta: discoveryResult.core_delta,
+      research_context: discoveryResult.research_dossier,
+      parse_success: true,
+      retries: { ...(state.retries || {}), researcher: 0 },
+    };
+  } catch (err) {
+    console.warn("[NewsDiscoveryNode] Discovery subgraph error:", err);
+    return {
+      parse_success: false,
+      retries: { ...(state.retries || {}), researcher: (state.retries?.researcher || 0) + 1 },
+    };
+  }
+};
+
 const newsHookSchema = z.object({
   core_delta: z.string().optional(),
   core_hooks: z.array(z.string()).min(1, "Must generate at least one hook"),
@@ -175,8 +208,14 @@ export const HookStrategistNode = async (state: NewsThreadFactoryStateType, conf
   try {
     const guidanceContext = state.guidance ? `\n\n<ADDITIONAL_GUIDANCE>\n${state.guidance}\n</ADDITIONAL_GUIDANCE>` : "";
     const researchContext = state.research_context ? `\n\n<RESEARCH_CONTEXT>\n${state.research_context}\n</RESEARCH_CONTEXT>` : "";
+    const anglesContext = state.discovery_angles && state.discovery_angles.length > 0
+      ? `\n\n<DISCOVERY_ANGLES>\n${JSON.stringify(state.discovery_angles, null, 2)}\n</DISCOVERY_ANGLES>`
+      : "";
+    const deltaContext = state.core_delta
+      ? `\n\n<CORE_DELTA>\n${state.core_delta}\n</CORE_DELTA>`
+      : "";
     result = await invokeWithFallbacks(newsHookStrategistAgents, {
-      messages: [{ role: "user", content: `<SOURCE>\n${state.raw_markdown}\n</SOURCE>${researchContext}${guidanceContext}` }]
+      messages: [{ role: "user", content: `<SOURCE>\n${state.raw_markdown}\n</SOURCE>${researchContext}${anglesContext}${deltaContext}${guidanceContext}` }]
     }, { ...config, timeout: 45000 });
     parse_success = true;
   } catch (_e) {
@@ -190,8 +229,9 @@ export const HookStrategistNode = async (state: NewsThreadFactoryStateType, conf
   if (parse_success && result?.structuredResponse) {
     core_hooks = result.structuredResponse.core_hooks || [];
     selected_hook = result.structuredResponse.selected_hook || "";
-    core_delta = result.structuredResponse.core_delta;
+    core_delta = result.structuredResponse.core_delta || state.core_delta;
   } else {
+    core_delta = state.core_delta;
     parse_success = false;
   }
 
@@ -222,6 +262,9 @@ export const ThreadWriterNode = async (state: NewsThreadFactoryStateType, config
   const deltaContext = state.core_delta
     ? `\n\n<CORE_DELTA>\n${state.core_delta}\n</CORE_DELTA>`
     : "";
+  const discoveryContext = state.discovery_angles && state.discovery_angles.length > 0
+    ? `\n\n<DISCOVERY_ANGLES>\n${JSON.stringify(state.discovery_angles, null, 2)}\nUse the forensic reality, economic tensions, and primary proof sources from these angles to ground the narrative and cite concrete evidence in the thread body.\n</DISCOVERY_ANGLES>`
+    : "";
 
   // Surgical mode detection (Pillar 1: Surgical Post Pinning)
   const formattingFlagged = parseFlaggedPostIndicesFromErrors(state.character_critique);
@@ -243,7 +286,7 @@ export const ThreadWriterNode = async (state: NewsThreadFactoryStateType, config
       threadWriterModelCandidates,
       [
         { role: "system", content: NEWS_WRITER_PROMPT },
-        { role: "user", content: `<HOOK>\n${state.selected_hook}\n</HOOK>\n\n<SOURCE>\n${state.raw_markdown}\n</SOURCE>${researchContext}${deltaContext}${previousDraftContext}${critiqueContext}${postCritiquesContext}${pinnedPostsContext}${charCritiqueContext}${guidanceContext}` }
+        { role: "user", content: `<HOOK>\n${state.selected_hook}\n</HOOK>\n\n<SOURCE>\n${state.raw_markdown}\n</SOURCE>${researchContext}${discoveryContext}${deltaContext}${previousDraftContext}${critiqueContext}${postCritiquesContext}${pinnedPostsContext}${charCritiqueContext}${guidanceContext}` }
       ],
       { ...config, timeout: 180000 }
     );
@@ -301,7 +344,10 @@ const newsViralityCriticAgents = buildAgents<z.infer<typeof newsCriticSchema>>(
   {
     tools: [ContentAuthenticityCheckerTool],
     systemPrompt: NEWS_CRITIC_PROMPT,
-    responseFormat: toolStrategy(newsCriticSchema)
+    responseFormat: {
+      google: toolStrategy(newsCriticSchema),
+      deepseek: providerStrategy(newsCriticSchema),
+    }
   }
 );
 
@@ -309,7 +355,10 @@ const newsDifferentialCriticAgents = buildAgents<z.infer<typeof differentialCrit
   criticModelCandidates,
   {
     systemPrompt: NEWS_DIFFERENTIAL_CRITIC_PROMPT,
-    responseFormat: toolStrategy(differentialCriticSchema)
+    responseFormat: {
+      google: toolStrategy(differentialCriticSchema),
+      deepseek: providerStrategy(differentialCriticSchema),
+    }
   }
 );
 

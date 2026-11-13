@@ -43,6 +43,7 @@ import {
   processDifferentialEvaluation,
 } from "../utils.js";
 import { extractSelectedHook } from "../nodes.js";
+import { DiscoveryAgentGraph } from "../discovery/graph.js";
 
 const topicResearchOrchestratorSchema = z.object({
   research_dossier: z.string().min(1, "Must generate research dossier"),
@@ -180,6 +181,36 @@ export const DeepPageScraperNode = async (state: TopicThreadFactoryStateType, co
   };
 };
 
+export const TopicDiscoveryNode = async (state: TopicThreadFactoryStateType, config?: RunnableConfig) => {
+  try {
+    const topic = (state.topic || "").trim() || "Technology Topic";
+    console.log(`[TopicDiscoveryNode] Running Deep Discovery Subgraph for topic: "${topic}"...`);
+    const discoveryResult = await DiscoveryAgentGraph.invoke(
+      {
+        topic,
+        description: state.description,
+        guidance: state.guidance,
+      },
+      { signal: config?.signal }
+    );
+
+    console.log(`[TopicDiscoveryNode] Deep Discovery completed with ${discoveryResult.discovery_angles?.length || 0} angles.`);
+    return {
+      discovery_angles: discoveryResult.discovery_angles,
+      core_delta: discoveryResult.core_delta,
+      research_dossier: discoveryResult.research_dossier,
+      parse_success: true,
+      retries: { ...(state.retries || {}), orchestrator: 0 },
+    };
+  } catch (err) {
+    console.warn("[TopicDiscoveryNode] Discovery subgraph error:", err);
+    return {
+      parse_success: false,
+      retries: { ...(state.retries || {}), orchestrator: (state.retries?.orchestrator || 0) + 1 },
+    };
+  }
+};
+
 const topicHookStrategistSchema = z.object({
   core_delta: z.string().optional(),
   core_hooks: z.array(z.string()).min(1, "Must generate at least one hook"),
@@ -200,11 +231,17 @@ export const HookStrategistNode = async (state: TopicThreadFactoryStateType, con
 
   try {
     const guidanceContext = state.guidance ? `\n\n<ADDITIONAL_GUIDANCE>\n${state.guidance}\n</ADDITIONAL_GUIDANCE>` : "";
+    const anglesContext = state.discovery_angles && state.discovery_angles.length > 0
+      ? `\n\n<DISCOVERY_ANGLES>\n${JSON.stringify(state.discovery_angles, null, 2)}\n</DISCOVERY_ANGLES>`
+      : "";
+    const deltaContext = state.core_delta
+      ? `\n\n<CORE_DELTA>\n${state.core_delta}\n</CORE_DELTA>`
+      : "";
     result = await invokeWithFallbacks(
       topicHookStrategistModels,
       [
         { role: "system", content: TOPIC_HOOK_STRATEGIST_PROMPT },
-        { role: "user", content: `<DOSSIER>\n${state.research_dossier}\n</DOSSIER>${guidanceContext}` }
+        { role: "user", content: `<DOSSIER>\n${state.research_dossier}\n</DOSSIER>${anglesContext}${deltaContext}${guidanceContext}` }
       ],
       { ...config, timeout: 45000 }
     );
@@ -216,7 +253,7 @@ export const HookStrategistNode = async (state: TopicThreadFactoryStateType, con
   return {
     core_hooks: parse_success && result ? result.core_hooks : [],
     selected_hook: parse_success && result ? result.selected_hook : "",
-    core_delta: parse_success && result ? result.core_delta : undefined,
+    core_delta: parse_success && result ? (result.core_delta || state.core_delta) : state.core_delta,
     parse_success,
     retries: { ...(state.retries || {}), hook: (state.retries?.hook || 0) + 1 }
   };
@@ -238,6 +275,9 @@ export const ThreadWriterNode = async (state: TopicThreadFactoryStateType, confi
   const guidanceContext = state.guidance ? `\n\n<ADDITIONAL_GUIDANCE>\n${state.guidance}\n</ADDITIONAL_GUIDANCE>` : "";
   const deltaContext = state.core_delta
     ? `\n\n<CORE_DELTA>\n${state.core_delta}\n</CORE_DELTA>`
+    : "";
+  const discoveryContext = state.discovery_angles && state.discovery_angles.length > 0
+    ? `\n\n<DISCOVERY_ANGLES>\n${JSON.stringify(state.discovery_angles, null, 2)}\nUse the forensic reality, economic tensions, and primary proof sources from these angles to ground the narrative and cite concrete evidence in the thread body.\n</DISCOVERY_ANGLES>`
     : "";
 
   // Surgical mode detection (Pillar 1: Surgical Post Pinning)
@@ -261,7 +301,7 @@ export const ThreadWriterNode = async (state: TopicThreadFactoryStateType, confi
       threadWriterModelCandidates,
       [
         { role: "system", content: TOPIC_THREAD_WRITER_PROMPT },
-        { role: "user", content: `<HOOK>\n${state.selected_hook}\n</HOOK>\n<DOSSIER>\n${state.research_dossier}\n</DOSSIER>${deltaContext}${previousDraftContext}${critiqueContext}${postCritiquesContext}${pinnedPostsContext}${charCritiqueContext}${guidanceContext}` }
+        { role: "user", content: `<HOOK>\n${state.selected_hook}\n</HOOK>\n<DOSSIER>\n${state.research_dossier}\n</DOSSIER>${discoveryContext}${deltaContext}${previousDraftContext}${critiqueContext}${postCritiquesContext}${pinnedPostsContext}${charCritiqueContext}${guidanceContext}` }
       ],
       { ...config, timeout: 180000 }
     );
@@ -301,7 +341,10 @@ const topicViralityCriticAgents = buildAgents<z.infer<typeof topicViralityCritic
   {
     tools: [ContentAuthenticityCheckerTool],
     systemPrompt: TOPIC_VIRALITY_CRITIC_PROMPT,
-    responseFormat: toolStrategy(topicViralityCriticSchema)
+    responseFormat: {
+      google: toolStrategy(topicViralityCriticSchema),
+      deepseek: providerStrategy(topicViralityCriticSchema),
+    }
   }
 );
 
@@ -309,7 +352,10 @@ const topicDifferentialCriticAgents = buildAgents<z.infer<typeof differentialCri
   criticModelCandidates,
   {
     systemPrompt: TOPIC_DIFFERENTIAL_CRITIC_PROMPT,
-    responseFormat: toolStrategy(differentialCriticSchema)
+    responseFormat: {
+      google: toolStrategy(differentialCriticSchema),
+      deepseek: providerStrategy(differentialCriticSchema),
+    }
   }
 );
 

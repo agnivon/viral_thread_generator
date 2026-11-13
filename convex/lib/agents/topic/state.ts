@@ -3,6 +3,7 @@ import { StateSchema } from "@langchain/langgraph";
 import { z } from "zod";
 import { SearchQueriesSchema } from "../nodes.js";
 import { InfographicSpecSchema } from "../../infographics/schema.js";
+import { DiscoveryAngleSchema } from "../discovery/state.js";
 
 export const TopicThreadFactoryState = new StateSchema({
   topic: z.string(),
@@ -59,6 +60,8 @@ export const TopicThreadFactoryState = new StateSchema({
   search_queries: SearchQueriesSchema.optional(),
   search_query_generation: z.boolean().default(false),
   infographic_generation: z.boolean().default(false),
+  discovery_agent: z.boolean().default(false),
+  discovery_angles: z.array(DiscoveryAngleSchema).optional(),
   infographic_spec: InfographicSpecSchema.optional(),
   infographic_url: z.string().optional(),
 });

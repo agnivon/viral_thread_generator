@@ -393,6 +393,60 @@ test("FallbackChatModel - works with toolStrategy structured outputs", async () 
   });
 });
 
+test("buildAgents - partitions candidates into provider-specific agents when ProviderResponseFormat is passed", async () => {
+  const { buildAgents, FallbackChatModel } = await import("../../lib/agents/utils");
+  const { toolStrategy, providerStrategy } = await import("langchain");
+  const { BaseChatModel } = await import("@langchain/core/language_models/chat_models");
+  const { attachModelIdentity } = await import("../../lib/agents/circuitBreaker");
+  const { z } = await import("zod");
+
+  const schema = z.object({
+    score: z.number(),
+    notes: z.string()
+  });
+
+  class DummyModel extends BaseChatModel {
+    _llmType(): string { return "dummy"; }
+    bindTools(): this { return this; }
+    async _generate(): Promise<ChatResult> { throw new Error("Unused"); }
+    override async invoke(): Promise<AIMessageChunk> {
+      return new AIMessageChunk({ content: "{}" });
+    }
+  }
+
+  const g1 = attachModelIdentity(new DummyModel({}), { provider: "google", keyGroup: "G1", modelId: "gemini-1" });
+  const g2 = attachModelIdentity(new DummyModel({}), { provider: "google", keyGroup: "G2", modelId: "gemini-2" });
+  const d1 = attachModelIdentity(new DummyModel({}), { provider: "deepseek", keyGroup: "D1", modelId: "deepseek-1" });
+  const d2 = attachModelIdentity(new DummyModel({}), { provider: "deepseek", keyGroup: "D2", modelId: "deepseek-2" });
+  const g3 = attachModelIdentity(new DummyModel({}), { provider: "google", keyGroup: "G3", modelId: "gemini-3" });
+
+  const agents = buildAgents(
+    [g1, g2, d1, d2, g3],
+    {
+      systemPrompt: "Audit prompt",
+      responseFormat: {
+        google: toolStrategy(schema),
+        deepseek: providerStrategy(schema)
+      }
+    }
+  );
+
+  // Expect 3 partitioned agents: Group 1 (g1, g2), Group 2 (d1, d2), Group 3 (g3)
+  expect(agents).toHaveLength(3);
+
+  const group1 = agents[0] as unknown as { fallbackModel: InstanceType<typeof FallbackChatModel> };
+  expect(group1.fallbackModel).toBeInstanceOf(FallbackChatModel);
+  expect(group1.fallbackModel.candidates).toHaveLength(2);
+
+  const group2 = agents[1] as unknown as { fallbackModel: InstanceType<typeof FallbackChatModel> };
+  expect(group2.fallbackModel).toBeInstanceOf(FallbackChatModel);
+  expect(group2.fallbackModel.candidates).toHaveLength(2);
+
+  const group3 = agents[2] as unknown as { fallbackModel: InstanceType<typeof FallbackChatModel> };
+  expect(group3.fallbackModel).toBeInstanceOf(FallbackChatModel);
+  expect(group3.fallbackModel.candidates).toHaveLength(1);
+});
+
 test("FallbackChatModel - throws when instantiated with empty candidates", () => {
   expect(() => new FallbackChatModel([])).toThrow("FallbackChatModel requires at least one candidate model.");
 });

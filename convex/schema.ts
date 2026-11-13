@@ -141,11 +141,21 @@ const TopicInput = v.object({
 
 export const threadDraftInputValidator = v.union(NewsInput, SocialMediaInput, TopicInput);
 
+export const discoveryAngleValidator = v.object({
+  vector: v.string(),
+  surface_narrative: v.string(),
+  forensic_reality: v.string(),
+  core_tension: v.string(),
+  primary_proof_sources: v.array(v.string()),
+});
+
 export const commonThreadDraftArgs = {
   guidance: v.optional(v.string()),
   manual_hook_selection: v.optional(v.boolean()),
   search_query_generation: v.optional(v.boolean()),
   infographic_generation: v.optional(v.boolean()),
+  discovery_agent: v.optional(v.boolean()),
+  core_delta: v.optional(v.string()),
 };
 
 export default defineSchema(
@@ -220,6 +230,8 @@ export default defineSchema(
       infographic_generation: v.optional(v.boolean()),
       infographic_spec: v.optional(infographicSpecValidator),
       infographic_url: v.optional(v.string()),
+      discovery_angles: v.optional(v.array(discoveryAngleValidator)),
+      core_delta: v.optional(v.string()),
       generation_status: generationStatusValidator,
       failure_reason: v.optional(v.string()),
       publication_status: v.optional(publicationStatusValidator),

@@ -6,6 +6,7 @@ import { InfographicGeneratorNode } from "../../infographics/nodes.js";
 import { checkpointSaver } from "../checkpointer.js";
 import { TopicThreadFactoryState, TopicThreadFactoryStateType } from "./state.js";
 import { 
+  TopicDiscoveryNode,
   ResearchOrchestratorNode,
   DeepPageScraperNode,
   HookStrategistNode,
@@ -14,6 +15,23 @@ import {
   TopicCharacterValidatorNode,
   ManualHookSelectionNode
 } from "./nodes.js";
+
+const route_initial_topic_step = (state: TopicThreadFactoryStateType) => {
+  if (state.discovery_agent) {
+    return "TopicDiscoveryNode";
+  }
+  return "ResearchOrchestratorNode";
+};
+
+const route_after_topic_discovery = (state: TopicThreadFactoryStateType) => {
+  if (!state.parse_success) {
+    if ((state.retries?.orchestrator || 0) >= 3) {
+      return "HookStrategistNode";
+    }
+    return "TopicDiscoveryNode";
+  }
+  return "HookStrategistNode";
+};
 
 const route_after_orchestrator = (state: TopicThreadFactoryStateType) => {
   if (!state.parse_success) {
@@ -53,6 +71,7 @@ export const route_after_critic = createRouteAfterCritic("ViralityCriticNode");
 
 export const TopicThreadFactoryGraph = new StateGraph(TopicThreadFactoryState)
   .setNodeDefaults({ timeout: { idleTimeout: 2_00_000 } })
+  .addNode("TopicDiscoveryNode", TopicDiscoveryNode)
   .addNode("ResearchOrchestratorNode", ResearchOrchestratorNode)
   .addNode("DeepPageScraperNode", DeepPageScraperNode)
   .addNode("HookStrategistNode", HookStrategistNode)
@@ -62,7 +81,8 @@ export const TopicThreadFactoryGraph = new StateGraph(TopicThreadFactoryState)
   .addNode("ViralityCriticNode", ViralityCriticNode)
   .addNode("VisualKeywordStrategistNode", VisualKeywordStrategistNode)
   .addNode("InfographicGeneratorNode", InfographicGeneratorNode)
-  .addEdge(START, "ResearchOrchestratorNode")
+  .addConditionalEdges(START, route_initial_topic_step, ["TopicDiscoveryNode", "ResearchOrchestratorNode"])
+  .addConditionalEdges("TopicDiscoveryNode", route_after_topic_discovery, ["HookStrategistNode", "TopicDiscoveryNode"])
   .addConditionalEdges("ResearchOrchestratorNode", route_after_orchestrator, ["DeepPageScraperNode", "HookStrategistNode", "ResearchOrchestratorNode"])
   .addConditionalEdges("DeepPageScraperNode", route_after_scraper, ["HookStrategistNode", "DeepPageScraperNode"])
   .addConditionalEdges("HookStrategistNode", route_after_hook, ["ThreadWriterNode", "HookStrategistNode", "ManualHookSelectionNode"])

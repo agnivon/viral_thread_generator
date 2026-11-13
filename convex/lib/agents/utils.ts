@@ -23,10 +23,18 @@ export interface AgentResponse<T = Record<string, unknown>> {
   [key: string]: unknown;
 }
 
+export interface ProviderResponseFormat {
+  google?: unknown;
+  deepseek?: unknown;
+  openai?: unknown;
+  default?: unknown;
+  [key: string]: unknown;
+}
+
 export interface AgentConfig {
   tools?: Parameters<typeof createAgent>[0]["tools"];
   systemPrompt: string;
-  responseFormat?: unknown;
+  responseFormat?: ProviderResponseFormat | Parameters<typeof createAgent>[0]["responseFormat"];
 }
 
 export type AgentCandidate =
@@ -402,11 +410,24 @@ export class FallbackChatModel extends BaseChatModel {
   }
 }
 
+export function isProviderResponseFormat(rf: unknown): rf is ProviderResponseFormat {
+  return (
+    typeof rf === "object" &&
+    rf !== null &&
+    !Array.isArray(rf) &&
+    !("schema" in rf) &&
+    ("google" in rf || "deepseek" in rf || "default" in rf)
+  );
+}
+
 /**
  * Builds a resilient agent configured with a FallbackChatModel,
  * preserving any custom per-model timeout overrides and ModelIdentity metadata.
  * Executes model fallbacks within the single agent graph so intermediate tool executions,
  * web searches, and message history are never lost if a model fails during multi-turn loops.
+ * When provided with a ProviderResponseFormat (e.g. { google: toolStrategy(s), deepseek: providerStrategy(s) }),
+ * candidates are partitioned into provider-specific FallbackChatModel agent groups so each provider uses
+ * its optimal structured output mechanism (e.g. toolStrategy for Gemini thinking, providerStrategy for DeepSeek thinking).
  * @param models Array of Chat models or model objects with custom timeouts.
  * @param config The shared tools, prompt, and response schema.
  */
@@ -415,6 +436,68 @@ export function buildAgents<T extends Record<string, unknown> = Record<string, u
   config: AgentConfig
 ): FallbackCandidate<unknown, AgentResponse<T>>[] {
   if (models.length === 0) return [];
+
+  if (isProviderResponseFormat(config.responseFormat)) {
+    const providerConfig = config.responseFormat;
+
+    const getCandidateProvider = (candidate: AgentCandidate): string => {
+      const identity = getModelIdentity(candidate);
+      if (identity?.provider) return identity.provider;
+      const model = "runnable" in candidate ? candidate.runnable : candidate;
+      const modelObj = model as unknown as Record<string, unknown>;
+      const rawName = modelObj.name ?? modelObj.modelName ?? modelObj.model ?? "";
+      const name = typeof rawName === "string" ? rawName.toLowerCase() : "";
+      if (name.includes("deepseek")) return "deepseek";
+      if (name.includes("gemini") || name.includes("google")) return "google";
+      if (name.includes("gpt") || name.includes("openai")) return "openai";
+      return "default";
+    };
+
+    const groups: { candidates: AgentCandidate[]; format: unknown }[] = [];
+    let currentGroup: { candidates: AgentCandidate[]; format: unknown } | null = null;
+
+    for (const candidate of models) {
+      const provider = getCandidateProvider(candidate);
+      const format = providerConfig[provider] ?? providerConfig.default;
+
+      if (!currentGroup || currentGroup.format !== format) {
+        currentGroup = { candidates: [candidate], format };
+        groups.push(currentGroup);
+      } else {
+        currentGroup.candidates.push(candidate);
+      }
+    }
+
+    return groups.map((group) => {
+      const fallbackModel = new FallbackChatModel(group.candidates);
+
+      const agent = group.format !== undefined
+        ? createAgent({
+            model: fallbackModel,
+            tools: config.tools || [],
+            systemPrompt: config.systemPrompt,
+            responseFormat: group.format as never,
+          })
+        : createAgent({
+            model: fallbackModel,
+            tools: config.tools || [],
+            systemPrompt: config.systemPrompt,
+          });
+
+      Object.defineProperty(agent, "fallbackModel", {
+        value: fallbackModel,
+        enumerable: false,
+        configurable: true,
+      });
+
+      const firstIdentity = getModelIdentity(group.candidates[0]);
+      if (firstIdentity) {
+        attachModelIdentity(agent, firstIdentity);
+      }
+
+      return agent as unknown as FallbackCandidate<unknown, AgentResponse<T>>;
+    });
+  }
 
   const fallbackModel = new FallbackChatModel(models);
 

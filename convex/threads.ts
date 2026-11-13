@@ -9,6 +9,7 @@ import {
   generationStatusValidator,
   publicationStatusValidator,
   infographicSpecValidator,
+  discoveryAngleValidator,
 } from "./schema";
 
 /**
@@ -94,6 +95,8 @@ export const initializeThreadDraft = internalMutation({
       manual_hook_selection: args.manual_hook_selection,
       search_query_generation: args.search_query_generation,
       infographic_generation: args.infographic_generation ?? args.search_query_generation,
+      discovery_agent: args.discovery_agent,
+      core_delta: args.core_delta,
       agent: args.agent || "news",
       is_approved: false,
       is_published: false,
@@ -170,6 +173,7 @@ export const updateThreadDraft = internalMutation({
     ),
     infographic_spec: v.optional(infographicSpecValidator),
     infographic_url: v.optional(v.string()),
+    discovery_angles: v.optional(v.array(discoveryAngleValidator)),
   },
   handler: async (ctx, args) => {
     const { id, failure_reason, publication_error, ...updates } = args;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
 import { useAction } from "convex/react";
 import { useMutation } from "@tanstack/react-query";
 import { api } from "@/convex/_generated/api";
@@ -216,7 +216,7 @@ function ThreadEntryCard({
           </p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-1">
           {/* Choose Hooks Manually Checkbox */}
           <div className="flex items-start space-x-3 bg-muted/10 p-3 rounded-lg border border-border/30 hover:border-violet-500/30 transition-colors">
             <Controller
@@ -273,6 +273,33 @@ function ThreadEntryCard({
               </p>
             </div>
           </div>
+
+          {/* Deep Discovery Agent Checkbox */}
+          <div className="flex items-start space-x-3 bg-muted/10 p-3 rounded-lg border border-border/30 hover:border-violet-500/30 transition-colors">
+            <Controller
+              control={control}
+              name={`entries.${index}.discovery_agent`}
+              render={({ field }) => (
+                <Checkbox
+                  id={`discovery-agent-${index}`}
+                  checked={field.value}
+                  onCheckedChange={field.onChange}
+                  disabled={isLoading}
+                />
+              )}
+            />
+            <div className="grid gap-1.5 leading-none">
+              <Label
+                htmlFor={`discovery-agent-${index}`}
+                className="text-sm font-semibold leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-75 cursor-pointer text-foreground"
+              >
+                Deep Discovery Agent
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                Unearth non-obvious angles via forensic lenses (BOM paradoxes, production stagecraft, supply chain arbitrage, engineering trade-offs, and regulatory mandates).
+              </p>
+            </div>
+          </div>
         </div>
       </CardContent>
     </Card>
@@ -286,6 +313,8 @@ function CreateThreadForm() {
   const urlUrl = searchParams.get("url") || searchParams.get("sourceUrl") || "";
   const urlGuidance = searchParams.get("guidance") || "";
   const rawAgent = searchParams.get("agent");
+  const rawDiscoveryAgent = searchParams.get("discovery_agent");
+  const urlDiscoveryAgent = rawDiscoveryAgent === "true";
   const urlAgent: "news" | "social_media" | "topic" =
     rawAgent === "news" || rawAgent === "social_media" || rawAgent === "topic"
       ? rawAgent
@@ -312,6 +341,7 @@ function CreateThreadForm() {
           agent: urlAgent,
           manual_hook_selection: false,
           search_query_generation: false,
+          discovery_agent: urlDiscoveryAgent,
         }),
       ],
     },
@@ -328,6 +358,7 @@ function CreateThreadForm() {
   const router = useRouter();
 
   const [error, setError] = useState<string | null>(null);
+  const hasInitializedRef = useRef(false);
 
   const createMutation = useMutation({
     mutationFn: async (payload: {
@@ -339,6 +370,7 @@ function CreateThreadForm() {
         manual_hook_selection?: boolean;
         search_query_generation?: boolean;
         infographic_generation?: boolean;
+        discovery_agent?: boolean;
       }>;
     }) => {
       return await enqueueThreadGeneration(payload);
@@ -356,7 +388,9 @@ function CreateThreadForm() {
   const isLoading = createMutation.isPending;
 
   useEffect(() => {
+    if (hasInitializedRef.current) return;
     if (urlTopic || urlUrl) {
+      hasInitializedRef.current = true;
       reset({
         entries: [
           createDefaultEntry({
@@ -367,11 +401,12 @@ function CreateThreadForm() {
             agent: urlAgent,
             manual_hook_selection: false,
             search_query_generation: false,
+            discovery_agent: urlDiscoveryAgent,
           }),
         ],
       });
     }
-  }, [urlTopic, urlUrl, urlDescription, urlGuidance, urlAgent, reset]);
+  }, [urlTopic, urlUrl, urlDescription, urlGuidance, urlAgent, urlDiscoveryAgent, reset]);
 
   // Automatically resolve Google News redirect URLs to canonical publisher links if passed in query params
   useEffect(() => {
@@ -418,6 +453,7 @@ function CreateThreadForm() {
         manual_hook_selection: Boolean(entry.manual_hook_selection),
         search_query_generation: Boolean(entry.search_query_generation || entry.infographic_generation),
         infographic_generation: Boolean(entry.infographic_generation ?? entry.search_query_generation),
+        discovery_agent: Boolean(entry.discovery_agent),
       };
     });
 

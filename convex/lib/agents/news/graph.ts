@@ -5,7 +5,16 @@ import { VisualKeywordStrategistNode } from "../nodes.js";
 import { InfographicGeneratorNode } from "../../infographics/nodes.js";
 import { pool, checkpointSaver } from "../checkpointer.js";
 import { NewsThreadFactoryState, NewsThreadFactoryStateType } from "./state.js";
-import { ScraperNode, ContextResearcherNode, HookStrategistNode, ThreadWriterNode, CharacterValidatorNode, ViralityCriticNode, ManualHookSelectionNode } from "./nodes.js";
+import { 
+  ScraperNode, 
+  NewsDiscoveryNode,
+  ContextResearcherNode, 
+  HookStrategistNode, 
+  ThreadWriterNode, 
+  CharacterValidatorNode, 
+  ViralityCriticNode, 
+  ManualHookSelectionNode 
+} from "./nodes.js";
 
 export { pool, checkpointSaver };
 
@@ -14,7 +23,18 @@ const route_after_scraper = (state: NewsThreadFactoryStateType) => {
     if ((state.retries?.scraper || 0) >= 3) throw new Error("ScraperNode failed after 3 retries");
     return "ScraperNode";
   }
+  if (state.discovery_agent) {
+    return "NewsDiscoveryNode";
+  }
   return "ContextResearcherNode";
+};
+
+const route_after_discovery = (state: NewsThreadFactoryStateType) => {
+  if (!state.parse_success) {
+    if ((state.retries?.researcher || 0) >= 3) return "HookStrategistNode";
+    return "NewsDiscoveryNode";
+  }
+  return "HookStrategistNode";
 };
 
 const route_after_researcher = (state: NewsThreadFactoryStateType) => {
@@ -46,6 +66,7 @@ export const route_after_critic = createRouteAfterCritic("ViralityCriticNode");
 export const NewsThreadFactoryGraph = new StateGraph(NewsThreadFactoryState)
   .setNodeDefaults({ timeout: { idleTimeout: 2_00_000 } })
   .addNode("ScraperNode", ScraperNode)
+  .addNode("NewsDiscoveryNode", NewsDiscoveryNode)
   .addNode("ContextResearcherNode", ContextResearcherNode)
   .addNode("HookStrategistNode", HookStrategistNode)
   .addNode("ManualHookSelectionNode", ManualHookSelectionNode)
@@ -55,7 +76,8 @@ export const NewsThreadFactoryGraph = new StateGraph(NewsThreadFactoryState)
   .addNode("VisualKeywordStrategistNode", VisualKeywordStrategistNode)
   .addNode("InfographicGeneratorNode", InfographicGeneratorNode)
   .addEdge(START, "ScraperNode")
-  .addConditionalEdges("ScraperNode", route_after_scraper, ["ContextResearcherNode", "ScraperNode"])
+  .addConditionalEdges("ScraperNode", route_after_scraper, ["ContextResearcherNode", "NewsDiscoveryNode", "ScraperNode"])
+  .addConditionalEdges("NewsDiscoveryNode", route_after_discovery, ["HookStrategistNode", "NewsDiscoveryNode"])
   .addConditionalEdges("ContextResearcherNode", route_after_researcher, ["HookStrategistNode", "ContextResearcherNode"])
   .addConditionalEdges("HookStrategistNode", route_after_hook, ["ThreadWriterNode", "HookStrategistNode", "ManualHookSelectionNode"])
   .addEdge("ManualHookSelectionNode", "ThreadWriterNode")

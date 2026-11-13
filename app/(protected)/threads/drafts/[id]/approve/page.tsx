@@ -172,6 +172,7 @@ export default function ApproveDraftPage() {
       manual_hook_selection?: boolean;
       search_query_generation?: boolean;
       infographic_generation?: boolean;
+      discovery_agent?: boolean;
     }) => {
       return await enqueueRegeneration(payload);
     },
@@ -644,7 +645,7 @@ export default function ApproveDraftPage() {
                 <div className="shrink-0">
                   <ResearchDossierDialog
                     researchContext={state.research_context}
-                    triggerText="Dossier"
+                    triggerText={state.discovery_agent ? "Forensic Angles" : "Dossier"}
                     className="h-9 px-3 text-xs w-auto shadow-xs"
                   />
                 </div>
@@ -892,7 +893,10 @@ export default function ApproveDraftPage() {
             {(state.research_context || state.infographic_url || state.infographic_spec || state.search_queries) && (
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-1 gap-2.5">
                 {state.research_context && (
-                  <ResearchDossierDialog researchContext={state.research_context} />
+                  <ResearchDossierDialog
+                    researchContext={state.research_context}
+                    triggerText={state.discovery_agent ? "View Forensic Dossier" : "View Research Dossier"}
+                  />
                 )}
                 {(state.infographic_url || state.infographic_spec || state.search_queries) && (
                   <InfographicDialog
@@ -916,15 +920,17 @@ export default function ApproveDraftPage() {
         initialManualHookSelection={state?.manual_hook_selection || false}
         initialSearchQueryGeneration={state?.search_query_generation || false}
         initialInfographicGeneration={Boolean(state?.infographic_generation ?? state?.search_query_generation ?? false)}
+        initialDiscoveryAgent={state?.discovery_agent ?? false}
         isRegenerating={isRegenerating}
         onClose={() => setIsDialogOpen(false)}
-        onRegenerate={(guidance, manualHook, infographicGen) => {
+        onRegenerate={(guidance, manualHook, infographicGen, discoveryAgent) => {
           regenerateMutation.mutate({
             ids: [id],
             guidance: guidance.trim() || undefined,
             manual_hook_selection: manualHook,
             search_query_generation: infographicGen,
             infographic_generation: infographicGen,
+            discovery_agent: discoveryAgent,
           });
         }}
       />

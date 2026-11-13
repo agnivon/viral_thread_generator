@@ -103,6 +103,8 @@ test("generateNewsThread action runs graph and saves result", async () => {
     infographic_generation: false,
     infographic_spec: undefined,
     infographic_url: undefined,
+    discovery_agent: false,
+    discovery_angles: undefined,
     research_context: "",
     best_thread_draft: undefined,
     best_virality_score: 90,
@@ -128,6 +130,7 @@ test("generateNewsThread action runs graph and saves result", async () => {
     manual_hook_selection: true,
     search_query_generation: false,
     infographic_generation: false,
+    discovery_agent: false,
     iterations: 0,
     is_approved: false,
   }, { configurable: { thread_id: recordId } });
@@ -205,6 +208,8 @@ test("resumeNewsThreadGeneration action resumes graph and saves result", async (
     infographic_generation: false,
     infographic_spec: undefined,
     infographic_url: undefined,
+    discovery_agent: false,
+    discovery_angles: undefined,
     research_context: "",
     best_thread_draft: undefined,
     best_virality_score: 95,
@@ -1180,6 +1185,8 @@ test("iterateThreadInternal updates state on ManualHookSelectionNode and execute
     infographic_generation: false,
     infographic_spec: undefined,
     infographic_url: undefined,
+    discovery_agent: false,
+    discovery_angles: undefined,
     research_context: "",
     best_thread_draft: undefined,
     best_virality_score: 92,
@@ -1278,6 +1285,8 @@ test("handleGraphCompletion restores best_thread_draft and synchronizes approval
     infographic_generation: false,
     infographic_spec: undefined,
     infographic_url: undefined,
+    discovery_agent: false,
+    discovery_angles: undefined,
     research_context: "",
     audit_history: [
       { iteration: 1, virality_score: 91, post_critiques: [] },
@@ -1350,6 +1359,8 @@ test("handleGraphCompletion filters out resolved critiques when restoring unappr
     infographic_generation: false,
     infographic_spec: undefined,
     infographic_url: undefined,
+    discovery_agent: false,
+    discovery_angles: undefined,
     research_context: "",
     audit_history: [
       {
@@ -1436,6 +1447,43 @@ test("enqueueThreadGeneration initializes draft in queued state and passes threa
   expect(draft).toBeDefined();
   expect(draft?.generation_status).toBe("queued");
   expect(draft?.manual_hook_selection).toBe(true);
+});
+
+test("enqueueThreadGeneration propagates discovery_agent to initialized draft and queued actionArgs", async () => {
+  const t = convexTest(schema, modules);
+  const userId = await t.mutation(async (ctx) => {
+    return await ctx.db.insert("users", {});
+  });
+
+  const enqueueSpy = vi.spyOn(generationPool, "enqueueAction").mockResolvedValueOnce(
+    "work-init-disc" as unknown as Awaited<ReturnType<typeof generationPool.enqueueAction>>
+  );
+
+  const tUser = t.withIdentity({ subject: userId });
+  await tUser.action(api.actions.threads.enqueueThreadGeneration, {
+    requests: [
+      {
+        input_field: { agent: "topic", topic: "Apple Vision Pro" },
+        guidance: "Investigate margins",
+        discovery_agent: true,
+      },
+    ],
+  });
+
+  expect(enqueueSpy).toHaveBeenCalledTimes(1);
+  const [, , actionArgs] = enqueueSpy.mock.calls[0];
+
+  expect(actionArgs).toMatchObject({
+    userId,
+    agent: "topic",
+    discovery_agent: true,
+  });
+
+  const draft = await t.query(internal.threads.getThreadDraftInternal, {
+    id: actionArgs.recordId as Id<"threadDrafts">,
+    userId,
+  });
+  expect(draft?.discovery_agent).toBe(true);
 });
 
 test("markStuckDraftsAsFailed and cleanupStuckDrafts transition stale processing drafts to failed", async () => {
@@ -1573,6 +1621,8 @@ test("handleGraphCompletion re-renders infographic PNG when infographic_spec upd
     infographic_generation: true,
     infographic_spec: updatedSpec,
     infographic_url: oldUrl,
+    discovery_agent: false,
+    discovery_angles: undefined,
     research_context: "",
     best_thread_draft: undefined,
     best_virality_score: 93,

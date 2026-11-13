@@ -34,6 +34,7 @@ export interface InitialStateArgs {
   manual_hook_selection?: boolean;
   search_query_generation?: boolean;
   infographic_generation?: boolean;
+  discovery_agent?: boolean;
 }
 
 function createInitialState(args: InitialStateArgs) {
@@ -43,6 +44,7 @@ function createInitialState(args: InitialStateArgs) {
     manual_hook_selection: args.manual_hook_selection ?? false,
     search_query_generation: args.search_query_generation ?? false,
     infographic_generation,
+    discovery_agent: args.discovery_agent ?? false,
     iterations: 0,
     is_approved: false,
   };
@@ -214,6 +216,9 @@ async function handleGraphCompletion(
     infographic_generation: finalState.infographic_generation ?? finalState.search_query_generation,
     infographic_spec: validatedInfographicSpec,
     infographic_url: generatedInfographicUrl,
+    discovery_agent: finalState.discovery_agent,
+    discovery_angles: finalState.discovery_angles,
+    core_delta: finalState.core_delta,
     research_context: finalState.research_context,
     generation_status,
     failure_reason,
@@ -265,6 +270,7 @@ async function restartGraphFromScratch(
     manual_hook_selection?: boolean;
     search_query_generation?: boolean;
     infographic_generation?: boolean;
+    discovery_agent?: boolean;
   },
   agentOverride?: string
 ): Promise<Record<string, unknown>> {
@@ -288,6 +294,7 @@ async function restartGraphFromScratch(
     manual_hook_selection: overrides?.manual_hook_selection ?? draft.manual_hook_selection,
     search_query_generation: overrides?.search_query_generation ?? draft.search_query_generation,
     infographic_generation: overrides?.infographic_generation ?? overrides?.search_query_generation ?? draft.infographic_generation ?? draft.search_query_generation,
+    discovery_agent: overrides?.discovery_agent ?? draft.discovery_agent,
   });
 
   return await graph.invoke(initialState, config);
@@ -316,6 +323,7 @@ async function enqueueThreadGenerationHelper(
           manual_hook_selection: req.manual_hook_selection,
           search_query_generation: req.search_query_generation,
           infographic_generation,
+          discovery_agent: req.discovery_agent,
           userId,
           agent: req.input_field.agent,
           generation_status: "queued",
@@ -332,6 +340,7 @@ async function enqueueThreadGenerationHelper(
           manual_hook_selection: req.manual_hook_selection,
           search_query_generation: req.search_query_generation,
           infographic_generation,
+          discovery_agent: req.discovery_agent,
           userId,
           agent: req.input_field.agent,
         },
@@ -433,6 +442,7 @@ export const generateThreadInternal = internalAction({
             manual_hook_selection: args.manual_hook_selection,
             search_query_generation: args.search_query_generation,
             infographic_generation: args.infographic_generation ?? args.search_query_generation,
+            discovery_agent: args.discovery_agent,
             userId: args.userId,
             agent: args.agent,
             generation_status: "processing",
@@ -443,6 +453,7 @@ export const generateThreadInternal = internalAction({
           id: recordId,
           generation_status: "processing",
           failure_reason: null,
+          discovery_agent: args.discovery_agent,
         });
       }
 
@@ -452,13 +463,14 @@ export const generateThreadInternal = internalAction({
 
       const agent = args.agent || args.input_field.agent || "news";
       return await runGraphWithLifecycle(ctx, recordId, agent, async (graph) => {
-        console.log(`[generateThreadInternal] Invoking ${agent} graph from scratch for ${recordId}...`);
+        console.log(`[generateThreadInternal] Invoking ${agent} graph from scratch for ${recordId}... discovery_agent: ${args.discovery_agent}`);
         const initialState = createInitialState({
           input_field: args.input_field,
           guidance: args.guidance,
           manual_hook_selection: args.manual_hook_selection,
           search_query_generation: args.search_query_generation,
           infographic_generation: args.infographic_generation ?? args.search_query_generation,
+          discovery_agent: args.discovery_agent,
         });
         return await graph.invoke(initialState, { configurable: { thread_id: recordId } });
       });
@@ -569,6 +581,7 @@ export const regenerateThreadInternal = internalAction({
       manual_hook_selection: args.manual_hook_selection,
       search_query_generation: args.search_query_generation,
       infographic_generation: args.infographic_generation ?? args.search_query_generation,
+      discovery_agent: args.discovery_agent,
     });
 
     const agent = args.agent || draft.agent || draft.input_field.agent || "news";
@@ -584,7 +597,10 @@ export const regenerateThreadInternal = internalAction({
         }
       }
 
-      if (pastStateBeforeHook) {
+      const previousDiscovery = pastStateBeforeHook?.values?.discovery_agent;
+      const discoveryChanged = args.discovery_agent !== undefined && args.discovery_agent !== previousDiscovery;
+
+      if (pastStateBeforeHook && !discoveryChanged) {
         console.log(`[regenerateThreadInternal] Found past state at iterations=${pastStateBeforeHook.values.iterations}. Forking...`);
         const forkConfig = {
           configurable: {
@@ -602,11 +618,12 @@ export const regenerateThreadInternal = internalAction({
         } else if (args.search_query_generation !== undefined) {
           stateUpdate.infographic_generation = args.search_query_generation;
         }
+        if (args.discovery_agent !== undefined) stateUpdate.discovery_agent = args.discovery_agent;
 
         return await graph.invoke(stateUpdate, forkConfig);
       }
 
-      console.log(`[regenerateThreadInternal] Could not find past state before HookStrategistNode. Restarting from scratch...`);
+      console.log(`[regenerateThreadInternal] ${discoveryChanged ? "discovery_agent changed" : "Could not find past state before HookStrategistNode"}. Restarting from scratch...`);
       return await restartGraphFromScratch(ctx, args.recordId, args.userId, args, agent);
     });
   },
@@ -676,6 +693,9 @@ export const iterateThreadInternal = internalAction({
         infographic_generation: draft.infographic_generation ?? draft.search_query_generation ?? false,
         infographic_spec: draft.infographic_spec,
         infographic_url: draft.infographic_url,
+        discovery_agent: draft.discovery_agent ?? false,
+        discovery_angles: draft.discovery_angles,
+        core_delta: draft.core_delta,
         virality_score: draft.virality_score,
         best_thread_draft: hasManualEdits ? args.modified_thread : (draft.best_thread_draft || draft.thread_draft),
         best_virality_score: hasManualEdits ? undefined : (draft.best_virality_score ?? draft.virality_score),
@@ -792,6 +812,7 @@ export const enqueueThreadRegeneration = action({
         const infographic_generation = args.infographic_generation !== undefined
           ? args.infographic_generation
           : (draft.infographic_generation ?? draft.search_query_generation);
+        const discovery_agent = args.discovery_agent !== undefined ? args.discovery_agent : draft.discovery_agent;
 
         // Optimistically set the status to "queued" so the UI immediately reflects it as queued
         await ctx.runMutation(internal.threads.updateThreadDraft, {
@@ -807,6 +828,7 @@ export const enqueueThreadRegeneration = action({
             manual_hook_selection,
             search_query_generation,
             infographic_generation,
+            discovery_agent,
             userId,
             recordId: id,
             agent: draft.agent,

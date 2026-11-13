@@ -7,6 +7,7 @@ import { checkpointSaver } from "../checkpointer.js";
 import { SocialMediaThreadFactoryState, SocialMediaThreadFactoryStateType } from "./state.js";
 import { 
   PostScraperNode, 
+  SocialMediaDiscoveryNode,
   ContextResearcherNode,
   HookStrategistNode, 
   ThreadWriterNode, 
@@ -20,7 +21,18 @@ const route_after_scraper = (state: SocialMediaThreadFactoryStateType) => {
     if ((state.retries?.scraper || 0) >= 3) throw new Error("PostScraperNode failed after 3 retries");
     return "PostScraperNode";
   }
+  if (state.discovery_agent) {
+    return "SocialMediaDiscoveryNode";
+  }
   return "ContextResearcherNode";
+};
+
+const route_after_discovery = (state: SocialMediaThreadFactoryStateType) => {
+  if (!state.parse_success) {
+    if ((state.retries?.researcher || 0) >= 3) return "HookStrategistNode";
+    return "SocialMediaDiscoveryNode";
+  }
+  return "HookStrategistNode";
 };
 
 const route_after_researcher = (state: SocialMediaThreadFactoryStateType) => {
@@ -51,6 +63,7 @@ export const route_after_critic = createRouteAfterCritic("ViralityCriticNode");
 export const SocialMediaThreadFactoryGraph = new StateGraph(SocialMediaThreadFactoryState)
   .setNodeDefaults({ timeout: { idleTimeout: 2_00_000 } })
   .addNode("PostScraperNode", PostScraperNode)
+  .addNode("SocialMediaDiscoveryNode", SocialMediaDiscoveryNode)
   .addNode("ContextResearcherNode", ContextResearcherNode)
   .addNode("HookStrategistNode", HookStrategistNode)
   .addNode("ManualHookSelectionNode", ManualHookSelectionNode)
@@ -60,7 +73,8 @@ export const SocialMediaThreadFactoryGraph = new StateGraph(SocialMediaThreadFac
   .addNode("VisualKeywordStrategistNode", VisualKeywordStrategistNode)
   .addNode("InfographicGeneratorNode", InfographicGeneratorNode)
   .addEdge(START, "PostScraperNode")
-  .addConditionalEdges("PostScraperNode", route_after_scraper, ["ContextResearcherNode", "PostScraperNode"])
+  .addConditionalEdges("PostScraperNode", route_after_scraper, ["ContextResearcherNode", "SocialMediaDiscoveryNode", "PostScraperNode"])
+  .addConditionalEdges("SocialMediaDiscoveryNode", route_after_discovery, ["HookStrategistNode", "SocialMediaDiscoveryNode"])
   .addConditionalEdges("ContextResearcherNode", route_after_researcher, ["HookStrategistNode", "ContextResearcherNode"])
   .addConditionalEdges("HookStrategistNode", route_after_hook, ["ThreadWriterNode", "HookStrategistNode", "ManualHookSelectionNode"])
   .addEdge("ManualHookSelectionNode", "ThreadWriterNode")

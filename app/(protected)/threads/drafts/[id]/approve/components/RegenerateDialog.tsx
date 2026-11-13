@@ -10,9 +10,15 @@ interface RegenerateDialogProps {
   initialManualHookSelection: boolean;
   initialSearchQueryGeneration?: boolean;
   initialInfographicGeneration?: boolean;
+  initialDiscoveryAgent?: boolean;
   isRegenerating: boolean;
   onClose: () => void;
-  onRegenerate: (guidance: string, manualHookSelection: boolean, infographicGeneration: boolean) => void;
+  onRegenerate: (
+    guidance: string,
+    manualHookSelection: boolean,
+    infographicGeneration: boolean,
+    discoveryAgent: boolean
+  ) => void;
 }
 
 export function RegenerateDialog({
@@ -21,6 +27,7 @@ export function RegenerateDialog({
   initialManualHookSelection,
   initialSearchQueryGeneration,
   initialInfographicGeneration,
+  initialDiscoveryAgent,
   isRegenerating,
   onClose,
   onRegenerate,
@@ -29,19 +36,28 @@ export function RegenerateDialog({
   const [guidance, setGuidance] = useState(initialGuidance);
   const [manualHookSelection, setManualHookSelection] = useState(initialManualHookSelection);
   const [infographicGeneration, setInfographicGeneration] = useState(effectiveInitialInfographic);
+  const [discoveryAgent, setDiscoveryAgent] = useState(initialDiscoveryAgent ?? false);
 
   useEffect(() => {
     if (isOpen) {
       setGuidance(initialGuidance);
       setManualHookSelection(initialManualHookSelection);
       setInfographicGeneration(initialInfographicGeneration ?? initialSearchQueryGeneration ?? false);
+      setDiscoveryAgent(initialDiscoveryAgent ?? false);
     }
-  }, [isOpen, initialGuidance, initialManualHookSelection, initialSearchQueryGeneration, initialInfographicGeneration]);
+  }, [
+    isOpen,
+    initialGuidance,
+    initialManualHookSelection,
+    initialSearchQueryGeneration,
+    initialInfographicGeneration,
+    initialDiscoveryAgent,
+  ]);
 
   if (!isOpen) return null;
 
   const handleSubmit = () => {
-    onRegenerate(guidance, manualHookSelection, infographicGeneration);
+    onRegenerate(guidance, manualHookSelection, infographicGeneration, discoveryAgent);
   };
 
   return (
@@ -109,6 +125,27 @@ export function RegenerateDialog({
               </Label>
               <p className="text-xs text-muted-foreground">
                 Design and generate a high-authority data infographic card (FT / Bloomberg style) for this thread.
+              </p>
+            </div>
+          </div>
+
+          {/* Deep Discovery Agent Checkbox */}
+          <div className="flex items-start space-x-3 pt-2 bg-muted/10 p-3.5 rounded-xl border border-border/30">
+            <Checkbox
+              id="discovery-agent-regenerate"
+              checked={discoveryAgent}
+              onCheckedChange={(checked) => setDiscoveryAgent(!!checked)}
+              disabled={isRegenerating}
+            />
+            <div className="grid gap-1.5 leading-none">
+              <Label
+                htmlFor="discovery-agent-regenerate"
+                className="text-sm font-semibold leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-75 cursor-pointer text-foreground"
+              >
+                Deep Discovery Agent
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                Hunt for non-obvious angles using 5 structural forensic lenses (BOM paradox, stagecraft, supply chain, thermals/trade-offs, regulations).
               </p>
             </div>
           </div>

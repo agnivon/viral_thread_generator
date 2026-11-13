@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
-import { Sparkles, Loader2 } from "lucide-react";
+import { Sparkles, Loader2, SlidersHorizontal, BarChart3, Radar } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { cn } from "@/lib/utils";
 
 interface RegenerateDialogProps {
   isOpen: boolean;
@@ -87,68 +87,158 @@ export function RegenerateDialog({
             />
           </div>
 
-          {/* Choose Hooks Manually Checkbox */}
-          <div className="flex items-start space-x-3 pt-2 bg-muted/10 p-3.5 rounded-xl border border-border/30">
-            <Checkbox
-              id="manual-hook-regenerate"
-              checked={manualHookSelection}
-              onCheckedChange={(checked) => setManualHookSelection(!!checked)}
-              disabled={isRegenerating}
-            />
-            <div className="grid gap-1.5 leading-none">
-              <Label
-                htmlFor="manual-hook-regenerate"
-                className="text-sm font-semibold leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-75 cursor-pointer text-foreground"
-              >
+          {/* Choose Hooks Manually Toggle Card */}
+          <label
+            htmlFor="manual-hook-regenerate"
+            className={cn(
+              "group relative flex flex-col justify-between p-3.5 rounded-xl border transition-all duration-200 cursor-pointer select-none",
+              manualHookSelection
+                ? "bg-violet-500/[0.08] dark:bg-violet-950/25 border-violet-500/60 shadow-xs shadow-violet-500/10 ring-1 ring-violet-500/30"
+                : "bg-muted/10 border-border/40 hover:border-violet-500/30 hover:bg-muted/20",
+              isRegenerating && "opacity-60 cursor-not-allowed"
+            )}
+          >
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <div className="flex items-center gap-2">
+                <div
+                  className={cn(
+                    "flex items-center justify-center size-8 rounded-lg transition-colors",
+                    manualHookSelection
+                      ? "bg-violet-500/20 text-violet-600 dark:text-violet-400"
+                      : "bg-muted text-muted-foreground group-hover:text-foreground"
+                  )}
+                >
+                  <SlidersHorizontal className="size-4" />
+                </div>
+                <span
+                  className={cn(
+                    "text-[10px] font-medium uppercase tracking-wider px-1.5 py-0.5 rounded-md transition-colors",
+                    manualHookSelection
+                      ? "bg-violet-500/15 text-violet-600 dark:text-violet-300 font-semibold"
+                      : "bg-muted/60 text-muted-foreground/75"
+                  )}
+                >
+                  Interactive
+                </span>
+              </div>
+              <Switch
+                id="manual-hook-regenerate"
+                checked={manualHookSelection}
+                onCheckedChange={(checked) => setManualHookSelection(Boolean(checked))}
+                disabled={isRegenerating}
+              />
+            </div>
+            <div className="space-y-0.5">
+              <span className="text-sm font-semibold text-foreground group-hover:text-violet-500 dark:group-hover:text-violet-400 transition-colors block">
                 Choose hooks manually
-              </Label>
-              <p className="text-xs text-muted-foreground">
+              </span>
+              <p className="text-xs text-muted-foreground leading-relaxed">
                 Pause the generation pipeline to choose and edit your hook before generating the full thread.
               </p>
             </div>
-          </div>
+          </label>
 
-          {/* Auto-generate Editorial Infographics Checkbox */}
-          <div className="flex items-start space-x-3 pt-2 bg-muted/10 p-3.5 rounded-xl border border-border/30">
-            <Checkbox
-              id="infographic-gen-regenerate"
-              checked={infographicGeneration}
-              onCheckedChange={(checked) => setInfographicGeneration(!!checked)}
-              disabled={isRegenerating}
-            />
-            <div className="grid gap-1.5 leading-none">
-              <Label
-                htmlFor="infographic-gen-regenerate"
-                className="text-sm font-semibold leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-75 cursor-pointer text-foreground"
-              >
+          {/* Auto-generate Editorial Infographics Toggle Card */}
+          <label
+            htmlFor="infographic-gen-regenerate"
+            className={cn(
+              "group relative flex flex-col justify-between p-3.5 rounded-xl border transition-all duration-200 cursor-pointer select-none",
+              infographicGeneration
+                ? "bg-violet-500/[0.08] dark:bg-violet-950/25 border-violet-500/60 shadow-xs shadow-violet-500/10 ring-1 ring-violet-500/30"
+                : "bg-muted/10 border-border/40 hover:border-violet-500/30 hover:bg-muted/20",
+              isRegenerating && "opacity-60 cursor-not-allowed"
+            )}
+          >
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <div className="flex items-center gap-2">
+                <div
+                  className={cn(
+                    "flex items-center justify-center size-8 rounded-lg transition-colors",
+                    infographicGeneration
+                      ? "bg-violet-500/20 text-violet-600 dark:text-violet-400"
+                      : "bg-muted text-muted-foreground group-hover:text-foreground"
+                  )}
+                >
+                  <BarChart3 className="size-4" />
+                </div>
+                <span
+                  className={cn(
+                    "text-[10px] font-medium uppercase tracking-wider px-1.5 py-0.5 rounded-md transition-colors",
+                    infographicGeneration
+                      ? "bg-violet-500/15 text-violet-600 dark:text-violet-300 font-semibold"
+                      : "bg-muted/60 text-muted-foreground/75"
+                  )}
+                >
+                  Visual Card
+                </span>
+              </div>
+              <Switch
+                id="infographic-gen-regenerate"
+                checked={infographicGeneration}
+                onCheckedChange={(checked) => setInfographicGeneration(Boolean(checked))}
+                disabled={isRegenerating}
+              />
+            </div>
+            <div className="space-y-0.5">
+              <span className="text-sm font-semibold text-foreground group-hover:text-violet-500 dark:group-hover:text-violet-400 transition-colors block">
                 Generate Editorial Infographic
-              </Label>
-              <p className="text-xs text-muted-foreground">
+              </span>
+              <p className="text-xs text-muted-foreground leading-relaxed">
                 Design and generate a high-authority data infographic card (FT / Bloomberg style) for this thread.
               </p>
             </div>
-          </div>
+          </label>
 
-          {/* Deep Discovery Agent Checkbox */}
-          <div className="flex items-start space-x-3 pt-2 bg-muted/10 p-3.5 rounded-xl border border-border/30">
-            <Checkbox
-              id="discovery-agent-regenerate"
-              checked={discoveryAgent}
-              onCheckedChange={(checked) => setDiscoveryAgent(!!checked)}
-              disabled={isRegenerating}
-            />
-            <div className="grid gap-1.5 leading-none">
-              <Label
-                htmlFor="discovery-agent-regenerate"
-                className="text-sm font-semibold leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-75 cursor-pointer text-foreground"
-              >
+          {/* Deep Discovery Agent Toggle Card */}
+          <label
+            htmlFor="discovery-agent-regenerate"
+            className={cn(
+              "group relative flex flex-col justify-between p-3.5 rounded-xl border transition-all duration-200 cursor-pointer select-none",
+              discoveryAgent
+                ? "bg-violet-500/[0.08] dark:bg-violet-950/25 border-violet-500/60 shadow-xs shadow-violet-500/10 ring-1 ring-violet-500/30"
+                : "bg-muted/10 border-border/40 hover:border-violet-500/30 hover:bg-muted/20",
+              isRegenerating && "opacity-60 cursor-not-allowed"
+            )}
+          >
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <div className="flex items-center gap-2">
+                <div
+                  className={cn(
+                    "flex items-center justify-center size-8 rounded-lg transition-colors",
+                    discoveryAgent
+                      ? "bg-violet-500/20 text-violet-600 dark:text-violet-400"
+                      : "bg-muted text-muted-foreground group-hover:text-foreground"
+                  )}
+                >
+                  <Radar className="size-4" />
+                </div>
+                <span
+                  className={cn(
+                    "text-[10px] font-medium uppercase tracking-wider px-1.5 py-0.5 rounded-md transition-colors",
+                    discoveryAgent
+                      ? "bg-violet-500/15 text-violet-600 dark:text-violet-300 font-semibold"
+                      : "bg-muted/60 text-muted-foreground/75"
+                  )}
+                >
+                  Forensic Lens
+                </span>
+              </div>
+              <Switch
+                id="discovery-agent-regenerate"
+                checked={discoveryAgent}
+                onCheckedChange={(checked) => setDiscoveryAgent(Boolean(checked))}
+                disabled={isRegenerating}
+              />
+            </div>
+            <div className="space-y-0.5">
+              <span className="text-sm font-semibold text-foreground group-hover:text-violet-500 dark:group-hover:text-violet-400 transition-colors block">
                 Deep Discovery Agent
-              </Label>
-              <p className="text-xs text-muted-foreground">
+              </span>
+              <p className="text-xs text-muted-foreground leading-relaxed">
                 Hunt for non-obvious angles using 5 structural forensic lenses (BOM paradox, stagecraft, supply chain, thermals/trade-offs, regulations).
               </p>
             </div>
-          </div>
+          </label>
         </div>
 
         <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2.5 sm:gap-3 pt-2">

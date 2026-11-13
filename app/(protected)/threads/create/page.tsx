@@ -10,8 +10,9 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Trash2, Loader2, Sparkles, Link as LinkIcon, HelpCircle, TrendingUp } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Plus, Trash2, Loader2, Sparkles, Link as LinkIcon, HelpCircle, TrendingUp, SlidersHorizontal, BarChart3, Radar } from "lucide-react";
+import { cn } from "@/lib/utils";
 import {
   Card,
   CardContent,
@@ -216,90 +217,210 @@ function ThreadEntryCard({
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-1">
-          {/* Choose Hooks Manually Checkbox */}
-          <div className="flex items-start space-x-3 bg-muted/10 p-3 rounded-lg border border-border/30 hover:border-violet-500/30 transition-colors">
-            <Controller
-              control={control}
-              name={`entries.${index}.manual_hook_selection`}
-              render={({ field }) => (
-                <Checkbox
-                  id={`manual-hook-${index}`}
-                  checked={field.value}
-                  onCheckedChange={field.onChange}
-                  disabled={isLoading}
-                />
-              )}
-            />
-            <div className="grid gap-1.5 leading-none">
-              <Label
-                htmlFor={`manual-hook-${index}`}
-                className="text-sm font-semibold leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-75 cursor-pointer text-foreground"
-              >
-                Choose hooks manually
-              </Label>
-              <p className="text-xs text-muted-foreground">
-                Pause the pipeline to choose and edit your hook.
-              </p>
-            </div>
-          </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-1 items-stretch">
+          {/* Choose Hooks Manually Feature Card */}
+          <Controller
+            control={control}
+            name={`entries.${index}.manual_hook_selection`}
+            render={({ field }) => {
+              const isChecked = Boolean(field.value);
+              return (
+                <label
+                  htmlFor={`manual-hook-${index}`}
+                  className={cn(
+                    "group relative flex flex-col justify-between p-3.5 rounded-xl border transition-all duration-200 cursor-pointer select-none",
+                    isChecked
+                      ? "bg-violet-500/[0.08] dark:bg-violet-950/25 border-violet-500/60 shadow-xs shadow-violet-500/10 ring-1 ring-violet-500/30"
+                      : "bg-muted/10 border-border/40 hover:border-violet-500/30 hover:bg-muted/20",
+                    isLoading && "opacity-60 cursor-not-allowed"
+                  )}
+                >
+                  <div className="flex flex-col h-full justify-between">
+                    <div>
+                      {/* Top Bar: Icon + Badge + Switch */}
+                      <div className="flex items-center justify-between gap-2 mb-2.5">
+                        <div className="flex items-center gap-2">
+                          <div
+                            className={cn(
+                              "flex items-center justify-center size-8 rounded-lg transition-colors",
+                              isChecked
+                                ? "bg-violet-500/20 text-violet-600 dark:text-violet-400"
+                                : "bg-muted text-muted-foreground group-hover:text-foreground"
+                            )}
+                          >
+                            <SlidersHorizontal className="size-4" />
+                          </div>
+                          <span
+                            className={cn(
+                              "text-[10px] font-medium uppercase tracking-wider px-1.5 py-0.5 rounded-md transition-colors",
+                              isChecked
+                                ? "bg-violet-500/15 text-violet-600 dark:text-violet-300 font-semibold"
+                                : "bg-muted/60 text-muted-foreground/75"
+                            )}
+                          >
+                            Interactive
+                          </span>
+                        </div>
+                        <Switch
+                          id={`manual-hook-${index}`}
+                          checked={isChecked}
+                          onCheckedChange={field.onChange}
+                          disabled={isLoading}
+                        />
+                      </div>
 
-          {/* Generate Editorial Infographic Checkbox */}
-          <div className="flex items-start space-x-3 bg-muted/10 p-3 rounded-lg border border-border/30 hover:border-violet-500/30 transition-colors">
-            <Controller
-              control={control}
-              name={`entries.${index}.infographic_generation`}
-              render={({ field }) => (
-                <Checkbox
-                  id={`infographic-gen-${index}`}
-                  checked={field.value}
-                  onCheckedChange={(checked) => {
-                    field.onChange(checked);
-                    setValue(`entries.${index}.search_query_generation`, Boolean(checked));
-                  }}
-                  disabled={isLoading}
-                />
-              )}
-            />
-            <div className="grid gap-1.5 leading-none">
-              <Label
-                htmlFor={`infographic-gen-${index}`}
-                className="text-sm font-semibold leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-75 cursor-pointer text-foreground"
-              >
-                Generate Editorial Infographic
-              </Label>
-              <p className="text-xs text-muted-foreground">
-                Design and generate a high-authority data infographic card (FT / Bloomberg style) for this thread.
-              </p>
-            </div>
-          </div>
+                      {/* Title & Description */}
+                      <div className="space-y-1">
+                        <span className="text-sm font-semibold text-foreground group-hover:text-violet-500 dark:group-hover:text-violet-400 transition-colors block">
+                          Choose hooks manually
+                        </span>
+                        <p className="text-xs text-muted-foreground leading-relaxed">
+                          Pause the pipeline to inspect and select your preferred hook before generating.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </label>
+              );
+            }}
+          />
 
-          {/* Deep Discovery Agent Checkbox */}
-          <div className="flex items-start space-x-3 bg-muted/10 p-3 rounded-lg border border-border/30 hover:border-violet-500/30 transition-colors">
-            <Controller
-              control={control}
-              name={`entries.${index}.discovery_agent`}
-              render={({ field }) => (
-                <Checkbox
-                  id={`discovery-agent-${index}`}
-                  checked={field.value}
-                  onCheckedChange={field.onChange}
-                  disabled={isLoading}
-                />
-              )}
-            />
-            <div className="grid gap-1.5 leading-none">
-              <Label
-                htmlFor={`discovery-agent-${index}`}
-                className="text-sm font-semibold leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-75 cursor-pointer text-foreground"
-              >
-                Deep Discovery Agent
-              </Label>
-              <p className="text-xs text-muted-foreground">
-                Unearth non-obvious angles via forensic lenses (BOM paradoxes, production stagecraft, supply chain arbitrage, engineering trade-offs, and regulatory mandates).
-              </p>
-            </div>
-          </div>
+          {/* Generate Editorial Infographic Feature Card */}
+          <Controller
+            control={control}
+            name={`entries.${index}.infographic_generation`}
+            render={({ field }) => {
+              const isChecked = Boolean(field.value);
+              return (
+                <label
+                  htmlFor={`infographic-gen-${index}`}
+                  className={cn(
+                    "group relative flex flex-col justify-between p-3.5 rounded-xl border transition-all duration-200 cursor-pointer select-none",
+                    isChecked
+                      ? "bg-violet-500/[0.08] dark:bg-violet-950/25 border-violet-500/60 shadow-xs shadow-violet-500/10 ring-1 ring-violet-500/30"
+                      : "bg-muted/10 border-border/40 hover:border-violet-500/30 hover:bg-muted/20",
+                    isLoading && "opacity-60 cursor-not-allowed"
+                  )}
+                >
+                  <div className="flex flex-col h-full justify-between">
+                    <div>
+                      {/* Top Bar: Icon + Badge + Switch */}
+                      <div className="flex items-center justify-between gap-2 mb-2.5">
+                        <div className="flex items-center gap-2">
+                          <div
+                            className={cn(
+                              "flex items-center justify-center size-8 rounded-lg transition-colors",
+                              isChecked
+                                ? "bg-violet-500/20 text-violet-600 dark:text-violet-400"
+                                : "bg-muted text-muted-foreground group-hover:text-foreground"
+                            )}
+                          >
+                            <BarChart3 className="size-4" />
+                          </div>
+                          <span
+                            className={cn(
+                              "text-[10px] font-medium uppercase tracking-wider px-1.5 py-0.5 rounded-md transition-colors",
+                              isChecked
+                                ? "bg-violet-500/15 text-violet-600 dark:text-violet-300 font-semibold"
+                                : "bg-muted/60 text-muted-foreground/75"
+                            )}
+                          >
+                            Visual Card
+                          </span>
+                        </div>
+                        <Switch
+                          id={`infographic-gen-${index}`}
+                          checked={isChecked}
+                          onCheckedChange={(checked) => {
+                            field.onChange(checked);
+                            setValue(`entries.${index}.search_query_generation`, Boolean(checked));
+                          }}
+                          disabled={isLoading}
+                        />
+                      </div>
+
+                      {/* Title & Description */}
+                      <div className="space-y-1">
+                        <span className="text-sm font-semibold text-foreground group-hover:text-violet-500 dark:group-hover:text-violet-400 transition-colors block">
+                          Generate Editorial Infographic
+                        </span>
+                        <p className="text-xs text-muted-foreground leading-relaxed">
+                          Design and render a high-authority data infographic card (FT / Bloomberg style).
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </label>
+              );
+            }}
+          />
+
+          {/* Deep Discovery Agent Feature Card */}
+          <Controller
+            control={control}
+            name={`entries.${index}.discovery_agent`}
+            render={({ field }) => {
+              const isChecked = Boolean(field.value);
+              return (
+                <label
+                  htmlFor={`discovery-agent-${index}`}
+                  className={cn(
+                    "group relative flex flex-col justify-between p-3.5 rounded-xl border transition-all duration-200 cursor-pointer select-none",
+                    isChecked
+                      ? "bg-violet-500/[0.08] dark:bg-violet-950/25 border-violet-500/60 shadow-xs shadow-violet-500/10 ring-1 ring-violet-500/30"
+                      : "bg-muted/10 border-border/40 hover:border-violet-500/30 hover:bg-muted/20",
+                    isLoading && "opacity-60 cursor-not-allowed"
+                  )}
+                >
+                  <div className="flex flex-col h-full justify-between">
+                    <div>
+                      {/* Top Bar: Icon + Badge + Switch */}
+                      <div className="flex items-center justify-between gap-2 mb-2.5">
+                        <div className="flex items-center gap-2">
+                          <div
+                            className={cn(
+                              "flex items-center justify-center size-8 rounded-lg transition-colors",
+                              isChecked
+                                ? "bg-violet-500/20 text-violet-600 dark:text-violet-400"
+                                : "bg-muted text-muted-foreground group-hover:text-foreground"
+                            )}
+                          >
+                            <Radar className="size-4" />
+                          </div>
+                          <span
+                            className={cn(
+                              "text-[10px] font-medium uppercase tracking-wider px-1.5 py-0.5 rounded-md transition-colors",
+                              isChecked
+                                ? "bg-violet-500/15 text-violet-600 dark:text-violet-300 font-semibold"
+                                : "bg-muted/60 text-muted-foreground/75"
+                            )}
+                          >
+                            Forensic Lens
+                          </span>
+                        </div>
+                        <Switch
+                          id={`discovery-agent-${index}`}
+                          checked={isChecked}
+                          onCheckedChange={field.onChange}
+                          disabled={isLoading}
+                        />
+                      </div>
+
+                      {/* Title & Description */}
+                      <div className="space-y-1">
+                        <span className="text-sm font-semibold text-foreground group-hover:text-violet-500 dark:group-hover:text-violet-400 transition-colors block">
+                          Deep Discovery Agent
+                        </span>
+                        <p className="text-xs text-muted-foreground leading-relaxed">
+                          Unearth non-obvious angles via BOM paradoxes, supply chain arbitrage, and regulatory mandates.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </label>
+              );
+            }}
+          />
         </div>
       </CardContent>
     </Card>

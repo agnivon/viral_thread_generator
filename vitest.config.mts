@@ -15,10 +15,11 @@ process.env.OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || "mock-openrou
 export default defineConfig({
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "."),
+      "@": path.resolve(import.meta.dirname, "."),
     },
   },
   test: {
     environment: "edge-runtime",
+    testTimeout: 15000,
   },
 });

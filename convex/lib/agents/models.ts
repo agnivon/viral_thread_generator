@@ -62,6 +62,8 @@ export const openRouterFreeT08 = attachModelIdentity(
 );
 
 // ThreadWriterNode Models
+export const googleGemini4HydrogenT08Key1 = createGoogleModel("gemini-4-hydrogen", 0.8, "GOOGLE_API_KEY", { thinkingLevel: "high" });
+export const googleGemini4HydrogenT08Key2 = createGoogleModel("gemini-4-hydrogen", 0.8, "GOOGLE_API_KEY2", { thinkingLevel: "high" });
 export const googleGemini38FlashT08Key1 = createGoogleModel("gemini-3.8-flash", 0.8, "GOOGLE_API_KEY", { thinkingLevel: "high" });
 export const googleGemini38FlashT08Key2 = createGoogleModel("gemini-3.8-flash", 0.8, "GOOGLE_API_KEY2", { thinkingLevel: "high" });
 export const googleGemini36FlashT08Key1 = createGoogleModel("gemini-3.6-flash", 0.8, "GOOGLE_API_KEY", { thinkingLevel: "high" });
@@ -78,6 +80,8 @@ export const threadWriterSchema = z.object({
 });
 
 export const threadWriterModelCandidates = [
+  googleGemini4HydrogenT08Key1.withStructuredOutput(threadWriterSchema, { name: "thread_writer", method: "functionCalling" }),
+  withTimeout(googleGemini4HydrogenT08Key2.withStructuredOutput(threadWriterSchema, { name: "thread_writer", method: "functionCalling" }), 45000),
   googleGemini38FlashT08Key1.withStructuredOutput(threadWriterSchema, { name: "thread_writer", method: "functionCalling" }),
   withTimeout(googleGemini38FlashT08Key2.withStructuredOutput(threadWriterSchema, { name: "thread_writer", method: "functionCalling" }), 45000),
   googleGemini36FlashT08Key1.withStructuredOutput(threadWriterSchema, { name: "thread_writer", method: "functionCalling" }),
@@ -89,6 +93,8 @@ export const threadWriterModelCandidates = [
 ];
 
 // ViralityCriticNode Models
+export const googleGemini4HydrogenT00Key1 = createGoogleModel("gemini-4-hydrogen", 0.0, "GOOGLE_API_KEY", { thinkingLevel: "high" });
+export const googleGemini4HydrogenT00Key2 = createGoogleModel("gemini-4-hydrogen", 0.0, "GOOGLE_API_KEY2", { thinkingLevel: "high" });
 export const googleGemini38FlashT00Key1 = createGoogleModel("gemini-3.8-flash", 0.0, "GOOGLE_API_KEY", { thinkingLevel: "high" });
 export const googleGemini38FlashT00Key2 = createGoogleModel("gemini-3.8-flash", 0.0, "GOOGLE_API_KEY2", { thinkingLevel: "high" });
 export const googleGemini36FlashT00Key1 = createGoogleModel("gemini-3.6-flash", 0.0, "GOOGLE_API_KEY", { thinkingLevel: "high" });
@@ -102,6 +108,8 @@ export const googleGemini3FlashPreviewT00Key2 = createGoogleModel("gemini-3-flas
 
 // Unified Fallback Candidate Chain for Virality & Differential Critics
 export const criticModelCandidates = [
+  googleGemini4HydrogenT00Key1,
+  withTimeout(googleGemini4HydrogenT00Key2, 45000),
   googleGemini38FlashT00Key1,
   withTimeout(googleGemini38FlashT00Key2, 45000),
   googleGemini36FlashT00Key1,

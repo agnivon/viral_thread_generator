@@ -189,6 +189,61 @@ test("DeepSeek models use deepseek-flash identifier and aliases match", async ()
   expect(deepSeekV4ProT00ReasoningHigh).toBe(deepSeekFlashT00ReasoningHigh);
 });
 
+test("Gemini 4 Hydrogen models are configured with correct identities and primary placement", async () => {
+  const {
+    googleGemini4HydrogenT08Key1,
+    googleGemini4HydrogenT08Key2,
+    googleGemini4HydrogenT00Key1,
+    googleGemini4HydrogenT00Key2,
+    threadWriterModelCandidates,
+    criticModelCandidates,
+  } = await import("../../lib/agents/models");
+  const { getModelIdentity } = await import("../../lib/agents/circuitBreaker");
+
+  expect(getModelIdentity(googleGemini4HydrogenT08Key1)).toEqual({
+    provider: "google",
+    keyGroup: "GOOGLE_API_KEY",
+    modelId: "gemini-4-hydrogen",
+  });
+  expect(getModelIdentity(googleGemini4HydrogenT08Key2)).toEqual({
+    provider: "google",
+    keyGroup: "GOOGLE_API_KEY2",
+    modelId: "gemini-4-hydrogen",
+  });
+  expect(getModelIdentity(googleGemini4HydrogenT00Key1)).toEqual({
+    provider: "google",
+    keyGroup: "GOOGLE_API_KEY",
+    modelId: "gemini-4-hydrogen",
+  });
+  expect(getModelIdentity(googleGemini4HydrogenT00Key2)).toEqual({
+    provider: "google",
+    keyGroup: "GOOGLE_API_KEY2",
+    modelId: "gemini-4-hydrogen",
+  });
+
+  // Verify primary position and secondary key fallback in candidate chains
+  expect(getModelIdentity(threadWriterModelCandidates[0])).toEqual({
+    provider: "google",
+    keyGroup: "GOOGLE_API_KEY",
+    modelId: "gemini-4-hydrogen",
+  });
+  expect(getModelIdentity(threadWriterModelCandidates[1])).toEqual({
+    provider: "google",
+    keyGroup: "GOOGLE_API_KEY2",
+    modelId: "gemini-4-hydrogen",
+  });
+  expect(getModelIdentity(criticModelCandidates[0])).toEqual({
+    provider: "google",
+    keyGroup: "GOOGLE_API_KEY",
+    modelId: "gemini-4-hydrogen",
+  });
+  expect(getModelIdentity(criticModelCandidates[1])).toEqual({
+    provider: "google",
+    keyGroup: "GOOGLE_API_KEY2",
+    modelId: "gemini-4-hydrogen",
+  });
+});
+
 test("News ViralityCriticNode - extracts and preserves fix_directive in post_critiques", async () => {
   const { ViralityCriticNode } = await import("../../lib/agents/news/nodes");
 

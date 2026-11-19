@@ -52,7 +52,9 @@ Add your new model into the candidate array in `convex/lib/agents/models.ts` or 
 import { withTimeout } from "./utils.js";
 
 // Fallback cascade ordered by preference:
-export const threadWriterModels = [
+export const threadWriterModelCandidates = [
+  googleGemini4HydrogenT08Key1,
+  withTimeout(googleGemini4HydrogenT08Key2, 45000),
   googleGemini38FlashT08Key1,
   withTimeout(googleGemini38FlashT08Key2, 45000),
   claude35SonnetT08, // Your new model

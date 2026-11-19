@@ -8,6 +8,8 @@ import {
   googleGemini31FlashLiteT02Key1,
   googleGemini31FlashLiteT02Key2,
   deepSeekFlashT02ReasoningNone,
+  googleGemini4HydrogenT00Key1,
+  googleGemini4HydrogenT00Key2,
   googleGemini38FlashT00Key1,
   googleGemini38FlashT00Key2,
   googleGemini36FlashT00Key1,
@@ -328,45 +330,63 @@ export const DialecticRetrievalNode = async (
 // Node 3: Tension Extraction Node
 // ─────────────────────────────────────────────────────────────
 
+function createDiscoveryReasoningCascade<T extends z.ZodTypeAny>(schema: T, name: string) {
+  return [
+    googleGemini4HydrogenT00Key1.withStructuredOutput(schema, {
+      name,
+      method: "functionCalling",
+    }),
+    withTimeout(
+      googleGemini4HydrogenT00Key2.withStructuredOutput(schema, {
+        name,
+        method: "functionCalling",
+      }),
+      45000
+    ),
+    googleGemini38FlashT00Key1.withStructuredOutput(schema, {
+      name,
+      method: "functionCalling",
+    }),
+    withTimeout(
+      googleGemini38FlashT00Key2.withStructuredOutput(schema, {
+        name,
+        method: "functionCalling",
+      }),
+      45000
+    ),
+    googleGemini36FlashT00Key1.withStructuredOutput(schema, {
+      name,
+      method: "functionCalling",
+    }),
+    withTimeout(
+      googleGemini36FlashT00Key2.withStructuredOutput(schema, {
+        name,
+        method: "functionCalling",
+      }),
+      45000
+    ),
+    deepSeekFlashT00ReasoningNone.withStructuredOutput(schema, {
+      name,
+      method: "functionCalling",
+    }),
+  ];
+}
+
 const tensionExtractionSchema = z.object({
   extracted_tensions: z.array(ExtractedTensionSchema).min(1),
 });
 
-const tensionExtractionModels = [
-  googleGemini38FlashT00Key1.withStructuredOutput(tensionExtractionSchema, {
-    name: "tension_extraction",
-    method: "functionCalling",
-  }),
-  withTimeout(
-    googleGemini38FlashT00Key2.withStructuredOutput(tensionExtractionSchema, {
-      name: "tension_extraction",
-      method: "functionCalling",
-    }),
-    45000
-  ),
-  googleGemini36FlashT00Key1.withStructuredOutput(tensionExtractionSchema, {
-    name: "tension_extraction",
-    method: "functionCalling",
-  }),
-  withTimeout(
-    googleGemini36FlashT00Key2.withStructuredOutput(tensionExtractionSchema, {
-      name: "tension_extraction",
-      method: "functionCalling",
-    }),
-    45000
-  ),
-  deepSeekFlashT00ReasoningNone.withStructuredOutput(tensionExtractionSchema, {
-    name: "tension_extraction",
-    method: "functionCalling",
-  }),
-];
+const tensionExtractionModels = createDiscoveryReasoningCascade(
+  tensionExtractionSchema,
+  "tension_extraction"
+);
 
 export const TensionExtractionNode = async (
   state: DiscoveryAgentStateType,
   config?: RunnableConfig
 ) => {
-  let result;
   let parse_success = true;
+  let finalResult: z.infer<typeof tensionExtractionSchema> | undefined;
 
   try {
     const formattedEvidence = (state.retrieval_evidence || [])
@@ -375,7 +395,7 @@ export const TensionExtractionNode = async (
 
     const userPrompt = `<TOPIC>\n${state.topic}\n</TOPIC>\n\n<FORENSIC_EVIDENCE>\n${formattedEvidence || "No external search evidence retrieved."}\n</FORENSIC_EVIDENCE>${state.guidance ? `\n\n<GUIDANCE>\n${state.guidance}\n</GUIDANCE>` : ""}`;
 
-    result = await invokeWithFallbacks(
+    const result = await invokeWithFallbacks(
       tensionExtractionModels,
       [
         { role: "system", content: TENSION_EXTRACTION_PROMPT },
@@ -387,7 +407,7 @@ export const TensionExtractionNode = async (
     const rawData = (result && typeof result === "object" && "structuredResponse" in result)
       ? (result as Record<string, unknown>).structuredResponse
       : result;
-    const finalResult = rawData as z.infer<typeof tensionExtractionSchema> | undefined;
+    finalResult = rawData as z.infer<typeof tensionExtractionSchema> | undefined;
 
     if (!finalResult || !Array.isArray(finalResult.extracted_tensions) || finalResult.extracted_tensions.length === 0) {
       parse_success = false;
@@ -396,11 +416,6 @@ export const TensionExtractionNode = async (
     console.warn("[TensionExtractionNode] Extraction error:", err);
     parse_success = false;
   }
-
-  const rawData = (result && typeof result === "object" && "structuredResponse" in result)
-    ? (result as Record<string, unknown>).structuredResponse
-    : result;
-  const finalResult = rawData as z.infer<typeof tensionExtractionSchema> | undefined;
 
   const finalTensions = parse_success && finalResult?.extracted_tensions
     ? finalResult.extracted_tensions
@@ -437,45 +452,21 @@ const angleFormulatorSchema = z.object({
   research_dossier: z.string().min(1, "Must synthesize research dossier"),
 });
 
-const angleFormulatorModels = [
-  googleGemini38FlashT00Key1.withStructuredOutput(angleFormulatorSchema, {
-    name: "angle_formulator",
-    method: "functionCalling",
-  }),
-  withTimeout(
-    googleGemini38FlashT00Key2.withStructuredOutput(angleFormulatorSchema, {
-      name: "angle_formulator",
-      method: "functionCalling",
-    }),
-    45000
-  ),
-  googleGemini36FlashT00Key1.withStructuredOutput(angleFormulatorSchema, {
-    name: "angle_formulator",
-    method: "functionCalling",
-  }),
-  withTimeout(
-    googleGemini36FlashT00Key2.withStructuredOutput(angleFormulatorSchema, {
-      name: "angle_formulator",
-      method: "functionCalling",
-    }),
-    45000
-  ),
-  deepSeekFlashT00ReasoningNone.withStructuredOutput(angleFormulatorSchema, {
-    name: "angle_formulator",
-    method: "functionCalling",
-  }),
-];
+const angleFormulatorModels = createDiscoveryReasoningCascade(
+  angleFormulatorSchema,
+  "angle_formulator"
+);
 
 export const AngleFormulatorNode = async (
   state: DiscoveryAgentStateType,
   config?: RunnableConfig
 ) => {
-  let result;
   let parse_success = true;
+  let finalResult: z.infer<typeof angleFormulatorSchema> | undefined;
 
   try {
     const tensionsContext = JSON.stringify(state.extracted_tensions, null, 2);
-    result = await invokeWithFallbacks(
+    const result = await invokeWithFallbacks(
       angleFormulatorModels,
       [
         { role: "system", content: ANGLE_FORMULATOR_PROMPT },
@@ -490,7 +481,7 @@ export const AngleFormulatorNode = async (
     const rawData = (result && typeof result === "object" && "structuredResponse" in result)
       ? (result as Record<string, unknown>).structuredResponse
       : result;
-    const finalResult = rawData as z.infer<typeof angleFormulatorSchema> | undefined;
+    finalResult = rawData as z.infer<typeof angleFormulatorSchema> | undefined;
 
     if (!finalResult || !Array.isArray(finalResult.discovery_angles) || finalResult.discovery_angles.length === 0) {
       parse_success = false;
@@ -499,11 +490,6 @@ export const AngleFormulatorNode = async (
     console.warn("[AngleFormulatorNode] Formulation error:", err);
     parse_success = false;
   }
-
-  const rawData = (result && typeof result === "object" && "structuredResponse" in result)
-    ? (result as Record<string, unknown>).structuredResponse
-    : result;
-  const finalResult = rawData as z.infer<typeof angleFormulatorSchema> | undefined;
 
   const discovery_angles = parse_success && finalResult?.discovery_angles
     ? finalResult.discovery_angles

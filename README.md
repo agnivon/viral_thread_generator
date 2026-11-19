@@ -42,26 +42,29 @@
                        ┌────────────────────────────────────────────────────────┐
                        │              RESEARCH & SCRAPING STACK                 │
                        │   Firecrawl ── Jina Reader ── Tavily ── DuckDuckGo     │
-                       │          Brave Search ── Google Trends ── YouTube      │
+                       │       Brave Search ── Native Google Trends ── YouTube  │
+                       │     (Google News Redirect Resolution via batchexecute) │
                        └───────────────────────────┬────────────────────────────┘
                                                    │
                                                    ▼
                        ┌────────────────────────────────────────────────────────┐
                        │          AUTONOMOUS MULTI-AGENT PIPELINE               │
                        │                                                        │
-                       │  1. ContextResearcherNode (Synthesizes Dossier)       │
-                       │  2. HookStrategistNode    (Crafts 5 Viral Angles)     │
-                       │  3. [Optional] Human-In-The-Loop Hook Selector         │
-                       │  4. ThreadWriterNode      (Pacing & Narrative Flow)    │
-                       │  5. CharacterValidator    (500-Char Safety & Rules)    │
-                       │  6. ViralityCriticNode    (Reflection & Self-Fix Loop) │
-                       │  7. VisualKeywordStrategist (Image/Video Prompts)      │
+                       │  1. [Optional] Deep Discovery Subgraph (5 Lenses)      │
+                       │  2. ContextResearcherNode (Synthesizes Dossier)       │
+                       │  3. HookStrategistNode    (Crafts 5 Viral Angles)     │
+                       │  4. [Optional] Human-In-The-Loop Hook Selector         │
+                       │  5. ThreadWriterNode      (Pacing & Narrative Flow)    │
+                       │  6. CharacterValidator    (500-Char Safety & Rules)    │
+                       │  7. ViralityCriticNode    (Reflection & Self-Fix Loop) │
+                       │  8. [Optional] InfographicGeneratorNode (5 Archetypes) │
+                       │  9. VisualKeywordStrategist (Image/Video Prompts)      │
                        └───────────────────────────┬────────────────────────────┘
                                                    │
                                                    ▼
                        ┌────────────────────────────────────────────────────────┐
                        │           REACTIVE CREATOR STUDIO & PUBLISHER          │
-                       │  Live Editor ── Asset Picker ── Threads Graph API      │
+                       │  Live Editor ── Satori/Resvg Visuals ── Threads API    │
                        │     Circuit Breaker Failover ── W3C Web Push (PWA)     │
                        └────────────────────────────────────────────────────────┘
 ```
@@ -71,30 +74,40 @@ Instead of generic single-prompt generation, the platform orchestrates three spe
 - **News Intelligence Agent (`NewsThreadFactoryGraph`)**: Ingests breaking news articles, runs real-time fact-checking dossiers, extracts high-velocity news hooks, and synthesizes balanced journalistic summaries optimized for social debate.
 - **Social Media & Video Ingestion Agent (`SocialMediaThreadFactoryGraph`)**: Pulls full YouTube video transcripts (`youtube-transcript-plus`), blog posts, or public social discussions, decomposing complex 60-minute video narratives into bite-sized, high-retention thread posts.
 - **Thematic Topic Agent (`TopicThreadFactoryGraph`)**: Expands high-level topics or rough ideas using dynamic multi-query search synthesis across DuckDuckGo, Brave Search, and Tavily, scraping target sources with Firecrawl and Jina to build rich thematic threads from scratch.
+- **Deep Discovery Agent Subgraph (`DiscoveryAgentGraph`)**: An investigative journalism engine that executes across 4 nodes (`VectorHypothesizerNode` $\to$ `DialecticRetrievalNode` $\to$ `TensionExtractionNode` $\to$ `AngleFormulatorNode`) across 5 forensic lenses (BOM paradox, stagecraft, supply chain arbitrage, engineering trade-offs, regulatory asymmetry), conducting open-web dialectic retrieval to unearth primary teardowns and contrarian insights.
 
 ---
 
-### 🔄 2. Self-Healing Reflection & Closed-World Critique Engine
+### 🎨 2. Automated Editorial Infographics Engine
+The built-in **`InfographicGeneratorNode`** and headless rendering pipeline compile high-impact, Retina-resolution PNG infographics stored directly in Convex file storage:
+- **5 Tailored Archetypes**: `kpi_flow` (chronological metrics + process flow), `entity_comparison` (two-column breakdown with disposition badges), `comparison_bars` (proportional horizontal charts), `stat_callout` (massive hero data callouts), and `custom_layout`.
+- **Satori + Resvg Server-Side Rendering**: Compiles responsive HTML/Flexbox into scalable SVG via Satori and renders 2x Retina PNGs via `@resvg/resvg-js` on Node 24 (`convex.json`).
+- **Font Subsetting & Fallback**: Packages bundled TrueType Inter font caching (`Inter-Regular.ttf`) with automatic remote CDN fallback in serverless environments.
+- **Interactive Approval & On-Demand Rendering**: Displays instant previews in `InfographicDialog.tsx` with on-demand regeneration and automatic media attachment to thread drafts.
+
+---
+
+### 🔄 3. Self-Healing Reflection & Closed-World Critique Engine
 The built-in **`ViralityCriticNode`** and **`ThreadWriterNode`** introduce an advanced self-correction loop engineered to eliminate moving goalposts and preserve creative quality:
 - **Zero-Shot Virality Scoring**: Evaluates initial drafts on hook strength, cognitive momentum, tension resolution, and audience call-to-action effectiveness.
 - **Closed-World Differential Critic (iteration ≥ 2)**: Rather than re-auditing from scratch and inventing new complaints, subsequent passes verify against an exact issue punchlist, auditing strictly whether previously flagged defects were resolved or objective platform rules were breached.
 - **Surgical Post Pinning**: Automatically locks and pins passing posts while directing the writer to revise only flagged posts (`needs_fix` / `re_flagged`), preserving narrative flow and preventing regression.
 - **Monotonic Scoring & Pareto Frontier Checkpointing**: Prevents score degradation when defects are resolved. Automatically tracks `best_thread_draft`, `best_virality_score`, and full `audit_history` in Convex schema, ensuring the highest-scoring candidate is always restored if a later pass regresses.
-- **Persistent LangGraph Checkpointing**: State graphs are backed by PostgreSQL (`PostgresSaver`) for resilience across serverless execution and human-in-the-loop workflows.
+- **Persistent LangGraph Checkpointing**: State graphs are backed by PostgreSQL (`PostgresSaver`) for resilience across serverless execution and human-in-the-loop workflows, centralized in `convex/lib/agents/checkpointer.ts`.
 
 ---
 
-### ⚡ 3. Enterprise Circuit Breaker & Model-Level Fallbacks
+### ⚡ 4. Enterprise Circuit Breaker & Model-Level Fallbacks
 Integrated with **`convex/lib/agents/circuitBreaker.ts`** and **`convex/lib/agents/utils.ts`**:
+- **Primary Gemini 4 Hydrogen Cascade**: Thread writing and virality critique prioritize Google's flagship **Gemini 4 Hydrogen** (`gemini-4-hydrogen`, thinkingLevel: high) with dual-key rotation, cascading seamlessly to Gemini 3.8 Flash, Gemini 3.6 Flash, DeepSeek Flash, and OpenAI GPT-5.4.
 - **Model-Level `FallbackChatModel`**: Implements a unified `BaseChatModel` abstraction that preserves LangChain tool bindings (`bindTools`), thinking content blocks, streaming responses, and abort signals across candidate failover cascades without dropping state.
-- **Automatic Fallback Chains**: If an LLM provider encounters rate limits (`429`), server errors (`5xx`), or timeouts, calls are instantly rerouted to healthy backup providers.
+- **Provider-Aware Response Partitioning**: Uses `buildAgents` to partition candidates into provider-native structured schemas (`toolStrategy` for Google Gemini vs `providerStrategy` for DeepSeek).
 - **Candidate Circuit Isolation & In-Flight Fast-Skipping**: Isolates failure state per provider/key group with 0ms fast-skipping if a key or model has already failed in the current execution cycle.
-- **Dynamic Circuit Tripping**: Automatically suppresses failing model/provider pairs for configurable cooling-off periods to conserve tokens and prevent cascaded failures.
 - **Zero Data Loss**: In-flight graph state remains safely check-pointed in PostgreSQL throughout provider outages.
 
 ---
 
-### 🛡️ 4. Strict Algorithmic Compliance & Sanitization
+### 🛡️ 5. Strict Algorithmic Compliance & Sanitization
 The **`CharacterValidatorTool`** enforces social platform rules before posts ever hit draft status:
 - **Platform Ceilings**: Strict enforcement of Meta Threads' 500-character hard limit per post.
 - **Pacing & Relief Valves**: Enforces concise punchy posts with a maximum of 3 "relief valve" posts exceeding 200 characters.
@@ -104,8 +117,9 @@ The **`CharacterValidatorTool`** enforces social platform rules before posts eve
 
 ---
 
-### 🌐 5. Multi-Source Scraping & Verification Super-Stack
+### 🌐 6. Multi-Source Scraping & Verification Super-Stack
 The engine utilizes a layered research infrastructure:
+- **Native Google Trends Client**: Ingests Google Trends RSS feeds, extracts traffic volume and lead pictures, and resolves intermediate Google News redirects via Google's internal `batchexecute` RPC format (with Brave Search fallback).
 - **Firecrawl**: Deep JavaScript rendering and clean markdown extraction from complex single-page apps and protected websites.
 - **Jina AI Reader**: High-context document parser used as an intelligent fallback layer.
 - **Tavily AI Search**: Context expander, background dossier builder, and real-time claim authenticity verification.
@@ -115,27 +129,29 @@ The engine utilizes a layered research infrastructure:
 
 ---
 
-### 🎨 6. AI Visual Keyword Strategist
+### 🎨 7. AI Visual Keyword Strategist
 The **`VisualKeywordStrategistNode`** analyzes every drafted post and programmatically outputs tailored search queries:
 - **Hero Visual Query**: Conceptual high-impact visual query for the opening hook.
 - **Post-by-Post Queries**: Individualized image and video search keywords for every post in the thread, enabling creators to quickly source royalty-free assets, memes, and illustrations.
 
 ---
 
-### ⚡ 7. Multi-Model LLM Routing Matrix
+### ⚡ 8. Multi-Model LLM Routing Matrix
 Dynamically routes tasks to specialized models optimized for cost, speed, and reasoning depth:
 
 | Task / Node | Primary Models | Temperature | Purpose |
 | :--- | :--- | :--- | :--- |
-| **Web Scraping & Parsing** | Gemini 3.5 / 3.1 Flash-Lite, DeepSeek Flash (Reasoning None) | `0.10` | High-fidelity data extraction with zero hallucinations |
+| **Web Scraping & Parsing** | Gemini 3.5 / 3.1 Flash-Lite (`thinkingLevel: 'off'`), DeepSeek Flash | `0.10` | High-fidelity data extraction with zero hallucinations |
 | **Hook Strategy & Ideation** | Gemini 3.5 / 3.1 Flash-Lite, DeepSeek Flash (Reasoning None) | `0.80` | High creative variance & compelling psychological angles |
-| **Thread Writing** | Gemini 3.8 / 3.6 Flash, DeepSeek Flash, GPT-5.4 | `0.80–0.85` | Narrative pacing, voice emulation & surgical post revision |
-| **Virality Critique & Audit** | Gemini 3.8 / 3.6 Flash, DeepSeek Flash (High & None) | `0.00` | Cold, analytical appraisal, closed-world punchlists & monotonic scoring |
-| **Context Research & Visuals** | Gemini 3.5 / 3.1 Flash-Lite, DeepSeek Flash (Reasoning None) | `0.20` | Structured background dossier assembly & visual prompt synthesis |
+| **Deep Discovery Agent** | Gemini 4 Hydrogen, Gemini 3.8 / 3.6 Flash, DeepSeek Flash | `0.20–0.80` | Forensic vector hypothesizing, dialectic open-web retrieval & tension extraction |
+| **Thread Writing** | Gemini 4 Hydrogen (`thinkingLevel: 'high'`), Gemini 3.8 / 3.6 Flash, DeepSeek Flash, GPT-5.4 | `0.80–0.85` | Narrative pacing, voice emulation & surgical post revision (`functionCalling`) |
+| **Virality Critique & Audit** | Gemini 4 Hydrogen (`thinkingLevel: 'high'`), Gemini 3.8 / 3.6 Flash, DeepSeek Flash | `0.00` | Cold, analytical appraisal, closed-world punchlists & monotonic scoring |
+| **Infographic Spec Synthesis**| Gemini 3.5 / 3.1 Flash-Lite, DeepSeek Flash (Reasoning None) | `0.20` | Structured data visualization, KPI extraction & visual archetype selection |
+| **Context Research & Visuals**| Gemini 3.5 / 3.1 Flash-Lite, DeepSeek Flash (Reasoning None) | `0.20` | Structured background dossier assembly & visual prompt synthesis |
 
 ---
 
-### 🔔 8. W3C Web Push & Notification Center (PWA)
+### 🔔 9. W3C Web Push & Notification Center (PWA)
 - **Background Service Worker**: [`public/sw.js`](public/sw.js) receives push messages from FCM/Web Push on Android WebAPK and desktop browsers.
 - **Cursor-Paginated Notification Center**: Backed by Convex's reactive `paginate` query with infinite scrolling, live active/unread counters (`counts`, `unseenCount`), and bulk actions (`markAllSeen`, `dismissAll`).
 - **VAPID Cryptographic Authentication**: Type-safe subscription management in `convex/pushSubscriptions.ts` with automatic dead endpoint pruning.
@@ -144,14 +160,14 @@ Dynamically routes tasks to specialized models optimized for cost, speed, and re
 
 ---
 
-### 📱 9. Direct Meta Threads API Publishing Engine
+### 📱 10. Direct Meta Threads API Publishing Engine
 - **OAuth Token Lifecycle**: Handles automatic exchange from short-lived tokens to long-lived tokens with recurring Convex cron auto-refreshes.
 - **Rich Media Publishing**: Supports single image uploads, multi-image carousels, video attachments, and multi-post reply chains.
 - **Asynchronous Container Polling**: Monitors Meta media container processing states (`IN_PROGRESS`, `FINISHED`, `ERROR`) for guaranteed delivery.
 
 ---
 
-### 🛡️ 10. Workpool Timeout Resilience & State Safeguards
+### 🛡️ 11. Workpool Timeout Resilience & State Safeguards
 - **Pre-Initialized Draft Allocation**: Thread generation pre-allocates the `threadDrafts` document ID before workpool dispatch, ensuring the background worker and `@convex-dev/workpool`'s `onGenerationComplete` hook can always locate and flag the draft record upon execution timeouts.
 - **Automated Stuck Draft Sweeper**: Includes both internal scheduled cleanup (`markStuckDraftsAsFailed`) and authenticated client recovery (`cleanupStuckDrafts`) to automatically transition jobs exceeding the 15-minute threshold from `processing` to `failed` with actionable failure reasons and error navigation links.
 
@@ -160,11 +176,14 @@ Dynamically routes tasks to specialized models optimized for cost, speed, and re
 ## 💻 Creator Studio User Interface
 
 The frontend is designed around a modern, high-contrast AI Creator Studio aesthetic:
-- **Interactive Approval Studio**: Full-featured editor with drag-and-drop ordering, real-time character counters, and line-break warnings.
+- **Switch-Based Feature Toggle Cards**: Replaces checkboxes with accessible Base UI switch-based toggle cards in thread creation and regeneration dialogs, equipped with category badges ("Interactive", "Media", "Forensic Lens"), distinct Lucide icons, and violet accent styling.
+- **Collapsible AI Critique Experience**: Overall thread critique cards and post-by-post fix directives feature mobile-optimized snippet previews, animated chevrons, and keyboard accessibility (Enter/Space).
+- **Interactive Editorial Infographics Studio**: Preview and render publication-ready SVG/PNG infographics directly in `InfographicDialog.tsx` with on-demand regeneration.
+- **Interactive Approval Studio**: Full-featured editor with drag-and-drop ordering, real-time character counters, line-break warnings, and high-resolution lead article image sidebars (`ArticleSidebarImage.tsx`).
 - **Human-In-The-Loop Hook Selection**: Compare 5 AI-generated hook concepts ranked by psychological trigger type (Curiosity Gap, Contrarian, Data-Driven, Storyteller).
-- **Research Dossier Inspector**: Inspect the underlying research data, scraped sources, and verified claims used to construct the thread.
-- **Asset Picker & Media Manager**: Attach and preview images or videos directly within the thread simulator.
-- **Dark & Light Mode**: Built with Tailwind CSS 4, Radix UI primitives, and Lucide icons.
+- **Research Dossier & Forensic Lens Inspector**: Inspect the underlying research data, scraped sources, tension scores, and verified claims used to construct the thread.
+- **SEO & Production Domain Configuration**: Production-ready on [`viralthreads.agnivon.dev`](https://viralthreads.agnivon.dev) with dynamic `sitemap.ts`, `robots.ts`, Schema.org JSON-LD structured data (`SoftwareApplication`, `WebApplication`, `FAQPage`), and HTTP security headers.
+- **Dark & Light Mode**: Built with Tailwind CSS 4, Radix UI primitives, Base UI, and Lucide icons.
 - **Bot Protection**: Cloudflare Turnstile integration for secure generation endpoints.
 
 ---
@@ -174,7 +193,8 @@ The frontend is designed around a modern, high-contrast AI Creator Studio aesthe
 - **Frontend**: [Next.js 16](https://nextjs.org/) (App Router, Server Actions, React 19)
 - **Backend**: [Convex](https://convex.dev/) (Reactive real-time database, Workpools, Scheduled Crons, Auth)
 - **Agent Framework**: [LangChain](https://js.langchain.com/) & [LangGraph.js](https://langchain-ai.github.io/langgraphjs/)
-- **Checkpointer**: PostgreSQL via `@langchain/langgraph-checkpoint-postgres`
+- **Visual Rendering**: [Satori](https://github.com/vercel/satori) (HTML/CSS to SVG) & [@resvg/resvg-js](https://github.com/yisibl/resvg-js) (Native SVG to Retina PNG)
+- **Checkpointer**: PostgreSQL via `@langchain/langgraph-checkpoint-postgres` (centralized in `convex/lib/agents/checkpointer.ts`)
 - **Styling**: [Tailwind CSS 4](https://tailwindcss.com/), Radix UI, Base UI, Sonner Toasts
 - **Data Fetching**: TanStack React Query v5
 - **Tooling**: Node.js 24+, TypeScript 6, ESLint 9, Secretlint, Vitest 5, Husky
@@ -222,6 +242,7 @@ POSTGRES_URL=postgresql://user:password@hostname:5432/dbname?sslmode=require
 
 # AI & LLM Provider Keys
 GOOGLE_API_KEY=your_gemini_api_key
+GOOGLE_API_KEY2=your_secondary_gemini_api_key
 OPENAI_API_KEY=your_openai_api_key
 DEEPSEEK_API_KEY=your_deepseek_api_key
 OPENROUTER_API_KEY=your_openrouter_api_key
@@ -240,6 +261,9 @@ THREADS_REDIRECT_URI=https://your-deployment-id.convex.site/auth
 # Cloudflare Turnstile Bot Protection
 NEXT_PUBLIC_CLOUDFLARE_TURNSTILE_SITE_KEY=your_turnstile_site_key
 CLOUDFLARE_TURNSTILE_SECRET=your_turnstile_secret
+
+# Application URL
+NEXT_PUBLIC_APP_URL=https://viralthreads.agnivon.dev
 
 # W3C Web Push & VAPID (Optional for mobile push notifications)
 NEXT_PUBLIC_VAPID_PUBLIC_KEY=your_vapid_public_key
@@ -272,7 +296,7 @@ This concurrently starts:
 | `pnpm logs` | Streams live backend logs from Convex |
 | `pnpm type-check` | Runs TypeScript compilation verification across Next.js and Convex |
 | `pnpm lint` | Runs Convex TypeScript check and ESLint with strict zero-warnings policy |
-| `pnpm test` | Runs the full Vitest automated test suite (`28 test files, 301 tests`) |
+| `pnpm test` | Runs the full Vitest automated test suite (`34 test files, 362 tests`) |
 | `pnpm exec secretlint "**/*"` | Audits the codebase for exposed API keys or secrets |
 | `pnpm run create-user` | Seeds an initial user into Convex auth (`scripts/create-user.js`) |
 | `pnpm run clear-auth` | Cleans orphaned auth records from Convex (`scripts/clear-auth.js`) |
@@ -296,8 +320,12 @@ viral_thread_generator/
 │   │   │   └── drafts/               # Interactive Thread Editor & Studio
 │   │   └── settings/                 # API & Account Settings
 │   ├── login/                        # Authentication & Turnstile Shield
+│   ├── robots.ts                     # Dynamic crawler indexing policy
+│   ├── sitemap.ts                    # Dynamic XML sitemap generator
 │   └── ConvexClientProvider.tsx      # Real-time Convex Provider
 ├── components/                       # Shared UI & Component Primitives
+│   ├── ui/switch.tsx                 # Accessible Base UI feature toggle switch
+│   └── ArticleSidebarImage.tsx       # High-resolution lead article image preview
 ├── convex/                           # Convex Reactive Backend
 │   ├── actions/                      # Asynchronous Actions (AI & Outbound Network APIs)
 │   ├── notifications/                # Workpool Hooks & Lifecycle Event Handlers
@@ -310,19 +338,29 @@ viral_thread_generator/
 │   ├── schema.ts                     # Strictly Typed Database Schema
 │   └── lib/
 │       ├── agents/                   # LangGraph Multi-Agent Architecture
+│       │   ├── checkpointer.ts       # Centralized PostgreSQL connection pool
+│       │   ├── circuitBreaker.ts     # Multi-Provider Resilience & Failover
+│       │   ├── models.ts             # LLM Model Routing Configuration
+│       │   ├── sharedRouters.ts      # Bounded execution & differential routing
+│       │   ├── sharedState.ts        # Unified thread factory state schema
+│       │   ├── utils.ts              # FallbackChatModel & format partitioning
 │       │   ├── news/                 # News Intelligence Agent Graph
 │       │   ├── social_media/         # Video & Social Ingestion Agent Graph
 │       │   ├── topic/                # Topic Expansion Agent Graph
-│       │   ├── circuitBreaker.ts     # Multi-Provider Resilience & Failover
-│       │   ├── models.ts             # LLM Model Routing Configuration
-│       │   └── tools.ts              # Agent Tools & Formatting Validator
+│       │   └── discovery/            # Deep Discovery Agent Subgraph (5 Forensic Lenses)
+│       ├── infographics/             # Automated Editorial Infographics Engine
+│       │   ├── schema.ts             # InfographicSpec Zod Schema (5 Archetypes)
+│       │   ├── renderer.ts           # Satori Virtual DOM & Resvg Compiler
+│       │   ├── font.ts               # Bundled Inter TTF Caching & CDN Fallback
+│       │   └── nodes.ts              # InfographicGeneratorNode
 │       └── clients/                  # Consolidated Third-Party Service Clients
+│           ├── googleTrends.ts       # Native Google Trends Client & batchexecute RPC
 │           ├── threads.ts            # Meta Threads Graph API SDK
 │           ├── brave.ts              # Brave Search API Client
 │           └── jina.ts               # Jina Reader API Client
 ├── docs/                             # Comprehensive Technical Documentation
 │   ├── architecture/                 # System Topology, Multi-Agent Graphs & Checkpointing
-│   ├── features/                     # Scraping, Threads Publishing, Virality Engine & Web Push
+│   ├── features/                     # Deep Discovery, Infographics, Scraping, Publishing & Web Push
 │   └── guides/                       # Adding Agent Nodes & Configuring LLM Models
 ├── public/
 │   ├── sw.js                         # PWA Service Worker for Web Push & Notifications
@@ -330,11 +368,13 @@ viral_thread_generator/
 ├── scripts/                          # Administrative Node Scripts (create-user, clear-auth)
 ├── .env.example                      # Template for all environment variables
 ├── .nvmrc                            # Node.js runtime configuration (>=24.22.1)
+├── convex.json                       # Node 24 runtime & Resvg package externalization
 ├── CODE_OF_CONDUCT.md                # Contributor Covenant v2.1
 ├── CONTRIBUTING.md                    # Contribution Guidelines & Workflow
 ├── DESIGN.md                         # Design System specifications
 ├── LICENSE                           # MIT Open Source License
 ├── SECURITY.md                       # Security & Vulnerability Policy
+├── vitest.config.mts                 # Vitest test suite configuration
 └── package.json                      # Project configuration & dependencies
 ```
 
@@ -346,14 +386,16 @@ Deep architectural guides, state machine designs, and contributor documentation 
 
 - 🏛️ **[System Architecture Overview](docs/architecture/overview.md)**: Full-stack topology, reactive boundaries, and Workpool task scheduling.
 - 🧠 **[Multi-Agent LangGraph Architectures](docs/architecture/multi-agent-graphs.md)**: Deep dive into the News, Social Media, and Topic graph state machines.
-- 💾 **[State Checkpointing & HITL Execution](docs/architecture/state-checkpointing.md)**: PostgreSQL checkpointers, thread persistence, and Human-in-the-Loop interrupts.
-- ⚡ **[Circuit Breaker & Resilience](docs/architecture/circuit-breaker.md)**: Multi-provider failover chains across Google, DeepSeek, and OpenAI.
-- 🌐 **[Web Scraping & Verification Pipeline](docs/features/scraping-pipeline.md)**: Firecrawl, Jina fallback, Tavily claim verifier, and YouTube transcripts.
+- 🔬 **[Deep Discovery Agent](docs/features/deep-discovery.md)**: 4-node investigative subgraph, 5 forensic lenses, and dialectic open-web retrieval.
+- 🎨 **[Automated Editorial Infographics Engine](docs/features/infographics-engine.md)**: Satori virtual DOM layout, Resvg 2x Retina PNG compiler, and 5 visual archetypes.
+- 💾 **[State Checkpointing & HITL Execution](docs/architecture/state-checkpointing.md)**: PostgreSQL checkpointers, centralized pools, thread persistence, and interrupts.
+- ⚡ **[Circuit Breaker & Resilience](docs/architecture/circuit-breaker.md)**: Multi-provider failover chains across Google Gemini 4 Hydrogen, DeepSeek, and OpenAI.
+- 🌐 **[Web Scraping & Verification Pipeline](docs/features/scraping-pipeline.md)**: Firecrawl, Jina fallback, native Google Trends resolution, and YouTube transcripts.
 - 📱 **[Meta Threads Publishing Engine](docs/features/threads-publishing.md)**: OAuth 2.0 token life cycles, automated cron refresh, and media containers.
-- 🎯 **[The Virality Engine](docs/features/virality-engine.md)**: Zero-shot critic evaluation, reflection loops, and algorithmic platform guardrails.
-- 🔔 **[W3C Web Push & Mobile PWA Notifications](docs/features/web-push-notifications.md)**: VAPID cryptographic setup, service worker routing, and trend crons.
+- 🎯 **[The Virality Engine](docs/features/virality-engine.md)**: Closed-World Differential Critic, surgical post pinning, and platform guardrails.
+- 🔔 **[W3C Web Push & Mobile PWA Notifications](docs/features/web-push-notifications.md)**: VAPID cryptographic setup, service worker routing, and cursor pagination.
 - 🛠️ **[Guide: Adding an Agent Node](docs/guides/adding-an-agent-node.md)**: Step-by-step developer tutorial for extending LangGraph workflows.
-- 🤖 **[Guide: Adding an LLM Model](docs/guides/adding-a-model.md)**: Configuring new AI providers with circuit breaker tracking.
+- 🤖 **[Guide: Adding an LLM Model](docs/guides/adding-a-model.md)**: Configuring new AI providers with circuit breaker tracking and thinking levels.
 
 ---
 

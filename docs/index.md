@@ -16,7 +16,9 @@ docs/
 │   ├── state-checkpointing.md    # PostgresSaver, Pareto Frontier Checkpointing & Human-in-the-Loop interrupts
 │   └── circuit-breaker.md        # FallbackChatModel, multi-provider failover, tripping rules & resilience
 ├── features/
-│   ├── scraping-pipeline.md      # Firecrawl, Jina fallback, Tavily claim verifier & YouTube parser
+│   ├── deep-discovery.md         # 4-node investigative subgraph, 5 forensic lenses & dialectic retrieval
+│   ├── infographics-engine.md    # Automated editorial infographics: Satori + Resvg 2x Retina rendering
+│   ├── scraping-pipeline.md      # Firecrawl, Jina fallback, native Google Trends & claim verifier
 │   ├── threads-publishing.md     # OAuth token lifecycle & Threads Graph API media containers
 │   ├── virality-engine.md        # Closed-World Differential Critic, Surgical Writer, monotonic scoring & rules
 │   └── web-push-notifications.md # VAPID setup, service worker routing, cursor-paginated notification center & crons
@@ -32,14 +34,16 @@ docs/
 ### For Full-Stack Engineers & Deployers
 1. [Architecture Overview](architecture/overview.md) — Understand the division of labor between Next.js 16, Convex, and LangGraph.
 2. [State Checkpointing](architecture/state-checkpointing.md) — How PostgreSQL checkpointers keep serverless agent runs stateful.
-3. [Threads Publishing Engine](features/threads-publishing.md) — Meta Graph API token life cycles and media publishing containers.
-4. [Web Push Notifications](features/web-push-notifications.md) — Service Worker delivery and VAPID setup.
+3. [Editorial Infographics Engine](features/infographics-engine.md) — Headless SVG/PNG compilation via Satori, Resvg, and Node 24 runtime configuration.
+4. [Threads Publishing Engine](features/threads-publishing.md) — Meta Graph API token life cycles and media publishing containers.
+5. [Web Push Notifications](features/web-push-notifications.md) — Service Worker delivery and VAPID setup.
 
 ### For AI & Agentic Workflow Researchers
 1. [Multi-Agent Graphs](architecture/multi-agent-graphs.md) — State schemas, routing heuristics, and retry quotas for the three factory graphs.
-2. [Circuit Breaker & Model Failover](architecture/circuit-breaker.md) — Dynamic fallback cascading across Google, OpenAI, DeepSeek, and OpenRouter.
-3. [The Virality Engine](features/virality-engine.md) — Zero-shot critic evaluation, reflection loops, and algorithmic platform guardrails.
-4. [Scraping & Verification Pipeline](features/scraping-pipeline.md) — Multilayered web research and real-time claim authenticity checking.
+2. [Deep Discovery Agent](features/deep-discovery.md) — Subgraph topology, 5 forensic lenses, and dialectic open-web retrieval.
+3. [Circuit Breaker & Model Failover](architecture/circuit-breaker.md) — Dynamic fallback cascading across Google Gemini, DeepSeek, and OpenAI.
+4. [The Virality Engine](features/virality-engine.md) — Zero-shot critic evaluation, reflection loops, and algorithmic platform guardrails.
+5. [Scraping & Verification Pipeline](features/scraping-pipeline.md) — Multilayered web research, native Google Trends resolution, and claim verification.
 
 ### For Open-Source Contributors
 1. [Adding an Agent Node](guides/adding-an-agent-node.md) — Learn the node contract, state transformations, and test requirements.

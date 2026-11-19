@@ -42,7 +42,7 @@ Social media algorithms prioritize engagement signals: high retention, fast scro
 
 ## 🎯 2. The Virality Critic (`ViralityCriticNode`)
 
-The critic operates at **temperature `0.0`** using high-reasoning models (DeepSeek Flash with reasoning enabled or Google Gemini 3.8 / 3.6 Flash) to ensure a cold, objective appraisal.
+The critic operates at **temperature `0.0`** using high-reasoning models (Google Gemini 4 Hydrogen, Gemini 3.8 / 3.6 Flash with `thinkingLevel: "high"`, or DeepSeek Flash with reasoning enabled) to ensure a cold, objective appraisal. All critic candidates standardize on `method: "functionCalling"` via `toolStrategy` and `providerStrategy` to guarantee reliable schema parsing across model fallbacks.
 
 ### Evaluation Dimensions:
 1. **Hook Strength (0–30 pts)**: Does the opening line create an unavoidable curiosity gap without feeling like cheap clickbait?
@@ -163,3 +163,13 @@ Located in `convex/lib/agents/tools.ts`:
 The final node generates contextual image and video search prompts tailored for stock footage, Unsplash, or AI image generators:
 - **Hero Visual Query**: Conceptual visual for the opening post (e.g., *"dramatic cinematic split view of classical library vs modern server room"*).
 - **Post-Level Visual Queries**: Targeted prompts for each post highlighting key statistics or quotes.
+
+---
+
+## 📱 8. Collapsible AI Critique UI & Mobile Optimization
+
+Located in `app/(protected)/threads/drafts/[id]/approve/components/DraftPostsList.tsx` and the draft approval page:
+
+- **Overall Thread Critique Card**: Defaults to collapsed on mobile screens with a high-density snippet preview, while expanded on desktop screens for immediate visibility.
+- **Post-by-Post Critique & Fix Directives**: Embedded directly within each post card in `DraftPostsList`. Creators can expand or collapse post critiques via animated chevron toggles.
+- **Accessible Interaction**: Full keyboard navigation support (Enter and Space key listeners), explicit `aria-expanded` and `aria-controls` attributes, and dynamic "Show/Hide" assistive labels.

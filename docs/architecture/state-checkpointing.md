@@ -29,7 +29,7 @@ Every execution of a thread factory graph is check-pointed using `@langchain/lan
 ```
 
 ### Connection Pool Configuration
-Located in `convex/lib/agents/news/graph.ts`:
+Centralized in `convex/lib/agents/checkpointer.ts` and shared across News, Social Media, and Topic pipelines:
 
 ```typescript
 const { Pool } = pg;
@@ -46,6 +46,7 @@ export const checkpointSaver = new PostgresSaver(pool);
 
 - **Isolate Protection**: Setting `max: 1` ensures that spinning up parallel Convex action isolates does not exhaust the PostgreSQL server's connection pool.
 - **SSL Sanitization**: Automatically strips incompatible `?sslmode=require` flags from cloud PostgreSQL providers (e.g. Aiven, Neon) and replaces them with an explicit `sslConfig` object containing custom CA certificates.
+- **Centralized Pool Reuse**: Centralizing `pool` and `checkpointSaver` in `convex/lib/agents/checkpointer.ts` prevents redundant connection pool initialization across disparate graph definitions and action files.
 
 ---
 
@@ -135,6 +136,11 @@ To guarantee that creators never lose high-quality drafts:
    );
    ```
    If the newest pass scored lower or produced an empty draft, the system seamlessly restores `best_thread_draft` and `best_virality_score`, guaranteeing monotonic quality delivery.
+3. **Infographic Spec Synchronization & Image Re-rendering**:
+   In `handleGraphCompletion`, the completion handler checks whether `infographic_spec` was modified during iteration or if a rendered PNG URL is missing:
+   - Compiles the spec into a binary PNG via `renderInfographicToPng()`.
+   - Persists the asset to Convex storage and updates `infographic_url`.
+   - Synchronizes `images`, ensuring the infographic is prepended as the primary card visual while preserving user-selected secondary media.
 
 ---
 
@@ -156,3 +162,5 @@ Long-running generative pipelines running in serverless workpool environments re
 3. **Stuck Draft Sweepers**:
    - `markStuckDraftsAsFailed`: Internal cron/maintenance mutation that sweeps drafts remaining in `"processing"` or `"queued"` for longer than 15 minutes.
    - `cleanupStuckDrafts`: Authenticated public mutation allowing creators to clean up any orphaned or stalled generation runs.
+4. **Fault-Tolerant Draft Deletion**:
+   When a user deletes a thread draft (`deleteThreadDraft`), Convex deletes the document and enqueues an asynchronous PostgreSQL checkpoint purge. If the external PostgreSQL database is temporarily offline or unreachable, the deletion handler catches the error safely, ensuring user draft deletions are never blocked by third-party database downtime.

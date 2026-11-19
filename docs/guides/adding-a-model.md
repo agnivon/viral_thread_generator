@@ -41,7 +41,12 @@ export const claude35SonnetT08 = attachModelIdentity(
 > [!IMPORTANT]
 > - Always set `maxRetries: 0` on the underlying LangChain model constructor. Internal LangChain retry loops block the thread and interfere with our circuit breaker fallback cascade.
 > - Provide fallback `"placeholder"` strings for API keys when instantiated at module scope to allow unit tests to execute cleanly in headless CI environments without live credentials.
-> - For models supporting reasoning tokens (e.g., DeepSeek Flash), specify reasoning parameters explicitly:
+> - For Google Gemini models, configure `thinkingLevel` according to the node role:
+>   - Deterministic parsing & research: `createGoogleModel("gemini-3.5-flash-lite", 0.2, key, { thinkingLevel: "off" })`
+>   - Creative writing & critique audits: `createGoogleModel("gemini-4-hydrogen", 0.8, key, { thinkingLevel: "high" })`
+> - Standardize structured outputs using `method: "functionCalling"`:
+>   - `model.withStructuredOutput(schema, { name: "thread_writer", method: "functionCalling" })`
+> - For models supporting DeepSeek reasoning tokens, specify parameters explicitly:
 >   - Fast non-reasoning: `reasoning: { effort: "none" }` and `modelKwargs: { thinking: { type: "disabled" } }`
 >   - High reasoning / deep reflection: `reasoning: { effort: "high" }` and `modelKwargs: { thinking: { type: "enabled" } }`
 

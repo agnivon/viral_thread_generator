@@ -186,6 +186,8 @@ Core UI primitives map to specific token assignments to guarantee visual parity:
 - **Card:** Employs `{colors.card}` surface color, `{rounded.xl}` corner radius, and `{spacing.lg}` internal padding.
 - **Badge:** Employs a fully rounded pill shape (`{rounded.full}`) with light background padding.
 - **Primary Button:** Employs the luminous brand violet (`{colors.brand-violet}`) as the background, white text (`{colors.primary-foreground}`), and `{rounded.xl}` corners.
+- **Switch-Based Toggle Card:** Interactive feature configuration card (`components/ui/switch.tsx` + `CreateThreadForm` / `RegenerateDialog`). Combines category badges (e.g. "Interactive", "Media", "Forensic Lens"), Lucide icons, and active violet focus rings/accents (`border-violet-500/50 bg-violet-500/5`).
+- **Collapsible Critique Card:** High-contrast appraisal panel with animated chevron toggles, keyboard accessibility (Enter/Space), and mobile-first snippet indicators that conserve vertical screen real estate while retaining full audit diagnostics.
 
 ## Do's and Don'ts
 

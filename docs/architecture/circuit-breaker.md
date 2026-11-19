@@ -115,10 +115,11 @@ export class FallbackChatModel extends BaseChatModel {
 ```
 
 ### Key Capabilities:
-1. **Tool Binding Preservation**: Dynamically binds tools to each candidate model in the chain (`Gemini`, `DeepSeek`, `OpenAI`), preserving structured schemas even when failing over.
-2. **Thinking Content Blocks**: Retains internal `<thinking>` blocks emitted by high-reasoning models (such as `deepseek-flash`), preventing serialization errors when passing message history across disparate providers.
-3. **Usage Metadata Passthrough**: Preserves input/output token counts and finish reasons on returned `AIMessage` objects.
-4. **Abort Signal Cleanup**: Registers and cleanly detaches abort listeners to prevent memory leaks during long-running streaming invocations.
+1. **Tool Binding & Function Calling Standardization**: Dynamically binds tools to each candidate model in the chain (`Gemini`, `DeepSeek`, `OpenAI`). Standardizes structured schemas using `method: "functionCalling"`, preserving type contracts even when failing over.
+2. **Provider-Aware Response Partitioning**: Through `buildAgents`, groups candidates by provider and assigns `toolStrategy` to Google Gemini and `providerStrategy` to DeepSeek, avoiding cross-provider JSON schema parsing mismatches.
+3. **Thinking Content Blocks & Thinking Levels**: Retains internal `<thinking>` blocks emitted by high-reasoning models (such as `deepseek-flash`), preventing serialization errors when passing message history across disparate providers. Configures `thinkingLevel: "off"` for deterministic Flash-Lite research nodes and `thinkingLevel: "high"` for Gemini 4 Hydrogen and Flash creative/audit nodes.
+4. **Usage Metadata Passthrough**: Preserves input/output token counts and finish reasons on returned `AIMessage` objects.
+5. **Abort Signal Cleanup**: Registers and cleanly detaches abort listeners to prevent memory leaks during long-running streaming invocations.
 
 ---
 
@@ -132,15 +133,28 @@ Beyond database-backed cooldown tracking, `invokeWithFallbacks` employs in-memor
 
 ## 🔀 Fallback Cascade Ordering
 
-When an agent node runs, it accepts an array of model candidates ordered from highest quality/cost efficiency to resilient backups:
+When an agent node runs, it accepts an array of model candidates ordered from highest quality/reasoning depth to resilient backups:
 
 ### Thread Writer Fallback Cascade:
-1. **Google Gemini 3.8 Flash** (`GOOGLE_API_KEY`)
-2. **Google Gemini 3.8 Flash** (`GOOGLE_API_KEY2` — secondary key)
-3. **Google Gemini 3.6 Flash** (`GOOGLE_API_KEY`)
-4. **Google Gemini 3.6 Flash** (`GOOGLE_API_KEY2`)
-5. **DeepSeek Flash** (`DEEPSEEK_API_KEY` — reasoning disabled, high speed)
-6. **OpenAI GPT-5.4** (`OPENAI_API_KEY` — presence penalty 0.4)
-7. **Google Gemini 3 Flash Preview** (`GOOGLE_API_KEY` / `GOOGLE_API_KEY2`)
+1. **Google Gemini 4 Hydrogen** (`GOOGLE_API_KEY`, `thinkingLevel: "high"`)
+2. **Google Gemini 4 Hydrogen** (`GOOGLE_API_KEY2`, `thinkingLevel: "high"`, 45s timeout)
+3. **Google Gemini 3.8 Flash** (`GOOGLE_API_KEY`, `thinkingLevel: "high"`)
+4. **Google Gemini 3.8 Flash** (`GOOGLE_API_KEY2`, `thinkingLevel: "high"`, 45s timeout)
+5. **Google Gemini 3.6 Flash** (`GOOGLE_API_KEY`, `thinkingLevel: "high"`)
+6. **Google Gemini 3.6 Flash** (`GOOGLE_API_KEY2`, `thinkingLevel: "high"`, 45s timeout)
+7. **DeepSeek Flash** (`DEEPSEEK_API_KEY` — reasoning disabled, functionCalling)
+8. **OpenAI GPT-5.4** (`OPENAI_API_KEY` — presence penalty 0.4)
+9. **Google Gemini 3 Flash Preview** (`GOOGLE_API_KEY` / `GOOGLE_API_KEY2`)
+
+### Virality & Differential Critic Fallback Cascade:
+1. **Google Gemini 4 Hydrogen** (`GOOGLE_API_KEY`, temp `0.0`, `thinkingLevel: "high"`)
+2. **Google Gemini 4 Hydrogen** (`GOOGLE_API_KEY2`, temp `0.0`, 45s timeout)
+3. **Google Gemini 3.8 Flash** (`GOOGLE_API_KEY`, temp `0.0`, `thinkingLevel: "high"`)
+4. **Google Gemini 3.8 Flash** (`GOOGLE_API_KEY2`, temp `0.0`, 45s timeout)
+5. **Google Gemini 3.6 Flash** (`GOOGLE_API_KEY`, temp `0.0`, `thinkingLevel: "high"`)
+6. **Google Gemini 3.6 Flash** (`GOOGLE_API_KEY2`, temp `0.0`, 45s timeout)
+7. **DeepSeek Flash** (`DEEPSEEK_API_KEY`, reasoning effort: high)
+8. **DeepSeek Flash** (`DEEPSEEK_API_KEY`, reasoning effort: none)
+9. **Google Gemini 3 Flash Preview** (`GOOGLE_API_KEY` / `GOOGLE_API_KEY2`)
 
 If Gemini hits a rate limit, the circuit breaker flags Gemini as tripped, saves the cooldown state to the Convex database, and instantly executes DeepSeek without dropping the user's thread generation request.

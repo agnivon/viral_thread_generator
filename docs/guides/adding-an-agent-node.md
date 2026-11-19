@@ -107,7 +107,7 @@ describe("MyCustomNode", () => {
       parse_success: true,
     };
 
-    const result = await MyCustomNode(mockState as any);
+    const result = await MyCustomNode(mockState as unknown as BaseThreadFactoryStateType);
     expect(result.my_custom_field).toBeDefined();
   });
 });

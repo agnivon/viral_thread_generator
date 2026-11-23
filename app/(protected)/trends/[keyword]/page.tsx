@@ -48,6 +48,7 @@ import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
 import { trendsQueryKeys } from "@/lib/query-keys";
 import { ArticleSidebarImage } from "@/components/ArticleSidebarImage";
+import { TRENDS_FROM_TRENDS_KEY } from "@/hooks/use-trends-scroll";
 import {
   type Article,
   type KeywordItem,
@@ -69,7 +70,7 @@ export default function KeywordDetailPage() {
   const handleBackToTrends = (e: React.MouseEvent) => {
     e.preventDefault();
     if (typeof window !== "undefined") {
-      const fromTrends = sessionStorage.getItem("vtr_trends_from_trends");
+      const fromTrends = sessionStorage.getItem(TRENDS_FROM_TRENDS_KEY);
       if (fromTrends === "true") {
         router.back();
         return;

@@ -11,6 +11,10 @@ import {
   clearSavedTrendsScroll,
   getHasHydrated,
   setHasHydrated,
+  safeSessionGet,
+  safeSessionSet,
+  safeSessionRemove,
+  getCurrentScrollY,
   TRENDS_SCROLL_STORAGE_KEY,
   TRENDS_STATE_STORAGE_KEY,
   TRENDS_LAST_ITEM_KEY,
@@ -161,6 +165,17 @@ describe("use-trends-scroll utilities and storage handlers", () => {
       expect(typeof getHasHydrated()).toBe("boolean");
       setHasHydrated();
       expect(getHasHydrated()).toBe(true);
+    });
+
+    test("safeSession helpers handle get, set, remove without throwing", () => {
+      safeSessionSet("test-key", "test-value");
+      expect(safeSessionGet("test-key")).toBe("test-value");
+      safeSessionRemove("test-key");
+      expect(safeSessionGet("test-key")).toBeNull();
+    });
+
+    test("getCurrentScrollY returns numeric window scroll position", () => {
+      expect(typeof getCurrentScrollY()).toBe("number");
     });
   });
 });

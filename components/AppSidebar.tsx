@@ -18,6 +18,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuthActions } from "@convex-dev/auth/react";
 import { Button } from "./ui/button";
+import { clearSavedTrendsScroll } from "@/hooks/use-trends-scroll";
 
 export function AppSidebar() {
   const { signOut } = useAuthActions();
@@ -34,9 +35,7 @@ export function AppSidebar() {
     handleNavClick();
     if (href === "/trends" && pathname === "/trends") {
       window.scrollTo({ top: 0, behavior: "smooth" });
-      try {
-        sessionStorage.setItem("vtr_trends_scroll_pos", "0");
-      } catch {}
+      clearSavedTrendsScroll();
     }
   };
 

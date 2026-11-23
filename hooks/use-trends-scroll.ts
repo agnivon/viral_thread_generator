@@ -18,6 +18,39 @@ export function setHasHydrated(): void {
   hasHydratedGlobal = true;
 }
 
+export function safeSessionGet(key: string): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    return sessionStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+export function safeSessionSet(key: string, value: string): void {
+  if (typeof window === "undefined") return;
+  try {
+    sessionStorage.setItem(key, value);
+  } catch {
+    // Quota or security exception
+  }
+}
+
+export function safeSessionRemove(key: string): void {
+  if (typeof window === "undefined") return;
+  try {
+    sessionStorage.removeItem(key);
+  } catch {
+    // Quota or security exception
+  }
+}
+
+export function getCurrentScrollY(): number {
+  if (typeof window === "undefined") return 0;
+  const doc = typeof document !== "undefined" ? document : null;
+  return window.scrollY || doc?.documentElement?.scrollTop || doc?.body?.scrollTop || 0;
+}
+
 export type SortMode = "relevance" | "traffic" | "growth" | "recent";
 
 export interface TrendsPageState {
@@ -32,31 +65,20 @@ export function formatTrendCardDomId(itemId: string): string {
 }
 
 export function getSavedTrendsScrollPosition(): number {
-  if (typeof window === "undefined") return 0;
-  try {
-    const raw = sessionStorage.getItem(TRENDS_SCROLL_STORAGE_KEY);
-    if (!raw) return 0;
-    const parsed = parseInt(raw, 10);
-    return isNaN(parsed) || parsed < 0 ? 0 : parsed;
-  } catch {
-    return 0;
-  }
+  const raw = safeSessionGet(TRENDS_SCROLL_STORAGE_KEY);
+  if (!raw) return 0;
+  const parsed = parseInt(raw, 10);
+  return isNaN(parsed) || parsed < 0 ? 0 : parsed;
 }
 
 export function setSavedTrendsScrollPosition(y: number): void {
-  if (typeof window === "undefined") return;
-  try {
-    sessionStorage.setItem(TRENDS_SCROLL_STORAGE_KEY, Math.max(0, Math.round(y)).toString());
-  } catch {
-    // Quota or security exception
-  }
+  safeSessionSet(TRENDS_SCROLL_STORAGE_KEY, Math.max(0, Math.round(y)).toString());
 }
 
 export function getSavedTrendsState(): TrendsPageState | null {
-  if (typeof window === "undefined") return null;
+  const raw = safeSessionGet(TRENDS_STATE_STORAGE_KEY);
+  if (!raw) return null;
   try {
-    const raw = sessionStorage.getItem(TRENDS_STATE_STORAGE_KEY);
-    if (!raw) return null;
     const parsed = JSON.parse(raw) as Partial<TrendsPageState>;
     if (typeof parsed !== "object" || parsed === null) return null;
 
@@ -77,42 +99,26 @@ export function getSavedTrendsState(): TrendsPageState | null {
 }
 
 export function setSavedTrendsState(state: TrendsPageState): void {
-  if (typeof window === "undefined") return;
   try {
-    sessionStorage.setItem(TRENDS_STATE_STORAGE_KEY, JSON.stringify(state));
+    safeSessionSet(TRENDS_STATE_STORAGE_KEY, JSON.stringify(state));
   } catch {
-    // Quota or security exception
+    // Quota or serialization exception
   }
 }
 
 export function getSavedTrendsLastItem(): string | null {
-  if (typeof window === "undefined") return null;
-  try {
-    return sessionStorage.getItem(TRENDS_LAST_ITEM_KEY);
-  } catch {
-    return null;
-  }
+  return safeSessionGet(TRENDS_LAST_ITEM_KEY);
 }
 
 export function setSavedTrendsLastItem(itemId: string): void {
-  if (typeof window === "undefined") return;
-  try {
-    sessionStorage.setItem(TRENDS_LAST_ITEM_KEY, itemId);
-  } catch {
-    // Quota or security exception
-  }
+  safeSessionSet(TRENDS_LAST_ITEM_KEY, itemId);
 }
 
 export function clearSavedTrendsScroll(): void {
-  if (typeof window === "undefined") return;
-  try {
-    sessionStorage.setItem(TRENDS_SCROLL_STORAGE_KEY, "0");
-    sessionStorage.removeItem(TRENDS_LAST_ITEM_KEY);
-    sessionStorage.removeItem(TRENDS_LOCKED_KEY);
-    sessionStorage.removeItem(TRENDS_FROM_TRENDS_KEY);
-  } catch {
-    // Quota or security exception
-  }
+  safeSessionSet(TRENDS_SCROLL_STORAGE_KEY, "0");
+  safeSessionRemove(TRENDS_LAST_ITEM_KEY);
+  safeSessionRemove(TRENDS_LOCKED_KEY);
+  safeSessionRemove(TRENDS_FROM_TRENDS_KEY);
 }
 
 export interface UseTrendsScrollOptions {
@@ -128,7 +134,7 @@ export function useTrendsScroll({
 }: UseTrendsScrollOptions) {
   const [showScrollTop, setShowScrollTop] = useState(false);
 
-  // Keep latest state in ref for unmount and scroll events
+  // Keep latest state in ref for unmount and navigation events
   const stateRef = useRef(state);
   stateRef.current = state;
 
@@ -136,7 +142,7 @@ export function useTrendsScroll({
   const isNavigatingAwayRef = useRef<boolean>(false);
   const isRestoringRef = useRef<boolean>(
     typeof window !== "undefined" &&
-      (getSavedTrendsScrollPosition() > 0 || sessionStorage.getItem(TRENDS_LOCKED_KEY) === "true")
+      (getSavedTrendsScrollPosition() > 0 || safeSessionGet(TRENDS_LOCKED_KEY) === "true")
   );
   const restoredRef = useRef<boolean>(false);
   const scrollTickingRef = useRef<boolean>(false);
@@ -145,16 +151,12 @@ export function useTrendsScroll({
   const saveCardClick = useCallback((itemId: string) => {
     if (typeof window === "undefined") return;
     isNavigatingAwayRef.current = true;
-    const currentY = window.scrollY || document.documentElement.scrollTop || document.body.scrollTop || 0;
-    try {
-      sessionStorage.setItem(TRENDS_SCROLL_STORAGE_KEY, Math.max(0, Math.round(currentY)).toString());
-      sessionStorage.setItem(TRENDS_LAST_ITEM_KEY, itemId);
-      sessionStorage.setItem(TRENDS_STATE_STORAGE_KEY, JSON.stringify(stateRef.current));
-      sessionStorage.setItem(TRENDS_LOCKED_KEY, "true");
-      sessionStorage.setItem(TRENDS_FROM_TRENDS_KEY, "true");
-    } catch {
-      // Storage exception
-    }
+    const currentY = getCurrentScrollY();
+    setSavedTrendsScrollPosition(currentY);
+    setSavedTrendsLastItem(itemId);
+    setSavedTrendsState(stateRef.current);
+    safeSessionSet(TRENDS_LOCKED_KEY, "true");
+    safeSessionSet(TRENDS_FROM_TRENDS_KEY, "true");
   }, []);
 
   // Reset scroll to top (smooth or instant) and update session storage
@@ -171,7 +173,7 @@ export function useTrendsScroll({
   // Preserve and restore exact position after manual feed refresh
   const preserveScrollPosition = useCallback((targetY?: number) => {
     if (typeof window === "undefined") return;
-    const scrollTarget = typeof targetY === "number" ? targetY : (window.scrollY || document.documentElement.scrollTop || 0);
+    const scrollTarget = typeof targetY === "number" ? targetY : getCurrentScrollY();
     window.scrollTo({
       top: scrollTarget,
       behavior: "instant",
@@ -179,15 +181,16 @@ export function useTrendsScroll({
     setSavedTrendsScrollPosition(scrollTarget);
   }, []);
 
-  // Save on state change when not restoring
-  const saveCurrentState = useCallback((overrideScrollY?: number) => {
-    if (typeof window === "undefined") return;
-    try {
-      if (sessionStorage.getItem(TRENDS_LOCKED_KEY) === "true") return;
-    } catch {}
-    const scrollY = typeof overrideScrollY === "number" ? overrideScrollY : (window.scrollY || document.documentElement.scrollTop || 0);
-    setSavedTrendsScrollPosition(scrollY);
-    setSavedTrendsState(stateRef.current);
+  // Helper to persist current scroll position and state when page unloads/unmounts
+  const persistCurrentScrollAndState = useCallback(() => {
+    if (isNavigatingAwayRef.current || safeSessionGet(TRENDS_LOCKED_KEY) === "true") {
+      return;
+    }
+    const y = getCurrentScrollY();
+    if (y > 0) {
+      setSavedTrendsScrollPosition(y);
+      setSavedTrendsState(stateRef.current);
+    }
   }, []);
 
   // Effect 1: Handle passive scroll tracking and browser scrollRestoration setting
@@ -202,69 +205,45 @@ export function useTrendsScroll({
     }
 
     const handleScroll = () => {
-      const scrollY = window.scrollY || document.documentElement.scrollTop || document.body.scrollTop || 0;
+      const scrollY = getCurrentScrollY();
       setShowScrollTop(scrollY > 400);
 
       // Do NOT overwrite saved position while restoring or navigating away
       if (isRestoringRef.current || isNavigatingAwayRef.current) {
         return;
       }
-      try {
-        if (sessionStorage.getItem(TRENDS_LOCKED_KEY) === "true") {
-          return;
-        }
-      } catch {}
+      if (safeSessionGet(TRENDS_LOCKED_KEY) === "true") {
+        return;
+      }
 
       if (!scrollTickingRef.current) {
         scrollTickingRef.current = true;
         window.requestAnimationFrame(() => {
-          try {
-            if (sessionStorage.getItem(TRENDS_LOCKED_KEY) !== "true" && !isNavigatingAwayRef.current) {
-              const y = window.scrollY || document.documentElement.scrollTop || document.body.scrollTop || 0;
-              setSavedTrendsScrollPosition(y);
-              setSavedTrendsState(stateRef.current);
-            }
-          } catch {}
+          if (safeSessionGet(TRENDS_LOCKED_KEY) !== "true" && !isNavigatingAwayRef.current) {
+            setSavedTrendsScrollPosition(getCurrentScrollY());
+          }
           scrollTickingRef.current = false;
         });
       }
     };
 
-    const handleBeforeUnload = () => {
-      try {
-        if (sessionStorage.getItem(TRENDS_LOCKED_KEY) !== "true" && !isNavigatingAwayRef.current) {
-          const y = window.scrollY || document.documentElement.scrollTop || document.body.scrollTop || 0;
-          setSavedTrendsScrollPosition(y);
-          setSavedTrendsState(stateRef.current);
-        }
-      } catch {}
-    };
-
     window.addEventListener("scroll", handleScroll, { passive: true });
-    window.addEventListener("beforeunload", handleBeforeUnload);
-    window.addEventListener("pagehide", handleBeforeUnload);
+    window.addEventListener("beforeunload", persistCurrentScrollAndState);
+    window.addEventListener("pagehide", persistCurrentScrollAndState);
 
     return () => {
       window.removeEventListener("scroll", handleScroll);
-      window.removeEventListener("beforeunload", handleBeforeUnload);
-      window.removeEventListener("pagehide", handleBeforeUnload);
+      window.removeEventListener("beforeunload", persistCurrentScrollAndState);
+      window.removeEventListener("pagehide", persistCurrentScrollAndState);
 
       if ("scrollRestoration" in window.history) {
         window.history.scrollRestoration = originalScrollRestoration;
       }
 
-      // Only persist state on unmount if NOT navigating away to a topic (which already saved exact position and locked it)
-      try {
-        if (!isNavigatingAwayRef.current && sessionStorage.getItem(TRENDS_LOCKED_KEY) !== "true") {
-          const y = window.scrollY || document.documentElement.scrollTop || document.body.scrollTop || 0;
-          if (y > 0) {
-            setSavedTrendsScrollPosition(y);
-            setSavedTrendsState(stateRef.current);
-          }
-        }
-      } catch {}
+      // Persist state on unmount if not navigating away to a topic (which already saved and locked)
+      persistCurrentScrollAndState();
     };
-  }, []);
+  }, [persistCurrentScrollAndState]);
 
   // Effect 2: Perform scroll restoration once data is rendered
   useEffect(() => {
@@ -278,9 +257,7 @@ export function useTrendsScroll({
 
     if (targetY <= 0 && !lastItemId) {
       isRestoringRef.current = false;
-      try {
-        sessionStorage.removeItem(TRENDS_LOCKED_KEY);
-      } catch {}
+      safeSessionRemove(TRENDS_LOCKED_KEY);
       return;
     }
 
@@ -312,24 +289,16 @@ export function useTrendsScroll({
       applyScroll();
     });
 
-    // Attempt 3: After short delay to override any router scroll reset
-    const timer1 = setTimeout(() => {
-      applyScroll();
-    }, 60);
-
-    // Final attempt & release lock after DOM settles
-    const timer2 = setTimeout(() => {
+    // Attempt 3: Final confirmation & release lock after DOM settles
+    const timer = setTimeout(() => {
       applyScroll();
       isRestoringRef.current = false;
-      try {
-        sessionStorage.removeItem(TRENDS_LOCKED_KEY);
-      } catch {}
-    }, 200);
+      safeSessionRemove(TRENDS_LOCKED_KEY);
+    }, 150);
 
     return () => {
       window.cancelAnimationFrame(rafId);
-      clearTimeout(timer1);
-      clearTimeout(timer2);
+      clearTimeout(timer);
     };
   }, [isReady, totalFilteredItems]);
 
@@ -338,7 +307,6 @@ export function useTrendsScroll({
     saveCardClick,
     resetScrollToTop,
     preserveScrollPosition,
-    saveCurrentState,
     formatCardDomId: formatTrendCardDomId,
   };
 }

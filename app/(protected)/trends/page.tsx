@@ -42,52 +42,35 @@ import {
 
 export default function TrendsPage() {
   const isHydratedOnClient = typeof window !== "undefined" && getHasHydrated();
-  const [mounted, setMounted] = useState(() => isHydratedOnClient);
+  const initialSaved = isHydratedOnClient ? getSavedTrendsState() : null;
 
-  const [keywordSearch, setKeywordSearch] = useState<string>(() => {
-    if (typeof window !== "undefined" && getHasHydrated()) {
-      return getSavedTrendsState()?.keywordSearch ?? "";
-    }
-    return "";
-  });
-  const [sortMode, setSortMode] = useState<SortMode>(() => {
-    if (typeof window !== "undefined" && getHasHydrated()) {
-      return getSavedTrendsState()?.sortMode ?? "relevance";
-    }
-    return "relevance";
-  });
-  const [onlyMyNiches, setOnlyMyNiches] = useState<boolean>(() => {
-    if (typeof window !== "undefined" && getHasHydrated()) {
-      return getSavedTrendsState()?.onlyMyNiches ?? false;
-    }
-    return false;
-  });
-  const [currentPage, setCurrentPage] = useState<number>(() => {
-    if (typeof window !== "undefined" && getHasHydrated()) {
-      return getSavedTrendsState()?.currentPage ?? 1;
-    }
-    return 1;
-  });
+  const [mounted, setMounted] = useState(() => isHydratedOnClient);
+  const [keywordSearch, setKeywordSearch] = useState<string>(() => initialSaved?.keywordSearch ?? "");
+  const [sortMode, setSortMode] = useState<SortMode>(() => initialSaved?.sortMode ?? "relevance");
+  const [onlyMyNiches, setOnlyMyNiches] = useState<boolean>(() => initialSaved?.onlyMyNiches ?? false);
+  const [currentPage, setCurrentPage] = useState<number>(() => initialSaved?.currentPage ?? 1);
   const pageSize = 50;
 
   const [highlightedCardId, setHighlightedCardId] = useState<string | null>(() => {
-    if (typeof window !== "undefined") {
-      return getSavedTrendsLastItem();
-    }
-    return null;
+    return isHydratedOnClient ? getSavedTrendsLastItem() : null;
   });
 
   useEffect(() => {
     setHasHydrated();
     setMounted(true);
-    const saved = getSavedTrendsState();
-    if (saved) {
-      if (typeof saved.keywordSearch === "string") setKeywordSearch(saved.keywordSearch);
-      if (saved.sortMode) setSortMode(saved.sortMode);
-      if (typeof saved.onlyMyNiches === "boolean") setOnlyMyNiches(saved.onlyMyNiches);
-      if (typeof saved.currentPage === "number") setCurrentPage(saved.currentPage);
+    // On fresh page reload (SSR -> client initial hydration), restore state from session
+    if (!isHydratedOnClient) {
+      const saved = getSavedTrendsState();
+      if (saved) {
+        if (saved.keywordSearch) setKeywordSearch(saved.keywordSearch);
+        if (saved.sortMode) setSortMode(saved.sortMode);
+        if (saved.onlyMyNiches) setOnlyMyNiches(saved.onlyMyNiches);
+        if (saved.currentPage > 1) setCurrentPage(saved.currentPage);
+      }
+      const lastItem = getSavedTrendsLastItem();
+      if (lastItem) setHighlightedCardId(lastItem);
     }
-  }, []);
+  }, [isHydratedOnClient]);
 
   useEffect(() => {
     if (highlightedCardId) {
@@ -200,11 +183,7 @@ export default function TrendsPage() {
     resetScrollToTop(false);
   };
 
-  const handleClearSearch = () => {
-    setKeywordSearch("");
-    setCurrentPage(1);
-    resetScrollToTop(false);
-  };
+  const handleClearSearch = () => handleSearchChange("");
 
   const handleSortChange = (mode: SortMode) => {
     setSortMode(mode);

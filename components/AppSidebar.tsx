@@ -30,6 +30,16 @@ export function AppSidebar() {
     }
   };
 
+  const handleItemClick = (_e: React.MouseEvent, href: string) => {
+    handleNavClick();
+    if (href === "/trends" && pathname === "/trends") {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      try {
+        sessionStorage.setItem("vtr_trends_scroll_pos", "0");
+      } catch {}
+    }
+  };
+
   const navigation = [
     { name: "Dashboard", href: "/dashboard", icon: Home },
     { name: "Create", href: "/threads/create", icon: PenSquare },
@@ -70,7 +80,13 @@ export function AppSidebar() {
                   <SidebarMenuItem key={item.name}>
                     <SidebarMenuButton
                       isActive={isActive}
-                      render={<Link href={item.href} onClick={handleNavClick} />}
+                      render={
+                        <Link
+                          href={item.href}
+                          scroll={item.href === "/trends" ? false : undefined}
+                          onClick={(e) => handleItemClick(e, item.href)}
+                        />
+                      }
                       className={`rounded-xl px-3 py-2.5 transition-all duration-200 cursor-pointer ${
                         isActive
                           ? "bg-violet-600/10 text-violet-600 dark:bg-violet-500/10 dark:text-violet-400 font-semibold shadow-xs"

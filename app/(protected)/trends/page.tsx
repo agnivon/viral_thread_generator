@@ -10,6 +10,7 @@ import { api } from "@/convex/_generated/api";
 import { useAction, useQuery as useConvexQuery } from "convex/react";
 import { matchesUserPreferences } from "@/convex/lib/trends/nicheClassifier";
 import {
+  ArrowUp,
   ChevronRight,
   Clock,
   Globe,
@@ -24,25 +25,78 @@ import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
 import { trendsQueryKeys } from "@/lib/query-keys";
 import {
+  useTrendsScroll,
+  getSavedTrendsState,
+  getSavedTrendsLastItem,
+  getHasHydrated,
+  setHasHydrated,
+  type SortMode,
+} from "@/hooks/use-trends-scroll";
+import { cn } from "@/lib/utils";
+import {
   type KeywordItem,
   formatSearchVolume,
   formatGrowthRate,
   formatStartedAgo,
 } from "./utils";
 
-type SortMode = "relevance" | "traffic" | "growth" | "recent";
-
 export default function TrendsPage() {
-  const [mounted, setMounted] = useState(false);
+  const isHydratedOnClient = typeof window !== "undefined" && getHasHydrated();
+  const [mounted, setMounted] = useState(() => isHydratedOnClient);
+
+  const [keywordSearch, setKeywordSearch] = useState<string>(() => {
+    if (typeof window !== "undefined" && getHasHydrated()) {
+      return getSavedTrendsState()?.keywordSearch ?? "";
+    }
+    return "";
+  });
+  const [sortMode, setSortMode] = useState<SortMode>(() => {
+    if (typeof window !== "undefined" && getHasHydrated()) {
+      return getSavedTrendsState()?.sortMode ?? "relevance";
+    }
+    return "relevance";
+  });
+  const [onlyMyNiches, setOnlyMyNiches] = useState<boolean>(() => {
+    if (typeof window !== "undefined" && getHasHydrated()) {
+      return getSavedTrendsState()?.onlyMyNiches ?? false;
+    }
+    return false;
+  });
+  const [currentPage, setCurrentPage] = useState<number>(() => {
+    if (typeof window !== "undefined" && getHasHydrated()) {
+      return getSavedTrendsState()?.currentPage ?? 1;
+    }
+    return 1;
+  });
+  const pageSize = 50;
+
+  const [highlightedCardId, setHighlightedCardId] = useState<string | null>(() => {
+    if (typeof window !== "undefined") {
+      return getSavedTrendsLastItem();
+    }
+    return null;
+  });
+
   useEffect(() => {
+    setHasHydrated();
     setMounted(true);
+    const saved = getSavedTrendsState();
+    if (saved) {
+      if (typeof saved.keywordSearch === "string") setKeywordSearch(saved.keywordSearch);
+      if (saved.sortMode) setSortMode(saved.sortMode);
+      if (typeof saved.onlyMyNiches === "boolean") setOnlyMyNiches(saved.onlyMyNiches);
+      if (typeof saved.currentPage === "number") setCurrentPage(saved.currentPage);
+    }
   }, []);
 
-  const [keywordSearch, setKeywordSearch] = useState<string>("");
-  const [sortMode, setSortMode] = useState<SortMode>("relevance");
-  const [onlyMyNiches, setOnlyMyNiches] = useState<boolean>(false);
-  const [currentPage, setCurrentPage] = useState<number>(1);
-  const pageSize = 50;
+  useEffect(() => {
+    if (highlightedCardId) {
+      const timer = setTimeout(() => {
+        setHighlightedCardId(null);
+      }, 2500);
+      return () => clearTimeout(timer);
+    }
+  }, [highlightedCardId]);
 
   const userSettings = useConvexQuery(api.trendFilterSettings.getSettings);
   const getTrendingKeywordsAction = useAction(api.actions.googleTrends.getTrendingKeywords);
@@ -59,9 +113,11 @@ export default function TrendsPage() {
   });
 
   const handleRefresh = async () => {
+    const currentY = typeof window !== "undefined" ? window.scrollY : 0;
     try {
       await refetchKeywords();
       toast.success("Google Trends refreshed successfully!");
+      preserveScrollPosition(currentY);
     } catch (err) {
       console.error("Error refreshing Google Trends:", err);
       toast.error("Failed to refresh Google Trends.");
@@ -111,11 +167,6 @@ export default function TrendsPage() {
     });
   }, [googleKeywords, keywordSearch, sortMode, onlyMyNiches, userSettings]);
 
-  // Reset page when search, sort, or niche filter changes
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [keywordSearch, sortMode, onlyMyNiches]);
-
   // Pagination for page size 50
   const totalPages = Math.max(1, Math.ceil(filteredKeywords.length / pageSize));
   const paginatedKeywords = useMemo(() => {
@@ -125,6 +176,52 @@ export default function TrendsPage() {
 
   // Safe loading flag ensuring SSR output matches client initial hydration
   const isLoading = !mounted || isGoogleLoading;
+
+  const {
+    showScrollTop,
+    saveCardClick,
+    resetScrollToTop,
+    preserveScrollPosition,
+    formatCardDomId,
+  } = useTrendsScroll({
+    isReady: mounted && !isGoogleLoading && filteredKeywords.length > 0,
+    totalFilteredItems: filteredKeywords.length,
+    state: {
+      keywordSearch,
+      sortMode,
+      onlyMyNiches,
+      currentPage,
+    },
+  });
+
+  const handleSearchChange = (val: string) => {
+    setKeywordSearch(val);
+    setCurrentPage(1);
+    resetScrollToTop(false);
+  };
+
+  const handleClearSearch = () => {
+    setKeywordSearch("");
+    setCurrentPage(1);
+    resetScrollToTop(false);
+  };
+
+  const handleSortChange = (mode: SortMode) => {
+    setSortMode(mode);
+    setCurrentPage(1);
+    resetScrollToTop(false);
+  };
+
+  const handleNichesToggle = () => {
+    setOnlyMyNiches((prev) => !prev);
+    setCurrentPage(1);
+    resetScrollToTop(false);
+  };
+
+  const handlePageChange = (newPage: number) => {
+    setCurrentPage(newPage);
+    resetScrollToTop(true);
+  };
 
   return (
     <div className="flex-1 w-full bg-linear-to-b from-background via-background/95 to-background/50 py-10 px-4 sm:px-6 lg:px-8">
@@ -173,12 +270,12 @@ export default function TrendsPage() {
             <Input
               placeholder="Search active trends or related queries..."
               value={keywordSearch}
-              onChange={(e) => setKeywordSearch(e.target.value)}
+              onChange={(e) => handleSearchChange(e.target.value)}
               className="h-9 pl-9 text-xs sm:text-sm bg-background/60 border-border/60 focus-visible:ring-violet-500/30 rounded-xl w-full"
             />
             {keywordSearch && (
               <button
-                onClick={() => setKeywordSearch("")}
+                onClick={handleClearSearch}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer"
               >
                 <X className="w-3.5 h-3.5" />
@@ -190,7 +287,7 @@ export default function TrendsPage() {
             {/* My Niches Toggle Button */}
             <button
               type="button"
-              onClick={() => setOnlyMyNiches(!onlyMyNiches)}
+              onClick={handleNichesToggle}
               className={`py-1.5 px-3 rounded-xl text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 border shrink-0 ${
                 onlyMyNiches
                   ? "bg-violet-600 text-white border-violet-600 shadow-xs"
@@ -208,7 +305,7 @@ export default function TrendsPage() {
               <span className="text-[11px] text-muted-foreground px-2 hidden sm:inline font-semibold">Sort:</span>
               <button
                 type="button"
-                onClick={() => setSortMode("relevance")}
+                onClick={() => handleSortChange("relevance")}
                 className={`py-1.5 px-2.5 sm:px-3 rounded-lg text-xs transition-all cursor-pointer ${
                   sortMode === "relevance"
                     ? "bg-violet-600 text-white font-bold shadow-xs"
@@ -219,7 +316,7 @@ export default function TrendsPage() {
               </button>
               <button
                 type="button"
-                onClick={() => setSortMode("traffic")}
+                onClick={() => handleSortChange("traffic")}
                 className={`py-1.5 px-2.5 sm:px-3 rounded-lg text-xs transition-all cursor-pointer ${
                   sortMode === "traffic"
                     ? "bg-violet-600 text-white font-bold shadow-xs"
@@ -230,7 +327,7 @@ export default function TrendsPage() {
               </button>
               <button
                 type="button"
-                onClick={() => setSortMode("growth")}
+                onClick={() => handleSortChange("growth")}
                 className={`py-1.5 px-2.5 sm:px-3 rounded-lg text-xs transition-all cursor-pointer ${
                   sortMode === "growth"
                     ? "bg-violet-600 text-white font-bold shadow-xs"
@@ -241,7 +338,7 @@ export default function TrendsPage() {
               </button>
               <button
                 type="button"
-                onClick={() => setSortMode("recent")}
+                onClick={() => handleSortChange("recent")}
                 className={`py-1.5 px-2.5 sm:px-3 rounded-lg text-xs transition-all cursor-pointer ${
                   sortMode === "recent"
                     ? "bg-violet-600 text-white font-bold shadow-xs"
@@ -295,7 +392,7 @@ export default function TrendsPage() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => setKeywordSearch("")}
+                    onClick={handleClearSearch}
                     className="rounded-xl mt-2 text-xs"
                   >
                     Clear Search
@@ -308,14 +405,26 @@ export default function TrendsPage() {
               const itemGrowth = formatGrowthRate(item.trafficGrowthRate);
               const displayRank = item.rank ?? ((currentPage - 1) * pageSize + idx + 1);
               const hasNewsCoverage = Boolean(item.articleKeys && item.articleKeys.length > 0);
+              const isLastViewed = highlightedCardId === item.id;
 
               return (
                 <Link
                   key={item.id}
+                  id={formatCardDomId(item.id)}
                   href={`/trends/${encodeURIComponent(item.id)}`}
+                  onClick={(e) => {
+                    if (!e.metaKey && !e.ctrlKey && !e.shiftKey && e.button === 0) {
+                      saveCardClick(item.id);
+                    }
+                  }}
                   className="block w-full group focus-visible:outline-none"
                 >
-                  <Card className="w-full relative overflow-hidden bg-card/45 backdrop-blur-xs border-border/80 hover:border-violet-500/40 hover:shadow-md transition-all duration-200 p-5 sm:p-6">
+                  <Card
+                    className={cn(
+                      "w-full relative overflow-hidden bg-card/45 backdrop-blur-xs border-border/80 hover:border-violet-500/40 hover:shadow-md transition-all duration-200 p-5 sm:p-6",
+                      isLastViewed && "ring-2 ring-violet-500 shadow-md border-violet-500/60 bg-violet-500/5"
+                    )}
+                  >
                     {/* Left Accent Bar on Hover */}
                     <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-linear-to-b from-violet-500 to-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
 
@@ -434,7 +543,7 @@ export default function TrendsPage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
                   disabled={currentPage <= 1}
                   className="rounded-xl text-xs h-8 px-3"
                 >
@@ -446,7 +555,7 @@ export default function TrendsPage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  onClick={() => handlePageChange(Math.min(totalPages, currentPage + 1))}
                   disabled={currentPage >= totalPages}
                   className="rounded-xl text-xs h-8 px-3"
                 >
@@ -455,6 +564,20 @@ export default function TrendsPage() {
               </div>
             )}
           </div>
+        )}
+
+        {/* Floating Back to Top Button */}
+        {showScrollTop && (
+          <Button
+            size="icon"
+            variant="outline"
+            onClick={() => resetScrollToTop(true)}
+            className="fixed bottom-6 right-6 z-40 rounded-full h-11 w-11 shadow-lg bg-background/90 backdrop-blur-md border-border/80 hover:bg-muted/80 text-foreground cursor-pointer transition-all duration-200 hover:scale-105"
+            title="Scroll to top"
+            aria-label="Scroll to top"
+          >
+            <ArrowUp className="w-5 h-5" />
+          </Button>
         )}
       </div>
     </div>

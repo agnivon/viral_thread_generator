@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -63,7 +63,20 @@ export default function KeywordDetailPage() {
   }, []);
 
   const params = useParams();
+  const router = useRouter();
   const keywordSlug = (params?.keyword as string) || "";
+
+  const handleBackToTrends = (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (typeof window !== "undefined") {
+      const fromTrends = sessionStorage.getItem("vtr_trends_from_trends");
+      if (fromTrends === "true") {
+        router.back();
+        return;
+      }
+    }
+    router.push("/trends", { scroll: false });
+  };
 
   const [selectedArticle, setSelectedArticle] = useState<Article | null>(null);
   const [articleFilter, setArticleFilter] = useState<string>("");
@@ -156,9 +169,13 @@ export default function KeywordDetailPage() {
   });
 
   const handleSync = async () => {
+    const currentY = typeof window !== "undefined" ? window.scrollY : 0;
     try {
       await Promise.all([refetchKeywords(), refetchArticles()]);
       toast.success("Topic refreshed successfully!");
+      if (typeof window !== "undefined" && window.scrollY !== currentY) {
+        window.scrollTo({ top: currentY, behavior: "instant" });
+      }
     } catch (err) {
       console.error("Error refreshing topic:", err);
       toast.error("Failed to refresh topic.");
@@ -233,6 +250,8 @@ export default function KeywordDetailPage() {
         <div>
           <Link
             href="/trends"
+            scroll={false}
+            onClick={handleBackToTrends}
             className="inline-flex items-center gap-2 text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors group"
           >
             <ArrowLeft className="w-4 h-4 transition-transform group-hover:-translate-x-1" />

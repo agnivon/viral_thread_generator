@@ -187,6 +187,16 @@ test("DeepSeek models use deepseek-flash identifier and aliases match", async ()
   expect(getModelName(openAiGpt54MiniT08)).toBe("deepseek-flash");
   expect(deepSeekV4ProT085ReasoningNone).toBe(deepSeekFlashT085ReasoningNone);
   expect(deepSeekV4ProT00ReasoningHigh).toBe(deepSeekFlashT00ReasoningHigh);
+
+  const getModelKwargs = (model: unknown): Record<string, unknown> | undefined => {
+    return (model as { modelKwargs?: Record<string, unknown> })?.modelKwargs;
+  };
+  expect(getModelKwargs(deepSeekFlashT02ReasoningNone)?.response_format).toEqual({ type: "json_object" });
+  expect(getModelKwargs(deepSeekFlashT08ReasoningNone)?.response_format).toEqual({ type: "json_object" });
+  expect(getModelKwargs(deepSeekFlashT085ReasoningNone)?.response_format).toEqual({ type: "json_object" });
+  expect(getModelKwargs(deepSeekFlashT00ReasoningHigh)?.response_format).toEqual({ type: "json_object" });
+  expect(getModelKwargs(deepSeekFlashT00ReasoningNone)?.response_format).toEqual({ type: "json_object" });
+  expect(getModelKwargs(deepSeekFlashT01ReasoningNone)?.response_format).toBeUndefined();
 });
 
 test("Gemini 4 Hydrogen models are configured with correct identities and primary placement", async () => {

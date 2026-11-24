@@ -4,6 +4,7 @@ import { END } from "@langchain/langgraph";
 import { NewsThreadFactoryGraph, route_after_critic as newsRouteAfterCritic, route_after_validator as newsRouteAfterValidator } from "../../lib/agents/news/graph";
 import { SocialMediaThreadFactoryGraph, route_after_critic as socialMediaRouteAfterCritic, route_after_validator as socialMediaRouteAfterValidator } from "../../lib/agents/social_media/graph";
 import { TopicThreadFactoryGraph, route_after_critic as topicRouteAfterCritic, route_after_validator as topicRouteAfterValidator } from "../../lib/agents/topic/graph";
+import { ClickbaitThreadFactoryGraph, route_after_critic as clickbaitRouteAfterCritic, route_after_validator as clickbaitRouteAfterValidator } from "../../lib/agents/clickbait/graph";
 import type { NewsThreadFactoryStateType } from "../../lib/agents/news/state";
 import type { TopicThreadFactoryStateType } from "../../lib/agents/topic/state";
 
@@ -27,10 +28,16 @@ test("TopicThreadFactoryGraph - structure & node compilation", () => {
   expect(typeof TopicThreadFactoryGraph.invoke).toBe("function");
 });
 
+test("ClickbaitThreadFactoryGraph - structure & node compilation", () => {
+  expect(ClickbaitThreadFactoryGraph).toBeDefined();
+  expect(typeof ClickbaitThreadFactoryGraph.invoke).toBe("function");
+});
+
 describe.each<{ name: string; router: RouterFn }>([
   { name: "NewsThreadFactory", router: newsRouteAfterCritic },
   { name: "SocialMediaThreadFactory", router: socialMediaRouteAfterCritic },
   { name: "TopicThreadFactory", router: topicRouteAfterCritic },
+  { name: "ClickbaitThreadFactory", router: clickbaitRouteAfterCritic },
 ])("$name route_after_critic", ({ router }) => {
   const baseState = {
     url: "https://example.com",
@@ -227,6 +234,7 @@ describe.each<{ name: string; router: RouterFn; expectedError: string }>([
   { name: "NewsThreadFactory", router: newsRouteAfterValidator, expectedError: "CharacterValidatorNode failed after 3 retries" },
   { name: "SocialMediaThreadFactory", router: socialMediaRouteAfterValidator, expectedError: "CharacterValidatorNode failed after 3 retries" },
   { name: "TopicThreadFactory", router: topicRouteAfterValidator, expectedError: "TopicCharacterValidatorNode failed after 3 retries" },
+  { name: "ClickbaitThreadFactory", router: clickbaitRouteAfterValidator, expectedError: "CharacterValidatorNode failed after 3 retries" },
 ])("$name route_after_validator", ({ router, expectedError }) => {
   const baseState = {
     url: "https://example.com",

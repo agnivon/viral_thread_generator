@@ -887,6 +887,10 @@ export default function ApproveDraftPage() {
             <SidebarHookCard
               selectedHook={state.selected_hook}
               coreHooks={state.core_hooks || []}
+              archetype={state.archetype}
+              shockPayload={state.shock_payload}
+              withheldMechanism={state.withheld_mechanism}
+              highArousalValence={state.high_arousal_valence}
             />
 
             {/* Secondary Intelligence Dialogs (responsive 2-col on mobile/tablet, 1-col on desktop) */}

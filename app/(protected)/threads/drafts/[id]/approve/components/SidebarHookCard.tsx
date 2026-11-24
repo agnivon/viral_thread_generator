@@ -7,10 +7,27 @@ import { Compass, ChevronDown, ChevronUp } from "lucide-react";
 interface SidebarHookCardProps {
   selectedHook: string | null;
   coreHooks: string[];
+  archetype?: string;
+  shockPayload?: string;
+  withheldMechanism?: string;
+  highArousalValence?: string;
 }
 
-export function SidebarHookCard({ selectedHook, coreHooks }: SidebarHookCardProps) {
+export function SidebarHookCard({
+  selectedHook,
+  coreHooks,
+  archetype,
+  withheldMechanism,
+  highArousalValence,
+}: SidebarHookCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
+
+  const formattedArchetype = archetype
+    ? archetype
+        .split("_")
+        .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+        .join(" ")
+    : null;
 
   return (
     <Card className="border-border/80 bg-card/45 backdrop-blur-xs shadow-xs hover:border-violet-500/20 transition-all duration-300 rounded-2xl">
@@ -21,6 +38,26 @@ export function SidebarHookCard({ selectedHook, coreHooks }: SidebarHookCardProp
         </CardTitle>
       </CardHeader>
       <CardContent className="p-4 sm:p-5 pt-0 space-y-3.5">
+        {formattedArchetype && (
+          <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs space-y-1.5">
+            <div className="flex items-center justify-between">
+              <span className="font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                🔥 {formattedArchetype}
+              </span>
+              {highArousalValence && (
+                <span className="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-700 dark:text-amber-300">
+                  {highArousalValence}
+                </span>
+              )}
+            </div>
+            {withheldMechanism && (
+              <p className="text-[11px] text-muted-foreground leading-snug">
+                <span className="font-semibold text-foreground/80">Cloaked:</span> {withheldMechanism}
+              </p>
+            )}
+          </div>
+        )}
+
         <div>
           <div className="flex items-center justify-between mb-1.5">
             <h4 className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider select-none">

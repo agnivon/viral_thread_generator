@@ -2,7 +2,7 @@ import { z } from "zod";
 
 export const threadEntrySchema = z
   .object({
-    agent: z.enum(["news", "social_media", "topic"]),
+    agent: z.enum(["news", "social_media", "topic", "clickbait"]),
     url: z.string().optional(),
     topic: z.string().optional(),
     description: z.string().optional(),
@@ -58,7 +58,7 @@ export interface DefaultEntryOptions {
   topic?: string;
   description?: string;
   guidance?: string;
-  agent?: "news" | "social_media" | "topic";
+  agent?: "news" | "social_media" | "topic" | "clickbait";
   manual_hook_selection?: boolean;
   search_query_generation?: boolean;
   infographic_generation?: boolean;

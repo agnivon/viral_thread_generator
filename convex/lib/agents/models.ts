@@ -61,6 +61,21 @@ export const openRouterFreeT08 = attachModelIdentity(
   { provider: "openrouter", keyGroup: "OPENROUTER_API_KEY", modelId: "openrouter/free" }
 );
 
+// Clickbait Extraction, Angle & Hook Models with Thinking / Reasoning
+export const googleGemini38FlashT01ThinkingKey1 = createGoogleModel("gemini-3.8-flash", 0.1, "GOOGLE_API_KEY", { thinkingLevel: "high" });
+export const googleGemini38FlashT01ThinkingKey2 = createGoogleModel("gemini-3.8-flash", 0.1, "GOOGLE_API_KEY2", { thinkingLevel: "high" });
+export const googleGemini36FlashT01ThinkingKey1 = createGoogleModel("gemini-3.6-flash", 0.1, "GOOGLE_API_KEY", { thinkingLevel: "high" });
+export const googleGemini36FlashT01ThinkingKey2 = createGoogleModel("gemini-3.6-flash", 0.1, "GOOGLE_API_KEY2", { thinkingLevel: "high" });
+export const googleGemini35FlashLiteT01ThinkingKey1 = createGoogleModel("gemini-3.5-flash-lite", 0.1, "GOOGLE_API_KEY", { thinkingLevel: "low" });
+export const googleGemini35FlashLiteT01ThinkingKey2 = createGoogleModel("gemini-3.5-flash-lite", 0.1, "GOOGLE_API_KEY2", { thinkingLevel: "low" });
+export const deepSeekFlashT01ReasoningHigh = createDeepSeekModel("deepseek-flash", 0.1, { reasoning: { effort: "high" }, modelKwargs: { thinking: { type: "enabled" }, response_format: { type: "json_object" } } });
+
+export const googleGemini38FlashT08ThinkingKey1 = createGoogleModel("gemini-3.8-flash", 0.8, "GOOGLE_API_KEY", { thinkingLevel: "high" });
+export const googleGemini38FlashT08ThinkingKey2 = createGoogleModel("gemini-3.8-flash", 0.8, "GOOGLE_API_KEY2", { thinkingLevel: "high" });
+export const googleGemini36FlashT08ThinkingKey1 = createGoogleModel("gemini-3.6-flash", 0.8, "GOOGLE_API_KEY", { thinkingLevel: "high" });
+export const googleGemini36FlashT08ThinkingKey2 = createGoogleModel("gemini-3.6-flash", 0.8, "GOOGLE_API_KEY2", { thinkingLevel: "high" });
+export const deepSeekFlashT08ReasoningHigh = createDeepSeekModel("deepseek-flash", 0.8, { reasoning: { effort: "high" }, modelKwargs: { thinking: { type: "enabled" }, response_format: { type: "json_object" } } });
+
 // ThreadWriterNode Models
 export const googleGemini4HydrogenT08Key1 = createGoogleModel("gemini-4-hydrogen", 0.8, "GOOGLE_API_KEY", { thinkingLevel: "high" });
 export const googleGemini4HydrogenT08Key2 = createGoogleModel("gemini-4-hydrogen", 0.8, "GOOGLE_API_KEY2", { thinkingLevel: "high" });

@@ -154,45 +154,58 @@ function ThreadEntryCard({
           <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
             <Sparkles className="w-3.5 h-3.5 text-indigo-500" /> Choose Agent Role
           </Label>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <button
               type="button"
               onClick={() => setValue(`entries.${index}.agent`, "news", { shouldValidate: true })}
               disabled={isLoading}
-              className={`flex flex-col items-center justify-center p-3.5 rounded-xl border transition-all duration-300 text-center cursor-pointer ${
+              className={`flex flex-col items-center justify-center p-3 rounded-xl border transition-all duration-300 text-center cursor-pointer ${
                 currentAgent === "news" || !currentAgent
                   ? "border-violet-500 bg-violet-500/5 ring-1 ring-violet-500/50"
                   : "border-border/80 bg-background/40 hover:border-violet-500/30 hover:bg-muted/10"
               }`}
             >
               <span className="text-xs font-bold text-foreground">News Editor</span>
-              <span className="text-[10px] text-muted-foreground mt-1">Factual, journalistic layout</span>
+              <span className="text-[10px] text-muted-foreground mt-1">Factual layout</span>
             </button>
             <button
               type="button"
               onClick={() => setValue(`entries.${index}.agent`, "social_media", { shouldValidate: true })}
               disabled={isLoading}
-              className={`flex flex-col items-center justify-center p-3.5 rounded-xl border transition-all duration-300 text-center cursor-pointer ${
+              className={`flex flex-col items-center justify-center p-3 rounded-xl border transition-all duration-300 text-center cursor-pointer ${
                 currentAgent === "social_media"
                   ? "border-violet-500 bg-violet-500/5 ring-1 ring-violet-500/50"
                   : "border-border/80 bg-background/40 hover:border-violet-500/30 hover:bg-muted/10"
               }`}
             >
               <span className="text-xs font-bold text-foreground">Social Specialist</span>
-              <span className="text-[10px] text-muted-foreground mt-1">Punchy, hook-focused copy</span>
+              <span className="text-[10px] text-muted-foreground mt-1">Punchy copy</span>
             </button>
             <button
               type="button"
               onClick={() => setValue(`entries.${index}.agent`, "topic", { shouldValidate: true })}
               disabled={isLoading}
-              className={`flex flex-col items-center justify-center p-3.5 rounded-xl border transition-all duration-300 text-center cursor-pointer ${
+              className={`flex flex-col items-center justify-center p-3 rounded-xl border transition-all duration-300 text-center cursor-pointer ${
                 currentAgent === "topic"
                   ? "border-violet-500 bg-violet-500/5 ring-1 ring-violet-500/50"
                   : "border-border/80 bg-background/40 hover:border-violet-500/30 hover:bg-muted/10"
               }`}
             >
               <span className="text-xs font-bold text-foreground">Topic Expert</span>
-              <span className="text-[10px] text-muted-foreground mt-1">Deep dives from scratch</span>
+              <span className="text-[10px] text-muted-foreground mt-1">Deep dives</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setValue(`entries.${index}.agent`, "clickbait", { shouldValidate: true })}
+              disabled={isLoading}
+              className={`flex flex-col items-center justify-center p-3 rounded-xl border transition-all duration-300 text-center cursor-pointer ${
+                currentAgent === "clickbait"
+                  ? "border-amber-500 bg-amber-500/10 ring-1 ring-amber-500/50"
+                  : "border-border/80 bg-background/40 hover:border-amber-500/30 hover:bg-muted/10"
+              }`}
+            >
+              <span className="text-xs font-bold text-foreground flex items-center gap-1">🔥 Clickbait</span>
+              <span className="text-[10px] text-muted-foreground mt-1">Curiosity gaps</span>
             </button>
           </div>
         </div>
@@ -486,7 +499,7 @@ function CreateThreadForm() {
       requests: Array<{
         input_field:
           | { agent: "topic"; topic: string; description?: string }
-          | { agent: "news" | "social_media"; url: string };
+          | { agent: "news" | "social_media" | "clickbait"; url: string };
         guidance?: string;
         manual_hook_selection?: boolean;
         search_query_generation?: boolean;
@@ -564,7 +577,7 @@ function CreateThreadForm() {
               ...(entry.description?.trim() ? { description: entry.description.trim() } : {}),
             }
           : {
-              agent: entry.agent as "news" | "social_media",
+              agent: entry.agent as "news" | "social_media" | "clickbait",
               url: (entry.url || "").trim(),
             };
 

@@ -10,6 +10,8 @@ import {
   publicationStatusValidator,
   infographicSpecValidator,
   discoveryAngleValidator,
+  clickbaitArchetypeValidator,
+  clickbaitArousalValenceValidator,
 } from "./schema";
 
 /**
@@ -174,6 +176,10 @@ export const updateThreadDraft = internalMutation({
     infographic_spec: v.optional(infographicSpecValidator),
     infographic_url: v.optional(v.string()),
     discovery_angles: v.optional(v.array(discoveryAngleValidator)),
+    archetype: v.optional(clickbaitArchetypeValidator),
+    shock_payload: v.optional(v.string()),
+    withheld_mechanism: v.optional(v.string()),
+    high_arousal_valence: v.optional(clickbaitArousalValenceValidator),
   },
   handler: async (ctx, args) => {
     const { id, failure_reason, publication_error, ...updates } = args;

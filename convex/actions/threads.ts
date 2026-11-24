@@ -10,6 +10,7 @@ import { Id } from "../_generated/dataModel";
 import { NewsThreadFactoryGraph } from "../lib/agents/news/graph.js";
 import { SocialMediaThreadFactoryGraph } from "../lib/agents/social_media/graph.js";
 import { TopicThreadFactoryGraph } from "../lib/agents/topic/graph.js";
+import { ClickbaitThreadFactoryGraph } from "../lib/agents/clickbait/graph.js";
 import { ThreadsAPI } from "../lib/clients/threads.js";
 import { decodeGoogleNewsUrl } from "../lib/clients/googleTrends.js";
 import { modelCircuitBreaker } from "../lib/agents/circuitBreaker.js";
@@ -69,6 +70,7 @@ interface LangGraphInstance {
 function getGraph(agent?: string): LangGraphInstance {
   if (agent === "topic") return TopicThreadFactoryGraph as unknown as LangGraphInstance;
   if (agent === "social_media") return SocialMediaThreadFactoryGraph as unknown as LangGraphInstance;
+  if (agent === "clickbait") return ClickbaitThreadFactoryGraph as unknown as LangGraphInstance;
   return NewsThreadFactoryGraph as unknown as LangGraphInstance;
 }
 
@@ -220,6 +222,10 @@ async function handleGraphCompletion(
     discovery_angles: finalState.discovery_angles,
     core_delta: finalState.core_delta,
     research_context: finalState.research_context,
+    archetype: typeof finalState.archetype === "string" ? finalState.archetype : undefined,
+    shock_payload: typeof finalState.shock_payload === "string" ? finalState.shock_payload : undefined,
+    withheld_mechanism: typeof finalState.withheld_mechanism === "string" ? finalState.withheld_mechanism : undefined,
+    high_arousal_valence: typeof finalState.high_arousal_valence === "string" ? finalState.high_arousal_valence : undefined,
     generation_status,
     failure_reason,
   };
@@ -413,6 +419,22 @@ export const enqueueTopicThreadGeneration = action({
     const requests = args.requests.map((req) => ({
       ...req,
       input_field: { agent: "topic" as const, topic: req.topic, description: req.description },
+    }));
+    await enqueueThreadGenerationHelper(ctx, requests);
+  },
+});
+
+export const enqueueClickbaitThreadGeneration = action({
+  args: {
+    requests: v.array(v.object({
+      url: v.string(),
+      ...commonThreadDraftArgs,
+    }))
+  },
+  handler: async (ctx, args) => {
+    const requests = args.requests.map((req) => ({
+      ...req,
+      input_field: { agent: "clickbait" as const, url: req.url },
     }));
     await enqueueThreadGenerationHelper(ctx, requests);
   },
@@ -713,8 +735,14 @@ export const iterateThreadInternal = internalAction({
           stateUpdate.research_dossier = draft.research_context;
         }
       } else {
-        if (inputField.agent === "news" || inputField.agent === "social_media") {
+        if (inputField.agent === "news" || inputField.agent === "social_media" || inputField.agent === "clickbait") {
           stateUpdate.url = inputField.url;
+        }
+        if (agent === "clickbait") {
+          if (draft.archetype) stateUpdate.archetype = draft.archetype;
+          if (draft.shock_payload) stateUpdate.shock_payload = draft.shock_payload;
+          if (draft.withheld_mechanism) stateUpdate.withheld_mechanism = draft.withheld_mechanism;
+          if (draft.high_arousal_valence) stateUpdate.high_arousal_valence = draft.high_arousal_valence;
         }
       }
 

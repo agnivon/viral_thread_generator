@@ -139,7 +139,17 @@ const TopicInput = v.object({
   description: v.optional(v.string()),
 });
 
-export const threadDraftInputValidator = v.union(NewsInput, SocialMediaInput, TopicInput);
+const ClickbaitInput = v.object({
+  agent: v.literal("clickbait"),
+  url: v.string(),
+});
+
+export const threadDraftInputValidator = v.union(
+  NewsInput,
+  SocialMediaInput,
+  TopicInput,
+  ClickbaitInput
+);
 
 export const discoveryAngleValidator = v.object({
   vector: v.string(),
@@ -148,6 +158,22 @@ export const discoveryAngleValidator = v.object({
   core_tension: v.string(),
   primary_proof_sources: v.array(v.string()),
 });
+
+export const clickbaitArchetypeValidator = v.union(
+  v.literal("forbidden_secret"),
+  v.literal("catastrophic_asymmetry"),
+  v.literal("counter_intuitive_reversal"),
+  v.literal("thriller_cold_open"),
+  v.literal("elite_cheat_code")
+);
+
+export const clickbaitArousalValenceValidator = v.union(
+  v.literal("outrage"),
+  v.literal("awe"),
+  v.literal("anxiety"),
+  v.literal("greed"),
+  v.literal("curiosity")
+);
 
 export const commonThreadDraftArgs = {
   guidance: v.optional(v.string()),
@@ -232,6 +258,10 @@ export default defineSchema(
       infographic_url: v.optional(v.string()),
       discovery_angles: v.optional(v.array(discoveryAngleValidator)),
       core_delta: v.optional(v.string()),
+      archetype: v.optional(clickbaitArchetypeValidator),
+      shock_payload: v.optional(v.string()),
+      withheld_mechanism: v.optional(v.string()),
+      high_arousal_valence: v.optional(clickbaitArousalValenceValidator),
       generation_status: generationStatusValidator,
       failure_reason: v.optional(v.string()),
       publication_status: v.optional(publicationStatusValidator),

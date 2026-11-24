@@ -1,0 +1,86 @@
+"use node";
+import { StateSchema } from "@langchain/langgraph";
+import { z } from "zod";
+import { SearchQueriesSchema } from "../nodes.js";
+import { InfographicSpecSchema } from "../../infographics/schema.js";
+import { DiscoveryAngleSchema } from "../discovery/state.js";
+
+export const ClickbaitArchetypeSchema = z.enum([
+  "forbidden_secret",
+  "catastrophic_asymmetry",
+  "counter_intuitive_reversal",
+  "thriller_cold_open",
+  "elite_cheat_code"
+]);
+
+export type ClickbaitArchetype = z.infer<typeof ClickbaitArchetypeSchema>;
+
+export const ClickbaitThreadFactoryState = new StateSchema({
+  url: z.string(),
+  guidance: z.string().optional(),
+  manual_hook_selection: z.boolean().default(false),
+  raw_markdown: z.string().default(""),
+  research_context: z.string().default(""),
+  archetype: ClickbaitArchetypeSchema.optional(),
+  shock_payload: z.string().default(""),
+  withheld_mechanism: z.string().default(""),
+  high_arousal_valence: z.enum(["outrage", "awe", "anxiety", "greed", "curiosity"]).default("curiosity"),
+  curiosity_gap_score: z.number().optional(),
+  retention_flow_score: z.number().optional(),
+  core_hooks: z.array(z.string()).default(() => []),
+  selected_hook: z.string().default(""),
+  core_delta: z.string().optional(),
+  thread_draft: z.array(z.string()).default(() => []),
+  images: z.array(z.string()).optional(),
+  critique: z.string().default(""),
+  virality_score: z.number().optional(),
+  post_critiques: z.array(
+    z.object({
+      post_index: z.number(),
+      critique: z.string(),
+      fix_directive: z.string().optional(),
+      status: z.enum(["open", "resolved", "unresolved"]).optional(),
+    })
+  ).default(() => []),
+  best_thread_draft: z.array(z.string()).optional(),
+  best_virality_score: z.number().optional(),
+  audit_history: z.array(
+    z.object({
+      iteration: z.number(),
+      virality_score: z.number(),
+      post_critiques: z.array(
+        z.object({
+          post_index: z.number(),
+          critique: z.string(),
+          fix_directive: z.string().optional(),
+          status: z.enum(["open", "resolved", "unresolved"]).default("open"),
+        })
+      ),
+    })
+  ).default(() => []),
+  character_critique: z.string().default(""),
+  iterations: z.number().default(0),
+  max_iterations: z.number().default(3),
+  is_approved: z.boolean().default(false),
+  is_character_valid: z.boolean().default(true),
+  parse_success: z.boolean().default(true),
+  retries: z
+    .object({
+      scraper: z.number().default(0),
+      researcher: z.number().default(0),
+      hook: z.number().default(0),
+      writer: z.number().default(0),
+      critic: z.number().default(0),
+      validator: z.number().default(0),
+    })
+    .default({ scraper: 0, researcher: 0, hook: 0, writer: 0, critic: 0, validator: 0 }),
+  search_queries: SearchQueriesSchema.optional(),
+  search_query_generation: z.boolean().default(false),
+  infographic_generation: z.boolean().default(false),
+  discovery_agent: z.boolean().default(false),
+  discovery_angles: z.array(DiscoveryAngleSchema).optional(),
+  infographic_spec: InfographicSpecSchema.optional(),
+  infographic_url: z.string().optional(),
+});
+
+export type ClickbaitThreadFactoryStateType = typeof ClickbaitThreadFactoryState.State;

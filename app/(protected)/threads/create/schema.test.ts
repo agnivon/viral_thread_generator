@@ -49,6 +49,16 @@ describe("threadEntrySchema validation", () => {
     expect(result.success).toBe(true);
   });
 
+  it("validates clickbait entry with valid URL", () => {
+    const result = threadEntrySchema.safeParse({
+      agent: "clickbait",
+      url: "https://techcrunch.com/article/123",
+      manual_hook_selection: false,
+      search_query_generation: false,
+    });
+    expect(result.success).toBe(true);
+  });
+
   it("rejects news entry with empty URL", () => {
     const result = threadEntrySchema.safeParse({
       agent: "news",

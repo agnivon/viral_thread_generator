@@ -53,7 +53,6 @@ export function ArticleSidebarImage({
   if (activeImage) {
     return (
       <div className="relative w-full max-h-64 sm:max-h-72 rounded-2xl overflow-hidden border border-border/40 bg-muted/20 flex items-center justify-center group shadow-xs">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           key={activeImage}
           src={activeImage}
@@ -67,7 +66,6 @@ export function ArticleSidebarImage({
         {(mediaCompany || hostname) && (
           <div className="absolute bottom-3 left-3 flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-background/90 dark:bg-zinc-900/90 backdrop-blur-xs border border-border/40 text-[11px] font-medium text-foreground shadow-xs pointer-events-none">
             {hostname && (
-              /* eslint-disable-next-line @next/next/no-img-element */
               <img
                 src={`https://www.google.com/s2/favicons?domain=${hostname}&sz=32`}
                 alt=""
@@ -104,7 +102,6 @@ export function ArticleSidebarImage({
       className={`relative w-full h-44 sm:h-48 rounded-2xl overflow-hidden border border-border/40 bg-gradient-to-br ${gradientClass} flex flex-col items-center justify-center p-6 text-center shadow-xs`}
     >
       {hostname ? (
-        /* eslint-disable-next-line @next/next/no-img-element */
         <img
           src={`https://www.google.com/s2/favicons?domain=${hostname}&sz=64`}
           alt={hostname}

@@ -136,7 +136,6 @@ export function InfographicDialog({
           {renderedUrl ? (
             <div className="space-y-4">
               <div className="relative rounded-xl overflow-hidden border border-border/50 shadow-md bg-white">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={renderedUrl}
                   alt={infographicSpec?.headline || "Generated Editorial Infographic"}

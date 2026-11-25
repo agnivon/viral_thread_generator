@@ -431,37 +431,39 @@ export function isProviderResponseFormat(rf: unknown): rf is ProviderResponseFor
  * @param models Array of Chat models or model objects with custom timeouts.
  * @param config The shared tools, prompt, and response schema.
  */
+function getCandidateProvider(candidate: AgentCandidate): string {
+  const identity = getModelIdentity(candidate);
+  if (identity?.provider) return identity.provider;
+  const model = "runnable" in candidate ? candidate.runnable : candidate;
+  const modelObj = model as unknown as Record<string, unknown>;
+  const rawName = modelObj.name ?? modelObj.modelName ?? modelObj.model ?? "";
+  const name = typeof rawName === "string" ? rawName.toLowerCase() : "";
+  if (name.includes("deepseek")) return "deepseek";
+  if (name.includes("gemini") || name.includes("google")) return "google";
+  if (name.includes("gpt") || name.includes("openai")) return "openai";
+  return "default";
+}
+
 export function buildAgents<T extends Record<string, unknown> = Record<string, unknown>>(
   models: AgentCandidate[],
   config: AgentConfig
 ): FallbackCandidate<unknown, AgentResponse<T>>[] {
   if (models.length === 0) return [];
 
-  if (isProviderResponseFormat(config.responseFormat)) {
-    const providerConfig = config.responseFormat;
+  if (config.responseFormat !== undefined) {
+    const providerConfig: ProviderResponseFormat = isProviderResponseFormat(config.responseFormat)
+      ? config.responseFormat
+      : { default: config.responseFormat };
 
-    const getCandidateProvider = (candidate: AgentCandidate): string => {
-      const identity = getModelIdentity(candidate);
-      if (identity?.provider) return identity.provider;
-      const model = "runnable" in candidate ? candidate.runnable : candidate;
-      const modelObj = model as unknown as Record<string, unknown>;
-      const rawName = modelObj.name ?? modelObj.modelName ?? modelObj.model ?? "";
-      const name = typeof rawName === "string" ? rawName.toLowerCase() : "";
-      if (name.includes("deepseek")) return "deepseek";
-      if (name.includes("gemini") || name.includes("google")) return "google";
-      if (name.includes("gpt") || name.includes("openai")) return "openai";
-      return "default";
-    };
-
-    const groups: { candidates: AgentCandidate[]; format: unknown }[] = [];
-    let currentGroup: { candidates: AgentCandidate[]; format: unknown } | null = null;
+    const groups: { candidates: AgentCandidate[]; format: unknown; provider: string }[] = [];
+    let currentGroup: { candidates: AgentCandidate[]; format: unknown; provider: string } | null = null;
 
     for (const candidate of models) {
       const provider = getCandidateProvider(candidate);
       const format = providerConfig[provider] ?? providerConfig.default;
 
-      if (!currentGroup || currentGroup.format !== format) {
-        currentGroup = { candidates: [candidate], format };
+      if (!currentGroup || currentGroup.provider !== provider || currentGroup.format !== format) {
+        currentGroup = { candidates: [candidate], format, provider };
         groups.push(currentGroup);
       } else {
         currentGroup.candidates.push(candidate);
@@ -501,18 +503,11 @@ export function buildAgents<T extends Record<string, unknown> = Record<string, u
 
   const fallbackModel = new FallbackChatModel(models);
 
-  const agent = config.responseFormat !== undefined
-    ? createAgent({
-        model: fallbackModel,
-        tools: config.tools || [],
-        systemPrompt: config.systemPrompt,
-        responseFormat: config.responseFormat as never,
-      })
-    : createAgent({
-        model: fallbackModel,
-        tools: config.tools || [],
-        systemPrompt: config.systemPrompt,
-      });
+  const agent = createAgent({
+    model: fallbackModel,
+    tools: config.tools || [],
+    systemPrompt: config.systemPrompt,
+  });
 
   // Attach reference to fallbackModel for introspection and testing
   Object.defineProperty(agent, "fallbackModel", {
@@ -534,8 +529,19 @@ export function extractMessageText(content: unknown): string {
     const textParts = content
       .map((block) => {
         if (typeof block === "string") return block;
-        if (typeof block === "object" && block !== null && "text" in block && typeof (block as { text: unknown }).text === "string") {
-          return (block as { text: string }).text;
+        if (typeof block === "object" && block !== null) {
+          const obj = block as { text?: unknown; thought?: unknown; type?: unknown };
+          if (
+            obj.thought === true ||
+            obj.type === "thinking" ||
+            obj.type === "reasoning" ||
+            obj.type === "redacted_thinking"
+          ) {
+            return "";
+          }
+          if (typeof obj.text === "string") {
+            return obj.text;
+          }
         }
         return "";
       })
@@ -1025,6 +1031,107 @@ export function buildSurgicalWriterContext(
   };
 }
 
+/**
+ * Shared character validation runner used across all thread generation graphs.
+ */
+export async function runCharacterValidation(
+  validatorTool: { invoke: (input: { thread_draft: string[] }, config?: RunnableConfig) => Promise<string> },
+  threadDraft: string[],
+  retries: Record<string, number> | undefined,
+  config?: RunnableConfig
+) {
+  const validationStr = await validatorTool.invoke(
+    { thread_draft: threadDraft },
+    { ...config, timeout: 60000 }
+  );
+  const validation = JSON.parse(validationStr) as { isValid: boolean; errors: string[] };
+
+  if (!validation.isValid) {
+    return {
+      is_character_valid: false,
+      character_critique: `FORMATTING ERRORS REQUIRED TO FIX:\n${validation.errors.join("\n")}`,
+      retries: { ...(retries || {}), validator: (retries?.validator || 0) + 1 },
+    };
+  }
+
+  return {
+    is_character_valid: true,
+    character_critique: "",
+  };
+}
+
+/**
+ * Combines differential critic post critiques and character validator errors
+ * to determine surgical post-pinning indices and formatted context strings.
+ */
+export function buildWriterRevisionContext(params: {
+  threadDraft?: string[];
+  critique?: string;
+  postCritiques?: Array<{
+    post_index: number;
+    critique?: string;
+    fix_directive?: string;
+    status?: "open" | "resolved" | "unresolved";
+  }>;
+  characterCritique?: string;
+  guidance?: string;
+}) {
+  const previousDraftContext =
+    params.threadDraft && params.threadDraft.length > 0
+      ? `\n\n<PREVIOUS_THREAD_DRAFT>\n${JSON.stringify(params.threadDraft, null, 2)}\n</PREVIOUS_THREAD_DRAFT>`
+      : "";
+  const critiqueContext = params.critique
+    ? `\n\n<CRITIQUE_TO_ADDRESS>\n${params.critique}\n</CRITIQUE_TO_ADDRESS>`
+    : "";
+  const actionable = filterActionablePostCritiques(params.postCritiques);
+  const postCritiquesContext =
+    actionable.length > 0
+      ? "\n\n<POST_SPECIFIC_CRITIQUES>\n" +
+        actionable
+          .map(
+            (pc) =>
+              `Post ${pc.post_index}: ${pc.critique}${
+                pc.fix_directive ? `\nFix Directive: ${pc.fix_directive}` : ""
+              }`
+          )
+          .join("\n\n") +
+        "\n</POST_SPECIFIC_CRITIQUES>"
+      : "";
+  const charCritiqueContext = params.characterCritique
+    ? `\n\n<CHARACTER_AND_FORMATTING_CONSTRAINTS_FAILED>\n${params.characterCritique}\nFix the previous draft to respect these exact formatting constraints.\n</CHARACTER_AND_FORMATTING_CONSTRAINTS_FAILED>`
+    : "";
+  const guidanceContext = params.guidance
+    ? `\n\n<ADDITIONAL_GUIDANCE>\n${params.guidance}\n</ADDITIONAL_GUIDANCE>`
+    : "";
+
+  const draft = params.threadDraft || [];
+  const formattingFlagged = parseFlaggedPostIndicesFromErrors(params.characterCritique);
+  const flaggedIndices = Array.from(
+    new Set([...actionable.map((pc) => pc.post_index), ...formattingFlagged])
+  ).filter((idx) => draft.length > 0 && idx >= 1 && idx <= draft.length);
+
+  const isSurgical =
+    draft.length > 0 &&
+    flaggedIndices.length > 0 &&
+    flaggedIndices.length < draft.length;
+
+  const { pinnedPostsContext } = isSurgical
+    ? buildSurgicalWriterContext(draft, flaggedIndices)
+    : { pinnedPostsContext: "" };
+
+  return {
+    actionable,
+    previousDraftContext,
+    critiqueContext,
+    postCritiquesContext,
+    charCritiqueContext,
+    guidanceContext,
+    pinnedPostsContext,
+    isSurgical,
+    flaggedIndices,
+  };
+}
+
 export interface ProcessDifferentialEvaluationOptions {
   threadDraft: string[];
   iterations: number;
@@ -1075,19 +1182,47 @@ export function processDifferentialEvaluation(
   } = structuredResponse;
 
   // 1. Map prior issues and evaluate ONLY legitimate punchlist items (Pillar 2: Closed-World Invariant)
-  const priorIssuesMap = new Map(priorActionableCritiques.map((pc) => [pc.post_index, pc]));
-  const evaluationsByPost = new Map<number, (typeof issue_evaluations)[0]>();
+  const remainingIndices = new Set(priorActionableCritiques.map((_, i) => i));
+  const normalizeIssueKey = (text: string) => text.trim().toLowerCase();
+
+  // Match each evaluation from the model to the exact prior issue (same post_index + closest issue text)
+  const matchedPriorIndices = new Map<number, (typeof issue_evaluations)[0]>();
   for (const evalItem of issue_evaluations) {
-    if (priorIssuesMap.has(evalItem.post_index)) {
-      evaluationsByPost.set(evalItem.post_index, evalItem);
+    const evalText = normalizeIssueKey(evalItem.prior_issue || "");
+    let matchedIdx: number | undefined;
+
+    for (const idx of remainingIndices) {
+      const prior = priorActionableCritiques[idx];
+      if (prior.post_index !== evalItem.post_index) continue;
+      const priorText = normalizeIssueKey(prior.critique || "");
+      if (evalText && priorText && (evalText === priorText || priorText.includes(evalText) || evalText.includes(priorText))) {
+        matchedIdx = idx;
+        break;
+      }
+    }
+
+    // Fallback to first unmatched prior issue on that post_index if wording drifted
+    if (matchedIdx === undefined) {
+      for (const idx of remainingIndices) {
+        if (priorActionableCritiques[idx].post_index === evalItem.post_index) {
+          matchedIdx = idx;
+          break;
+        }
+      }
+    }
+
+    if (matchedIdx !== undefined) {
+      remainingIndices.delete(matchedIdx);
+      matchedPriorIndices.set(matchedIdx, evalItem);
     }
   }
 
   const unresolvedEvaluations: AuditPostCritique[] = [];
   let resolvedCount = 0;
 
-  for (const prior of priorActionableCritiques) {
-    const evaluation = evaluationsByPost.get(prior.post_index);
+  for (let i = 0; i < priorActionableCritiques.length; i++) {
+    const prior = priorActionableCritiques[i];
+    const evaluation = matchedPriorIndices.get(i);
     if (evaluation && evaluation.status === "resolved") {
       resolvedCount++;
     } else {
@@ -1177,8 +1312,8 @@ export function processDifferentialEvaluation(
     iteration: iterations + 1,
     virality_score: calculatedScore,
     post_critiques: [
-      ...priorActionableCritiques.map((prior) => {
-        const evalItem = evaluationsByPost.get(prior.post_index);
+      ...priorActionableCritiques.map((prior, idx) => {
+        const evalItem = matchedPriorIndices.get(idx);
         const status = evalItem?.status === "resolved" ? ("resolved" as const) : ("unresolved" as const);
         return {
           post_index: prior.post_index,

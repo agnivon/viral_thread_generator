@@ -1,7 +1,6 @@
 "use node";
 
 import { StateGraph, START, END } from "@langchain/langgraph";
-import { VisualKeywordStrategistNode } from "../nodes.js";
 import { InfographicGeneratorNode } from "../../infographics/nodes.js";
 import { checkpointSaver } from "../checkpointer.js";
 import { TopicThreadFactoryState, TopicThreadFactoryStateType } from "./state.js";
@@ -79,7 +78,6 @@ export const TopicThreadFactoryGraph = new StateGraph(TopicThreadFactoryState)
   .addNode("ThreadWriterNode", ThreadWriterNode)
   .addNode("TopicCharacterValidatorNode", TopicCharacterValidatorNode)
   .addNode("ViralityCriticNode", ViralityCriticNode)
-  .addNode("VisualKeywordStrategistNode", VisualKeywordStrategistNode)
   .addNode("InfographicGeneratorNode", InfographicGeneratorNode)
   .addConditionalEdges(START, route_initial_topic_step, ["TopicDiscoveryNode", "ResearchOrchestratorNode"])
   .addConditionalEdges("TopicDiscoveryNode", route_after_topic_discovery, ["HookStrategistNode", "TopicDiscoveryNode"])
@@ -89,7 +87,6 @@ export const TopicThreadFactoryGraph = new StateGraph(TopicThreadFactoryState)
   .addEdge("ManualHookSelectionNode", "ThreadWriterNode")
   .addConditionalEdges("ThreadWriterNode", route_after_writer, ["TopicCharacterValidatorNode", "ThreadWriterNode"])
   .addConditionalEdges("TopicCharacterValidatorNode", route_after_validator, ["ViralityCriticNode", "ThreadWriterNode"])
-  .addConditionalEdges("ViralityCriticNode", route_after_critic, [END, "ThreadWriterNode", "ViralityCriticNode", "VisualKeywordStrategistNode", "InfographicGeneratorNode"])
-  .addEdge("VisualKeywordStrategistNode", END)
+  .addConditionalEdges("ViralityCriticNode", route_after_critic, [END, "ThreadWriterNode", "ViralityCriticNode", "InfographicGeneratorNode"])
   .addEdge("InfographicGeneratorNode", END)
   .compile({ checkpointer: checkpointSaver });

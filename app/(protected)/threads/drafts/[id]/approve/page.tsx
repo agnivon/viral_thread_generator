@@ -17,7 +17,7 @@ import { useAction, useQuery } from "convex/react";
 import { ArrowLeft, Loader2, Sparkles, AlertCircle, Copy, Check, RotateCcw, XCircle, RefreshCw, ChevronDown } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { UrlTitleDisplay } from "@/components/UrlTitleDisplay";
@@ -32,7 +32,6 @@ import { IterateDialog } from "./components/IterateDialog";
 import { SidebarHookCard } from "./components/SidebarHookCard";
 import { ViralityCard } from "./components/ViralityCard";
 import { ResearchDossierDialog } from "./components/ResearchDossierDialog";
-import { SearchQueriesDialog } from "./components/SearchQueriesDialog";
 import { InfographicDialog } from "./components/InfographicDialog";
 
 function hasThreadBeenModified(currentPosts: string[], baselinePosts?: string[]): boolean {
@@ -75,28 +74,44 @@ export default function ApproveDraftPage() {
     ? state.input_field.url.trim()
     : undefined;
 
-  const { register, reset, control, getValues } = useForm<{ posts: { content: string; originalIndex?: number }[] }>({
+  const { register, reset, control, getValues, formState: { isDirty } } = useForm<{ posts: { content: string; originalIndex?: number }[] }>({
     defaultValues: {
       posts: [],
     }
   });
 
+  const lastSyncedDraftRef = useRef<string | null>(null);
+  const wasProcessingRef = useRef(false);
+
+  const genStatus = state?.generation_status ?? "success";
+  const isDraftProcessing = genStatus === "queued" || genStatus === "processing";
+
+  useEffect(() => {
+    if (isDraftProcessing) {
+      wasProcessingRef.current = true;
+    }
+  }, [isDraftProcessing]);
+
   useEffect(() => {
     if (state?.thread_draft) {
-      reset({ posts: state.thread_draft.map((p, i) => ({ content: p, originalIndex: i + 1 })) });
+      const serialized = JSON.stringify(state.thread_draft);
+      if (serialized !== lastSyncedDraftRef.current && (!isDirty || wasProcessingRef.current)) {
+        reset({ posts: state.thread_draft.map((p, i) => ({ content: p, originalIndex: i + 1 })) });
+        lastSyncedDraftRef.current = serialized;
+        wasProcessingRef.current = false;
+      }
     }
-  }, [state?.thread_draft, reset]);
+  }, [state?.thread_draft, isDirty, reset]);
 
   const handleCancelEditing = () => {
     if (state?.thread_draft) {
       reset({ posts: state.thread_draft.map((p, i) => ({ content: p, originalIndex: i + 1 })) });
+      lastSyncedDraftRef.current = JSON.stringify(state.thread_draft);
     }
     setSelectedImages({});
     setSelectedVideos({});
     setIsEditingPosts(false);
   };
-
-  const genStatus = state?.generation_status ?? "success";
 
   useEffect(() => {
     if (state && genStatus === "hook selection" && !hasInitializedHook) {
@@ -225,6 +240,14 @@ export default function ApproveDraftPage() {
   const isRegenerating = regenerateMutation.isPending;
   const isIterating = iterateMutation.isPending;
   const isRetrying = retryMutation.isPending;
+  const isActionLocked =
+    isPublishing ||
+    isRegenerating ||
+    isIterating ||
+    Boolean(state?.is_published) ||
+    state?.publication_status === "publishing" ||
+    state?.publication_status === "queued" ||
+    isDraftProcessing;
 
   const handleOpenIterateDialog = () => {
     const formValues = getValues();
@@ -529,7 +552,7 @@ export default function ApproveDraftPage() {
             </div>
             <Button
               onClick={handlePublish}
-              disabled={isPublishing}
+              disabled={isActionLocked}
               size="sm"
               className="w-full sm:w-auto shrink-0 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-medium shadow-sm cursor-pointer"
             >
@@ -704,7 +727,7 @@ export default function ApproveDraftPage() {
                       <Button
                         variant="default"
                         size="sm"
-                        disabled={isPublishing || isRegenerating}
+                        disabled={isActionLocked}
                         onClick={() => setIsEditingPosts(false)}
                         className="rounded-xl bg-linear-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white font-semibold py-4 px-4 shadow-sm cursor-pointer flex-1 sm:flex-initial"
                       >
@@ -714,7 +737,7 @@ export default function ApproveDraftPage() {
                     <Button
                       variant="outline"
                       size="sm"
-                      disabled={isPublishing || isRegenerating}
+                      disabled={isActionLocked}
                       onClick={() => {
                         if (isEditingPosts) {
                           handleCancelEditing();
@@ -829,7 +852,7 @@ export default function ApproveDraftPage() {
               <Button
                 className="hidden md:flex w-full rounded-xl bg-linear-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white font-bold h-12 shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 cursor-pointer"
                 size="lg"
-                disabled={isPublishing || isRegenerating || state.is_published || state.publication_status === "publishing" || state.publication_status === "queued"}
+                disabled={isActionLocked}
                 onClick={handlePublish}
               >
                 {isPublishing || state.publication_status === "publishing" || state.publication_status === "queued" ? (
@@ -1009,14 +1032,14 @@ export default function ApproveDraftPage() {
             <Button
               variant="outline"
               className="flex-1 rounded-xl border-border text-foreground font-semibold h-12 cursor-pointer text-sm"
-              disabled={isPublishing || isRegenerating}
+              disabled={isActionLocked}
               onClick={handleCancelEditing}
             >
               Discard
             </Button>
             <Button
               className="flex-1 rounded-xl bg-linear-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white font-bold h-12 shadow-md cursor-pointer text-sm"
-              disabled={isPublishing || isRegenerating}
+              disabled={isActionLocked}
               onClick={() => setIsEditingPosts(false)}
             >
               Keep Edits
@@ -1025,7 +1048,7 @@ export default function ApproveDraftPage() {
         ) : (
           <Button
             className="w-full rounded-xl bg-linear-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white font-bold h-12 shadow-md cursor-pointer text-sm"
-            disabled={isPublishing || isRegenerating || isIterating || state.is_published || state.publication_status === "publishing" || state.publication_status === "queued"}
+            disabled={isActionLocked}
             onClick={handlePublish}
           >
             {isPublishing || state.publication_status === "publishing" || state.publication_status === "queued" ? (

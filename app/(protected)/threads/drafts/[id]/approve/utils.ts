@@ -55,7 +55,7 @@ export function getImageQualityInfo(url: string) {
       score,
       host
     };
-  } catch (e) {
+  } catch (_e) {
     return {
       type: "Image",
       resolution: "Unknown Resolution",

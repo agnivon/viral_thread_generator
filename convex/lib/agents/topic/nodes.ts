@@ -6,7 +6,7 @@ import { RunnableConfig } from "@langchain/core/runnables";
 import { providerStrategy, toolStrategy } from "langchain";
 import {
   googleGemini31FlashLiteT08Key1, googleGemini31FlashLiteT08Key2,
-  googleGemini31FlashLiteT01Key1, googleGemini31FlashLiteT01Key2, deepSeekFlashT01ReasoningNone,
+  googleGemini31FlashLiteT01Key1, googleGemini31FlashLiteT01Key2, deepSeekFlashT01JsonReasoningNone,
   googleGemini31FlashLiteT02Key1, googleGemini31FlashLiteT02Key2, deepSeekFlashT02ReasoningNone,
   googleGemini35FlashLiteT01Key1, googleGemini35FlashLiteT01Key2,
   googleGemini35FlashLiteT08Key1, googleGemini35FlashLiteT08Key2, deepSeekFlashT08ReasoningNone,
@@ -39,11 +39,12 @@ import {
   reconcileSurgicalDraft,
   parseFlaggedPostIndicesFromErrors,
   buildSurgicalWriterContext,
+  runCharacterValidation,
   differentialCriticSchema,
   processDifferentialEvaluation,
 } from "../utils.js";
 import { extractSelectedHook } from "../nodes.js";
-import { DiscoveryAgentGraph } from "../discovery/graph.js";
+import { runDiscoverySubgraph } from "../discovery/graph.js";
 
 const topicResearchOrchestratorSchema = z.object({
   research_dossier: z.string().min(1, "Must generate research dossier"),
@@ -61,7 +62,10 @@ const topicResearchOrchestratorAgents = buildAgents<z.infer<typeof topicResearch
   {
     tools: [DuckDuckGoSearchTool, TavilySearchTool],
     systemPrompt: TOPIC_RESEARCH_ORCHESTRATOR_PROMPT,
-    responseFormat: providerStrategy(topicResearchOrchestratorSchema)
+    responseFormat: {
+      google: providerStrategy(topicResearchOrchestratorSchema),
+      deepseek: providerStrategy(topicResearchOrchestratorSchema)
+    }
   }
 );
 
@@ -125,7 +129,7 @@ const topicDeepScraperModels = [
   googleGemini35FlashLiteT01Key2.withStructuredOutput(topicDeepScraperSchema, { name: "deep_scraper", method: "jsonSchema" }),
   googleGemini31FlashLiteT01Key1.withStructuredOutput(topicDeepScraperSchema, { name: "deep_scraper", method: "jsonSchema" }),
   googleGemini31FlashLiteT01Key2.withStructuredOutput(topicDeepScraperSchema, { name: "deep_scraper", method: "jsonSchema" }),
-  deepSeekFlashT01ReasoningNone.withStructuredOutput(topicDeepScraperSchema, { name: "deep_scraper", method: "jsonMode" })
+  deepSeekFlashT01JsonReasoningNone.withStructuredOutput(topicDeepScraperSchema, { name: "deep_scraper", method: "jsonMode" })
 ];
 
 export const DeepPageScraperNode = async (state: TopicThreadFactoryStateType, config?: RunnableConfig) => {
@@ -182,33 +186,17 @@ export const DeepPageScraperNode = async (state: TopicThreadFactoryStateType, co
 };
 
 export const TopicDiscoveryNode = async (state: TopicThreadFactoryStateType, config?: RunnableConfig) => {
-  try {
-    const topic = (state.topic || "").trim() || "Technology Topic";
-    console.log(`[TopicDiscoveryNode] Running Deep Discovery Subgraph for topic: "${topic}"...`);
-    const discoveryResult = await DiscoveryAgentGraph.invoke(
-      {
-        topic,
-        description: state.description,
-        guidance: state.guidance,
-      },
-      { signal: config?.signal }
-    );
-
-    console.log(`[TopicDiscoveryNode] Deep Discovery completed with ${discoveryResult.discovery_angles?.length || 0} angles.`);
-    return {
-      discovery_angles: discoveryResult.discovery_angles,
-      core_delta: discoveryResult.core_delta,
-      research_dossier: discoveryResult.research_dossier,
-      parse_success: true,
-      retries: { ...(state.retries || {}), orchestrator: 0 },
-    };
-  } catch (err) {
-    console.warn("[TopicDiscoveryNode] Discovery subgraph error:", err);
-    return {
-      parse_success: false,
-      retries: { ...(state.retries || {}), orchestrator: (state.retries?.orchestrator || 0) + 1 },
-    };
-  }
+  const topic = (state.topic || "").trim() || "Technology Topic";
+  return await runDiscoverySubgraph({
+    nodeLabel: "TopicDiscoveryNode",
+    topic,
+    description: state.description,
+    guidance: state.guidance,
+    retries: state.retries,
+    retryKey: "orchestrator",
+    returnDossierField: "research_dossier",
+    signal: config?.signal,
+  });
 };
 
 const topicHookStrategistSchema = z.object({
@@ -508,21 +496,7 @@ export const ViralityCriticNode = async (state: TopicThreadFactoryStateType, con
 };
 
 export const TopicCharacterValidatorNode = async (state: TopicThreadFactoryStateType, config?: RunnableConfig) => {
-  const validationStr = await TopicCharacterValidatorTool.invoke({ thread_draft: state.thread_draft }, { ...config, timeout: 60000 });
-  const validation = JSON.parse(validationStr);
-
-  if (!validation.isValid) {
-    return {
-      is_character_valid: false,
-      character_critique: `FORMATTING ERRORS REQUIRED TO FIX:\n${validation.errors.join("\n")}`,
-      retries: { ...(state.retries || {}), validator: (state.retries?.validator || 0) + 1 }
-    };
-  }
-
-  return {
-    is_character_valid: true,
-    character_critique: ""
-  };
+  return await runCharacterValidation(TopicCharacterValidatorTool, state.thread_draft, state.retries, config);
 };
 
 export const ManualHookSelectionNode = async (state: TopicThreadFactoryStateType, _config?: RunnableConfig) => {

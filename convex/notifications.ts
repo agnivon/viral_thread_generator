@@ -125,17 +125,12 @@ export const counts = query({
       )
       .collect();
 
-    const unseenDocs = await ctx.db
-      .query("notifications")
-      .withIndex("by_userId_unseen", (q) =>
-        q.eq("userId", userId).eq("isDismissed", false).eq("isSeen", false)
-      )
-      .collect();
+    const unseen = activeDocs.reduce((acc, doc) => acc + (doc.isSeen ? 0 : 1), 0);
 
     return {
       total: activeDocs.length,
       active: activeDocs.length,
-      unseen: unseenDocs.length,
+      unseen,
     };
   },
 });

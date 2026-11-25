@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Video, Link, HelpCircle } from "lucide-react";
+import { Video } from "lucide-react";
 
 interface VideoPickerDialogProps {
   activeVideoPickerIdx: number | null;
@@ -18,7 +18,6 @@ export function VideoPickerDialog({
   onClose,
 }: VideoPickerDialogProps) {
   const [customVideoUrl, setCustomVideoUrl] = useState("");
-  const [showCustomInput, setShowCustomInput] = useState(true);
 
   if (activeVideoPickerIdx === null) return null;
 

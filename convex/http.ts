@@ -72,10 +72,19 @@ http.route({
       code = code.replace(/#_$/, "");
     }
 
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
     // 1. Handle user canceling or missing authorization code
     if (!code) {
-      const error = url.searchParams.get("error") || "Authorization code is missing";
-      const errorDesc = url.searchParams.get("error_description") || "";
+      const error = escapeHtml(url.searchParams.get("error") || "Authorization code is missing");
+      const errorDesc = escapeHtml(url.searchParams.get("error_description") || "");
       return new Response(
         `<html>
           <head><title>Authorization Failed</title></head>
@@ -162,7 +171,7 @@ http.route({
         }
       );
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage = escapeHtml(error instanceof Error ? error.message : String(error));
       return new Response(
         `<html>
           <head><title>Exchange Failed</title></head>

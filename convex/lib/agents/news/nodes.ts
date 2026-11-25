@@ -29,17 +29,19 @@ import { BackgroundDossierTool, ContentAuthenticityCheckerTool, WebScraperTool, 
 import { CharacterValidatorTool } from "../tools.js";
 import {
   buildAgents,
+  extractMessageText,
   invokeWithFallbacks,
   normalizeResearchDossier,
   filterActionablePostCritiques,
   reconcileSurgicalDraft,
   parseFlaggedPostIndicesFromErrors,
   buildSurgicalWriterContext,
+  runCharacterValidation,
   differentialCriticSchema,
   processDifferentialEvaluation,
 } from "../utils.js";
 import { extractSelectedHook } from "../nodes.js";
-import { DiscoveryAgentGraph } from "../discovery/graph.js";
+import { runDiscoverySubgraph } from "../discovery/graph.js";
 import { extractDiscoveryTopic } from "../discovery/nodes.js";
 
 
@@ -76,7 +78,7 @@ export const ScraperNode = async (state: NewsThreadFactoryStateType, config?: Ru
       { ...config, timeout: 60000 }
     );
     return {
-      raw_markdown: summary.content as string,
+      raw_markdown: extractMessageText(summary.content),
       images,
       parse_success: true,
       retries: { ...(state.retries || {}), scraper: (state.retries?.scraper || 0) + 1 }
@@ -105,7 +107,10 @@ const newsContextResearcherAgents = buildAgents<z.infer<typeof newsResearcherSch
   {
     tools: [BackgroundDossierTool],
     systemPrompt: NEWS_RESEARCHER_PROMPT,
-    responseFormat: providerStrategy(newsResearcherSchema)
+    responseFormat: {
+      google: providerStrategy(newsResearcherSchema),
+      deepseek: providerStrategy(newsResearcherSchema)
+    }
   }
 );
 
@@ -151,34 +156,17 @@ export const ContextResearcherNode = async (state: NewsThreadFactoryStateType, c
 };
 
 export const NewsDiscoveryNode = async (state: NewsThreadFactoryStateType, config?: RunnableConfig) => {
-  try {
-    const topicCandidate = extractDiscoveryTopic(state.url, state.raw_markdown, "News topic");
-    console.log(`[NewsDiscoveryNode] Running Deep Discovery Subgraph for news topic: "${topicCandidate}"...`);
-
-    const discoveryResult = await DiscoveryAgentGraph.invoke(
-      {
-        topic: topicCandidate,
-        raw_markdown: state.raw_markdown,
-        guidance: state.guidance,
-      },
-      { signal: config?.signal }
-    );
-
-    console.log(`[NewsDiscoveryNode] Deep Discovery completed with ${discoveryResult.discovery_angles?.length || 0} angles.`);
-    return {
-      discovery_angles: discoveryResult.discovery_angles,
-      core_delta: discoveryResult.core_delta,
-      research_context: discoveryResult.research_dossier,
-      parse_success: true,
-      retries: { ...(state.retries || {}), researcher: 0 },
-    };
-  } catch (err) {
-    console.warn("[NewsDiscoveryNode] Discovery subgraph error:", err);
-    return {
-      parse_success: false,
-      retries: { ...(state.retries || {}), researcher: (state.retries?.researcher || 0) + 1 },
-    };
-  }
+  const topicCandidate = extractDiscoveryTopic(state.url, state.raw_markdown, "News topic");
+  return await runDiscoverySubgraph({
+    nodeLabel: "NewsDiscoveryNode",
+    topic: topicCandidate,
+    rawMarkdown: state.raw_markdown,
+    guidance: state.guidance,
+    retries: state.retries,
+    retryKey: "researcher",
+    returnDossierField: "research_context",
+    signal: config?.signal,
+  });
 };
 
 const newsHookSchema = z.object({
@@ -197,7 +185,10 @@ const newsHookStrategistAgents = buildAgents<z.infer<typeof newsHookSchema>>(
   ],
   {
     systemPrompt: NEWS_HOOK_PROMPT,
-    responseFormat: providerStrategy(newsHookSchema)
+    responseFormat: {
+      google: providerStrategy(newsHookSchema),
+      deepseek: providerStrategy(newsHookSchema)
+    }
   }
 );
 
@@ -312,21 +303,7 @@ export const ThreadWriterNode = async (state: NewsThreadFactoryStateType, config
 };
 
 export const CharacterValidatorNode = async (state: NewsThreadFactoryStateType, config?: RunnableConfig) => {
-  const validationStr = await CharacterValidatorTool.invoke({ thread_draft: state.thread_draft }, { ...config, timeout: 60000 });
-  const validation = JSON.parse(validationStr);
-
-  if (!validation.isValid) {
-    return {
-      is_character_valid: false,
-      character_critique: `FORMATTING ERRORS REQUIRED TO FIX:\n${validation.errors.join("\n")}`,
-      retries: { ...(state.retries || {}), validator: (state.retries?.validator || 0) + 1 }
-    };
-  }
-
-  return {
-    is_character_valid: true,
-    character_critique: ""
-  };
+  return await runCharacterValidation(CharacterValidatorTool, state.thread_draft, state.retries, config);
 };
 
 const newsCriticSchema = z.object({

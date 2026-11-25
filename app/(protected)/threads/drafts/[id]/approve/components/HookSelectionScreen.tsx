@@ -22,7 +22,7 @@ export function HookSelectionScreen({
   url,
   isTopic,
   coreHooks,
-  selectedHook,
+  selectedHook: _selectedHook,
   selectedHookIdx,
   editedHookText,
   isResuming,

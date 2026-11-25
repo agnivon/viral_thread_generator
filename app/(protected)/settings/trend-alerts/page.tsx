@@ -5,7 +5,6 @@ import { useQuery as useConvexQuery, useMutation as useConvexMutation, useAction
 import { useQuery } from "@tanstack/react-query";
 import { useForm, Controller, useWatch, type Control } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
 import { api } from "@/convex/_generated/api";
 import { toast } from "sonner";
 import {
@@ -842,7 +841,7 @@ export default function TrendAlertsSettingsPage() {
 
   const onSubmit = async (data: TrendAlertsFormData) => {
     // Flush any pending tag in input fields before saving
-    let finalWhitelist = [...data.whitelistKeywords];
+    const finalWhitelist = [...data.whitelistKeywords];
     if (newWhitelistTag.trim()) {
       const pendingTags = newWhitelistTag
         .split(",")
@@ -857,7 +856,7 @@ export default function TrendAlertsSettingsPage() {
       setNewWhitelistTag("");
     }
 
-    let finalBlacklist = [...data.blacklistKeywords];
+    const finalBlacklist = [...data.blacklistKeywords];
     if (newBlacklistTag.trim()) {
       const pendingTags = newBlacklistTag
         .split(",")

@@ -1,7 +1,7 @@
 "use node";
 import { StateSchema } from "@langchain/langgraph";
 import { z } from "zod";
-import { SearchQueriesSchema } from "../nodes.js";
+import { SearchQueriesSchema } from "../sharedState.js";
 import { InfographicSpecSchema } from "../../infographics/schema.js";
 import { DiscoveryAngleSchema } from "../discovery/state.js";
 

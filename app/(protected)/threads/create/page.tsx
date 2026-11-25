@@ -449,8 +449,8 @@ function CreateThreadForm() {
   const rawAgent = searchParams.get("agent");
   const rawDiscoveryAgent = searchParams.get("discovery_agent");
   const urlDiscoveryAgent = rawDiscoveryAgent === "true";
-  const urlAgent: "news" | "social_media" | "topic" =
-    rawAgent === "news" || rawAgent === "social_media" || rawAgent === "topic"
+  const urlAgent: "news" | "social_media" | "topic" | "clickbait" =
+    rawAgent === "news" || rawAgent === "social_media" || rawAgent === "topic" || rawAgent === "clickbait"
       ? rawAgent
       : urlTopic && !urlUrl
       ? "topic"

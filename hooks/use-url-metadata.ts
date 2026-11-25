@@ -2,6 +2,9 @@ import { useQuery } from "@tanstack/react-query";
 import { useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { linkPreviewKeys } from "@/lib/query-keys";
+import { isAccessDeniedOrGenericTitle } from "@/convex/lib/urlMetadata";
+
+export { isAccessDeniedOrGenericTitle };
 
 export interface UrlMetadata {
   title: string;
@@ -16,77 +19,6 @@ export interface UseUrlMetadataResult {
   metadata: UrlMetadata | null;
   isLoading: boolean;
   isError: boolean;
-}
-
-/**
- * Detects if a title indicates an access-denied/WAF block page or is just a generic site domain.
- */
-export function isAccessDeniedOrGenericTitle(titleToCheck: string | undefined | null, targetUrl: string): boolean {
-  if (!titleToCheck) return true;
-  const trimmed = titleToCheck.trim();
-  if (!trimmed) return true;
-  const lower = trimmed.toLowerCase();
-
-  const blockedPatterns = [
-    "access to this page has been denied",
-    "access denied",
-    "403 forbidden",
-    "forbidden",
-    "401 unauthorized",
-    "just a moment",
-    "attention required",
-    "cloudflare",
-    "security check",
-    "robot or human",
-    "are you a human",
-    "verify you are human",
-    "blocked",
-    "shieldsquare",
-    "perimeterx",
-    "ddos-guard",
-    "enable javascript and cookies",
-    "enable cookies",
-    "captcha",
-    "page not found",
-    "404 not found",
-    "502 bad gateway",
-    "503 service unavailable",
-    "504 gateway timeout",
-  ];
-
-  if (blockedPatterns.some((pattern) => lower.includes(pattern))) {
-    return true;
-  }
-
-  try {
-    const parsed = new URL(targetUrl.startsWith("http://") || targetUrl.startsWith("https://") ? targetUrl : `https://${targetUrl}`);
-    const rawHost = parsed.hostname.replace(/^www\./i, "").toLowerCase();
-    const domainName = rawHost.split(".")[0];
-
-    // For Reuters links, generic titles like "reuters.com" or "Reuters" should be treated as generic
-    if (rawHost === "reuters.com" || rawHost.endsWith(".reuters.com")) {
-      if (
-        lower === "reuters.com" ||
-        lower === "reuters" ||
-        lower.startsWith("reuters |") ||
-        lower.includes("breaking international news")
-      ) {
-        return true;
-      }
-    }
-
-    // If title matches hostname or site domain when path slug is present
-    const pathParts = parsed.pathname.split("/").filter(Boolean);
-    if (pathParts.length > 0) {
-      if (lower === rawHost || lower === domainName || lower === `${domainName}.com`) {
-        return true;
-      }
-    }
-  } catch {
-    // ignore URL parse errors
-  }
-
-  return false;
 }
 
 /**

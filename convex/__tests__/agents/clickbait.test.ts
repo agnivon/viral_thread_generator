@@ -1,5 +1,5 @@
 /// <reference types="vite/client" />
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import { ClickbaitArchetypeSchema, ClickbaitThreadFactoryState } from "../../lib/agents/clickbait/state";
 import {
   CLICKBAIT_SCRAPER_PROMPT,
@@ -17,6 +17,9 @@ import {
 } from "../../schema";
 
 describe("Clickbait Agent - Schemas & State", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
   it("validates all 5 clickbait archetypes", () => {
     expect(clickbaitArchetypeValidator).toBeDefined();
     expect(clickbaitArousalValenceValidator).toBeDefined();
@@ -124,7 +127,77 @@ describe("Clickbait Agent - Graph Compilation", () => {
     expect(nodeKeys).toContain("ThreadWriterNode");
     expect(nodeKeys).toContain("CharacterValidatorNode");
     expect(nodeKeys).toContain("ViralityCriticNode");
-    expect(nodeKeys).toContain("VisualKeywordStrategistNode");
+    expect(nodeKeys).not.toContain("VisualKeywordStrategistNode");
+    expect(nodeKeys).toContain("ClickbaitDiscoveryNode");
     expect(nodeKeys).toContain("InfographicGeneratorNode");
+  });
+
+  it("prompts align selected_hook, score >= 85 threshold, and differential schema", async () => {
+    const {
+      CLICKBAIT_HOOK_PROMPT,
+      CLICKBAIT_CRITIC_PROMPT,
+      CLICKBAIT_DIFFERENTIAL_CRITIC_PROMPT,
+    } = await import("../../lib/agents/clickbait/prompts");
+
+    expect(CLICKBAIT_HOOK_PROMPT).toContain('"selected_hook"');
+    expect(CLICKBAIT_CRITIC_PROMPT).toContain("score >= 85");
+    expect(CLICKBAIT_CRITIC_PROMPT).not.toContain("score >= 75");
+    expect(CLICKBAIT_DIFFERENTIAL_CRITIC_PROMPT).toContain("issue_evaluations");
+    expect(CLICKBAIT_DIFFERENTIAL_CRITIC_PROMPT).toContain("suggested_score");
+  });
+
+  it("ClickbaitDiscoveryNode invokes DiscoveryAgentGraph and ClickbaitScraperNode handles array blocks", async () => {
+    const { ClickbaitDiscoveryNode, ClickbaitScraperNode } = await import(
+      "../../lib/agents/clickbait/nodes"
+    );
+    const { DiscoveryAgentGraph } = await import("../../lib/agents/discovery/graph");
+    const tools = await import("../../lib/agents/clickbait/tools");
+    const agentUtils = await import("../../lib/agents/utils");
+
+    const discoverySpy = vi.spyOn(DiscoveryAgentGraph, "invoke").mockResolvedValue({
+      discovery_angles: [
+        {
+          vector: "Engineering Compromise",
+          surface_narrative: "Claim",
+          forensic_reality: "Reality",
+          core_tension: "Tension",
+          primary_proof_sources: ["Source"],
+        },
+      ],
+      core_delta: "Hidden flaw",
+      research_dossier: "# Forensic Dossier",
+    } as never);
+
+    const discResult = await ClickbaitDiscoveryNode({
+      url: "https://example.com/clickbait-story",
+      raw_markdown: "# Shocking Claim\nDetails here",
+      discovery_agent: true,
+      parse_success: true,
+      retries: { scraper: 0, researcher: 0, hook: 0, writer: 0, critic: 0, validator: 0 },
+    } as never);
+
+    expect(discoverySpy).toHaveBeenCalled();
+    expect(discResult.parse_success).toBe(true);
+    expect(discResult.core_delta).toBe("Hidden flaw");
+    expect(discResult.research_context).toBe("# Forensic Dossier");
+
+    vi.spyOn(tools.WebScraperTool, "invoke").mockResolvedValue(
+      JSON.stringify({ markdown: "# Article", images: ["https://img.example.com/1.png"] })
+    );
+    vi.spyOn(agentUtils, "invokeWithFallbacks").mockResolvedValue({
+      content: [
+        { type: "text", thought: true, text: "Internal reasoning..." },
+        { type: "text", text: "## Clean Markdown Facts" },
+      ],
+    });
+
+    const scrapeResult = await ClickbaitScraperNode({
+      url: "https://example.com/clickbait-story",
+      retries: { scraper: 0, researcher: 0, hook: 0, writer: 0, critic: 0, validator: 0 },
+    } as never);
+
+    expect(scrapeResult.parse_success).toBe(true);
+    expect(scrapeResult.raw_markdown).toBe("## Clean Markdown Facts");
+    expect(scrapeResult.images).toEqual(["https://img.example.com/1.png"]);
   });
 });

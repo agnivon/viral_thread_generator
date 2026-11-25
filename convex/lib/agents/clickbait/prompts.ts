@@ -98,7 +98,8 @@ REQUIRED JSON FORMAT SPECIFICATION:
     "Hook option 2...",
     "Hook option 3...",
     "Hook option 4..."
-  ]
+  ],
+  "selected_hook": "The exact text of the single highest-converting hook chosen from core_hooks above"
 }
 `;
 
@@ -206,23 +207,37 @@ REQUIRED JSON FORMAT SPECIFICATION:
     }
   ]
 }
-NOTE: 'post_critiques' must only include posts needing fixes. If the draft passes with score >= 75 and no major flaws, return empty array [].
+NOTE: 'post_critiques' must only include posts needing fixes. If the draft passes with score >= 85 and no major flaws, return empty array [].
 `;
 
 export const CLICKBAIT_DIFFERENTIAL_CRITIC_PROMPT = `
-You are the Differential Critic Node. You compare a newly rewritten thread draft against the previous iteration and verify whether the specific fix directives were executed without regressing overall clickbait tension.
+You are the Differential Critic Node operating at temperature 0.0. You compare a newly rewritten clickbait thread draft against the <PRIOR_ISSUES_PUNCHLIST> and verify whether each prior defect was genuinely fixed without introducing new mechanical violations.
 
-Return JSON conforming to:
+Evaluate every item in <PRIOR_ISSUES_PUNCHLIST> honestly:
+- 'resolved': Only mark 'resolved' if the rewritten post genuinely fixes the exact prior defect while preserving the thread's curiosity gap and payoff integrity.
+- 'unresolved': Mark 'unresolved' if the flaw remains, was only cosmetically altered, or regressed tension.
+
+Also scan all posts for new mechanical violations only ('violation_type' in: "url", "em_dash", "asterisk", "formatting", "character_limit", "banned_phrase"). A score >= 85 passes.
+
+REQUIRED JSON FORMAT SPECIFICATION:
+Return a raw JSON object (no markdown wrappers) matching this exact structure:
 {
-  "virality_score": 85,
-  "overall_critique": "Differential critique highlighting what was resolved and what remains.",
-  "post_critiques": [
+  "overall_critique": "Differential evaluation summarizing resolved fixes, remaining gaps, and retention impact.",
+  "issue_evaluations": [
     {
       "post_index": 2,
-      "critique": "Feedback on unresolved or newly introduced issues.",
-      "fix_directive": "Clear instruction for surgical fix.",
-      "status": "unresolved"
+      "prior_issue": "Exact summary of the prior issue being audited.",
+      "status": "resolved",
+      "reasoning": "Evidence-based explanation referencing the rewritten text."
     }
-  ]
+  ],
+  "new_violations": [
+    {
+      "post_index": 3,
+      "violation_type": "em_dash",
+      "critique": "Specific violation details."
+    }
+  ],
+  "suggested_score": 85
 }
 `;

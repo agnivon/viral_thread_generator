@@ -266,7 +266,10 @@ export default defineSchema(
       failure_reason: v.optional(v.string()),
       publication_status: v.optional(publicationStatusValidator),
       publication_error: v.optional(v.string()),
-    }).index("by_userId", ["userId"]),
+    })
+      .index("by_userId", ["userId"])
+      .index("by_generation_status", ["generation_status"])
+      .index("by_userId_generation_status", ["userId", "generation_status"]),
     notifications: defineTable({
       userId: v.id("users"),
       kind: notificationKindValidator,

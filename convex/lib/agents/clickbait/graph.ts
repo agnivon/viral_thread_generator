@@ -1,12 +1,12 @@
 "use node";
 
 import { StateGraph, START, END } from "@langchain/langgraph";
-import { VisualKeywordStrategistNode } from "../nodes.js";
 import { InfographicGeneratorNode } from "../../infographics/nodes.js";
 import { checkpointSaver } from "../checkpointer.js";
 import { ClickbaitThreadFactoryState, ClickbaitThreadFactoryStateType } from "./state.js";
 import {
   ClickbaitScraperNode,
+  ClickbaitDiscoveryNode,
   ClickbaitAngleStrategistNode,
   ClickbaitHookStrategistNode,
   ManualHookSelectionNode,
@@ -26,6 +26,17 @@ const route_after_scraper = (state: ClickbaitThreadFactoryStateType) => {
       throw new Error("ClickbaitScraperNode failed after 3 retries");
     }
     return "ClickbaitScraperNode";
+  }
+  if (state.discovery_agent) {
+    return "ClickbaitDiscoveryNode";
+  }
+  return "ClickbaitAngleStrategistNode";
+};
+
+const route_after_discovery = (state: ClickbaitThreadFactoryStateType) => {
+  if (!state.parse_success) {
+    if ((state.retries?.researcher || 0) >= 3) return "ClickbaitAngleStrategistNode";
+    return "ClickbaitDiscoveryNode";
   }
   return "ClickbaitAngleStrategistNode";
 };
@@ -58,18 +69,23 @@ export const route_after_critic = createRouteAfterCritic("ViralityCriticNode");
 export const ClickbaitThreadFactoryGraph = new StateGraph(ClickbaitThreadFactoryState)
   .setNodeDefaults({ timeout: { idleTimeout: 200_000 } })
   .addNode("ClickbaitScraperNode", ClickbaitScraperNode)
+  .addNode("ClickbaitDiscoveryNode", ClickbaitDiscoveryNode)
   .addNode("ClickbaitAngleStrategistNode", ClickbaitAngleStrategistNode)
   .addNode("HookStrategistNode", ClickbaitHookStrategistNode)
   .addNode("ManualHookSelectionNode", ManualHookSelectionNode)
   .addNode("ThreadWriterNode", CliffhangerThreadWriterNode)
   .addNode("CharacterValidatorNode", CharacterValidatorNode)
   .addNode("ViralityCriticNode", ClickbaitViralityCriticNode)
-  .addNode("VisualKeywordStrategistNode", VisualKeywordStrategistNode)
   .addNode("InfographicGeneratorNode", InfographicGeneratorNode)
   .addEdge(START, "ClickbaitScraperNode")
   .addConditionalEdges("ClickbaitScraperNode", route_after_scraper, [
+    "ClickbaitDiscoveryNode",
     "ClickbaitAngleStrategistNode",
     "ClickbaitScraperNode",
+  ])
+  .addConditionalEdges("ClickbaitDiscoveryNode", route_after_discovery, [
+    "ClickbaitAngleStrategistNode",
+    "ClickbaitDiscoveryNode",
   ])
   .addConditionalEdges("ClickbaitAngleStrategistNode", route_after_angle, [
     "HookStrategistNode",
@@ -93,9 +109,7 @@ export const ClickbaitThreadFactoryGraph = new StateGraph(ClickbaitThreadFactory
     END,
     "ThreadWriterNode",
     "ViralityCriticNode",
-    "VisualKeywordStrategistNode",
     "InfographicGeneratorNode",
   ])
-  .addEdge("VisualKeywordStrategistNode", END)
   .addEdge("InfographicGeneratorNode", END)
   .compile({ checkpointer: checkpointSaver });

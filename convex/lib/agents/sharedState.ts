@@ -1,9 +1,21 @@
 "use node";
 import { StateSchema } from "@langchain/langgraph";
 import { z } from "zod";
-import { SearchQueriesSchema } from "./nodes.js";
 import { InfographicSpecSchema } from "../infographics/schema.js";
 import { DiscoveryAngleSchema } from "./discovery/state.js";
+
+export const SearchQueriesSchema = z.object({
+  hero_visual_query: z.string().describe("concrete 2-4 word query for cover image"),
+  post_visual_queries: z.array(
+    z.object({
+      post_index: z.number(),
+      image_search_query: z.string().describe("concrete 2-4 word image query"),
+      video_search_query: z.string().describe("concrete 2-4 word stock video query"),
+    })
+  ),
+});
+
+export type SearchQueriesType = z.infer<typeof SearchQueriesSchema>;
 
 export const UrlThreadFactoryState = new StateSchema({
   url: z.string(),

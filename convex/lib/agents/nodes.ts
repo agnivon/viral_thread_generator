@@ -3,71 +3,13 @@
 import { z } from "zod";
 import { providerStrategy } from "langchain";
 import { RunnableConfig } from "@langchain/core/runnables";
-import { VISUAL_KEYWORD_STRATEGIST_PROMPT, SEARCH_QUERY_OPTIMIZER_PROMPT } from "./prompts.js";
+import { SEARCH_QUERY_OPTIMIZER_PROMPT } from "./prompts.js";
 import { 
-  googleGemini31FlashLiteT02Key1, 
-  googleGemini31FlashLiteT02Key2, 
-  deepSeekFlashT02ReasoningNone,
   googleGemini31FlashLiteT01Key1,
   googleGemini31FlashLiteT01Key2,
-  deepSeekFlashT01ReasoningNone
+  deepSeekFlashT01JsonReasoningNone
 } from "./models.js";
 import { buildAgents, invokeWithFallbacks } from "./utils.js";
-
-export const SearchQueriesSchema = z.object({
-  hero_visual_query: z.string().describe("concrete 2-4 word query for cover image"),
-  post_visual_queries: z.array(
-    z.object({
-      post_index: z.number(),
-      image_search_query: z.string().describe("concrete 2-4 word image query"),
-      video_search_query: z.string().describe("concrete 2-4 word stock video query"),
-    })
-  )
-});
-
-export type SearchQueriesType = z.infer<typeof SearchQueriesSchema>;
-
-export const visualKeywordStrategistAgents = buildAgents<SearchQueriesType>(
-  [
-    googleGemini31FlashLiteT02Key1, 
-    googleGemini31FlashLiteT02Key2, 
-    deepSeekFlashT02ReasoningNone
-  ],
-  {
-    systemPrompt: VISUAL_KEYWORD_STRATEGIST_PROMPT,
-    responseFormat: providerStrategy(SearchQueriesSchema)
-  }
-);
-
-export const VisualKeywordStrategistNode = async (
-  state: { thread_draft: string[] },
-  config?: RunnableConfig
-) => {
-  let result;
-  let parse_success = false;
-
-  try {
-    result = await invokeWithFallbacks(visualKeywordStrategistAgents, {
-      messages: [{ role: "user", content: `<THREAD_DRAFT>\n${state.thread_draft.join("\n\n")}\n</THREAD_DRAFT>` }]
-    }, { ...config, timeout: 45000 });
-    parse_success = true;
-  } catch (_e) {
-    parse_success = false;
-  }
-
-  if (parse_success && result?.structuredResponse) {
-    const parsed = SearchQueriesSchema.safeParse(result.structuredResponse);
-    if (parsed.success) {
-      return {
-        search_queries: parsed.data,
-      };
-    }
-  }
-  console.warn("VisualKeywordStrategistNode output failed");
-  return {
-    search_queries: undefined
-  };
-};
 
 export const OptimizedSearchQuerySchema = z.object({
   optimized_query: z.string().describe("finalized boolean search string")
@@ -79,11 +21,14 @@ export const searchQueryOptimizerAgents = buildAgents<OptimizedSearchQueryType>(
   [
     googleGemini31FlashLiteT01Key1,
     googleGemini31FlashLiteT01Key2,
-    deepSeekFlashT01ReasoningNone
+    deepSeekFlashT01JsonReasoningNone
   ],
   {
     systemPrompt: SEARCH_QUERY_OPTIMIZER_PROMPT,
-    responseFormat: providerStrategy(OptimizedSearchQuerySchema)
+    responseFormat: {
+      google: providerStrategy(OptimizedSearchQuerySchema),
+      deepseek: providerStrategy(OptimizedSearchQuerySchema)
+    }
   }
 );
 

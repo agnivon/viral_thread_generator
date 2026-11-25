@@ -1285,6 +1285,79 @@ test("extractSelectedHook - extracts trimmed hook from multiple input formats", 
   expect(extractSelectedHook(undefined)).toBe("");
 });
 
+test("extractMessageText - skips thought/thinking blocks and concatenates text blocks", async () => {
+  const { extractMessageText } = await import("../../lib/agents/utils");
+
+  expect(
+    extractMessageText([
+      { type: "text", thought: true, text: "internal chain of thought" },
+      { type: "thinking", text: "more private thoughts" },
+      { type: "text", text: "Visible Section 1" },
+      { type: "text", text: "Visible Section 2" },
+    ])
+  ).toBe("Visible Section 1\nVisible Section 2");
+});
+
+test("buildAgents - partitions Google and DeepSeek candidates even when sharing identical providerStrategy format", async () => {
+  const { buildAgents } = await import("../../lib/agents/utils");
+  const { providerStrategy } = await import("langchain");
+  const { BaseChatModel } = await import("@langchain/core/language_models/chat_models");
+  const { attachModelIdentity } = await import("../../lib/agents/circuitBreaker");
+  const { z } = await import("zod");
+
+  const schema = z.object({ ok: z.boolean() });
+  class DummyModel extends BaseChatModel {
+    _llmType(): string { return "dummy"; }
+    bindTools(): this { return this; }
+    async _generate(): Promise<ChatResult> { throw new Error("Unused"); }
+  }
+
+  const g1 = attachModelIdentity(new DummyModel({}), { provider: "google", keyGroup: "G1", modelId: "gemini-1" });
+  const d1 = attachModelIdentity(new DummyModel({}), { provider: "deepseek", keyGroup: "D1", modelId: "deepseek-1" });
+
+  const sharedStrategy = providerStrategy(schema);
+  const partitionedFromProviderConfig = buildAgents([g1, d1], {
+    systemPrompt: "prompt",
+    responseFormat: { google: sharedStrategy, deepseek: sharedStrategy },
+  });
+  expect(partitionedFromProviderConfig).toHaveLength(2);
+
+  const partitionedFromSingleStrategy = buildAgents([g1, d1], {
+    systemPrompt: "prompt",
+    responseFormat: sharedStrategy,
+  });
+  expect(partitionedFromSingleStrategy).toHaveLength(2);
+  expect((partitionedFromSingleStrategy[0] as unknown as { fallbackModel: { candidates: unknown[] } }).fallbackModel.candidates).toHaveLength(1);
+});
+
+test("processDifferentialEvaluation - handles multiple prior issues on the same post_index without collisions", () => {
+  const result = processDifferentialEvaluation({
+    threadDraft: ["Hook post", "Updated second post with real data", "Closing post"],
+    iterations: 1,
+    previousScore: 76,
+    priorActionableCritiques: [
+      { post_index: 2, critique: "Missing hard metrics", fix_directive: "Add metrics", status: "open" },
+      { post_index: 2, critique: "Needs sharper closing beat", fix_directive: "Sharpen transition", status: "open" },
+    ],
+    structuredResponse: {
+      overall_critique: "Partially resolved on Post 2.",
+      issue_evaluations: [
+        { post_index: 2, prior_issue: "Missing hard metrics", status: "resolved", reasoning: "Added metric." },
+        { post_index: 2, prior_issue: "Needs sharper closing beat", status: "unresolved", reasoning: "Still flat." },
+      ],
+      new_violations: [],
+      suggested_score: 82,
+    },
+  });
+
+  expect(result.post_critiques).toHaveLength(1);
+  expect(result.post_critiques[0].critique).toBe("Needs sharper closing beat");
+  expect(result.is_approved).toBe(false);
+  const lastAudit = result.audit_history[result.audit_history.length - 1];
+  expect(lastAudit.post_critiques.filter((pc) => pc.post_index === 2)).toHaveLength(2);
+  expect(lastAudit.post_critiques.map((pc) => pc.status)).toEqual(["resolved", "unresolved"]);
+});
+
 
 
 

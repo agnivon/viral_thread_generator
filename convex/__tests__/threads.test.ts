@@ -1651,3 +1651,39 @@ test("handleGraphCompletion re-renders infographic PNG when infographic_spec upd
   expect(saved?.images).not.toContain(oldUrl);
 });
 
+test("renderInfographicAction rejects unauthorized cross-user draftId access", async () => {
+  const t = convexTest(schema, modules);
+  const ownerId = await t.mutation(async (ctx) => await ctx.db.insert("users", {}));
+  const attackerId = await t.mutation(async (ctx) => await ctx.db.insert("users", {}));
+
+  const draftId = await t.mutation(async (ctx) => {
+    return await ctx.db.insert("threadDrafts", {
+      userId: ownerId,
+      generation_status: "success",
+      thread_draft: ["Post 1"],
+    });
+  });
+
+  const renderSpy = vi.spyOn(rendererModule, "renderInfographicToPng").mockResolvedValue(
+    Buffer.from("mock-png")
+  );
+
+  const attacker = t.withIdentity({ subject: attackerId });
+  await expect(
+    attacker.action(api.actions.threads.renderInfographicAction, {
+      spec: {
+        archetype: "stat_callout",
+        kicker: "TEST",
+        headline: "Headline",
+        subheading: "Subheading",
+        statCallout: { primaryStat: "42%", statLabel: "Metric" },
+        takeawayBox: { text: "Takeaway" },
+        sourceCitation: "Source",
+      },
+      draftId,
+    })
+  ).rejects.toThrow();
+
+  expect(renderSpy).not.toHaveBeenCalled();
+});
+

@@ -35,6 +35,7 @@ export const googleGemini31FlashLiteT01Key2 = createGoogleModel("gemini-3.1-flas
 export const googleGemini35FlashLiteT01Key1 = createGoogleModel("gemini-3.5-flash-lite", 0.1, "GOOGLE_API_KEY", { thinkingLevel: "off" });
 export const googleGemini35FlashLiteT01Key2 = createGoogleModel("gemini-3.5-flash-lite", 0.1, "GOOGLE_API_KEY2", { thinkingLevel: "off" });
 export const deepSeekFlashT01ReasoningNone = createDeepSeekModel("deepseek-flash", 0.1, { reasoning: { effort: "none" }, modelKwargs: { thinking: { type: "disabled" } } });
+export const deepSeekFlashT01JsonReasoningNone = createDeepSeekModel("deepseek-flash", 0.1, { reasoning: { effort: "none" }, modelKwargs: { thinking: { type: "disabled" }, response_format: { type: "json_object" } } });
 export const openRouterFreeT01 = attachModelIdentity(
   new ChatOpenRouter({
     model: "openrouter/free",
@@ -69,6 +70,7 @@ export const googleGemini36FlashT01ThinkingKey2 = createGoogleModel("gemini-3.6-
 export const googleGemini35FlashLiteT01ThinkingKey1 = createGoogleModel("gemini-3.5-flash-lite", 0.1, "GOOGLE_API_KEY", { thinkingLevel: "low" });
 export const googleGemini35FlashLiteT01ThinkingKey2 = createGoogleModel("gemini-3.5-flash-lite", 0.1, "GOOGLE_API_KEY2", { thinkingLevel: "low" });
 export const deepSeekFlashT01ReasoningHigh = createDeepSeekModel("deepseek-flash", 0.1, { reasoning: { effort: "high" }, modelKwargs: { thinking: { type: "enabled" }, response_format: { type: "json_object" } } });
+export const deepSeekFlashT01TextReasoningHigh = createDeepSeekModel("deepseek-flash", 0.1, { reasoning: { effort: "high" }, modelKwargs: { thinking: { type: "enabled" } } });
 
 export const googleGemini38FlashT08ThinkingKey1 = createGoogleModel("gemini-3.8-flash", 0.8, "GOOGLE_API_KEY", { thinkingLevel: "high" });
 export const googleGemini38FlashT08ThinkingKey2 = createGoogleModel("gemini-3.8-flash", 0.8, "GOOGLE_API_KEY2", { thinkingLevel: "high" });
@@ -141,33 +143,3 @@ export const googleGemini31FlashLiteT02Key2 = createGoogleModel("gemini-3.1-flas
 export const googleGemini35FlashLiteT02Key1 = createGoogleModel("gemini-3.5-flash-lite", 0.2, "GOOGLE_API_KEY", { thinkingLevel: "off" });
 export const googleGemini35FlashLiteT02Key2 = createGoogleModel("gemini-3.5-flash-lite", 0.2, "GOOGLE_API_KEY2", { thinkingLevel: "off" });
 export const deepSeekFlashT02ReasoningNone = createDeepSeekModel("deepseek-flash", 0.2, { reasoning: { effort: "none" }, modelKwargs: { thinking: { type: "disabled" }, response_format: { type: "json_object" } } });
-
-// Backward compatibility aliases (gpt-5.4-mini replaced with deepseek-flash)
-export const openAiGpt54MiniT00 = deepSeekFlashT00ReasoningNone;
-export const openAiGpt54MiniT01 = deepSeekFlashT01ReasoningNone;
-export const openAiGpt54MiniT02 = deepSeekFlashT02ReasoningNone;
-export const openAiGpt54MiniT08 = deepSeekFlashT08ReasoningNone;
-
-export const googleGemini31FlashLiteT01Key1Max3k = googleGemini31FlashLiteT01Key1;
-export const googleGemini31FlashLiteT01Key2Max3k = googleGemini31FlashLiteT01Key2;
-export const googleGemini35FlashLiteT01Key1Max3k = googleGemini35FlashLiteT01Key1;
-export const googleGemini35FlashLiteT01Key2Max3k = googleGemini35FlashLiteT01Key2;
-export const openAiGpt54MiniT01Max2k = openAiGpt54MiniT01;
-
-export const googleGemini31FlashLiteT02Key1Max3k = googleGemini31FlashLiteT02Key1;
-export const googleGemini31FlashLiteT02Key2Max3k = googleGemini31FlashLiteT02Key2;
-export const googleGemini35FlashLiteT02Key1Max3k = googleGemini35FlashLiteT02Key1;
-export const googleGemini35FlashLiteT02Key2Max3k = googleGemini35FlashLiteT02Key2;
-export const openAiGpt54MiniT02Max2k = openAiGpt54MiniT02;
-export const deepSeekV4ProT085ReasoningNone = deepSeekFlashT085ReasoningNone;
-export const deepSeekV4ProT00ReasoningHigh = deepSeekFlashT00ReasoningHigh;
-
-// Backward compatibility aliases for phased-out models (gemini-3.7-flash and gemini-3.5-flash aliased to gemini-3.8-flash and gemini-3.6-flash)
-export const googleGemini37FlashT08Key1 = googleGemini38FlashT08Key1;
-export const googleGemini37FlashT08Key2 = googleGemini38FlashT08Key2;
-export const googleGemini35FlashT08Key1 = googleGemini36FlashT08Key1;
-export const googleGemini35FlashT08Key2 = googleGemini36FlashT08Key2;
-export const googleGemini37FlashT00Key1 = googleGemini38FlashT00Key1;
-export const googleGemini37FlashT00Key2 = googleGemini38FlashT00Key2;
-export const googleGemini35FlashT00Key1 = googleGemini36FlashT00Key1;
-export const googleGemini35FlashT00Key2 = googleGemini36FlashT00Key2;

@@ -32,4 +32,23 @@ Follow these strict design rules:
    - For 'entity_comparison': Provide 3-5 concrete comparison items per entity column, plus a milestoneBadge summarizing the core trade-off or financial delta, AND a takeawayBox.
    - For 'comparison_bars': Provide 2 bar charts with 2-4 bars each, complete with titles, subtitles, and exact displayValues, plus a takeawayBox.
    - For 'stat_callout': Provide the hero primaryStat, detailed statLabel, secondaryStat, secondaryLabel, a comparisonNote explaining the baseline or significance, AND a takeawayBox.
-   - ALWAYS populate the takeawayBox with a concrete, actionable takeaway to anchor the bottom of the visual canvas.`;
+   - ALWAYS populate the takeawayBox with a concrete, actionable takeaway to anchor the bottom of the visual canvas.
+
+8. REQUIRED JSON OUTPUT FORMAT:
+   - You MUST output your response strictly as a single valid, raw JSON object (no markdown fences, no commentary outside JSON) conforming to the InfographicSpec JSON schema:
+     {
+       "archetype": "kpi_flow" | "entity_comparison" | "comparison_bars" | "stat_callout" | "custom_layout",
+       "kicker": "string",
+       "headline": "string",
+       "subheading": "string",
+       "kpiCards": [{ "value": "string", "label": "string", "subtext": "string" }],
+       "flowSteps": [{ "title": "string", "description": "string" }],
+       "entityColumns": [{ "name": "string", "badge": "string", "items": [{ "title": "string", "description": "string" }] }],
+       "milestoneBadge": { "label": "string", "value": "string" },
+       "barCharts": [{ "title": "string", "subtitle": "string", "bars": [{ "label": "string", "value": 0, "displayValue": "string", "color": "#0284c7" }] }],
+       "statCallout": { "primaryStat": "string", "statLabel": "string", "secondaryStat": "string", "secondaryLabel": "string", "comparisonNote": "string" },
+       "takeawayBox": { "title": "string", "text": "string" },
+       "sourceCitation": "string",
+       "notes": "string"
+     }
+   - Only include the optional data arrays/objects relevant to the chosen archetype plus sourceCitation, takeawayBox, and optional notes.`;

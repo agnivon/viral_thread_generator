@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { query, mutation, internalQuery, internalMutation } from "./_generated/server";
+import { query, mutation, internalQuery, internalMutation, MutationCtx } from "./_generated/server";
 import { Doc, Id } from "./_generated/dataModel";
 import { requireAuthUserId } from "./auth";
 import { paginationOptsValidator } from "convex/server";
@@ -214,6 +214,48 @@ export const deleteThreadDraftInternal = internalMutation({
   },
 });
 
+const STUCK_GENERATION_STATUSES = ["processing", "queued"] as const;
+
+async function sweepStuckDrafts(
+  ctx: MutationCtx,
+  options: { thresholdMs?: number; userId?: Id<"users"> }
+): Promise<{ updatedCount: number; updatedIds: Id<"threadDrafts">[] }> {
+  const threshold = options.thresholdMs ?? 15 * 60 * 1000;
+  const cutoff = Date.now() - threshold;
+
+  const candidateGroups = await Promise.all(
+    STUCK_GENERATION_STATUSES.map((status) =>
+      options.userId
+        ? ctx.db
+            .query("threadDrafts")
+            .withIndex("by_userId_generation_status", (q) =>
+              q.eq("userId", options.userId!).eq("generation_status", status)
+            )
+            .collect()
+        : ctx.db
+            .query("threadDrafts")
+            .withIndex("by_generation_status", (q) => q.eq("generation_status", status))
+            .collect()
+    )
+  );
+
+  const updatedIds: Id<"threadDrafts">[] = [];
+  for (const draft of candidateGroups.flat()) {
+    if (draft._creationTime <= cutoff) {
+      await ctx.db.patch("threadDrafts", draft._id, {
+        generation_status: "failed",
+        failure_reason: "Function execution timed out",
+      });
+      updatedIds.push(draft._id);
+    }
+  }
+
+  return {
+    updatedCount: updatedIds.length,
+    updatedIds,
+  };
+}
+
 /**
  * Internal mutation: Finds drafts stuck in 'processing' or 'queued' for longer than thresholdMs
  * (default 15 minutes, well beyond any action execution window) and marks them as failed.
@@ -224,38 +266,10 @@ export const markStuckDraftsAsFailed = internalMutation({
     userId: v.optional(v.id("users")),
   },
   handler: async (ctx, args) => {
-    const threshold = args.thresholdMs ?? 15 * 60 * 1000;
-    const cutoff = Date.now() - threshold;
-
-    let allDrafts: Doc<"threadDrafts">[];
-    if (args.userId) {
-      allDrafts = await ctx.db
-        .query("threadDrafts")
-        .withIndex("by_userId", (q) => q.eq("userId", args.userId!))
-        .collect();
-    } else {
-      allDrafts = await ctx.db.query("threadDrafts").collect();
-    }
-
-    const updatedIds: Id<"threadDrafts">[] = [];
-    for (const draft of allDrafts) {
-      const isStuck =
-        (draft.generation_status === "processing" || draft.generation_status === "queued") &&
-        draft._creationTime <= cutoff;
-
-      if (isStuck) {
-        await ctx.db.patch("threadDrafts", draft._id, {
-          generation_status: "failed",
-          failure_reason: "Function execution timed out",
-        });
-        updatedIds.push(draft._id);
-      }
-    }
-
-    return {
-      updatedCount: updatedIds.length,
-      updatedIds,
-    };
+    return await sweepStuckDrafts(ctx, {
+      thresholdMs: args.thresholdMs,
+      userId: args.userId,
+    });
   },
 });
 
@@ -268,32 +282,9 @@ export const cleanupStuckDrafts = mutation({
   },
   handler: async (ctx, args) => {
     const userId = await requireAuthUserId(ctx);
-    const threshold = args.thresholdMs ?? 15 * 60 * 1000;
-    const cutoff = Date.now() - threshold;
-
-    const drafts = await ctx.db
-      .query("threadDrafts")
-      .withIndex("by_userId", (q) => q.eq("userId", userId))
-      .collect();
-
-    const updatedIds: Id<"threadDrafts">[] = [];
-    for (const draft of drafts) {
-      const isStuck =
-        (draft.generation_status === "processing" || draft.generation_status === "queued") &&
-        draft._creationTime <= cutoff;
-
-      if (isStuck) {
-        await ctx.db.patch("threadDrafts", draft._id, {
-          generation_status: "failed",
-          failure_reason: "Function execution timed out",
-        });
-        updatedIds.push(draft._id);
-      }
-    }
-
-    return {
-      updatedCount: updatedIds.length,
-      updatedIds,
-    };
+    return await sweepStuckDrafts(ctx, {
+      thresholdMs: args.thresholdMs,
+      userId,
+    });
   },
 });

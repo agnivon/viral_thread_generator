@@ -1,43 +1,10 @@
 /// <reference types="vite/client" />
 import { expect, test, vi, afterEach } from "vitest";
-import { VisualKeywordStrategistNode, SearchQueryOptimizerNode } from "../../lib/agents/nodes";
+import { SearchQueryOptimizerNode } from "../../lib/agents/nodes";
 import * as agentUtils from "../../lib/agents/utils";
 
 afterEach(() => {
   vi.restoreAllMocks();
-});
-
-test("VisualKeywordStrategistNode - extracts search queries on successful LLM response", async () => {
-  const mockStructuredResponse = {
-    hero_visual_query: "futuristic AI coding workstation",
-    post_visual_queries: [
-      {
-        post_index: 0,
-        image_search_query: "software developer coding",
-        video_search_query: "typing on keyboard",
-      },
-    ],
-  };
-
-  vi.spyOn(agentUtils, "invokeWithFallbacks").mockResolvedValue({
-    structuredResponse: mockStructuredResponse,
-  });
-
-  const result = await VisualKeywordStrategistNode({
-    thread_draft: ["Hook post about AI coding", "Body post explaining AST parsing"],
-  });
-
-  expect(result.search_queries).toEqual(mockStructuredResponse);
-});
-
-test("VisualKeywordStrategistNode - handles failure gracefully", async () => {
-  vi.spyOn(agentUtils, "invokeWithFallbacks").mockRejectedValue(new Error("LLM Error"));
-
-  const result = await VisualKeywordStrategistNode({
-    thread_draft: ["Thread post"],
-  });
-
-  expect(result.search_queries).toBeUndefined();
 });
 
 test("SearchQueryOptimizerNode - optimizes boolean search query on successful LLM response", async () => {
@@ -72,18 +39,6 @@ test("SearchQueryOptimizerNode - returns undefined when invocation fails", async
   expect(result.optimized_query).toBeUndefined();
 });
 
-test("VisualKeywordStrategistNode - returns undefined when structuredResponse fails schema validation", async () => {
-  vi.spyOn(agentUtils, "invokeWithFallbacks").mockResolvedValue({
-    structuredResponse: { invalid_field: "wrong structure" },
-  });
-
-  const result = await VisualKeywordStrategistNode({
-    thread_draft: ["Thread post"],
-  });
-
-  expect(result.search_queries).toBeUndefined();
-});
-
 test("SearchQueryOptimizerNode - returns undefined when structuredResponse fails schema validation", async () => {
   vi.spyOn(agentUtils, "invokeWithFallbacks").mockResolvedValue({
     structuredResponse: { not_optimized_query: 12345 },
@@ -99,75 +54,50 @@ test("SearchQueryOptimizerNode - returns undefined when structuredResponse fails
   expect(result.optimized_query).toBeUndefined();
 });
 
-test("All flash-lite and OpenAI models have no token limits (maxOutputTokens / maxTokens are undefined)", async () => {
+test("All flash-lite and DeepSeek models have no token limits (maxOutputTokens / maxTokens are undefined)", async () => {
   const {
     googleGemini31FlashLiteT01Key1,
     googleGemini31FlashLiteT01Key2,
     googleGemini35FlashLiteT01Key1,
     googleGemini35FlashLiteT01Key2,
-    googleGemini31FlashLiteT01Key1Max3k,
-    googleGemini31FlashLiteT01Key2Max3k,
-    googleGemini35FlashLiteT01Key1Max3k,
-    googleGemini35FlashLiteT01Key2Max3k,
     googleGemini31FlashLiteT02Key1,
     googleGemini31FlashLiteT02Key2,
     googleGemini35FlashLiteT02Key1,
     googleGemini35FlashLiteT02Key2,
-    googleGemini31FlashLiteT02Key1Max3k,
-    googleGemini31FlashLiteT02Key2Max3k,
-    googleGemini35FlashLiteT02Key1Max3k,
-    googleGemini35FlashLiteT02Key2Max3k,
-    openAiGpt54MiniT01,
-    openAiGpt54MiniT01Max2k,
-    openAiGpt54MiniT02,
-    openAiGpt54MiniT02Max2k,
+    deepSeekFlashT01ReasoningNone,
+    deepSeekFlashT01JsonReasoningNone,
+    deepSeekFlashT02ReasoningNone,
   } = await import("../../lib/agents/models");
 
   const getMaxTokens = (model: unknown): number | undefined => {
     return (model as { params?: { maxOutputTokens?: number } })?.params?.maxOutputTokens;
   };
 
-  // Verify scraper flash-lite models have NO maxOutputTokens limit
   expect(getMaxTokens(googleGemini31FlashLiteT01Key1)).toBeUndefined();
   expect(getMaxTokens(googleGemini31FlashLiteT01Key2)).toBeUndefined();
   expect(getMaxTokens(googleGemini35FlashLiteT01Key1)).toBeUndefined();
   expect(getMaxTokens(googleGemini35FlashLiteT01Key2)).toBeUndefined();
-  expect(getMaxTokens(googleGemini31FlashLiteT01Key1Max3k)).toBeUndefined();
-  expect(getMaxTokens(googleGemini31FlashLiteT01Key2Max3k)).toBeUndefined();
-  expect(getMaxTokens(googleGemini35FlashLiteT01Key1Max3k)).toBeUndefined();
-  expect(getMaxTokens(googleGemini35FlashLiteT01Key2Max3k)).toBeUndefined();
-
-  // Verify researcher flash-lite models have NO maxOutputTokens limit
   expect(getMaxTokens(googleGemini31FlashLiteT02Key1)).toBeUndefined();
   expect(getMaxTokens(googleGemini31FlashLiteT02Key2)).toBeUndefined();
   expect(getMaxTokens(googleGemini35FlashLiteT02Key1)).toBeUndefined();
   expect(getMaxTokens(googleGemini35FlashLiteT02Key2)).toBeUndefined();
-  expect(getMaxTokens(googleGemini31FlashLiteT02Key1Max3k)).toBeUndefined();
-  expect(getMaxTokens(googleGemini31FlashLiteT02Key2Max3k)).toBeUndefined();
-  expect(getMaxTokens(googleGemini35FlashLiteT02Key1Max3k)).toBeUndefined();
-  expect(getMaxTokens(googleGemini35FlashLiteT02Key2Max3k)).toBeUndefined();
-
-  // Verify OpenAI models have NO maxTokens limit
-  expect(openAiGpt54MiniT01.maxTokens).toBeUndefined();
-  expect(openAiGpt54MiniT01Max2k.maxTokens).toBeUndefined();
-  expect(openAiGpt54MiniT02.maxTokens).toBeUndefined();
-  expect(openAiGpt54MiniT02Max2k.maxTokens).toBeUndefined();
+  expect(deepSeekFlashT01ReasoningNone.maxTokens).toBeUndefined();
+  expect(deepSeekFlashT01JsonReasoningNone.maxTokens).toBeUndefined();
+  expect(deepSeekFlashT02ReasoningNone.maxTokens).toBeUndefined();
 });
 
-test("DeepSeek models use deepseek-flash identifier and aliases match", async () => {
+test("DeepSeek models configure response_format only on structured output variants", async () => {
   const {
     deepSeekFlashT00ReasoningNone,
     deepSeekFlashT01ReasoningNone,
+    deepSeekFlashT01JsonReasoningNone,
+    deepSeekFlashT01ReasoningHigh,
+    deepSeekFlashT01TextReasoningHigh,
     deepSeekFlashT02ReasoningNone,
     deepSeekFlashT08ReasoningNone,
+    deepSeekFlashT08ReasoningHigh,
     deepSeekFlashT085ReasoningNone,
     deepSeekFlashT00ReasoningHigh,
-    deepSeekV4ProT085ReasoningNone,
-    deepSeekV4ProT00ReasoningHigh,
-    openAiGpt54MiniT00,
-    openAiGpt54MiniT01,
-    openAiGpt54MiniT02,
-    openAiGpt54MiniT08,
   } = await import("../../lib/agents/models");
 
   const getModelName = (model: unknown): string | undefined => {
@@ -177,26 +107,41 @@ test("DeepSeek models use deepseek-flash identifier and aliases match", async ()
 
   expect(getModelName(deepSeekFlashT00ReasoningNone)).toBe("deepseek-flash");
   expect(getModelName(deepSeekFlashT01ReasoningNone)).toBe("deepseek-flash");
+  expect(getModelName(deepSeekFlashT01JsonReasoningNone)).toBe("deepseek-flash");
+  expect(getModelName(deepSeekFlashT01ReasoningHigh)).toBe("deepseek-flash");
+  expect(getModelName(deepSeekFlashT01TextReasoningHigh)).toBe("deepseek-flash");
   expect(getModelName(deepSeekFlashT02ReasoningNone)).toBe("deepseek-flash");
   expect(getModelName(deepSeekFlashT08ReasoningNone)).toBe("deepseek-flash");
+  expect(getModelName(deepSeekFlashT08ReasoningHigh)).toBe("deepseek-flash");
   expect(getModelName(deepSeekFlashT085ReasoningNone)).toBe("deepseek-flash");
   expect(getModelName(deepSeekFlashT00ReasoningHigh)).toBe("deepseek-flash");
-  expect(getModelName(openAiGpt54MiniT00)).toBe("deepseek-flash");
-  expect(getModelName(openAiGpt54MiniT01)).toBe("deepseek-flash");
-  expect(getModelName(openAiGpt54MiniT02)).toBe("deepseek-flash");
-  expect(getModelName(openAiGpt54MiniT08)).toBe("deepseek-flash");
-  expect(deepSeekV4ProT085ReasoningNone).toBe(deepSeekFlashT085ReasoningNone);
-  expect(deepSeekV4ProT00ReasoningHigh).toBe(deepSeekFlashT00ReasoningHigh);
 
   const getModelKwargs = (model: unknown): Record<string, unknown> | undefined => {
     return (model as { modelKwargs?: Record<string, unknown> })?.modelKwargs;
   };
+  // Structured DeepSeek models MUST include json_object
+  expect(getModelKwargs(deepSeekFlashT01JsonReasoningNone)?.response_format).toEqual({ type: "json_object" });
+  expect(getModelKwargs(deepSeekFlashT01ReasoningHigh)?.response_format).toEqual({ type: "json_object" });
   expect(getModelKwargs(deepSeekFlashT02ReasoningNone)?.response_format).toEqual({ type: "json_object" });
   expect(getModelKwargs(deepSeekFlashT08ReasoningNone)?.response_format).toEqual({ type: "json_object" });
+  expect(getModelKwargs(deepSeekFlashT08ReasoningHigh)?.response_format).toEqual({ type: "json_object" });
   expect(getModelKwargs(deepSeekFlashT085ReasoningNone)?.response_format).toEqual({ type: "json_object" });
   expect(getModelKwargs(deepSeekFlashT00ReasoningHigh)?.response_format).toEqual({ type: "json_object" });
   expect(getModelKwargs(deepSeekFlashT00ReasoningNone)?.response_format).toEqual({ type: "json_object" });
+
+  // Unstructured DeepSeek scraper models MUST NOT include json_object
   expect(getModelKwargs(deepSeekFlashT01ReasoningNone)?.response_format).toBeUndefined();
+  expect(getModelKwargs(deepSeekFlashT01TextReasoningHigh)?.response_format).toBeUndefined();
+});
+
+test("Infographic prompt includes JSON instruction and strategist partitions providers", async () => {
+  const { INFOGRAPHIC_STRATEGIST_PROMPT } = await import("../../lib/infographics/prompts");
+  const { infographicStrategistAgents } = await import("../../lib/infographics/nodes");
+  const { searchQueryOptimizerAgents } = await import("../../lib/agents/nodes");
+
+  expect(INFOGRAPHIC_STRATEGIST_PROMPT.toLowerCase()).toContain("json");
+  expect(infographicStrategistAgents.length).toBeGreaterThanOrEqual(2);
+  expect(searchQueryOptimizerAgents.length).toBeGreaterThanOrEqual(2);
 });
 
 test("Gemini 4 Hydrogen models are configured with correct identities and primary placement", async () => {

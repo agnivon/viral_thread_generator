@@ -36,5 +36,13 @@ crons.interval(
   {}
 );
 
+// Recover generation drafts stuck in queued/processing beyond execution windows every 15 minutes
+crons.interval(
+  "cleanup-stuck-thread-drafts-15-min",
+  { minutes: 15 },
+  internal.threads.markStuckDraftsAsFailed,
+  {}
+);
+
 // Crons configuration
 export default crons;

@@ -18,8 +18,9 @@ import { generationPool, publicationPool } from "../lib/workpool.js";
 import { requireAuthUserId } from "../auth";
 import { renderInfographicToPng } from "../lib/infographics/renderer.js";
 import { InfographicSpecSchema } from "../lib/infographics/schema.js";
+import { isAccessDeniedOrGenericTitle } from "../lib/urlMetadata.js";
 
-export { requireAuthUserId };
+export { requireAuthUserId, isAccessDeniedOrGenericTitle };
 
 type ThreadInput = Infer<typeof threadDraftInputValidator>;
 
@@ -375,71 +376,6 @@ export const enqueueThreadGeneration = action({
   },
 });
 
-export const enqueueNewsThreadGeneration = action({
-  args: {
-    requests: v.array(v.object({
-      url: v.string(),
-      ...commonThreadDraftArgs,
-    }))
-  },
-  handler: async (ctx, args) => {
-    const requests = args.requests.map((req) => ({
-      ...req,
-      input_field: { agent: "news" as const, url: req.url },
-    }));
-    await enqueueThreadGenerationHelper(ctx, requests);
-  },
-});
-
-export const enqueueSocialMediaThreadGeneration = action({
-  args: {
-    requests: v.array(v.object({
-      url: v.string(),
-      ...commonThreadDraftArgs,
-    }))
-  },
-  handler: async (ctx, args) => {
-    const requests = args.requests.map((req) => ({
-      ...req,
-      input_field: { agent: "social_media" as const, url: req.url },
-    }));
-    await enqueueThreadGenerationHelper(ctx, requests);
-  },
-});
-
-export const enqueueTopicThreadGeneration = action({
-  args: {
-    requests: v.array(v.object({
-      topic: v.string(),
-      description: v.optional(v.string()),
-      ...commonThreadDraftArgs,
-    }))
-  },
-  handler: async (ctx, args) => {
-    const requests = args.requests.map((req) => ({
-      ...req,
-      input_field: { agent: "topic" as const, topic: req.topic, description: req.description },
-    }));
-    await enqueueThreadGenerationHelper(ctx, requests);
-  },
-});
-
-export const enqueueClickbaitThreadGeneration = action({
-  args: {
-    requests: v.array(v.object({
-      url: v.string(),
-      ...commonThreadDraftArgs,
-    }))
-  },
-  handler: async (ctx, args) => {
-    const requests = args.requests.map((req) => ({
-      ...req,
-      input_field: { agent: "clickbait" as const, url: req.url },
-    }));
-    await enqueueThreadGenerationHelper(ctx, requests);
-  },
-});
-
 // ─────────────────────────────────────────────────────────────
 // Internal Graph Worker Actions
 // ─────────────────────────────────────────────────────────────
@@ -694,6 +630,7 @@ export const iterateThreadInternal = internalAction({
     return await runGraphWithLifecycle(ctx, args.recordId, agent, async (graph) => {
       const config = { configurable: { thread_id: args.recordId } };
       const hasManualEdits = Array.isArray(args.modified_thread) && args.modified_thread.length > 0;
+      const resetParetoBaseline = hasManualEdits || Boolean(trimmedGuidance);
 
       const stateUpdate: Record<string, unknown> = {
         thread_draft: hasManualEdits ? args.modified_thread : (draft.thread_draft || []),
@@ -719,8 +656,8 @@ export const iterateThreadInternal = internalAction({
         discovery_angles: draft.discovery_angles,
         core_delta: draft.core_delta,
         virality_score: draft.virality_score,
-        best_thread_draft: hasManualEdits ? args.modified_thread : (draft.best_thread_draft || draft.thread_draft),
-        best_virality_score: hasManualEdits ? undefined : (draft.best_virality_score ?? draft.virality_score),
+        best_thread_draft: resetParetoBaseline ? args.modified_thread : (draft.best_thread_draft || draft.thread_draft),
+        best_virality_score: resetParetoBaseline ? undefined : (draft.best_virality_score ?? draft.virality_score),
         audit_history: draft.audit_history || [],
       };
 
@@ -1103,9 +1040,11 @@ export const deleteThreadDraft = action({
 
     try {
       const { pool } = await import("../lib/agents/checkpointer.js");
-      const resWrites = await pool.query("DELETE FROM checkpoint_writes WHERE thread_id = $1", [args.id]);
-      const resBlobs = await pool.query("DELETE FROM checkpoint_blobs WHERE thread_id = $1", [args.id]);
-      const resCheckpoints = await pool.query("DELETE FROM checkpoints WHERE thread_id = $1", [args.id]);
+      const [resWrites, resBlobs, resCheckpoints] = await Promise.all([
+        pool.query("DELETE FROM checkpoint_writes WHERE thread_id = $1", [args.id]),
+        pool.query("DELETE FROM checkpoint_blobs WHERE thread_id = $1", [args.id]),
+        pool.query("DELETE FROM checkpoints WHERE thread_id = $1", [args.id]),
+      ]);
 
       console.log(`Deleted ${resCheckpoints.rowCount} checkpoints, ${resWrites.rowCount} writes, and ${resBlobs.rowCount} blobs for thread ${args.id}`);
     } catch (e) {
@@ -1156,76 +1095,7 @@ export function deriveTitleFromUrl(targetUrl: string): string {
   }
 }
 
-/**
- * Detects if a title indicates an access-denied/WAF block page or is just a generic site domain.
- */
-export function isAccessDeniedOrGenericTitle(titleToCheck: string | undefined | null, targetUrl: string): boolean {
-  if (!titleToCheck) return true;
-  const trimmed = titleToCheck.trim();
-  if (!trimmed) return true;
-  const lower = trimmed.toLowerCase();
-
-  const blockedPatterns = [
-    "access to this page has been denied",
-    "access denied",
-    "403 forbidden",
-    "forbidden",
-    "401 unauthorized",
-    "just a moment",
-    "attention required",
-    "cloudflare",
-    "security check",
-    "robot or human",
-    "are you a human",
-    "verify you are human",
-    "blocked",
-    "shieldsquare",
-    "perimeterx",
-    "ddos-guard",
-    "enable javascript and cookies",
-    "enable cookies",
-    "captcha",
-    "page not found",
-    "404 not found",
-    "502 bad gateway",
-    "503 service unavailable",
-    "504 gateway timeout",
-  ];
-
-  if (blockedPatterns.some((pattern) => lower.includes(pattern))) {
-    return true;
-  }
-
-  try {
-    const parsed = new URL(targetUrl.startsWith("http://") || targetUrl.startsWith("https://") ? targetUrl : `https://${targetUrl}`);
-    const rawHost = parsed.hostname.replace(/^www\./i, "").toLowerCase();
-    const domainName = rawHost.split(".")[0];
-
-    // For Reuters links, generic titles like "reuters.com" or "Reuters" should be treated as generic
-    if (rawHost === "reuters.com" || rawHost.endsWith(".reuters.com")) {
-      if (
-        lower === "reuters.com" ||
-        lower === "reuters" ||
-        lower.startsWith("reuters |") ||
-        lower.includes("breaking international news")
-      ) {
-        return true;
-      }
-    }
-
-    // If title matches hostname or site domain when path slug is present
-    const pathParts = parsed.pathname.split("/").filter(Boolean);
-    if (pathParts.length > 0) {
-      if (lower === rawHost || lower === domainName || lower === `${domainName}.com`) {
-        return true;
-      }
-    }
-  } catch {
-    // ignore URL parse errors
-  }
-
-  return false;
-}
+// Re-exported above from ../lib/urlMetadata.js
 
 export const getUrlMetadata = action({
   args: { url: v.string() },
@@ -1415,7 +1285,13 @@ export const renderInfographicAction = action({
     draftId: v.optional(v.id("threadDrafts")),
   },
   handler: async (ctx, args): Promise<string | null> => {
-    await requireAuthUserId(ctx);
+    const userId = await requireAuthUserId(ctx);
+    if (args.draftId) {
+      await ctx.runQuery(internal.threads.getThreadDraftInternal, {
+        id: args.draftId,
+        userId,
+      });
+    }
     return await ctx.runAction(internal.actions.threads.renderInfographicInternal, {
       spec: args.spec,
       draftId: args.draftId,

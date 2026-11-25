@@ -23,7 +23,10 @@ export const infographicStrategistAgents = buildAgents<InfographicSpec>(
   ],
   {
     systemPrompt: INFOGRAPHIC_STRATEGIST_PROMPT,
-    responseFormat: providerStrategy(InfographicSpecSchema),
+    responseFormat: {
+      google: providerStrategy(InfographicSpecSchema),
+      deepseek: providerStrategy(InfographicSpecSchema),
+    },
   }
 );
 

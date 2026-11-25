@@ -34,7 +34,6 @@ import {
 } from "@/hooks/use-trends-scroll";
 import { cn } from "@/lib/utils";
 import {
-  type KeywordItem,
   formatSearchVolume,
   formatGrowthRate,
   formatStartedAgo,
@@ -152,10 +151,18 @@ export default function TrendsPage() {
 
   // Pagination for page size 50
   const totalPages = Math.max(1, Math.ceil(filteredKeywords.length / pageSize));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
+
   const paginatedKeywords = useMemo(() => {
-    const start = (currentPage - 1) * pageSize;
+    const start = (safeCurrentPage - 1) * pageSize;
     return filteredKeywords.slice(start, start + pageSize);
-  }, [filteredKeywords, currentPage, pageSize]);
+  }, [filteredKeywords, safeCurrentPage, pageSize]);
 
   // Safe loading flag ensuring SSR output matches client initial hydration
   const isLoading = !mounted || isGoogleLoading;
@@ -167,13 +174,17 @@ export default function TrendsPage() {
     preserveScrollPosition,
     formatCardDomId,
   } = useTrendsScroll({
-    isReady: mounted && !isGoogleLoading && filteredKeywords.length > 0,
+    isReady:
+      mounted &&
+      !isGoogleLoading &&
+      (!onlyMyNiches || userSettings !== undefined) &&
+      filteredKeywords.length > 0,
     totalFilteredItems: filteredKeywords.length,
     state: {
       keywordSearch,
       sortMode,
       onlyMyNiches,
-      currentPage,
+      currentPage: safeCurrentPage,
     },
   });
 
@@ -513,8 +524,8 @@ export default function TrendsPage() {
         {filteredKeywords.length > 0 && (
           <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 border-t border-border/30 text-xs text-muted-foreground">
             <div>
-              Showing {Math.min(filteredKeywords.length, (currentPage - 1) * pageSize + 1)}-
-              {Math.min(filteredKeywords.length, currentPage * pageSize)} of {filteredKeywords.length} trends (page size 50)
+              Showing {Math.min(filteredKeywords.length, (safeCurrentPage - 1) * pageSize + 1)}-
+              {Math.min(filteredKeywords.length, safeCurrentPage * pageSize)} of {filteredKeywords.length} trends (page size 50)
             </div>
 
             {totalPages > 1 && (
@@ -522,20 +533,20 @@ export default function TrendsPage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
-                  disabled={currentPage <= 1}
+                  onClick={() => handlePageChange(Math.max(1, safeCurrentPage - 1))}
+                  disabled={safeCurrentPage <= 1}
                   className="rounded-xl text-xs h-8 px-3"
                 >
                   Previous
                 </Button>
                 <span className="font-semibold text-foreground px-2">
-                  Page {currentPage} of {totalPages}
+                  Page {safeCurrentPage} of {totalPages}
                 </span>
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => handlePageChange(Math.min(totalPages, currentPage + 1))}
-                  disabled={currentPage >= totalPages}
+                  onClick={() => handlePageChange(Math.min(totalPages, safeCurrentPage + 1))}
+                  disabled={safeCurrentPage >= totalPages}
                   className="rounded-xl text-xs h-8 px-3"
                 >
                   Next

@@ -103,6 +103,8 @@ export const fetchArticlesForKeyword = action({
   args: {
     keyword: v.string(),
     articleKeys: v.optional(v.array(v.array(v.union(v.number(), v.string())))),
+    geo: v.optional(v.string()),
+    hours: v.optional(v.number()),
   },
   handler: async (ctx, args): Promise<GoogleTrendArticle[]> => {
     await requireAuthUserId(ctx);
@@ -110,7 +112,10 @@ export const fetchArticlesForKeyword = action({
     let rawKeys: unknown[] = args.articleKeys || [];
     if (rawKeys.length === 0 && args.keyword) {
       try {
-        const trendsRes = await googleTrends.realTimeTrends({ geo: "US", trendingHours: 24 });
+        const trendsRes = await googleTrends.realTimeTrends({
+          geo: args.geo || "US",
+          trendingHours: args.hours ?? 24,
+        });
         if (trendsRes.data) {
           const targetSlug = args.keyword.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
           const matchingTrend = trendsRes.data.find((item) => {

@@ -11,8 +11,6 @@ import {
   RefreshCw,
   ChevronDown,
   ChevronUp,
-  ExternalLink,
-  Check,
   ImageIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";

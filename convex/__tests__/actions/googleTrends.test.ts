@@ -124,6 +124,26 @@ test("fetchArticlesForKeyword - returns empty array if no valid keys", async () 
   expect(articles).toEqual([]);
 });
 
+test("fetchArticlesForKeyword - forwards geo and hours when resolving missing articleKeys", async () => {
+  const t = convexTest(schema, modules);
+  const userId = await t.mutation(async (ctx) => {
+    return await ctx.db.insert("users", {});
+  });
+
+  const trendsSpy = vi.spyOn(googleTrends, "realTimeTrends").mockResolvedValue({
+    data: [],
+  });
+
+  const authed = t.withIdentity({ subject: userId });
+  await authed.action(api.actions.googleTrends.fetchArticlesForKeyword, {
+    keyword: "Regional Trend",
+    geo: "GB",
+    hours: 4,
+  });
+
+  expect(trendsSpy).toHaveBeenCalledWith({ geo: "GB", trendingHours: 4 });
+});
+
 test("resolveArticleUrl - throws UnauthenticatedError if not authenticated", async () => {
   const t = convexTest(schema, modules);
   await expect(

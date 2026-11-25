@@ -84,21 +84,18 @@ describe("showDesktopNotification", () => {
     const clickActionMock = vi.fn();
 
     let createdInstance: MockNotificationInstance | null = null;
-    function MockNotificationClass(
-      this: MockNotificationInstance,
-      title: string,
-      options?: NotificationOptions
-    ) {
-      this.title = title;
-      this.options = options;
-      this.close = closeMock;
-      createdInstance = this;
-      return this;
+    class MockNotificationClass {
+      static permission = "granted";
+      title: string;
+      options?: NotificationOptions;
+      close: () => void;
+      constructor(title: string, options?: NotificationOptions) {
+        this.title = title;
+        this.options = options;
+        this.close = closeMock;
+        createdInstance = this as unknown as MockNotificationInstance;
+      }
     }
-    Object.defineProperty(MockNotificationClass, "permission", {
-      value: "granted",
-      configurable: true,
-    });
 
     globalThis.window = {
       Notification: MockNotificationClass as unknown as typeof Notification,
@@ -200,21 +197,18 @@ describe("showAppNotification", () => {
     Reflect.deleteProperty(globalThis, "navigator");
 
     let createdInstance: MockNotificationInstance | null = null;
-    function MockNotificationClass(
-      this: MockNotificationInstance,
-      title: string,
-      options?: NotificationOptions
-    ) {
-      this.title = title;
-      this.options = options;
-      this.close = vi.fn();
-      createdInstance = this;
-      return this;
+    class MockNotificationClass {
+      static permission = "granted";
+      title: string;
+      options?: NotificationOptions;
+      close: () => void;
+      constructor(title: string, options?: NotificationOptions) {
+        this.title = title;
+        this.options = options;
+        this.close = vi.fn();
+        createdInstance = this as unknown as MockNotificationInstance;
+      }
     }
-    Object.defineProperty(MockNotificationClass, "permission", {
-      value: "granted",
-      configurable: true,
-    });
 
     globalThis.window = {
       Notification: MockNotificationClass as unknown as typeof Notification,

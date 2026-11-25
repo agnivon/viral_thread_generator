@@ -9,6 +9,7 @@ import {
   googleGemini38FlashT01ThinkingKey2,
   googleGemini36FlashT01ThinkingKey1,
   googleGemini36FlashT01ThinkingKey2,
+  deepSeekFlashT01TextReasoningHigh,
   deepSeekFlashT01ReasoningHigh,
   googleGemini35FlashLiteT01ThinkingKey1,
   googleGemini38FlashT08ThinkingKey1,
@@ -32,22 +33,25 @@ import { WebScraperTool, YoutubeScraperTool, CharacterValidatorTool } from "./to
 import { ContentAuthenticityCheckerTool } from "../news/tools.js";
 import {
   buildAgents,
+  extractMessageText,
   invokeWithFallbacks,
   filterActionablePostCritiques,
   reconcileSurgicalDraft,
-  parseFlaggedPostIndicesFromErrors,
-  buildSurgicalWriterContext,
+  buildWriterRevisionContext,
+  runCharacterValidation,
   differentialCriticSchema,
   processDifferentialEvaluation,
 } from "../utils.js";
 import { extractSelectedHook } from "../nodes.js";
+import { extractDiscoveryTopic } from "../discovery/nodes.js";
+import { runDiscoverySubgraph } from "../discovery/graph.js";
 
 const clickbaitScraperModels = [
   googleGemini38FlashT01ThinkingKey1,
   googleGemini38FlashT01ThinkingKey2,
   googleGemini36FlashT01ThinkingKey1,
   googleGemini36FlashT01ThinkingKey2,
-  deepSeekFlashT01ReasoningHigh,
+  deepSeekFlashT01TextReasoningHigh,
   googleGemini35FlashLiteT01ThinkingKey1,
 ];
 
@@ -79,7 +83,7 @@ export const ClickbaitScraperNode = async (
       { ...config, timeout: 60000 }
     );
     return {
-      raw_markdown: summary.content as string,
+      raw_markdown: extractMessageText(summary.content),
       images,
       parse_success: true,
       retries: { ...(state.retries || {}), scraper: (state.retries?.scraper || 0) + 1 },
@@ -91,6 +95,24 @@ export const ClickbaitScraperNode = async (
       retries: { ...(state.retries || {}), scraper: (state.retries?.scraper || 0) + 1 },
     };
   }
+};
+
+export const ClickbaitDiscoveryNode = async (
+  state: ClickbaitThreadFactoryStateType,
+  config?: RunnableConfig
+) => {
+  const topicCandidate = extractDiscoveryTopic(state.url, state.raw_markdown, "Viral story");
+  const result = await runDiscoverySubgraph({
+    nodeLabel: "ClickbaitDiscoveryNode",
+    topic: topicCandidate,
+    rawMarkdown: state.raw_markdown,
+    guidance: state.guidance,
+    retries: state.retries,
+    retryKey: "researcher",
+    returnDossierField: "research_context",
+    signal: config?.signal,
+  });
+  return result;
 };
 
 const clickbaitAngleSchema = z.object({
@@ -129,13 +151,16 @@ export const ClickbaitAngleStrategistNode = async (
     const guidanceContext = state.guidance
       ? `\n\n<ADDITIONAL_GUIDANCE>\n${state.guidance}\n</ADDITIONAL_GUIDANCE>`
       : "";
+    const anglesContext = state.discovery_angles && state.discovery_angles.length > 0
+      ? `\n\n<DISCOVERY_ANGLES>\n${JSON.stringify(state.discovery_angles, null, 2)}\n</DISCOVERY_ANGLES>`
+      : "";
     result = await invokeWithFallbacks(
       clickbaitAngleAgents,
       {
         messages: [
           {
             role: "user",
-            content: `<SOURCE_MATERIAL>\n${state.raw_markdown}\n</SOURCE_MATERIAL>${guidanceContext}`,
+            content: `<SOURCE_MATERIAL>\n${state.raw_markdown}\n</SOURCE_MATERIAL>${anglesContext}${guidanceContext}`,
           },
         ],
       },
@@ -154,7 +179,7 @@ export const ClickbaitAngleStrategistNode = async (
       shock_payload: res.shock_payload,
       withheld_mechanism: res.withheld_mechanism,
       high_arousal_valence: res.high_arousal_valence,
-      core_delta: res.clickbait_thesis || res.shock_payload,
+      core_delta: state.core_delta || res.clickbait_thesis || res.shock_payload,
       parse_success: true,
       retries: { ...(state.retries || {}), researcher: 0 },
     };
@@ -206,6 +231,9 @@ export const ClickbaitHookStrategistNode = async (
     const deltaContext = state.core_delta
       ? `\n\n<CORE_DELTA>\n${state.core_delta}\n</CORE_DELTA>`
       : "";
+    const anglesContext = state.discovery_angles && state.discovery_angles.length > 0
+      ? `\n\n<DISCOVERY_ANGLES>\n${JSON.stringify(state.discovery_angles, null, 2)}\n</DISCOVERY_ANGLES>`
+      : "";
 
     result = await invokeWithFallbacks(
       clickbaitHookStrategistAgents,
@@ -213,7 +241,7 @@ export const ClickbaitHookStrategistNode = async (
         messages: [
           {
             role: "user",
-            content: `<SOURCE>\n${state.raw_markdown}\n</SOURCE>${angleContext}${deltaContext}${guidanceContext}`,
+            content: `<SOURCE>\n${state.raw_markdown}\n</SOURCE>${angleContext}${anglesContext}${deltaContext}${guidanceContext}`,
           },
         ],
       },
@@ -261,55 +289,33 @@ export const CliffhangerThreadWriterNode = async (
   state: ClickbaitThreadFactoryStateType,
   config?: RunnableConfig
 ) => {
-  const previousDraftContext =
-    state.thread_draft && state.thread_draft.length > 0
-      ? `\n\n<PREVIOUS_THREAD_DRAFT>\n${JSON.stringify(state.thread_draft, null, 2)}\n</PREVIOUS_THREAD_DRAFT>`
-      : "";
-  const critiqueContext = state.critique
-    ? `\n\n<CRITIQUE_TO_ADDRESS>\n${state.critique}\n</CRITIQUE_TO_ADDRESS>`
-    : "";
-  let postCritiquesContext = "";
-  const actionable = filterActionablePostCritiques(state.post_critiques);
-  if (actionable.length > 0) {
-    postCritiquesContext =
-      "\n\n<POST_SPECIFIC_CRITIQUES>\n" +
-      actionable
-        .map(
-          (pc) =>
-            `Post ${pc.post_index}: ${pc.critique}${
-              pc.fix_directive ? `\nFix Directive: ${pc.fix_directive}` : ""
-            }`
-        )
-        .join("\n\n") +
-      "\n</POST_SPECIFIC_CRITIQUES>";
-  }
-  const charCritiqueContext = state.character_critique
-    ? `\n\n<CHARACTER_AND_FORMATTING_CONSTRAINTS_FAILED>\n${state.character_critique}\nFix the previous draft to respect these exact formatting constraints.\n</CHARACTER_AND_FORMATTING_CONSTRAINTS_FAILED>`
-    : "";
-  const guidanceContext = state.guidance
-    ? `\n\n<ADDITIONAL_GUIDANCE>\n${state.guidance}\n</ADDITIONAL_GUIDANCE>`
-    : "";
+  const {
+    previousDraftContext,
+    critiqueContext,
+    postCritiquesContext,
+    charCritiqueContext,
+    guidanceContext,
+    pinnedPostsContext,
+    isSurgical,
+    flaggedIndices,
+  } = buildWriterRevisionContext({
+    threadDraft: state.thread_draft,
+    critique: state.critique,
+    postCritiques: state.post_critiques,
+    characterCritique: state.character_critique,
+    guidance: state.guidance,
+  });
   const angleContext = state.archetype
     ? `\n\n<CLICKBAIT_STRATEGY>\nArchetype: ${state.archetype}\nShock Payload: ${state.shock_payload}\nWithheld Mechanism: ${state.withheld_mechanism}\nHigh Arousal Target: ${state.high_arousal_valence}\n</CLICKBAIT_STRATEGY>`
     : "";
   const deltaContext = state.core_delta
     ? `\n\n<CORE_DELTA>\n${state.core_delta}\n</CORE_DELTA>`
     : "";
+  const discoveryContext = state.discovery_angles && state.discovery_angles.length > 0
+    ? `\n\n<DISCOVERY_ANGLES>\n${JSON.stringify(state.discovery_angles, null, 2)}\nUse the forensic reality, economic tensions, and primary proof sources from these angles to ground the narrative and cite concrete evidence in the thread body.\n</DISCOVERY_ANGLES>`
+    : "";
 
-  // Surgical mode detection (Pillar 1: Surgical Post Pinning)
-  const formattingFlagged = parseFlaggedPostIndicesFromErrors(state.character_critique);
-  const flaggedIndices = Array.from(
-    new Set([...actionable.map((pc) => pc.post_index), ...formattingFlagged])
-  ).filter((idx) => state.thread_draft && idx >= 1 && idx <= state.thread_draft.length);
-
-  const hasPreviousDraft = Array.isArray(state.thread_draft) && state.thread_draft.length > 0;
-  const isSurgical = hasPreviousDraft && flaggedIndices.length > 0 && flaggedIndices.length < state.thread_draft.length;
-
-  const { pinnedPostsContext } = isSurgical
-    ? buildSurgicalWriterContext(state.thread_draft, flaggedIndices)
-    : { pinnedPostsContext: "" };
-
-  const promptContent = `Here is the selected clickbait hook for Post 1:\n<SELECTED_HOOK>\n${state.selected_hook}\n</SELECTED_HOOK>\n\nHere are the extracted facts from the webpage:\n<SOURCE_FACTS>\n${state.raw_markdown}\n</SOURCE_FACTS>${angleContext}${deltaContext}${previousDraftContext}${critiqueContext}${postCritiquesContext}${charCritiqueContext}${guidanceContext}${pinnedPostsContext}`;
+  const promptContent = `Here is the selected clickbait hook for Post 1:\n<SELECTED_HOOK>\n${state.selected_hook}\n</SELECTED_HOOK>\n\nHere are the extracted facts from the webpage:\n<SOURCE_FACTS>\n${state.raw_markdown}\n</SOURCE_FACTS>${angleContext}${discoveryContext}${deltaContext}${previousDraftContext}${critiqueContext}${postCritiquesContext}${charCritiqueContext}${guidanceContext}${pinnedPostsContext}`;
 
   let draft;
   let parse_success = false;
@@ -353,24 +359,7 @@ export const CharacterValidatorNode = async (
   state: ClickbaitThreadFactoryStateType,
   config?: RunnableConfig
 ) => {
-  const validationStr = await CharacterValidatorTool.invoke(
-    { thread_draft: state.thread_draft },
-    { ...config, timeout: 60000 }
-  );
-  const validation = JSON.parse(validationStr);
-
-  if (!validation.isValid) {
-    return {
-      is_character_valid: false,
-      character_critique: `FORMATTING ERRORS REQUIRED TO FIX:\n${validation.errors.join("\n")}`,
-      retries: { ...(state.retries || {}), validator: (state.retries?.validator || 0) + 1 },
-    };
-  }
-
-  return {
-    is_character_valid: true,
-    character_critique: "",
-  };
+  return await runCharacterValidation(CharacterValidatorTool, state.thread_draft, state.retries, config);
 };
 
 const clickbaitCriticSchema = z.object({

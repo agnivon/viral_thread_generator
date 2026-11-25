@@ -17,6 +17,7 @@ export const OptimizedSearchQuerySchema = z.object({
 
 export type OptimizedSearchQueryType = z.infer<typeof OptimizedSearchQuerySchema>;
 
+// Non-thinking Gemini Flash-Lite (`thinkingLevel: "off"`) and DeepSeek (`response_format: { type: "json_object" }`) both use `providerStrategy`.
 export const searchQueryOptimizerAgents = buildAgents<OptimizedSearchQueryType>(
   [
     googleGemini31FlashLiteT01Key1,

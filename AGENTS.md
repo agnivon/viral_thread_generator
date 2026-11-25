@@ -174,4 +174,38 @@ Convex agent skills for common tasks can be installed by running
 - **Idiomatic Reactive Client Protection**:
   - Protected Next.js pages under `app/(protected)/` must be Client Components (`"use client"`) wrapped by `<AuthGuard>` to avoid Server Component parallel SSR execution pitfalls without reintroducing brittle edge middleware 307 redirect loops.
 
+---
+
+## 12. LangChain Structured Output & Provider Strategy Standards
+
+Always distinguish **`createAgent` / `buildAgents` multi-turn pipelines** (`providerStrategy` vs. `toolStrategy`) from **direct `withStructuredOutput` model chains** (`functionCalling` vs. `jsonMode` vs. `jsonSchema`). Never swap these across thinking and non-thinking model variants without verifying provider SDK behavior in `node_modules/`.
+
+### A. `createAgent` / `buildAgents` (`ProviderResponseFormat`)
+- **Gemini with Thinking (`thinkingLevel: "high"` / `"low"`) — `toolStrategy` is MANDATORY**:
+  - Always partition thinking Gemini agents with `google: toolStrategy(schema)` in `buildAgents`.
+  - *Why:* `@langchain/google` emits thought parts as `{ thought: true, type: "text", text: "..." }` at index `0` of `AIMessage.content`, and `langchain`'s `ProviderStrategy.parse` breaks on the first `type: "text"` block without skipping `thought: true`—causing `JSON.parse` to fail on reasoning text and throw `StructuredOutputParsingError`. `toolStrategy` extracts arguments cleanly from `tool_calls`.
+- **Gemini without Thinking (`thinkingLevel: "off"`) — Use `providerStrategy`**:
+  - Partition non-thinking Flash-Lite agents with `google: providerStrategy(schema)`, which binds native `responseSchema` (`generationConfig.responseMimeType = "application/json"` + `responseJsonSchema`). Use `toolStrategy` only if you specifically need multi-schema unions or `handleError` retry loops.
+- **DeepSeek (`ChatDeepSeek`) with `createAgent` — `providerStrategy` + `json_object` kwargs is MANDATORY in this codebase**:
+  - Always pair `deepseek: providerStrategy(schema)` with DeepSeek instances configured with `modelKwargs: { ..., response_format: { type: "json_object" } }` and explicit JSON schema instructions in the prompt.
+  - *Why `json_object` is mandatory:* `AgentNode` emits `response_format: { type: "json_schema" }` for `providerStrategy`, which DeepSeek does not support (`@langchain/deepseek` does not support `json_schema`). Because `ChatOpenAICompletions.invocationParams` spreads `...this.modelKwargs` *after* `options.response_format`, `modelKwargs.response_format: { type: "json_object" }` overrides `json_schema` on the wire while DeepSeek isolates thinking tokens in `additional_kwargs.reasoning_content`.
+  - *Why `toolStrategy` is avoided:* `toolStrategy` forces `tool_choice: "any"` (`"required"`) and loops assistant `tool_calls` turns back on schema validation errors, but `@langchain/openai`'s `convertMessagesToCompletionsMessageParams` drops `additional_kwargs.reasoning_content`, triggering DeepSeek HTTP 400 errors in thinking mode (`reasoning_content` missing) and `tool_choice` restrictions. (Even though non-thinking DeepSeek supports tool calling at the raw API level, all `createAgent` DeepSeek agents standardize on `providerStrategy` + `json_object`.)
+
+### B. Direct `withStructuredOutput` Chains (Single-Turn, outside `createAgent`)
+- **Gemini with Thinking (`thinkingLevel: "high"` / `"low"`) — `method: "functionCalling"` is MANDATORY**:
+  - *Why:* `BaseChatGoogle.withStructuredOutput` falls `"jsonMode"` back to `"jsonSchema"`, and `"jsonSchema"` parses `AIMessage.text`. `BaseMessage.text` concatenates all `{ type: "text" }` blocks—including `{ thought: true }` blocks—corrupting JSON parsing. `method: "functionCalling"` reads `functionCall.args` directly from `tool_calls`. (Keep Gemini tool parameter limits in mind: `schemaToGeminiParameters` strips `additionalProperties` and rejects multi-branch union types.)
+- **Gemini without Thinking (`thinkingLevel: "off"`)**:
+  - Prefer `method: "jsonSchema"` for native `responseSchema` enforcement (or `method: "functionCalling"` in cross-provider chains). Do not rely on `method: "jsonMode"` on `ChatGoogle`, as it logs a warning and falls back to `"jsonSchema"`.
+- **DeepSeek with Thinking (`thinking: { type: "enabled" }`) — `method: "jsonMode"` is MANDATORY**:
+  - *Why:* DeepSeek does not support `method: "jsonSchema"`, and `method: "functionCalling"` forces a named client function via `tool_choice: { type: "function", function: { name } }`, which DeepSeek thinking mode rejects/disallows. `method: "jsonMode"` sends `response_format: { type: "json_object" }`, keeps reasoning in `additional_kwargs.reasoning_content`, and validates `content` client-side (prompts MUST explicitly instruct JSON output matching the schema).
+- **DeepSeek without Thinking (`thinking: { type: "disabled" }`)**:
+  - Either `method: "jsonMode"` (preferred) or `method: "functionCalling"` works when thinking is disabled. Never pass `strict` alongside `method: "jsonMode"`.
+
+### C. Unstructured Text / Markdown & OpenAI Guardrails
+- **Unstructured DeepSeek Scraper / Text Models**:
+  - NEVER set `response_format: { type: "json_object" }` in `modelKwargs` on plain-text/Markdown models (e.g. `deepSeekFlashT01ReasoningNone`, `deepSeekFlashT01TextReasoningHigh`), regardless of thinking mode. Enforced by `convex/__tests__/agents/nodes.test.ts`.
+- **OpenAI `modelKwargs` Hazard**:
+  - Never put `response_format: { type: "json_object" }` inside `modelKwargs` on OpenAI models intended for `jsonSchema` or `providerStrategy`, as `...this.modelKwargs` silently overwrites `type: "json_schema"`.
+
+
 

@@ -23,6 +23,16 @@ const createOpenAIModel = (model: string, temperature: number, overrides: OpenAI
     { provider: "openai", keyGroup: "OPENAI_API_KEY", modelId: model }
   );
 
+/**
+ * Factory for ChatDeepSeek instances.
+ *
+ * Structured DeepSeek variants MUST set `modelKwargs.response_format: { type: "json_object" }`:
+ * - DeepSeek does not support `json_schema` response_format emitted by `createAgent`'s `providerStrategy`.
+ * - `ChatOpenAICompletions.invocationParams` spreads `...this.modelKwargs` AFTER `options.response_format`,
+ *   overriding `json_schema` with `json_object` while keeping reasoning isolated in `additional_kwargs.reasoning_content`.
+ * - Unstructured text/Markdown models (`deepSeekFlashT01ReasoningNone`, `deepSeekFlashT01TextReasoningHigh`)
+ *   MUST omit `response_format` (enforced by `convex/__tests__/agents/nodes.test.ts`).
+ */
 const createDeepSeekModel = (model: string, temperature: number, overrides: DeepSeekOverrides = {}) =>
   attachModelIdentity(
     new ChatDeepSeek({ model, temperature, maxRetries: 0, apiKey: process.env.DEEPSEEK_API_KEY || "placeholder", ...overrides }),
@@ -69,6 +79,7 @@ export const googleGemini36FlashT01ThinkingKey1 = createGoogleModel("gemini-3.6-
 export const googleGemini36FlashT01ThinkingKey2 = createGoogleModel("gemini-3.6-flash", 0.1, "GOOGLE_API_KEY2", { thinkingLevel: "high" });
 export const googleGemini35FlashLiteT01ThinkingKey1 = createGoogleModel("gemini-3.5-flash-lite", 0.1, "GOOGLE_API_KEY", { thinkingLevel: "low" });
 export const googleGemini35FlashLiteT01ThinkingKey2 = createGoogleModel("gemini-3.5-flash-lite", 0.1, "GOOGLE_API_KEY2", { thinkingLevel: "low" });
+// DeepSeek thinking unstructured text vs. JSON-constrained variants (see nodes.test.ts)
 export const deepSeekFlashT01ReasoningHigh = createDeepSeekModel("deepseek-flash", 0.1, { reasoning: { effort: "high" }, modelKwargs: { thinking: { type: "enabled" }, response_format: { type: "json_object" } } });
 export const deepSeekFlashT01TextReasoningHigh = createDeepSeekModel("deepseek-flash", 0.1, { reasoning: { effort: "high" }, modelKwargs: { thinking: { type: "enabled" } } });
 
@@ -97,6 +108,14 @@ export const threadWriterSchema = z.object({
   thread_draft: z.array(z.string()).min(1, "Must generate at least one post for the thread draft")
 });
 
+/**
+ * Direct `withStructuredOutput` candidates for thread writing:
+ * - Gemini models with thinking enabled (`thinkingLevel: "high"`) MUST use `method: "functionCalling"`:
+ *   `jsonSchema`/`jsonMode` parse `BaseMessage.text`, which concatenates `{ thought: true }` blocks and breaks JSON parsing.
+ * - DeepSeek models with thinking enabled (`thinking: { type: "enabled" }`) MUST use `method: "jsonMode"`
+ *   (paired with `modelKwargs.response_format: { type: "json_object" }` and prompt JSON instructions):
+ *   DeepSeek lacks `json_schema` and rejects forced named `tool_choice` (`functionCalling`) under thinking mode.
+ */
 export const threadWriterModelCandidates = [
   googleGemini4HydrogenT08Key1.withStructuredOutput(threadWriterSchema, { name: "thread_writer", method: "functionCalling" }),
   withTimeout(googleGemini4HydrogenT08Key2.withStructuredOutput(threadWriterSchema, { name: "thread_writer", method: "functionCalling" }), 45000),

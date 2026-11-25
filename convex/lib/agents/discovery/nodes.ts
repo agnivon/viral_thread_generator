@@ -143,6 +143,7 @@ const vectorHypothesizerSchema = z.object({
   search_vectors: z.array(DiscoverySearchVectorSchema).min(3).max(5),
 });
 
+// Direct `withStructuredOutput`: `functionCalling` is safe across non-thinking Flash-Lite and non-thinking DeepSeek (`ReasoningNone`).
 const vectorHypothesizerModels = [
   googleGemini35FlashLiteT02Key1.withStructuredOutput(vectorHypothesizerSchema, {
     name: "vector_hypothesizer",
@@ -330,6 +331,12 @@ export const DialecticRetrievalNode = async (
 // Node 3: Tension Extraction Node
 // ─────────────────────────────────────────────────────────────
 
+/**
+ * Direct `withStructuredOutput` reasoning cascade:
+ * - Thinking Gemini (`thinkingLevel: "high"`) MUST use `method: "functionCalling"` (`jsonSchema` concatenates `{ thought: true }` blocks).
+ * - DeepSeek fallback uses non-thinking `deepSeekFlashT00ReasoningNone` because `functionCalling` forces named `tool_choice`,
+ *   which DeepSeek rejects under thinking mode (thinking DeepSeek requires `method: "jsonMode"` instead).
+ */
 function createDiscoveryReasoningCascade<T extends z.ZodTypeAny>(schema: T, name: string) {
   return [
     googleGemini4HydrogenT00Key1.withStructuredOutput(schema, {

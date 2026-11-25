@@ -46,6 +46,7 @@ import { extractSelectedHook } from "../nodes.js";
 import { extractDiscoveryTopic } from "../discovery/nodes.js";
 import { runDiscoverySubgraph } from "../discovery/graph.js";
 
+// Unstructured Markdown scraper models (`deepSeekFlashT01TextReasoningHigh` omits `response_format: { type: "json_object" }`).
 const clickbaitScraperModels = [
   googleGemini38FlashT01ThinkingKey1,
   googleGemini38FlashT01ThinkingKey2,
@@ -123,6 +124,8 @@ const clickbaitAngleSchema = z.object({
   clickbait_thesis: z.string().optional(),
 });
 
+// Thinking Gemini (`thinkingLevel: "high"`) MUST use `toolStrategy` (`ProviderStrategy.parse` breaks on thought blocks);
+// thinking DeepSeek MUST use `providerStrategy` paired with `modelKwargs.response_format: { type: "json_object" }`.
 const clickbaitAngleAgents = buildAgents<z.infer<typeof clickbaitAngleSchema>>(
   [
     googleGemini38FlashT01ThinkingKey1,
@@ -197,6 +200,7 @@ const clickbaitHookSchema = z.object({
   selected_hook: z.string().min(1, "Must select a hook"),
 });
 
+// Thinking Gemini (`thinkingLevel: "high"`) MUST use `toolStrategy`; thinking DeepSeek uses `providerStrategy` + `json_object`.
 const clickbaitHookStrategistAgents = buildAgents<z.infer<typeof clickbaitHookSchema>>(
   [
     googleGemini38FlashT08ThinkingKey1,
@@ -374,6 +378,8 @@ const clickbaitCriticSchema = z.object({
   ),
 });
 
+// Critic agents use thinking Gemini (`thinkingLevel: "high"`), so `google` MUST use `toolStrategy`
+// while `deepseek` uses `providerStrategy` + `modelKwargs.response_format: { type: "json_object" }`.
 const clickbaitViralityCriticAgents = buildAgents<z.infer<typeof clickbaitCriticSchema>>(
   criticModelCandidates,
   {

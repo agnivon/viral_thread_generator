@@ -51,6 +51,7 @@ const topicResearchOrchestratorSchema = z.object({
   urls_to_scrape: z.array(z.string()).optional()
 });
 
+// Non-thinking Gemini Flash-Lite (`thinkingLevel: "off"`) and DeepSeek (`response_format: { type: "json_object" }`) both use `providerStrategy`.
 const topicResearchOrchestratorAgents = buildAgents<z.infer<typeof topicResearchOrchestratorSchema>>(
   [
     googleGemini35FlashLiteT02Key1,
@@ -124,6 +125,7 @@ const topicDeepScraperSchema = z.object({
   research_dossier: z.string().min(1, "Must append to dossier")
 });
 
+// Direct `withStructuredOutput`: non-thinking Gemini supports native `jsonSchema`; DeepSeek requires `jsonMode` (`json_object`).
 const topicDeepScraperModels = [
   googleGemini35FlashLiteT01Key1.withStructuredOutput(topicDeepScraperSchema, { name: "deep_scraper", method: "jsonSchema" }),
   googleGemini35FlashLiteT01Key2.withStructuredOutput(topicDeepScraperSchema, { name: "deep_scraper", method: "jsonSchema" }),
@@ -205,6 +207,7 @@ const topicHookStrategistSchema = z.object({
   selected_hook: z.string().min(1, "Must select a hook")
 });
 
+// Direct `withStructuredOutput`: non-thinking Gemini uses native `jsonSchema`; DeepSeek uses `jsonMode` (`json_object`).
 const topicHookStrategistModels = [
   googleGemini35FlashLiteT08Key1.withStructuredOutput(topicHookStrategistSchema, { name: "hook_strategist", method: "jsonSchema" }),
   googleGemini35FlashLiteT08Key2.withStructuredOutput(topicHookStrategistSchema, { name: "hook_strategist", method: "jsonSchema" }),
@@ -324,6 +327,8 @@ const topicViralityCriticSchema = z.object({
   }))
 });
 
+// Critic agents use thinking Gemini (`thinkingLevel: "high"`), so `google` MUST use `toolStrategy`
+// while `deepseek` uses `providerStrategy` + `modelKwargs.response_format: { type: "json_object" }`.
 const topicViralityCriticAgents = buildAgents<z.infer<typeof topicViralityCriticSchema>>(
   criticModelCandidates,
   {

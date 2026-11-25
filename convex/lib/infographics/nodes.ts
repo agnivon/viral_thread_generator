@@ -13,6 +13,7 @@ import {
 } from "../agents/models.js";
 import { buildAgents, invokeWithFallbacks } from "../agents/utils.js";
 
+// Non-thinking Gemini Flash-Lite (`thinkingLevel: "off"`) and DeepSeek (`response_format: { type: "json_object" }`) both use `providerStrategy`.
 export const infographicStrategistAgents = buildAgents<InfographicSpec>(
   [
     googleGemini35FlashLiteT02Key1,

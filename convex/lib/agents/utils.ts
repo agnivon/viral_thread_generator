@@ -256,6 +256,10 @@ export class FallbackChatModel extends BaseChatModel {
     return "fallback_chat_model";
   }
 
+  /**
+   * Expose `structuredOutput: true` so `createAgent` defaults raw schemas to `ProviderStrategy`
+   * unless callers pass explicit provider-partitioned `ProviderResponseFormat` entries via `buildAgents`.
+   */
   override get profile(): { structuredOutput: boolean } {
     return { structuredOutput: true };
   }
@@ -425,9 +429,14 @@ export function isProviderResponseFormat(rf: unknown): rf is ProviderResponseFor
  * preserving any custom per-model timeout overrides and ModelIdentity metadata.
  * Executes model fallbacks within the single agent graph so intermediate tool executions,
  * web searches, and message history are never lost if a model fails during multi-turn loops.
- * When provided with a ProviderResponseFormat (e.g. { google: toolStrategy(s), deepseek: providerStrategy(s) }),
+ * When provided with a ProviderResponseFormat (e.g. `{ google: toolStrategy(s), deepseek: providerStrategy(s) }`),
  * candidates are partitioned into provider-specific FallbackChatModel agent groups so each provider uses
- * its optimal structured output mechanism (e.g. toolStrategy for Gemini thinking, providerStrategy for DeepSeek thinking).
+ * its required structured output strategy:
+ * - Thinking Gemini (`thinkingLevel: "high"`/`"low"`): MUST use `toolStrategy` (`ProviderStrategy.parse` breaks
+ *   on index-0 `{ thought: true, type: "text" }` blocks returned by `@langchain/google`).
+ * - Non-thinking Gemini (`thinkingLevel: "off"`): uses `providerStrategy` (native `responseSchema`).
+ * - DeepSeek (`createAgent`): MUST use `providerStrategy` paired with `modelKwargs.response_format: { type: "json_object" }`
+ *   (overrides `json_schema`, and avoids `toolStrategy` multi-turn retries where `@langchain/openai` drops `reasoning_content`).
  * @param models Array of Chat models or model objects with custom timeouts.
  * @param config The shared tools, prompt, and response schema.
  */

@@ -97,6 +97,7 @@ const socialMediaResearcherSchema = z.object({
   research_context: z.string().min(1, "Must generate research context")
 });
 
+// Non-thinking Gemini Flash-Lite (`thinkingLevel: "off"`) and DeepSeek (`response_format: { type: "json_object" }`) both use `providerStrategy`.
 const socialMediaContextResearcherAgents = buildAgents<z.infer<typeof socialMediaResearcherSchema>>(
   [
     googleGemini35FlashLiteT02Key1,
@@ -176,6 +177,7 @@ const socialMediaHookSchema = z.object({
   selected_hook: z.string().min(1, "Must select a hook")
 });
 
+// Non-thinking Gemini Flash-Lite and DeepSeek (`json_object`) both use `providerStrategy`.
 const socialMediaHookStrategistAgents = buildAgents<z.infer<typeof socialMediaHookSchema>>(
   [
     googleGemini35FlashLiteT08Key1,
@@ -317,6 +319,8 @@ const socialMediaCriticSchema = z.object({
   }))
 });
 
+// Critic agents use thinking Gemini (`thinkingLevel: "high"`), so `google` MUST use `toolStrategy`
+// while `deepseek` uses `providerStrategy` + `modelKwargs.response_format: { type: "json_object" }`.
 const socialMediaViralityCriticAgents = buildAgents<z.infer<typeof socialMediaCriticSchema>>(
   criticModelCandidates,
   {

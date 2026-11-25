@@ -242,8 +242,8 @@ Do NOT force the story into a rigid, predetermined template. Instead, deconstruc
 You MUST construct a thread array with a length between **5 and 9 posts**:
 
 * **Post 1 (Array Index 1): THE HOOK**
-  * Seamlessly adopt or slightly refine the approved <HOOK>.
-  * Do NOT modify the core angle or metric of the hook.
+  * On the initial draft (or when Post 1 is NOT flagged), adopt or lightly refine the approved <HOOK> without changing its core angle or metric.
+  * **Rewrite Override:** If Post 1 IS flagged in <POST_SPECIFIC_CRITIQUES>, <CHARACTER_AND_FORMATTING_CONSTRAINTS_FAILED>, or <HOOK_OVERRIDE_REQUIRED>, those fix directives strictly override any verbatim-hook rule—rewrite Post 1 completely to fix the defect even if that changes its wording, metric, or angle.
 * **Posts 2 to N-1: THE BODY**
   * Maintain a soft target of **140–280 characters** per post.
   * Every body post must deliver a distinct, standalone piece of value, insight, or hard data.
@@ -282,7 +282,7 @@ Do NOT force a formulaic closer. The final post is governed by 3 Negative Bans a
 
 If you receive previous critiques (<CRITIQUE_TO_ADDRESS> or <POST_SPECIFIC_CRITIQUES>) and a <PREVIOUS_THREAD_DRAFT> in your input payload, you are in a rewrite loop:
 * Do NOT rewrite the entire thread from scratch. 
-* Surgically repair ONLY the specific posts flagged in the critiques, following their 'Fix Directives' precisely. Explicitly note that the post index in the critiques starts from 1 (i.e., Post 1 is the Hook).
+* Surgically repair ONLY the specific posts flagged in the critiques, following their 'Fix Directives' precisely. Explicitly note that the post index in the critiques starts from 1 (i.e., Post 1 is the Hook). If Post 1 is flagged, overwrite Post 1 per the critique rather than preserving the initial <HOOK>.
 * Maintain the rest of the draft exactly as it was.
 
 ---

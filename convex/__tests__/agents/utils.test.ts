@@ -1358,6 +1358,191 @@ test("processDifferentialEvaluation - handles multiple prior issues on the same 
   expect(lastAudit.post_critiques.map((pc) => pc.status)).toEqual(["resolved", "unresolved"]);
 });
 
+test("buildAgents - never skips healthy fallback candidates inside Google group when primary hits 503/429, and never falsely clears failed primary on sibling success", async () => {
+  const { BaseChatModel } = await import("@langchain/core/language_models/chat_models");
+  const { attachModelIdentity, getModelIdentity, modelCircuitBreaker } = await import("../../lib/agents/circuitBreaker");
+  const { providerStrategy, toolStrategy } = await import("langchain");
+  const { z } = await import("zod");
+
+  modelCircuitBreaker.reset();
+
+  const schema = z.object({ ok: z.boolean() });
+  const idPrimaryGoogle = { provider: "google" as const, keyGroup: "GOOGLE_API_KEY", modelId: "gemini-4-hydrogen" };
+  const idSecondaryGoogle = { provider: "google" as const, keyGroup: "GOOGLE_API_KEY", modelId: "gemini-3.6-flash" };
+  const idDeepSeek = { provider: "deepseek" as const, keyGroup: "DEEPSEEK_API_KEY", modelId: "deepseek-flash" };
+
+  let g0Calls = 0;
+  let g1Calls = 0;
+  let dsCalls = 0;
+
+  class G0Fail503 extends BaseChatModel {
+    _llmType(): string { return "g0"; }
+    bindTools(): this { return this; }
+    async _generate(): Promise<ChatResult> { throw new Error("Unused"); }
+    override async invoke(): Promise<AIMessageChunk> {
+      g0Calls++;
+      const err = new Error("503 Service Unavailable");
+      (err as unknown as { status: number }).status = 503;
+      throw err;
+    }
+  }
+
+  class G1Healthy extends BaseChatModel {
+    _llmType(): string { return "g1"; }
+    bindTools(): this { return this; }
+    async _generate(): Promise<ChatResult> { throw new Error("Unused"); }
+    override async invoke(): Promise<AIMessageChunk> {
+      g1Calls++;
+      return new AIMessageChunk({
+        content: "",
+        tool_calls: [{ id: "tc1", name: "extract-1", args: { ok: true } }],
+      });
+    }
+  }
+
+  class DsFallback extends BaseChatModel {
+    _llmType(): string { return "ds"; }
+    bindTools(): this { return this; }
+    async _generate(): Promise<ChatResult> { throw new Error("Unused"); }
+    override async invoke(): Promise<AIMessageChunk> {
+      dsCalls++;
+      return new AIMessageChunk({ content: JSON.stringify({ ok: true }) });
+    }
+  }
+
+  const g0 = attachModelIdentity(new G0Fail503({}), idPrimaryGoogle);
+  const g1 = attachModelIdentity(new G1Healthy({}), idSecondaryGoogle);
+  const ds = attachModelIdentity(new DsFallback({}), idDeepSeek);
+
+  const strat = toolStrategy(schema);
+  const toolName = (strat[0] as unknown as { tool: { function: { name: string } } }).tool.function.name;
+  // Rebind g1 tool call name to match generated extract tool
+  g1.invoke = async () => {
+    g1Calls++;
+    return new AIMessageChunk({
+      content: "",
+      tool_calls: [{ id: "tc1", name: toolName, args: { ok: true } }],
+    });
+  };
+
+  const agents = buildAgents([g0, g1, ds], {
+    systemPrompt: "Return ok=true",
+    responseFormat: { google: strat, deepseek: providerStrategy(schema) },
+  });
+
+  // Outer grouped agent MUST NOT wear candidates[0]'s identity
+  expect(getModelIdentity(agents[0])).toBeUndefined();
+
+  // Run 1: g0 fails 503 -> g1 (same Google group) handles it!
+  const res1 = await invokeWithFallbacks(agents, { messages: [{ role: "user", content: "1" }] });
+  expect(res1.structuredResponse).toEqual({ ok: true });
+  expect(g0Calls).toBe(1);
+  expect(g1Calls).toBe(1);
+  expect(dsCalls).toBe(0);
+
+  // g0 MUST remain tripped (g1's success must NOT have cleared g0!), while g1 is available
+  expect(modelCircuitBreaker.isAvailable(idPrimaryGoogle).available).toBe(false);
+  expect(modelCircuitBreaker.isAvailable(idSecondaryGoogle).available).toBe(true);
+
+  // Run 2: Outer Google group MUST NOT be skipped! g0 is skipped in 0ms inside group, g1 runs immediately
+  const res2 = await invokeWithFallbacks(agents, { messages: [{ role: "user", content: "2" }] });
+  expect(res2.structuredResponse).toEqual({ ok: true });
+  expect(g0Calls).toBe(1);
+  expect(g1Calls).toBe(2);
+  expect(dsCalls).toBe(0);
+
+  // Run 3: Now trip g1 as well -> Google group skips in 0ms and escalates straight to DeepSeek without fail-opening g0
+  modelCircuitBreaker.recordFailure(idSecondaryGoogle, { status: 503, message: "503 Service Unavailable" });
+  const res3 = await invokeWithFallbacks(agents, { messages: [{ role: "user", content: "3" }] });
+  expect(res3.structuredResponse).toEqual({ ok: true });
+  expect(g0Calls).toBe(1);
+  expect(g1Calls).toBe(2);
+  expect(dsCalls).toBe(1);
+});
+
+test("buildAgents + invokeWithFallbacks - isolates per-model timeout windows inside FallbackChatModel without shared group timeout starvation", async () => {
+  vi.useFakeTimers();
+  const { BaseChatModel } = await import("@langchain/core/language_models/chat_models");
+  const { attachModelIdentity, modelCircuitBreaker } = await import("../../lib/agents/circuitBreaker");
+
+  modelCircuitBreaker.reset();
+
+  let slow0Calls = 0;
+  let slow1Calls = 0;
+  let fast2Calls = 0;
+
+  class SlowModel extends BaseChatModel {
+    private readonly onCall: () => void;
+    constructor(onCall: () => void) {
+      super({});
+      this.onCall = onCall;
+    }
+    _llmType(): string { return "slow"; }
+    bindTools(): this { return this; }
+    async _generate(): Promise<ChatResult> { throw new Error("Unused"); }
+    override async invoke(_input: BaseLanguageModelInput, options?: { signal?: AbortSignal }): Promise<AIMessageChunk> {
+      this.onCall();
+      return new Promise((resolve, reject) => {
+        const timer = setTimeout(() => resolve(new AIMessageChunk({ content: "too late" })), 5000);
+        options?.signal?.addEventListener("abort", () => {
+          clearTimeout(timer);
+          reject(new Error("Aborted"));
+        });
+      });
+    }
+  }
+
+  class FastModel extends BaseChatModel {
+    _llmType(): string { return "fast"; }
+    bindTools(): this { return this; }
+    async _generate(): Promise<ChatResult> { throw new Error("Unused"); }
+    override async invoke(): Promise<AIMessageChunk> {
+      fast2Calls++;
+      return new AIMessageChunk({ content: "Recovered cleanly in its own timeout window" });
+    }
+  }
+
+  const m0 = attachModelIdentity(new SlowModel(() => { slow0Calls++; }), { provider: "google", keyGroup: "K1", modelId: "m0" });
+  const m1 = attachModelIdentity(new SlowModel(() => { slow1Calls++; }), { provider: "google", keyGroup: "K2", modelId: "m1" });
+  const m2 = attachModelIdentity(new FastModel({}), { provider: "google", keyGroup: "K1", modelId: "m2" });
+
+  const agents = buildAgents([m0, m1, m2], { systemPrompt: "test" });
+
+  // Outer timeout 1000ms must act as per-model window (NOT kill whole group after 1000ms!)
+  const promise = invokeWithFallbacks(agents, { messages: [{ role: "user", content: "go" }] }, { timeout: 1000 });
+  const assertion = expect(promise).resolves.toMatchObject({
+    messages: expect.arrayContaining([
+      expect.objectContaining({ content: "Recovered cleanly in its own timeout window" }),
+    ]),
+  });
+
+  // m0 gets 1000ms -> aborts -> m1 gets its OWN 1000ms -> aborts -> m2 gets its OWN window and succeeds!
+  await vi.advanceTimersByTimeAsync(1000);
+  await vi.advanceTimersByTimeAsync(1000);
+  await assertion;
+
+  expect(slow0Calls).toBe(1);
+  expect(slow1Calls).toBe(1);
+  expect(fast2Calls).toBe(1);
+});
+
+test("buildHookWriterContext - emits HOOK when Post 1 is unflagged and HOOK_OVERRIDE_REQUIRED when Post 1 is flagged", async () => {
+  const { buildHookWriterContext } = await import("../../lib/agents/utils");
+
+  expect(buildHookWriterContext({ selectedHook: "Initial Hook", isPost1Flagged: false, tagName: "HOOK" })).toBe(
+    "<HOOK>\nInitial Hook\n</HOOK>"
+  );
+
+  const overrideText = buildHookWriterContext({
+    selectedHook: "Broken Hook",
+    isPost1Flagged: true,
+    tagName: "HOOK",
+  });
+  expect(overrideText).toContain("<HOOK_OVERRIDE_REQUIRED>");
+  expect(overrideText).not.toContain("<HOOK>\n");
+  expect(overrideText).toContain("Override any \"The Hook is Law\"");
+});
+
 
 
 

@@ -1,6 +1,6 @@
 "use node";
 
-import { providerStrategy } from "langchain";
+import { providerStrategy, toolStrategy } from "langchain";
 import { RunnableConfig } from "@langchain/core/runnables";
 import { InfographicSpecSchema, InfographicSpec } from "./schema.js";
 import { INFOGRAPHIC_STRATEGIST_PROMPT } from "./prompts.js";
@@ -11,21 +11,21 @@ import {
   googleGemini31FlashLiteT02Key2,
   deepSeekFlashT02ReasoningNone,
 } from "../agents/models.js";
-import { buildAgents, invokeWithFallbacks } from "../agents/utils.js";
+import { buildAgents, invokeWithFallbacks, withTimeout } from "../agents/utils.js";
 
-// Non-thinking Gemini Flash-Lite (`thinkingLevel: "off"`) and DeepSeek (`response_format: { type: "json_object" }`) both use `providerStrategy`.
+// Thinking Gemini Flash-Lite (`thinkingLevel: "medium"`) MUST use `toolStrategy`; DeepSeek (`json_object`) uses `providerStrategy`.
 export const infographicStrategistAgents = buildAgents<InfographicSpec>(
   [
-    googleGemini35FlashLiteT02Key1,
-    googleGemini35FlashLiteT02Key2,
-    googleGemini31FlashLiteT02Key1,
-    googleGemini31FlashLiteT02Key2,
-    deepSeekFlashT02ReasoningNone,
+    withTimeout(googleGemini35FlashLiteT02Key1, 35000),
+    withTimeout(googleGemini35FlashLiteT02Key2, 35000),
+    withTimeout(googleGemini31FlashLiteT02Key1, 35000),
+    withTimeout(googleGemini31FlashLiteT02Key2, 35000),
+    withTimeout(deepSeekFlashT02ReasoningNone, 35000),
   ],
   {
     systemPrompt: INFOGRAPHIC_STRATEGIST_PROMPT,
     responseFormat: {
-      google: providerStrategy(InfographicSpecSchema),
+      google: toolStrategy(InfographicSpecSchema),
       deepseek: providerStrategy(InfographicSpecSchema),
     },
   }

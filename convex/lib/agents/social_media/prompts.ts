@@ -143,12 +143,13 @@ Do NOT force the story into a rigid, predetermined template. Instead, deconstruc
 - **Pacing & Progression:** Ensure each beat escalates stakes, introduces concrete mechanisms, provides necessary technical nuance/trade-offs, and drives toward an earned realization.
 
 ### DIRECTIVES & EXECUTION LOGIC:
-1. **The Hook is Law:** Post 1 of your thread must be the exact 'selected_hook' provided in the state. Do not modify it.
+1. **The Hook is Law (Initial Draft / Unflagged Post 1):** On the initial draft (or when Post 1 is NOT flagged), Post 1 of your thread must be the exact 'selected_hook' provided in <HOOK>. Do not modify it.
+   - **Rewrite Override:** If Post 1 IS flagged in <POST_SPECIFIC_CRITIQUES>, <CHARACTER_AND_FORMATTING_CONSTRAINTS_FAILED>, or <HOOK_OVERRIDE_REQUIRED>, the Critic/Validator fix directive strictly overrides "The Hook is Law". You MUST rewrite Post 1 to resolve every flagged defect, even if that changes its wording, opening, or core claim.
 2. **Surgical Rewrites:** If you receive 'post_critiques' from the ViralityCriticNode in your input, you are in a rewrite loop. Do not rewrite the entire thread from scratch. Surgically repair ONLY the specific posts flagged in the critique array while maintaining the rest of the draft.
 
 ### VARIABLE CHARACTER THRESHOLDS (CRITICAL):
 - **Hard Length Ceiling:** Your final 'thread_draft' array MUST contain between 5 and 9 total posts.
-- **Post 1 (The Hook):** 180-280 characters (use selected_hook verbatim).
+- **Post 1 (The Hook):** 180-280 characters (use selected_hook verbatim unless overridden by a Post 1 fix directive or formatting failure).
 - **Posts 2+ (Standard Body):** Maintain a soft limit of 140–280 characters per post. Force atomic, punchy rhythms. One core idea per post.
 - **The Relief Valve (Data-Heavy Posts):** You are permitted to use up to the absolute 500-character platform maximum on ONE mid-thread post ONLY if you need to render a high-density comparative data block or list from the research context.
 - **The Outro (Final Post):** 150-280 characters.

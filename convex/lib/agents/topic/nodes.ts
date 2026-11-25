@@ -34,11 +34,12 @@ import {
 import {
   buildAgents,
   invokeWithFallbacks,
+  withTimeout,
   normalizeResearchDossier,
   filterActionablePostCritiques,
   reconcileSurgicalDraft,
-  parseFlaggedPostIndicesFromErrors,
-  buildSurgicalWriterContext,
+  buildWriterRevisionContext,
+  buildHookWriterContext,
   runCharacterValidation,
   differentialCriticSchema,
   processDifferentialEvaluation,
@@ -51,20 +52,20 @@ const topicResearchOrchestratorSchema = z.object({
   urls_to_scrape: z.array(z.string()).optional()
 });
 
-// Non-thinking Gemini Flash-Lite (`thinkingLevel: "off"`) and DeepSeek (`response_format: { type: "json_object" }`) both use `providerStrategy`.
+// Thinking Gemini Flash-Lite (`thinkingLevel: "medium"`) MUST use `toolStrategy`; DeepSeek (`json_object`) uses `providerStrategy`.
 const topicResearchOrchestratorAgents = buildAgents<z.infer<typeof topicResearchOrchestratorSchema>>(
   [
-    googleGemini35FlashLiteT02Key1,
-    googleGemini35FlashLiteT02Key2,
-    googleGemini31FlashLiteT02Key1,
-    googleGemini31FlashLiteT02Key2,
-    deepSeekFlashT02ReasoningNone
+    withTimeout(googleGemini35FlashLiteT02Key1, 45000),
+    withTimeout(googleGemini35FlashLiteT02Key2, 45000),
+    withTimeout(googleGemini31FlashLiteT02Key1, 45000),
+    withTimeout(googleGemini31FlashLiteT02Key2, 45000),
+    withTimeout(deepSeekFlashT02ReasoningNone, 45000)
   ],
   {
     tools: [DuckDuckGoSearchTool, TavilySearchTool],
     systemPrompt: TOPIC_RESEARCH_ORCHESTRATOR_PROMPT,
     responseFormat: {
-      google: providerStrategy(topicResearchOrchestratorSchema),
+      google: toolStrategy(topicResearchOrchestratorSchema),
       deepseek: providerStrategy(topicResearchOrchestratorSchema)
     }
   }
@@ -125,13 +126,13 @@ const topicDeepScraperSchema = z.object({
   research_dossier: z.string().min(1, "Must append to dossier")
 });
 
-// Direct `withStructuredOutput`: non-thinking Gemini supports native `jsonSchema`; DeepSeek requires `jsonMode` (`json_object`).
+// Direct `withStructuredOutput`: thinking Gemini Flash-Lite (`thinkingLevel: "low"`) MUST use `functionCalling`; DeepSeek uses `jsonMode` (`json_object`).
 const topicDeepScraperModels = [
-  googleGemini35FlashLiteT01Key1.withStructuredOutput(topicDeepScraperSchema, { name: "deep_scraper", method: "jsonSchema" }),
-  googleGemini35FlashLiteT01Key2.withStructuredOutput(topicDeepScraperSchema, { name: "deep_scraper", method: "jsonSchema" }),
-  googleGemini31FlashLiteT01Key1.withStructuredOutput(topicDeepScraperSchema, { name: "deep_scraper", method: "jsonSchema" }),
-  googleGemini31FlashLiteT01Key2.withStructuredOutput(topicDeepScraperSchema, { name: "deep_scraper", method: "jsonSchema" }),
-  deepSeekFlashT01JsonReasoningNone.withStructuredOutput(topicDeepScraperSchema, { name: "deep_scraper", method: "jsonMode" })
+  withTimeout(googleGemini35FlashLiteT01Key1.withStructuredOutput(topicDeepScraperSchema, { name: "deep_scraper", method: "functionCalling" }), 45000),
+  withTimeout(googleGemini35FlashLiteT01Key2.withStructuredOutput(topicDeepScraperSchema, { name: "deep_scraper", method: "functionCalling" }), 45000),
+  withTimeout(googleGemini31FlashLiteT01Key1.withStructuredOutput(topicDeepScraperSchema, { name: "deep_scraper", method: "functionCalling" }), 45000),
+  withTimeout(googleGemini31FlashLiteT01Key2.withStructuredOutput(topicDeepScraperSchema, { name: "deep_scraper", method: "functionCalling" }), 45000),
+  withTimeout(deepSeekFlashT01JsonReasoningNone.withStructuredOutput(topicDeepScraperSchema, { name: "deep_scraper", method: "jsonMode" }), 45000)
 ];
 
 export const DeepPageScraperNode = async (state: TopicThreadFactoryStateType, config?: RunnableConfig) => {
@@ -207,13 +208,13 @@ const topicHookStrategistSchema = z.object({
   selected_hook: z.string().min(1, "Must select a hook")
 });
 
-// Direct `withStructuredOutput`: non-thinking Gemini uses native `jsonSchema`; DeepSeek uses `jsonMode` (`json_object`).
+// Direct `withStructuredOutput`: thinking Gemini Flash-Lite (`thinkingLevel: "high"`/`"medium"`) MUST use `functionCalling`; DeepSeek uses `jsonMode` (`json_object`).
 const topicHookStrategistModels = [
-  googleGemini35FlashLiteT08Key1.withStructuredOutput(topicHookStrategistSchema, { name: "hook_strategist", method: "jsonSchema" }),
-  googleGemini35FlashLiteT08Key2.withStructuredOutput(topicHookStrategistSchema, { name: "hook_strategist", method: "jsonSchema" }),
-  googleGemini31FlashLiteT08Key1.withStructuredOutput(topicHookStrategistSchema, { name: "hook_strategist", method: "jsonSchema" }),
-  googleGemini31FlashLiteT08Key2.withStructuredOutput(topicHookStrategistSchema, { name: "hook_strategist", method: "jsonSchema" }),
-  deepSeekFlashT08ReasoningNone.withStructuredOutput(topicHookStrategistSchema, { name: "hook_strategist", method: "jsonMode" })
+  withTimeout(googleGemini35FlashLiteT08Key1.withStructuredOutput(topicHookStrategistSchema, { name: "hook_strategist", method: "functionCalling" }), 45000),
+  withTimeout(googleGemini35FlashLiteT08Key2.withStructuredOutput(topicHookStrategistSchema, { name: "hook_strategist", method: "functionCalling" }), 45000),
+  withTimeout(googleGemini31FlashLiteT08Key1.withStructuredOutput(topicHookStrategistSchema, { name: "hook_strategist", method: "functionCalling" }), 45000),
+  withTimeout(googleGemini31FlashLiteT08Key2.withStructuredOutput(topicHookStrategistSchema, { name: "hook_strategist", method: "functionCalling" }), 45000),
+  withTimeout(deepSeekFlashT08ReasoningNone.withStructuredOutput(topicHookStrategistSchema, { name: "hook_strategist", method: "jsonMode" }), 45000)
 ];
 
 export const HookStrategistNode = async (state: TopicThreadFactoryStateType, config?: RunnableConfig) => {
@@ -251,38 +252,34 @@ export const HookStrategistNode = async (state: TopicThreadFactoryStateType, con
 };
 
 export const ThreadWriterNode = async (state: TopicThreadFactoryStateType, config?: RunnableConfig) => {
-  const previousDraftContext = state.thread_draft && state.thread_draft.length > 0
-    ? `\n\n<PREVIOUS_THREAD_DRAFT>\n${JSON.stringify(state.thread_draft, null, 2)}\n</PREVIOUS_THREAD_DRAFT>`
-    : "";
-  const critiqueContext = state.critique ? `\n\n<CRITIQUE_TO_ADDRESS>\n${state.critique}\n</CRITIQUE_TO_ADDRESS>` : "";
-  let postCritiquesContext = "";
-  const actionable = filterActionablePostCritiques(state.post_critiques);
-  if (actionable.length > 0) {
-    postCritiquesContext = "\n\n<POST_SPECIFIC_CRITIQUES>\n" +
-      actionable.map(pc => `Post ${pc.post_index}: ${pc.critique}${pc.fix_directive ? `\nFix Directive: ${pc.fix_directive}` : ''}`).join("\n\n") +
-      "\n</POST_SPECIFIC_CRITIQUES>";
-  }
-  const charCritiqueContext = state.character_critique ? `\n\n<CHARACTER_AND_FORMATTING_CONSTRAINTS_FAILED>\n${state.character_critique}\nFix the previous draft to respect these exact formatting constraints.\n</CHARACTER_AND_FORMATTING_CONSTRAINTS_FAILED>` : "";
-  const guidanceContext = state.guidance ? `\n\n<ADDITIONAL_GUIDANCE>\n${state.guidance}\n</ADDITIONAL_GUIDANCE>` : "";
+  const {
+    previousDraftContext,
+    critiqueContext,
+    postCritiquesContext,
+    charCritiqueContext,
+    guidanceContext,
+    pinnedPostsContext,
+    isSurgical,
+    isPost1Flagged,
+    flaggedIndices,
+  } = buildWriterRevisionContext({
+    threadDraft: state.thread_draft,
+    critique: state.critique,
+    postCritiques: state.post_critiques,
+    characterCritique: state.character_critique,
+    guidance: state.guidance,
+  });
   const deltaContext = state.core_delta
     ? `\n\n<CORE_DELTA>\n${state.core_delta}\n</CORE_DELTA>`
     : "";
   const discoveryContext = state.discovery_angles && state.discovery_angles.length > 0
     ? `\n\n<DISCOVERY_ANGLES>\n${JSON.stringify(state.discovery_angles, null, 2)}\nUse the forensic reality, economic tensions, and primary proof sources from these angles to ground the narrative and cite concrete evidence in the thread body.\n</DISCOVERY_ANGLES>`
     : "";
-
-  // Surgical mode detection (Pillar 1: Surgical Post Pinning)
-  const formattingFlagged = parseFlaggedPostIndicesFromErrors(state.character_critique);
-  const flaggedIndices = Array.from(
-    new Set([...actionable.map(pc => pc.post_index), ...formattingFlagged])
-  ).filter(idx => state.thread_draft && idx >= 1 && idx <= state.thread_draft.length);
-
-  const hasPreviousDraft = Array.isArray(state.thread_draft) && state.thread_draft.length > 0;
-  const isSurgical = hasPreviousDraft && flaggedIndices.length > 0 && flaggedIndices.length < state.thread_draft.length;
-
-  const { pinnedPostsContext } = isSurgical
-    ? buildSurgicalWriterContext(state.thread_draft, flaggedIndices)
-    : { pinnedPostsContext: "" };
+  const hookContext = buildHookWriterContext({
+    selectedHook: state.selected_hook,
+    isPost1Flagged,
+    tagName: "HOOK",
+  });
 
   let result;
   let parse_success = true;
@@ -292,7 +289,7 @@ export const ThreadWriterNode = async (state: TopicThreadFactoryStateType, confi
       threadWriterModelCandidates,
       [
         { role: "system", content: TOPIC_THREAD_WRITER_PROMPT },
-        { role: "user", content: `<HOOK>\n${state.selected_hook}\n</HOOK>\n<DOSSIER>\n${state.research_dossier}\n</DOSSIER>${discoveryContext}${deltaContext}${previousDraftContext}${critiqueContext}${postCritiquesContext}${pinnedPostsContext}${charCritiqueContext}${guidanceContext}` }
+        { role: "user", content: `${hookContext}\n<DOSSIER>\n${state.research_dossier}\n</DOSSIER>${discoveryContext}${deltaContext}${previousDraftContext}${critiqueContext}${postCritiquesContext}${pinnedPostsContext}${charCritiqueContext}${guidanceContext}` }
       ],
       { ...config, timeout: 180000 }
     );
@@ -310,8 +307,17 @@ export const ThreadWriterNode = async (state: TopicThreadFactoryStateType, confi
     }
   }
 
+  const updatedHook =
+    isPost1Flagged &&
+    parse_success &&
+    finalThreadDraft.length > 0 &&
+    finalThreadDraft[0]?.trim()
+      ? { selected_hook: finalThreadDraft[0] }
+      : {};
+
   return {
     thread_draft: finalThreadDraft,
+    ...updatedHook,
     parse_success,
     retries: { ...(state.retries || {}), writer: (state.retries?.writer || 0) + 1 }
   };

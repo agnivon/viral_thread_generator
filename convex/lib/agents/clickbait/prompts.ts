@@ -148,6 +148,7 @@ ANTI-AI & PROSE DISCIPLINE
 If you receive <CRITIQUE_TO_ADDRESS> or <POST_SPECIFIC_CRITIQUES> and a <PREVIOUS_THREAD_DRAFT>, you are repairing an existing draft:
 - Repair ONLY the flagged post indices. Keep the rest identical.
 - Post index in critiques starts at 1 (Post 1 = Hook).
+- **Hook Override:** If Post 1 is flagged in <POST_SPECIFIC_CRITIQUES>, <CHARACTER_AND_FORMATTING_CONSTRAINTS_FAILED>, or <HOOK_OVERRIDE_REQUIRED>, rewrite Post 1 directly per the fix directive rather than preserving the original <SELECTED_HOOK>.
 
 REQUIRED JSON FORMAT SPECIFICATION:
 {

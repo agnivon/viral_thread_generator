@@ -35,11 +35,12 @@ import {
   buildAgents,
   extractMessageText,
   invokeWithFallbacks,
+  withTimeout,
   normalizeResearchDossier,
   filterActionablePostCritiques,
   reconcileSurgicalDraft,
-  parseFlaggedPostIndicesFromErrors,
-  buildSurgicalWriterContext,
+  buildWriterRevisionContext,
+  buildHookWriterContext,
   runCharacterValidation,
   differentialCriticSchema,
   processDifferentialEvaluation,
@@ -50,11 +51,11 @@ import { extractDiscoveryTopic } from "../discovery/nodes.js";
 
 
 const socialMediaScraperModels = [
-  googleGemini35FlashLiteT01Key1,
-  googleGemini35FlashLiteT01Key2,
-  googleGemini31FlashLiteT01Key1,
-  googleGemini31FlashLiteT01Key2,
-  deepSeekFlashT01ReasoningNone
+  withTimeout(googleGemini35FlashLiteT01Key1, 35000),
+  withTimeout(googleGemini35FlashLiteT01Key2, 35000),
+  withTimeout(googleGemini31FlashLiteT01Key1, 45000),
+  withTimeout(googleGemini31FlashLiteT01Key2, 45000),
+  withTimeout(deepSeekFlashT01ReasoningNone, 45000)
 ];
 
 export const PostScraperNode = async (state: SocialMediaThreadFactoryStateType, config?: RunnableConfig) => {
@@ -97,20 +98,20 @@ const socialMediaResearcherSchema = z.object({
   research_context: z.string().min(1, "Must generate research context")
 });
 
-// Non-thinking Gemini Flash-Lite (`thinkingLevel: "off"`) and DeepSeek (`response_format: { type: "json_object" }`) both use `providerStrategy`.
+// Thinking Gemini Flash-Lite (`thinkingLevel: "medium"`) MUST use `toolStrategy`; DeepSeek (`response_format: { type: "json_object" }`) uses `providerStrategy`.
 const socialMediaContextResearcherAgents = buildAgents<z.infer<typeof socialMediaResearcherSchema>>(
   [
-    googleGemini35FlashLiteT02Key1,
-    googleGemini35FlashLiteT02Key2,
-    googleGemini31FlashLiteT02Key1,
-    googleGemini31FlashLiteT02Key2,
-    deepSeekFlashT02ReasoningNone
+    withTimeout(googleGemini35FlashLiteT02Key1, 45000),
+    withTimeout(googleGemini35FlashLiteT02Key2, 45000),
+    withTimeout(googleGemini31FlashLiteT02Key1, 45000),
+    withTimeout(googleGemini31FlashLiteT02Key2, 45000),
+    withTimeout(deepSeekFlashT02ReasoningNone, 45000)
   ],
   {
     tools: [BackgroundDossierTool],
     systemPrompt: SOCIAL_MEDIA_RESEARCHER_PROMPT,
     responseFormat: {
-      google: providerStrategy(socialMediaResearcherSchema),
+      google: toolStrategy(socialMediaResearcherSchema),
       deepseek: providerStrategy(socialMediaResearcherSchema)
     }
   }
@@ -177,19 +178,19 @@ const socialMediaHookSchema = z.object({
   selected_hook: z.string().min(1, "Must select a hook")
 });
 
-// Non-thinking Gemini Flash-Lite and DeepSeek (`json_object`) both use `providerStrategy`.
+// Thinking Gemini Flash-Lite (`thinkingLevel: "high"`/`"medium"`) MUST use `toolStrategy`; DeepSeek (`json_object`) uses `providerStrategy`.
 const socialMediaHookStrategistAgents = buildAgents<z.infer<typeof socialMediaHookSchema>>(
   [
-    googleGemini35FlashLiteT08Key1,
-    googleGemini35FlashLiteT08Key2,
-    googleGemini31FlashLiteT08Key1,
-    googleGemini31FlashLiteT08Key2,
-    deepSeekFlashT08ReasoningNone
+    withTimeout(googleGemini35FlashLiteT08Key1, 45000),
+    withTimeout(googleGemini35FlashLiteT08Key2, 45000),
+    withTimeout(googleGemini31FlashLiteT08Key1, 45000),
+    withTimeout(googleGemini31FlashLiteT08Key2, 45000),
+    withTimeout(deepSeekFlashT08ReasoningNone, 45000)
   ],
   {
     systemPrompt: SOCIAL_MEDIA_HOOK_PROMPT,
     responseFormat: {
-      google: providerStrategy(socialMediaHookSchema),
+      google: toolStrategy(socialMediaHookSchema),
       deepseek: providerStrategy(socialMediaHookSchema)
     }
   }
@@ -239,19 +240,23 @@ export const HookStrategistNode = async (state: SocialMediaThreadFactoryStateTyp
 };
 
 export const ThreadWriterNode = async (state: SocialMediaThreadFactoryStateType, config?: RunnableConfig) => {
-  const previousDraftContext = state.thread_draft && state.thread_draft.length > 0
-    ? `\n\n<PREVIOUS_THREAD_DRAFT>\n${JSON.stringify(state.thread_draft, null, 2)}\n</PREVIOUS_THREAD_DRAFT>`
-    : "";
-  const critiqueContext = state.critique ? `\n\n<CRITIQUE_TO_ADDRESS>\n${state.critique}\n</CRITIQUE_TO_ADDRESS>` : "";
-  let postCritiquesContext = "";
-  const actionable = filterActionablePostCritiques(state.post_critiques);
-  if (actionable.length > 0) {
-    postCritiquesContext = "\n\n<POST_SPECIFIC_CRITIQUES>\n" +
-      actionable.map(pc => `Post ${pc.post_index}: ${pc.critique}${pc.fix_directive ? `\nFix Directive: ${pc.fix_directive}` : ''}`).join("\n\n") +
-      "\n</POST_SPECIFIC_CRITIQUES>";
-  }
-  const charCritiqueContext = state.character_critique ? `\n\n<CHARACTER_AND_FORMATTING_CONSTRAINTS_FAILED>\n${state.character_critique}\nFix the previous draft to respect these exact formatting constraints.\n</CHARACTER_AND_FORMATTING_CONSTRAINTS_FAILED>` : "";
-  const guidanceContext = state.guidance ? `\n\n<ADDITIONAL_GUIDANCE>\n${state.guidance}\n</ADDITIONAL_GUIDANCE>` : "";
+  const {
+    previousDraftContext,
+    critiqueContext,
+    postCritiquesContext,
+    charCritiqueContext,
+    guidanceContext,
+    pinnedPostsContext,
+    isSurgical,
+    isPost1Flagged,
+    flaggedIndices,
+  } = buildWriterRevisionContext({
+    threadDraft: state.thread_draft,
+    critique: state.critique,
+    postCritiques: state.post_critiques,
+    characterCritique: state.character_critique,
+    guidance: state.guidance,
+  });
   const researchContextStr = state.research_context ? `\n\n<RESEARCH_CONTEXT>\n${state.research_context}\n</RESEARCH_CONTEXT>` : "";
   const deltaContext = state.core_delta
     ? `\n\n<CORE_DELTA>\n${state.core_delta}\n</CORE_DELTA>`
@@ -259,19 +264,11 @@ export const ThreadWriterNode = async (state: SocialMediaThreadFactoryStateType,
   const discoveryContext = state.discovery_angles && state.discovery_angles.length > 0
     ? `\n\n<DISCOVERY_ANGLES>\n${JSON.stringify(state.discovery_angles, null, 2)}\nUse the forensic reality, economic tensions, and primary proof sources from these angles to ground the narrative and cite concrete evidence in the thread body.\n</DISCOVERY_ANGLES>`
     : "";
-
-  // Surgical mode detection (Pillar 1: Surgical Post Pinning)
-  const formattingFlagged = parseFlaggedPostIndicesFromErrors(state.character_critique);
-  const flaggedIndices = Array.from(
-    new Set([...actionable.map(pc => pc.post_index), ...formattingFlagged])
-  ).filter(idx => state.thread_draft && idx >= 1 && idx <= state.thread_draft.length);
-
-  const hasPreviousDraft = Array.isArray(state.thread_draft) && state.thread_draft.length > 0;
-  const isSurgical = hasPreviousDraft && flaggedIndices.length > 0 && flaggedIndices.length < state.thread_draft.length;
-
-  const { pinnedPostsContext } = isSurgical
-    ? buildSurgicalWriterContext(state.thread_draft, flaggedIndices)
-    : { pinnedPostsContext: "" };
+  const hookContext = buildHookWriterContext({
+    selectedHook: state.selected_hook,
+    isPost1Flagged,
+    tagName: "HOOK",
+  });
 
   let draft;
   let parse_success = true;
@@ -280,7 +277,7 @@ export const ThreadWriterNode = async (state: SocialMediaThreadFactoryStateType,
       threadWriterModelCandidates,
       [
         { role: "system", content: SOCIAL_MEDIA_WRITER_PROMPT },
-        { role: "user", content: `<HOOK>\n${state.selected_hook}\n</HOOK>\n\n<SOURCE>\n${state.raw_markdown}\n</SOURCE>${researchContextStr}${discoveryContext}${deltaContext}${previousDraftContext}${critiqueContext}${postCritiquesContext}${pinnedPostsContext}${charCritiqueContext}${guidanceContext}` }
+        { role: "user", content: `${hookContext}\n\n<SOURCE>\n${state.raw_markdown}\n</SOURCE>${researchContextStr}${discoveryContext}${deltaContext}${previousDraftContext}${critiqueContext}${postCritiquesContext}${pinnedPostsContext}${charCritiqueContext}${guidanceContext}` }
       ],
       { ...config, timeout: 180000 }
     );
@@ -298,8 +295,17 @@ export const ThreadWriterNode = async (state: SocialMediaThreadFactoryStateType,
     }
   }
 
+  const updatedHook =
+    isPost1Flagged &&
+    parse_success &&
+    finalThreadDraft.length > 0 &&
+    finalThreadDraft[0]?.trim()
+      ? { selected_hook: finalThreadDraft[0] }
+      : {};
+
   return {
     thread_draft: finalThreadDraft,
+    ...updatedHook,
     parse_success,
     retries: { ...(state.retries || {}), writer: (state.retries?.writer || 0) + 1 }
   };

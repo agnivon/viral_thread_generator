@@ -35,9 +35,11 @@ import {
   buildAgents,
   extractMessageText,
   invokeWithFallbacks,
+  withTimeout,
   filterActionablePostCritiques,
   reconcileSurgicalDraft,
   buildWriterRevisionContext,
+  buildHookWriterContext,
   runCharacterValidation,
   differentialCriticSchema,
   processDifferentialEvaluation,
@@ -48,12 +50,12 @@ import { runDiscoverySubgraph } from "../discovery/graph.js";
 
 // Unstructured Markdown scraper models (`deepSeekFlashT01TextReasoningHigh` omits `response_format: { type: "json_object" }`).
 const clickbaitScraperModels = [
-  googleGemini38FlashT01ThinkingKey1,
-  googleGemini38FlashT01ThinkingKey2,
-  googleGemini36FlashT01ThinkingKey1,
-  googleGemini36FlashT01ThinkingKey2,
-  deepSeekFlashT01TextReasoningHigh,
-  googleGemini35FlashLiteT01ThinkingKey1,
+  withTimeout(googleGemini38FlashT01ThinkingKey1, 60000),
+  withTimeout(googleGemini38FlashT01ThinkingKey2, 45000),
+  withTimeout(googleGemini36FlashT01ThinkingKey1, 60000),
+  withTimeout(googleGemini36FlashT01ThinkingKey2, 45000),
+  withTimeout(deepSeekFlashT01TextReasoningHigh, 60000),
+  withTimeout(googleGemini35FlashLiteT01ThinkingKey1, 45000),
 ];
 
 export const ClickbaitScraperNode = async (
@@ -128,11 +130,11 @@ const clickbaitAngleSchema = z.object({
 // thinking DeepSeek MUST use `providerStrategy` paired with `modelKwargs.response_format: { type: "json_object" }`.
 const clickbaitAngleAgents = buildAgents<z.infer<typeof clickbaitAngleSchema>>(
   [
-    googleGemini38FlashT01ThinkingKey1,
-    googleGemini38FlashT01ThinkingKey2,
-    googleGemini36FlashT01ThinkingKey1,
-    googleGemini36FlashT01ThinkingKey2,
-    deepSeekFlashT01ReasoningHigh,
+    withTimeout(googleGemini38FlashT01ThinkingKey1, 60000),
+    withTimeout(googleGemini38FlashT01ThinkingKey2, 45000),
+    withTimeout(googleGemini36FlashT01ThinkingKey1, 60000),
+    withTimeout(googleGemini36FlashT01ThinkingKey2, 45000),
+    withTimeout(deepSeekFlashT01ReasoningHigh, 60000),
   ],
   {
     systemPrompt: CLICKBAIT_ANGLE_PROMPT,
@@ -203,11 +205,11 @@ const clickbaitHookSchema = z.object({
 // Thinking Gemini (`thinkingLevel: "high"`) MUST use `toolStrategy`; thinking DeepSeek uses `providerStrategy` + `json_object`.
 const clickbaitHookStrategistAgents = buildAgents<z.infer<typeof clickbaitHookSchema>>(
   [
-    googleGemini38FlashT08ThinkingKey1,
-    googleGemini38FlashT08ThinkingKey2,
-    googleGemini36FlashT08ThinkingKey1,
-    googleGemini36FlashT08ThinkingKey2,
-    deepSeekFlashT08ReasoningHigh,
+    withTimeout(googleGemini38FlashT08ThinkingKey1, 60000),
+    withTimeout(googleGemini38FlashT08ThinkingKey2, 45000),
+    withTimeout(googleGemini36FlashT08ThinkingKey1, 60000),
+    withTimeout(googleGemini36FlashT08ThinkingKey2, 45000),
+    withTimeout(deepSeekFlashT08ReasoningHigh, 60000),
   ],
   {
     systemPrompt: CLICKBAIT_HOOK_PROMPT,
@@ -301,6 +303,7 @@ export const CliffhangerThreadWriterNode = async (
     guidanceContext,
     pinnedPostsContext,
     isSurgical,
+    isPost1Flagged,
     flaggedIndices,
   } = buildWriterRevisionContext({
     threadDraft: state.thread_draft,
@@ -318,8 +321,13 @@ export const CliffhangerThreadWriterNode = async (
   const discoveryContext = state.discovery_angles && state.discovery_angles.length > 0
     ? `\n\n<DISCOVERY_ANGLES>\n${JSON.stringify(state.discovery_angles, null, 2)}\nUse the forensic reality, economic tensions, and primary proof sources from these angles to ground the narrative and cite concrete evidence in the thread body.\n</DISCOVERY_ANGLES>`
     : "";
+  const hookContext = buildHookWriterContext({
+    selectedHook: state.selected_hook,
+    isPost1Flagged,
+    tagName: "SELECTED_HOOK",
+  });
 
-  const promptContent = `Here is the selected clickbait hook for Post 1:\n<SELECTED_HOOK>\n${state.selected_hook}\n</SELECTED_HOOK>\n\nHere are the extracted facts from the webpage:\n<SOURCE_FACTS>\n${state.raw_markdown}\n</SOURCE_FACTS>${angleContext}${discoveryContext}${deltaContext}${previousDraftContext}${critiqueContext}${postCritiquesContext}${charCritiqueContext}${guidanceContext}${pinnedPostsContext}`;
+  const promptContent = `${isPost1Flagged ? hookContext : `Here is the selected clickbait hook for Post 1:\n${hookContext}`}\n\nHere are the extracted facts from the webpage:\n<SOURCE_FACTS>\n${state.raw_markdown}\n</SOURCE_FACTS>${angleContext}${discoveryContext}${deltaContext}${previousDraftContext}${critiqueContext}${postCritiquesContext}${charCritiqueContext}${guidanceContext}${pinnedPostsContext}`;
 
   let draft;
   let parse_success = false;
@@ -352,8 +360,18 @@ export const CliffhangerThreadWriterNode = async (
     }
   }
 
+  const updatedHook =
+    isPost1Flagged &&
+    parse_success &&
+    Array.isArray(finalThreadDraft) &&
+    finalThreadDraft.length > 0 &&
+    finalThreadDraft[0]?.trim()
+      ? { selected_hook: finalThreadDraft[0] }
+      : {};
+
   return {
     thread_draft: finalThreadDraft,
+    ...updatedHook,
     parse_success,
     retries: { ...(state.retries || {}), writer: (state.retries?.writer || 0) + 1 },
   };

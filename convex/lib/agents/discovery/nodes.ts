@@ -143,34 +143,43 @@ const vectorHypothesizerSchema = z.object({
   search_vectors: z.array(DiscoverySearchVectorSchema).min(3).max(5),
 });
 
-// Direct `withStructuredOutput`: `functionCalling` is safe across non-thinking Flash-Lite and non-thinking DeepSeek (`ReasoningNone`).
+// Direct `withStructuredOutput`: `functionCalling` is safe for thinking Flash-Lite (`thinkingLevel: "medium"`) and non-thinking DeepSeek (`ReasoningNone`).
 const vectorHypothesizerModels = [
-  googleGemini35FlashLiteT02Key1.withStructuredOutput(vectorHypothesizerSchema, {
-    name: "vector_hypothesizer",
-    method: "functionCalling",
-  }),
+  withTimeout(
+    googleGemini35FlashLiteT02Key1.withStructuredOutput(vectorHypothesizerSchema, {
+      name: "vector_hypothesizer",
+      method: "functionCalling",
+    }),
+    35000
+  ),
   withTimeout(
     googleGemini35FlashLiteT02Key2.withStructuredOutput(vectorHypothesizerSchema, {
       name: "vector_hypothesizer",
       method: "functionCalling",
     }),
-    45000
+    35000
   ),
-  googleGemini31FlashLiteT02Key1.withStructuredOutput(vectorHypothesizerSchema, {
-    name: "vector_hypothesizer",
-    method: "functionCalling",
-  }),
+  withTimeout(
+    googleGemini31FlashLiteT02Key1.withStructuredOutput(vectorHypothesizerSchema, {
+      name: "vector_hypothesizer",
+      method: "functionCalling",
+    }),
+    35000
+  ),
   withTimeout(
     googleGemini31FlashLiteT02Key2.withStructuredOutput(vectorHypothesizerSchema, {
       name: "vector_hypothesizer",
       method: "functionCalling",
     }),
-    45000
+    35000
   ),
-  deepSeekFlashT02ReasoningNone.withStructuredOutput(vectorHypothesizerSchema, {
-    name: "vector_hypothesizer",
-    method: "functionCalling",
-  }),
+  withTimeout(
+    deepSeekFlashT02ReasoningNone.withStructuredOutput(vectorHypothesizerSchema, {
+      name: "vector_hypothesizer",
+      method: "functionCalling",
+    }),
+    35000
+  ),
 ];
 
 export const VectorHypothesizerNode = async (
@@ -339,10 +348,13 @@ export const DialecticRetrievalNode = async (
  */
 function createDiscoveryReasoningCascade<T extends z.ZodTypeAny>(schema: T, name: string) {
   return [
-    googleGemini4HydrogenT00Key1.withStructuredOutput(schema, {
-      name,
-      method: "functionCalling",
-    }),
+    withTimeout(
+      googleGemini4HydrogenT00Key1.withStructuredOutput(schema, {
+        name,
+        method: "functionCalling",
+      }),
+      60000
+    ),
     withTimeout(
       googleGemini4HydrogenT00Key2.withStructuredOutput(schema, {
         name,
@@ -350,10 +362,13 @@ function createDiscoveryReasoningCascade<T extends z.ZodTypeAny>(schema: T, name
       }),
       45000
     ),
-    googleGemini38FlashT00Key1.withStructuredOutput(schema, {
-      name,
-      method: "functionCalling",
-    }),
+    withTimeout(
+      googleGemini38FlashT00Key1.withStructuredOutput(schema, {
+        name,
+        method: "functionCalling",
+      }),
+      60000
+    ),
     withTimeout(
       googleGemini38FlashT00Key2.withStructuredOutput(schema, {
         name,
@@ -361,10 +376,13 @@ function createDiscoveryReasoningCascade<T extends z.ZodTypeAny>(schema: T, name
       }),
       45000
     ),
-    googleGemini36FlashT00Key1.withStructuredOutput(schema, {
-      name,
-      method: "functionCalling",
-    }),
+    withTimeout(
+      googleGemini36FlashT00Key1.withStructuredOutput(schema, {
+        name,
+        method: "functionCalling",
+      }),
+      60000
+    ),
     withTimeout(
       googleGemini36FlashT00Key2.withStructuredOutput(schema, {
         name,
@@ -372,10 +390,13 @@ function createDiscoveryReasoningCascade<T extends z.ZodTypeAny>(schema: T, name
       }),
       45000
     ),
-    deepSeekFlashT00ReasoningNone.withStructuredOutput(schema, {
-      name,
-      method: "functionCalling",
-    }),
+    withTimeout(
+      deepSeekFlashT00ReasoningNone.withStructuredOutput(schema, {
+        name,
+        method: "functionCalling",
+      }),
+      60000
+    ),
   ];
 }
 

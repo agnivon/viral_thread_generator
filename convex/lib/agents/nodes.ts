@@ -1,7 +1,7 @@
 "use node";
 
 import { z } from "zod";
-import { providerStrategy } from "langchain";
+import { providerStrategy, toolStrategy } from "langchain";
 import { RunnableConfig } from "@langchain/core/runnables";
 import { SEARCH_QUERY_OPTIMIZER_PROMPT } from "./prompts.js";
 import { 
@@ -9,7 +9,7 @@ import {
   googleGemini31FlashLiteT01Key2,
   deepSeekFlashT01JsonReasoningNone
 } from "./models.js";
-import { buildAgents, invokeWithFallbacks } from "./utils.js";
+import { buildAgents, invokeWithFallbacks, withTimeout } from "./utils.js";
 
 export const OptimizedSearchQuerySchema = z.object({
   optimized_query: z.string().describe("finalized boolean search string")
@@ -17,17 +17,17 @@ export const OptimizedSearchQuerySchema = z.object({
 
 export type OptimizedSearchQueryType = z.infer<typeof OptimizedSearchQuerySchema>;
 
-// Non-thinking Gemini Flash-Lite (`thinkingLevel: "off"`) and DeepSeek (`response_format: { type: "json_object" }`) both use `providerStrategy`.
+// Thinking Gemini Flash-Lite (`thinkingLevel: "low"`) MUST use `toolStrategy`; DeepSeek (`json_object`) uses `providerStrategy`.
 export const searchQueryOptimizerAgents = buildAgents<OptimizedSearchQueryType>(
   [
-    googleGemini31FlashLiteT01Key1,
-    googleGemini31FlashLiteT01Key2,
-    deepSeekFlashT01JsonReasoningNone
+    withTimeout(googleGemini31FlashLiteT01Key1, 30000),
+    withTimeout(googleGemini31FlashLiteT01Key2, 30000),
+    withTimeout(deepSeekFlashT01JsonReasoningNone, 30000)
   ],
   {
     systemPrompt: SEARCH_QUERY_OPTIMIZER_PROMPT,
     responseFormat: {
-      google: providerStrategy(OptimizedSearchQuerySchema),
+      google: toolStrategy(OptimizedSearchQuerySchema),
       deepseek: providerStrategy(OptimizedSearchQuerySchema)
     }
   }

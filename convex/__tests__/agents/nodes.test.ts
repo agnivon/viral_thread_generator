@@ -138,42 +138,145 @@ test("DeepSeek models configure response_format only on structured output varian
   expect(getModelKwargs(deepSeekFlashT01TextReasoningHigh)?.response_format).toBeUndefined();
 });
 
-test("ThreadWriter candidates use high-reasoning DeepSeek with jsonMode", async () => {
+test("ThreadWriter and Critic candidates use high-reasoning DeepSeek and individual per-model timeouts", async () => {
   const {
     deepSeekFlashT085ReasoningHigh,
+    deepSeekFlashT00ReasoningHigh,
     threadWriterModelCandidates,
+    criticModelCandidates,
   } = await import("../../lib/agents/models");
   const { getModelIdentity } = await import("../../lib/agents/circuitBreaker");
 
   expect(deepSeekFlashT085ReasoningHigh.maxTokens).toBeUndefined();
 
-  const deepSeekCandidate = threadWriterModelCandidates.find(
+  // Every candidate in threadWriterModelCandidates & criticModelCandidates must have its own timeout window
+  for (const candidate of [...threadWriterModelCandidates, ...criticModelCandidates]) {
+    expect("timeout" in candidate && typeof (candidate as { timeout?: unknown }).timeout === "number").toBe(true);
+    expect((candidate as { timeout: number }).timeout).toBeGreaterThan(0);
+  }
+
+  const writerDeepSeekCandidates = threadWriterModelCandidates.filter(
     (candidate) => getModelIdentity(candidate)?.provider === "deepseek"
   );
-  expect(deepSeekCandidate).toBeDefined();
-
-  const candidateSequence = deepSeekCandidate as unknown as {
-    first?: {
-      bound?: unknown;
-      config?: {
-        response_format?: { type?: string };
-        ls_structured_output_format?: { kwargs?: { method?: string } };
+  expect(writerDeepSeekCandidates).toHaveLength(1);
+  const writerDeepSeek = writerDeepSeekCandidates[0] as unknown as {
+    timeout: number;
+    runnable?: {
+      first?: {
+        bound?: unknown;
+        config?: {
+          response_format?: { type?: string };
+          ls_structured_output_format?: { kwargs?: { method?: string } };
+        };
       };
     };
   };
-  expect(candidateSequence?.first?.bound).toBe(deepSeekFlashT085ReasoningHigh);
-  expect(candidateSequence?.first?.config?.response_format).toEqual({ type: "json_object" });
-  expect(candidateSequence?.first?.config?.ls_structured_output_format?.kwargs?.method).toBe("json_mode");
+  expect(writerDeepSeek.timeout).toBeGreaterThanOrEqual(60000);
+  expect(writerDeepSeek.runnable?.first?.bound).toBe(deepSeekFlashT085ReasoningHigh);
+  expect(writerDeepSeek.runnable?.first?.config?.response_format).toEqual({ type: "json_object" });
+  expect(writerDeepSeek.runnable?.first?.config?.ls_structured_output_format?.kwargs?.method).toBe("json_mode");
+
+  const criticDeepSeekCandidates = criticModelCandidates.filter(
+    (candidate) => getModelIdentity(candidate)?.provider === "deepseek"
+  );
+  expect(criticDeepSeekCandidates).toHaveLength(1);
+  const criticDeepSeek = criticDeepSeekCandidates[0] as unknown as {
+    timeout: number;
+    runnable?: unknown;
+  };
+  expect(criticDeepSeek.runnable).toBe(deepSeekFlashT00ReasoningHigh);
+  expect(
+    ((criticDeepSeek.runnable as { modelKwargs?: { thinking?: unknown } })?.modelKwargs)?.thinking
+  ).toEqual({ type: "enabled" });
 });
 
-test("Infographic prompt includes JSON instruction and strategist partitions providers", async () => {
+test("All Flash-Lite models configure explicit thinking levels and buildAgents pipelines use toolStrategy for Google", async () => {
+  const {
+    googleGemini31FlashLiteT01Key1,
+    googleGemini31FlashLiteT01Key2,
+    googleGemini35FlashLiteT01Key1,
+    googleGemini35FlashLiteT01Key2,
+    googleGemini31FlashLiteT02Key1,
+    googleGemini31FlashLiteT02Key2,
+    googleGemini35FlashLiteT02Key1,
+    googleGemini35FlashLiteT02Key2,
+    googleGemini31FlashLiteT08Key1,
+    googleGemini31FlashLiteT08Key2,
+    googleGemini35FlashLiteT08Key1,
+    googleGemini35FlashLiteT08Key2,
+  } = await import("../../lib/agents/models");
+
+  const getThinkingLevel = (m: unknown): string | undefined =>
+    (m as { params?: { thinkingLevel?: string } })?.params?.thinkingLevel;
+
+  for (const m of [
+    googleGemini31FlashLiteT01Key1,
+    googleGemini31FlashLiteT01Key2,
+    googleGemini35FlashLiteT01Key1,
+    googleGemini35FlashLiteT01Key2,
+  ]) {
+    expect(getThinkingLevel(m)).toBe("low");
+  }
+
+  for (const m of [
+    googleGemini31FlashLiteT02Key1,
+    googleGemini31FlashLiteT02Key2,
+    googleGemini35FlashLiteT02Key1,
+    googleGemini35FlashLiteT02Key2,
+  ]) {
+    expect(getThinkingLevel(m)).toBe("medium");
+  }
+
+  for (const m of [googleGemini31FlashLiteT08Key1, googleGemini31FlashLiteT08Key2]) {
+    expect(getThinkingLevel(m)).toBe("medium");
+  }
+  for (const m of [googleGemini35FlashLiteT08Key1, googleGemini35FlashLiteT08Key2]) {
+    expect(getThinkingLevel(m)).toBe("high");
+  }
+});
+
+test("Infographic prompt includes JSON instruction, partitions providers with toolStrategy for thinking Google, and assigns per-candidate timeouts", async () => {
   const { INFOGRAPHIC_STRATEGIST_PROMPT } = await import("../../lib/infographics/prompts");
   const { infographicStrategistAgents } = await import("../../lib/infographics/nodes");
   const { searchQueryOptimizerAgents } = await import("../../lib/agents/nodes");
+  const { getModelIdentity } = await import("../../lib/agents/circuitBreaker");
 
   expect(INFOGRAPHIC_STRATEGIST_PROMPT.toLowerCase()).toContain("json");
-  expect(infographicStrategistAgents.length).toBeGreaterThanOrEqual(2);
-  expect(searchQueryOptimizerAgents.length).toBeGreaterThanOrEqual(2);
+  expect(infographicStrategistAgents.length).toBe(2);
+  expect(searchQueryOptimizerAgents.length).toBe(2);
+
+  const inspectGroup = (agent: unknown) => {
+    const opts = (agent as { options?: { model?: unknown; responseFormat?: unknown } })?.options;
+    const rf = opts?.responseFormat;
+    const firstRf = Array.isArray(rf) ? rf[0] : rf;
+    const isToolStrategy = Boolean(firstRf && typeof firstRf === "object" && "tool" in firstRf);
+    const model = opts?.model as { candidates?: Array<{ timeout?: unknown; runnable?: unknown }> } | undefined;
+    const candidates = model?.candidates ?? [];
+    return {
+      isToolStrategy,
+      candidates,
+      outerIdentity: getModelIdentity(agent),
+    };
+  };
+
+  for (const agentGroup of [searchQueryOptimizerAgents, infographicStrategistAgents]) {
+    const googleGroup = inspectGroup(agentGroup[0]);
+    const deepSeekGroup = inspectGroup(agentGroup[1]);
+
+    expect(googleGroup.outerIdentity).toBeUndefined();
+    expect(googleGroup.isToolStrategy).toBe(true);
+    expect(googleGroup.candidates.length).toBeGreaterThanOrEqual(2);
+    for (const candidate of googleGroup.candidates) {
+      expect(typeof candidate.timeout).toBe("number");
+      expect(candidate.timeout as number).toBeGreaterThan(0);
+    }
+
+    expect(deepSeekGroup.outerIdentity).toBeUndefined();
+    expect(deepSeekGroup.isToolStrategy).toBe(false);
+    expect(deepSeekGroup.candidates.length).toBe(1);
+    expect(typeof deepSeekGroup.candidates[0]?.timeout).toBe("number");
+    expect(deepSeekGroup.candidates[0]?.timeout as number).toBeGreaterThan(0);
+  }
 });
 
 test("Gemini 4 Hydrogen models are configured with correct identities and primary placement", async () => {
@@ -293,6 +396,7 @@ test("News ThreadWriterNode - formats fix_directive inside POST_SPECIFIC_CRITIQU
 
   expect(result.parse_success).toBe(true);
   expect(result.thread_draft).toEqual(["Revised hook", "Draft 2"]);
+  expect(result.selected_hook).toBe("Revised hook");
 
   expect(invokeSpy).toHaveBeenCalled();
   const calledArgs = invokeSpy.mock.calls[0];
@@ -301,6 +405,8 @@ test("News ThreadWriterNode - formats fix_directive inside POST_SPECIFIC_CRITIQU
 
   expect(userMessage?.content).toContain("<POST_SPECIFIC_CRITIQUES>");
   expect(userMessage?.content).toContain("Post 1: Weak curiosity gap\nFix Directive: Front-load concrete metric in first 5 words");
+  expect(userMessage?.content).toContain("<HOOK_OVERRIDE_REQUIRED>");
+  expect(userMessage?.content).not.toContain("<HOOK>\nBest hook\n</HOOK>");
 });
 
 test("News HookStrategistNode - extracts and returns core_delta from structuredResponse", async () => {
@@ -556,12 +662,15 @@ test("Topic ThreadWriterNode - injects PREVIOUS_THREAD_DRAFT, CRITIQUE_TO_ADDRES
 
   expect(result.parse_success).toBe(true);
   expect(result.thread_draft).toEqual(["Old Hook", "Updated Body", "Old Closer"]);
+  expect(result.selected_hook).toBeUndefined();
 
   expect(invokeSpy).toHaveBeenCalled();
   const calledArgs = invokeSpy.mock.calls[0];
   const messages = calledArgs[1] as Array<{ role: string; content: string }>;
   const userMessage = messages.find((m) => m.role === "user");
 
+  expect(userMessage?.content).toContain("<HOOK>\nHook 1\n</HOOK>");
+  expect(userMessage?.content).not.toContain("<HOOK_OVERRIDE_REQUIRED>");
   expect(userMessage?.content).toContain("<PREVIOUS_THREAD_DRAFT>");
   expect(userMessage?.content).toContain("<CRITIQUE_TO_ADDRESS>\nOverall thread pacing drags in the middle.\n</CRITIQUE_TO_ADDRESS>");
   expect(userMessage?.content).toContain("<POST_SPECIFIC_CRITIQUES>");
@@ -956,6 +1065,154 @@ test("News ViralityCriticNode - preserves Pareto frontier in Discovery mode when
   expect(result.best_virality_score).toBe(86);
   expect(result.best_thread_draft).toEqual(priorBestDraft);
 });
+
+test("Topic ThreadWriterNode - overrides hook tag and updates selected_hook when Post 1 is flagged", async () => {
+  const { ThreadWriterNode } = await import("../../lib/agents/topic/nodes");
+
+  const invokeSpy = vi.spyOn(agentUtils, "invokeWithFallbacks").mockResolvedValue({
+    thread_draft: ["Rewritten Post 1 Hook", "Rewritten Body 2"],
+  });
+
+  const result = await ThreadWriterNode({
+    selected_hook: "Original Hook",
+    research_dossier: "# Research Dossier Content",
+    thread_draft: ["Draft 1", "Draft 2"],
+    critique: "Hook spoils the ending",
+    post_critiques: [
+      {
+        post_index: 1,
+        critique: "Too passive",
+        fix_directive: "Lead with concrete tension",
+      },
+    ],
+    retries: { writer: 0 },
+  } as unknown as Parameters<typeof ThreadWriterNode>[0]);
+
+  expect(result.parse_success).toBe(true);
+  expect(result.thread_draft).toEqual(["Rewritten Post 1 Hook", "Draft 2"]);
+  expect(result.selected_hook).toBe("Rewritten Post 1 Hook");
+
+  const calledArgs = invokeSpy.mock.calls[0];
+  const messages = calledArgs[1] as Array<{ role: string; content: string }>;
+  const userMessage = messages.find((m) => m.role === "user");
+  expect(userMessage?.content).toContain("<HOOK_OVERRIDE_REQUIRED>");
+  expect(userMessage?.content).toContain("Original Hook");
+  expect(userMessage?.content).not.toContain("<HOOK>\nOriginal Hook\n</HOOK>");
+});
+
+test("Social Media ThreadWriterNode - overrides hook only when Post 1 is flagged", async () => {
+  const { ThreadWriterNode } = await import("../../lib/agents/social_media/nodes");
+
+  const invokeSpy = vi.spyOn(agentUtils, "invokeWithFallbacks")
+    .mockResolvedValueOnce({
+      thread_draft: ["Sharper Social Hook", "Ignored Body 2"],
+    })
+    .mockResolvedValueOnce({
+      thread_draft: ["Accidental Hook Change", "Sharper Post 2"],
+    });
+
+  const post1FlaggedResult = await ThreadWriterNode({
+    selected_hook: "Best hook",
+    raw_markdown: "Source content",
+    thread_draft: ["Draft 1", "Draft 2"],
+    critique: "Post 1 is weak",
+    post_critiques: [
+      {
+        post_index: 1,
+        critique: "Weak opener",
+        fix_directive: "Sharpen first line",
+      },
+    ],
+    retries: { writer: 0 },
+  } as unknown as Parameters<typeof ThreadWriterNode>[0]);
+
+  expect(post1FlaggedResult.parse_success).toBe(true);
+  expect(post1FlaggedResult.thread_draft).toEqual(["Sharper Social Hook", "Draft 2"]);
+  expect(post1FlaggedResult.selected_hook).toBe("Sharper Social Hook");
+
+  const firstPromptMessages = invokeSpy.mock.calls[0][1] as Array<{ role: string; content: string }>;
+  const firstUserMsg = firstPromptMessages.find((m) => m.role === "user");
+  expect(firstUserMsg?.content).toContain("<HOOK_OVERRIDE_REQUIRED>");
+  expect(firstUserMsg?.content).not.toContain("<HOOK>\nBest hook\n</HOOK>");
+
+  const post2OnlyFlaggedResult = await ThreadWriterNode({
+    selected_hook: "Best hook",
+    raw_markdown: "Source content",
+    thread_draft: ["Draft 1", "Draft 2"],
+    critique: "Post 2 needs tension",
+    post_critiques: [
+      {
+        post_index: 2,
+        critique: "Flat transition",
+        fix_directive: "Add concrete number",
+      },
+    ],
+    retries: { writer: 1 },
+  } as unknown as Parameters<typeof ThreadWriterNode>[0]);
+
+  expect(post2OnlyFlaggedResult.parse_success).toBe(true);
+  expect(post2OnlyFlaggedResult.thread_draft).toEqual(["Draft 1", "Sharper Post 2"]);
+  expect(post2OnlyFlaggedResult.selected_hook).toBeUndefined();
+
+  const secondPromptMessages = invokeSpy.mock.calls[1][1] as Array<{ role: string; content: string }>;
+  const secondUserMsg = secondPromptMessages.find((m) => m.role === "user");
+  expect(secondUserMsg?.content).toContain("<HOOK>\nBest hook\n</HOOK>");
+  expect(secondUserMsg?.content).not.toContain("<HOOK_OVERRIDE_REQUIRED>");
+});
+
+test("Clickbait CliffhangerThreadWriterNode - overrides hook tag and selected_hook when Post 1 fails character validation", async () => {
+  const { CliffhangerThreadWriterNode } = await import("../../lib/agents/clickbait/nodes");
+
+  const invokeSpy = vi.spyOn(agentUtils, "invokeWithFallbacks")
+    .mockResolvedValueOnce({
+      thread_draft: ["Tighter Clickbait Hook", "Accidental Post 2 Rewrite"],
+    })
+    .mockResolvedValueOnce({
+      thread_draft: ["Accidental Hook Rewrite", "Punchier Post 2"],
+    });
+
+  const post1CharFlagged = await CliffhangerThreadWriterNode({
+    selected_hook: "Best clickbait hook",
+    raw_markdown: "Source facts",
+    thread_draft: ["Draft 1", "Draft 2"],
+    character_critique: "Post 1 exceeds maximum character limit of 280 characters.",
+    retries: { writer: 0 },
+  } as unknown as Parameters<typeof CliffhangerThreadWriterNode>[0]);
+
+  expect(post1CharFlagged.parse_success).toBe(true);
+  expect(post1CharFlagged.thread_draft).toEqual(["Tighter Clickbait Hook", "Draft 2"]);
+  expect(post1CharFlagged.selected_hook).toBe("Tighter Clickbait Hook");
+
+  const firstMessages = invokeSpy.mock.calls[0][1] as Array<{ role: string; content: string }>;
+  const firstUserMsg = firstMessages.find((m) => m.role === "user");
+  expect(firstUserMsg?.content).toContain("<HOOK_OVERRIDE_REQUIRED>");
+  expect(firstUserMsg?.content).not.toContain("<SELECTED_HOOK>");
+
+  const post2OnlyFlagged = await CliffhangerThreadWriterNode({
+    selected_hook: "Best clickbait hook",
+    raw_markdown: "Source facts",
+    thread_draft: ["Draft 1", "Draft 2"],
+    critique: "Middle drags",
+    post_critiques: [
+      {
+        post_index: 2,
+        critique: "Needs stronger cliffhanger",
+        fix_directive: "End on unresolved stakes",
+      },
+    ],
+    retries: { writer: 1 },
+  } as unknown as Parameters<typeof CliffhangerThreadWriterNode>[0]);
+
+  expect(post2OnlyFlagged.parse_success).toBe(true);
+  expect(post2OnlyFlagged.thread_draft).toEqual(["Draft 1", "Punchier Post 2"]);
+  expect(post2OnlyFlagged.selected_hook).toBeUndefined();
+
+  const secondMessages = invokeSpy.mock.calls[1][1] as Array<{ role: string; content: string }>;
+  const secondUserMsg = secondMessages.find((m) => m.role === "user");
+  expect(secondUserMsg?.content).toContain("<SELECTED_HOOK>\nBest clickbait hook\n</SELECTED_HOOK>");
+  expect(secondUserMsg?.content).not.toContain("<HOOK_OVERRIDE_REQUIRED>");
+});
+
 
 
 

@@ -66,10 +66,62 @@ export function withTimeout<T extends object>(
   return result;
 }
 
+const FALLBACK_PER_MODEL_TIMEOUT_KEY = "__fallbackPerModelTimeoutMs";
+const FALLBACK_HAS_OUTER_ALTERNATIVE_KEY = "__fallbackHasOuterAlternative";
+
+interface FallbackConfigurable extends Record<string, unknown> {
+  [FALLBACK_PER_MODEL_TIMEOUT_KEY]?: number;
+  [FALLBACK_HAS_OUTER_ALTERNATIVE_KEY]?: boolean;
+}
+
+function hasFallbackModel(
+  candidate: unknown
+): candidate is { fallbackModel: FallbackChatModel } {
+  if (!candidate || typeof candidate !== "object") return false;
+  const direct = (candidate as { fallbackModel?: unknown }).fallbackModel;
+  if (direct instanceof FallbackChatModel) return true;
+  if ("runnable" in candidate) {
+    const inner = (candidate as { runnable?: unknown }).runnable;
+    if (inner && typeof inner === "object") {
+      return (inner as { fallbackModel?: unknown }).fallbackModel instanceof FallbackChatModel;
+    }
+  }
+  return false;
+}
+
+function getFallbackModel(candidate: unknown): FallbackChatModel | undefined {
+  if (!candidate || typeof candidate !== "object") return undefined;
+  const direct = (candidate as { fallbackModel?: unknown }).fallbackModel;
+  if (direct instanceof FallbackChatModel) return direct;
+  if ("runnable" in candidate) {
+    const inner = (candidate as { runnable?: unknown }).runnable;
+    if (inner && typeof inner === "object") {
+      const innerModel = (inner as { fallbackModel?: unknown }).fallbackModel;
+      if (innerModel instanceof FallbackChatModel) return innerModel;
+    }
+  }
+  return undefined;
+}
+
+export function isCandidateAvailable(candidate: unknown): boolean {
+  const fallbackModel = getFallbackModel(candidate);
+  if (fallbackModel) {
+    return fallbackModel.candidates.some((inner) => isCandidateAvailable(inner));
+  }
+  const identity = getModelIdentity(candidate);
+  return !identity || modelCircuitBreaker.isAvailable(identity).available;
+}
+
 /**
  * Iterates through an array of models/agents, attempting to invoke them sequentially.
  * If one fails or times out, it catches the error and proceeds to the next model with a fresh timeout.
  * Allows per-model timeout overrides via withTimeout.
+ *
+ * For grouped `buildAgents` agents backed by `FallbackChatModel`:
+ * - Availability is determined by whether ANY inner candidate is untripped (no outer group identity poisoning).
+ * - Outer shared timeouts do NOT choke multi-model fallback groups; `timeout` is forwarded as the
+ *   default per-model timeout window for each inner candidate inside `FallbackChatModel`.
+ *
  * @param runnables Array of built agents, structured LLMs, or objects with timeout overrides.
  * @param params The invocation payload (e.g. { messages: [...] } or prompt string/messages).
  * @param options The runtime configuration including default per-attempt timeout.
@@ -80,16 +132,27 @@ export async function invokeWithFallbacks<RunInput = unknown, RunOutput = unknow
   params: RunInput,
   options?: RunnableConfig
 ): Promise<RunOutput> {
-  const { timeout: defaultTimeoutMs, signal: parentSignal, ...restConfig } = options ?? {};
+  const {
+    timeout: defaultTimeoutMs,
+    signal: parentSignal,
+    configurable,
+    ...restConfig
+  } = options ?? {};
+  const configurableObj =
+    configurable && typeof configurable === "object"
+      ? (configurable as FallbackConfigurable)
+      : undefined;
+  const inheritedPerModelTimeoutMs = configurableObj?.[FALLBACK_PER_MODEL_TIMEOUT_KEY];
+  const resolvedDefaultTimeoutMs = defaultTimeoutMs ?? inheritedPerModelTimeoutMs;
+  const hasOuterAlternativeFromCaller = configurableObj?.[FALLBACK_HAS_OUTER_ALTERNATIVE_KEY] === true;
   let lastError: unknown;
 
   // Check if all candidates are currently tripped; if so, fail open to avoid total deadlock
+  // unless an outer fallback group has already signaled an untripped alternative.
   const allTripped =
+    !hasOuterAlternativeFromCaller &&
     runnables.length > 0 &&
-    runnables.every((candidate) => {
-      const identity = getModelIdentity(candidate);
-      return identity && !modelCircuitBreaker.isAvailable(identity).available;
-    });
+    runnables.every((candidate) => !isCandidateAvailable(candidate));
 
   if (allTripped) {
     console.warn(
@@ -103,16 +166,26 @@ export async function invokeWithFallbacks<RunInput = unknown, RunOutput = unknow
 
   for (let i = 0; i < runnables.length; i++) {
     const candidate = runnables[i];
-    const identity = getModelIdentity(candidate);
+    const isGroupedAgent = hasFallbackModel(candidate);
+    const identity = isGroupedAgent ? undefined : getModelIdentity(candidate);
 
     // 1. Circuit breaker check (bypassed if all candidates in the list are tripped)
-    if (!allTripped && identity) {
-      const cbStatus = modelCircuitBreaker.isAvailable(identity);
-      if (!cbStatus.available) {
-        console.warn(
-          `[CircuitBreaker] Skipping candidate at index ${i} (${identity.modelId} on ${identity.keyGroup}): ${cbStatus.reason}`
-        );
-        continue;
+    if (!allTripped) {
+      if (isGroupedAgent) {
+        if (!isCandidateAvailable(candidate)) {
+          console.warn(
+            `[CircuitBreaker] Skipping grouped agent at index ${i}: all inner model candidates are currently tripped.`
+          );
+          continue;
+        }
+      } else if (identity) {
+        const cbStatus = modelCircuitBreaker.isAvailable(identity);
+        if (!cbStatus.available) {
+          console.warn(
+            `[CircuitBreaker] Skipping candidate at index ${i} (${identity.modelId} on ${identity.keyGroup}): ${cbStatus.reason}`
+          );
+          continue;
+        }
       }
     }
 
@@ -140,8 +213,14 @@ export async function invokeWithFallbacks<RunInput = unknown, RunOutput = unknow
     }
 
     const runnable = "runnable" in candidate ? candidate.runnable : candidate;
+    const explicitCandidateTimeout =
+      "timeout" in candidate && candidate.timeout !== undefined ? candidate.timeout : undefined;
     const effectiveTimeout =
-      "timeout" in candidate && candidate.timeout !== undefined ? candidate.timeout : defaultTimeoutMs;
+      explicitCandidateTimeout !== undefined
+        ? explicitCandidateTimeout
+        : isGroupedAgent
+        ? undefined
+        : resolvedDefaultTimeoutMs;
 
     if (parentSignal?.aborted) {
       throw parentSignal.reason || new Error("Operation aborted by caller");
@@ -160,8 +239,23 @@ export async function invokeWithFallbacks<RunInput = unknown, RunOutput = unknow
       }
     }
 
+    const hasRemainingOuterAlternative =
+      hasOuterAlternativeFromCaller ||
+      runnables.slice(i + 1).some((laterCandidate) => isCandidateAvailable(laterCandidate));
+
+    const attemptConfigurable: FallbackConfigurable | undefined = isGroupedAgent
+      ? {
+          ...configurableObj,
+          ...(resolvedDefaultTimeoutMs !== undefined
+            ? { [FALLBACK_PER_MODEL_TIMEOUT_KEY]: resolvedDefaultTimeoutMs }
+            : {}),
+          [FALLBACK_HAS_OUTER_ALTERNATIVE_KEY]: hasRemainingOuterAlternative,
+        }
+      : configurableObj;
+
     const attemptConfig: RunnableConfig = {
       ...restConfig,
+      ...(attemptConfigurable !== undefined ? { configurable: attemptConfigurable } : {}),
       signal: attemptSignal,
     };
 
@@ -307,10 +401,18 @@ export class FallbackChatModel extends BaseChatModel {
     input: BaseLanguageModelInput,
     options?: Partial<BaseChatModelCallOptions>
   ): Promise<AIMessageChunk> {
+    const rawPerModelTimeout = options?.configurable?.[FALLBACK_PER_MODEL_TIMEOUT_KEY];
+    const perModelTimeoutMs =
+      options?.timeout ??
+      (typeof rawPerModelTimeout === "number" ? rawPerModelTimeout : undefined);
+    const innerConfig: RunnableConfig = {
+      ...options,
+      ...(perModelTimeoutMs !== undefined ? { timeout: perModelTimeoutMs } : {}),
+    };
     const rawResult = await invokeWithFallbacks<BaseLanguageModelInput, unknown>(
       this.candidates as FallbackCandidate<BaseLanguageModelInput, unknown>[],
       input,
-      options as RunnableConfig
+      innerConfig
     );
 
     if (rawResult instanceof AIMessageChunk) {
@@ -432,9 +534,9 @@ export function isProviderResponseFormat(rf: unknown): rf is ProviderResponseFor
  * When provided with a ProviderResponseFormat (e.g. `{ google: toolStrategy(s), deepseek: providerStrategy(s) }`),
  * candidates are partitioned into provider-specific FallbackChatModel agent groups so each provider uses
  * its required structured output strategy:
- * - Thinking Gemini (`thinkingLevel: "high"`/`"low"`): MUST use `toolStrategy` (`ProviderStrategy.parse` breaks
+ * - Thinking Gemini (`thinkingLevel: "high"`/`"medium"`/`"low"`): MUST use `toolStrategy` (`ProviderStrategy.parse` breaks
  *   on index-0 `{ thought: true, type: "text" }` blocks returned by `@langchain/google`).
- * - Non-thinking Gemini (`thinkingLevel: "off"`): uses `providerStrategy` (native `responseSchema`).
+ * - Non-thinking Gemini (`thinkingLevel: "minimal"`/`"off"`): uses `providerStrategy` (native `responseSchema`).
  * - DeepSeek (`createAgent`): MUST use `providerStrategy` paired with `modelKwargs.response_format: { type: "json_object" }`
  *   (overrides `json_schema`, and avoids `toolStrategy` multi-turn retries where `@langchain/openai` drops `reasoning_content`).
  * @param models Array of Chat models or model objects with custom timeouts.
@@ -501,11 +603,8 @@ export function buildAgents<T extends Record<string, unknown> = Record<string, u
         configurable: true,
       });
 
-      const firstIdentity = getModelIdentity(group.candidates[0]);
-      if (firstIdentity) {
-        attachModelIdentity(agent, firstIdentity);
-      }
-
+      // Do NOT attach candidates[0]'s identity onto the grouped agent: inner FallbackChatModel
+      // manages independent per-model ModelIdentity checks/tracking and timeout windows.
       return agent as unknown as FallbackCandidate<unknown, AgentResponse<T>>;
     });
   }
@@ -1069,6 +1168,38 @@ export async function runCharacterValidation(
   };
 }
 
+export interface BuildHookWriterContextOptions {
+  selectedHook?: string;
+  isPost1Flagged: boolean;
+  tagName?: "HOOK" | "SELECTED_HOOK";
+}
+
+/**
+ * Formats the hook context for ThreadWriterNode:
+ * - On initial drafts or rewrites where Post 1 is unflagged, preserves `<HOOK>`/`<SELECTED_HOOK>` as law.
+ * - When Critic or CharacterValidator explicitly flagged Post 1 (`isPost1Flagged === true`),
+ *   suppresses the verbatim-hook mandate and emits `<HOOK_OVERRIDE_REQUIRED>` so fix directives take precedence.
+ */
+export function buildHookWriterContext({
+  selectedHook,
+  isPost1Flagged,
+  tagName = "HOOK",
+}: BuildHookWriterContextOptions): string {
+  const hookText = selectedHook || "";
+  if (!isPost1Flagged) {
+    return `<${tagName}>\n${hookText}\n</${tagName}>`;
+  }
+  return [
+    "<HOOK_OVERRIDE_REQUIRED>",
+    "Post 1 from the previous draft was flagged by Critic/Validator audit and MUST be rewritten to satisfy the Post 1 critique and fix directives.",
+    `Override any "The Hook is Law" or verbatim-${tagName} rule for Post 1: implement the Post 1 fix directive even if that changes the opening phrasing, angle, or claim.`,
+    hookText ? `Superseded initial hook (reference only, do NOT preserve verbatim): ${hookText}` : "",
+    "</HOOK_OVERRIDE_REQUIRED>",
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
 /**
  * Combines differential critic post critiques and character validator errors
  * to determine surgical post-pinning indices and formatted context strings.
@@ -1115,9 +1246,13 @@ export function buildWriterRevisionContext(params: {
 
   const draft = params.threadDraft || [];
   const formattingFlagged = parseFlaggedPostIndicesFromErrors(params.characterCritique);
-  const flaggedIndices = Array.from(
+  const allFlaggedIndices = Array.from(
     new Set([...actionable.map((pc) => pc.post_index), ...formattingFlagged])
-  ).filter((idx) => draft.length > 0 && idx >= 1 && idx <= draft.length);
+  );
+  const isPost1Flagged = allFlaggedIndices.includes(1);
+  const flaggedIndices = allFlaggedIndices.filter(
+    (idx) => draft.length > 0 && idx >= 1 && idx <= draft.length
+  );
 
   const isSurgical =
     draft.length > 0 &&
@@ -1137,6 +1272,7 @@ export function buildWriterRevisionContext(params: {
     guidanceContext,
     pinnedPostsContext,
     isSurgical,
+    isPost1Flagged,
     flaggedIndices,
   };
 }

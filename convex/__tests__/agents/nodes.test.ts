@@ -96,6 +96,7 @@ test("DeepSeek models configure response_format only on structured output varian
     deepSeekFlashT02ReasoningNone,
     deepSeekFlashT08ReasoningNone,
     deepSeekFlashT08ReasoningHigh,
+    deepSeekFlashT085ReasoningHigh,
     deepSeekFlashT085ReasoningNone,
     deepSeekFlashT00ReasoningHigh,
   } = await import("../../lib/agents/models");
@@ -113,6 +114,7 @@ test("DeepSeek models configure response_format only on structured output varian
   expect(getModelName(deepSeekFlashT02ReasoningNone)).toBe("deepseek-flash");
   expect(getModelName(deepSeekFlashT08ReasoningNone)).toBe("deepseek-flash");
   expect(getModelName(deepSeekFlashT08ReasoningHigh)).toBe("deepseek-flash");
+  expect(getModelName(deepSeekFlashT085ReasoningHigh)).toBe("deepseek-flash");
   expect(getModelName(deepSeekFlashT085ReasoningNone)).toBe("deepseek-flash");
   expect(getModelName(deepSeekFlashT00ReasoningHigh)).toBe("deepseek-flash");
 
@@ -125,6 +127,8 @@ test("DeepSeek models configure response_format only on structured output varian
   expect(getModelKwargs(deepSeekFlashT02ReasoningNone)?.response_format).toEqual({ type: "json_object" });
   expect(getModelKwargs(deepSeekFlashT08ReasoningNone)?.response_format).toEqual({ type: "json_object" });
   expect(getModelKwargs(deepSeekFlashT08ReasoningHigh)?.response_format).toEqual({ type: "json_object" });
+  expect(getModelKwargs(deepSeekFlashT085ReasoningHigh)?.response_format).toEqual({ type: "json_object" });
+  expect(getModelKwargs(deepSeekFlashT085ReasoningHigh)?.thinking).toEqual({ type: "enabled" });
   expect(getModelKwargs(deepSeekFlashT085ReasoningNone)?.response_format).toEqual({ type: "json_object" });
   expect(getModelKwargs(deepSeekFlashT00ReasoningHigh)?.response_format).toEqual({ type: "json_object" });
   expect(getModelKwargs(deepSeekFlashT00ReasoningNone)?.response_format).toEqual({ type: "json_object" });
@@ -132,6 +136,34 @@ test("DeepSeek models configure response_format only on structured output varian
   // Unstructured DeepSeek scraper models MUST NOT include json_object
   expect(getModelKwargs(deepSeekFlashT01ReasoningNone)?.response_format).toBeUndefined();
   expect(getModelKwargs(deepSeekFlashT01TextReasoningHigh)?.response_format).toBeUndefined();
+});
+
+test("ThreadWriter candidates use high-reasoning DeepSeek with jsonMode", async () => {
+  const {
+    deepSeekFlashT085ReasoningHigh,
+    threadWriterModelCandidates,
+  } = await import("../../lib/agents/models");
+  const { getModelIdentity } = await import("../../lib/agents/circuitBreaker");
+
+  expect(deepSeekFlashT085ReasoningHigh.maxTokens).toBeUndefined();
+
+  const deepSeekCandidate = threadWriterModelCandidates.find(
+    (candidate) => getModelIdentity(candidate)?.provider === "deepseek"
+  );
+  expect(deepSeekCandidate).toBeDefined();
+
+  const candidateSequence = deepSeekCandidate as unknown as {
+    first?: {
+      bound?: unknown;
+      config?: {
+        response_format?: { type?: string };
+        ls_structured_output_format?: { kwargs?: { method?: string } };
+      };
+    };
+  };
+  expect(candidateSequence?.first?.bound).toBe(deepSeekFlashT085ReasoningHigh);
+  expect(candidateSequence?.first?.config?.response_format).toEqual({ type: "json_object" });
+  expect(candidateSequence?.first?.config?.ls_structured_output_format?.kwargs?.method).toBe("json_mode");
 });
 
 test("Infographic prompt includes JSON instruction and strategist partitions providers", async () => {

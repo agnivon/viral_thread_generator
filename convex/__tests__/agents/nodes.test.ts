@@ -1213,6 +1213,109 @@ test("Clickbait CliffhangerThreadWriterNode - overrides hook tag and selected_ho
   expect(secondUserMsg?.content).not.toContain("<HOOK_OVERRIDE_REQUIRED>");
 });
 
+test("All increased-thinking candidates enforce scaled timeouts and Key1/Key2 quota parity", async () => {
+  const { getModelIdentity } = await import("../../lib/agents/circuitBreaker");
+  const { threadWriterModelCandidates, criticModelCandidates } = await import("../../lib/agents/models");
+  const {
+    scraperModels: newsScraperModels,
+    newsContextResearcherAgents,
+    newsHookStrategistAgents,
+  } = await import("../../lib/agents/news/nodes");
+  const {
+    socialMediaScraperModels,
+    socialMediaContextResearcherAgents,
+    socialMediaHookStrategistAgents,
+  } = await import("../../lib/agents/social_media/nodes");
+  const {
+    topicResearchOrchestratorAgents,
+    topicDeepScraperModels,
+    topicHookStrategistModels,
+  } = await import("../../lib/agents/topic/nodes");
+  const {
+    clickbaitScraperModels,
+    clickbaitAngleAgents,
+    clickbaitHookStrategistAgents,
+  } = await import("../../lib/agents/clickbait/nodes");
+  const {
+    vectorHypothesizerModels,
+    tensionExtractionModels,
+    angleFormulatorModels,
+  } = await import("../../lib/agents/discovery/nodes");
+  const { infographicStrategistAgents } = await import("../../lib/infographics/nodes");
+
+  interface TimedEntry {
+    timeout: number;
+    runnable?: unknown;
+  }
+
+  const flattenCandidates = (entries: unknown[]): TimedEntry[] => {
+    const out: TimedEntry[] = [];
+    for (const entry of entries) {
+      const grouped = (entry as { options?: { model?: { candidates?: TimedEntry[] } } })?.options?.model?.candidates;
+      if (Array.isArray(grouped)) {
+        out.push(...grouped);
+      } else {
+        out.push(entry as TimedEntry);
+      }
+    }
+    return out;
+  };
+
+  const findTimeouts = (entries: unknown[], modelId: string, keyGroup?: string): number[] =>
+    flattenCandidates(entries)
+      .filter((c) => {
+        const id = getModelIdentity(c);
+        return id?.modelId === modelId && (keyGroup === undefined || id.keyGroup === keyGroup);
+      })
+      .map((c) => c.timeout);
+
+  // 1. Writer & Critic Key1 == Key2 parity for thinkingLevel: "high"
+  for (const modelId of ["gemini-4-hydrogen", "gemini-3.8-flash", "gemini-3-flash-preview"]) {
+    expect(findTimeouts(threadWriterModelCandidates, modelId)).toEqual([60000, 60000]);
+    expect(findTimeouts(criticModelCandidates, modelId)).toEqual([60000, 60000]);
+  }
+  expect(findTimeouts(threadWriterModelCandidates, "gemini-3.6-flash")).toEqual([90000, 90000]);
+  expect(findTimeouts(criticModelCandidates, "gemini-3.6-flash")).toEqual([75000, 75000]);
+  expect(findTimeouts(threadWriterModelCandidates, "deepseek-flash")).toEqual([90000]);
+  expect(findTimeouts(criticModelCandidates, "deepseek-flash")).toEqual([90000]);
+
+  // 2. Clickbait high-reasoning DeepSeek gets 90s and Key2 matches Key1
+  for (const chain of [clickbaitScraperModels, clickbaitAngleAgents, clickbaitHookStrategistAgents]) {
+    expect(findTimeouts(chain, "deepseek-flash")).toEqual([90000]);
+    expect(findTimeouts(chain, "gemini-3.8-flash")).toEqual([60000, 60000]);
+    expect(findTimeouts(chain, "gemini-3.6-flash")).toEqual([75000, 75000]);
+  }
+
+  // 3. Upgraded Flash-Lite pipelines
+  for (const scrapers of [newsScraperModels, socialMediaScraperModels]) {
+    expect(findTimeouts(scrapers, "gemini-3.5-flash-lite")).toEqual([45000, 45000]);
+  }
+  for (const hookChain of [newsHookStrategistAgents, socialMediaHookStrategistAgents, topicHookStrategistModels]) {
+    expect(findTimeouts(hookChain, "gemini-3.5-flash-lite")).toEqual([60000, 60000]);
+  }
+  for (const dossierChain of [
+    newsContextResearcherAgents,
+    socialMediaContextResearcherAgents,
+    topicResearchOrchestratorAgents,
+    topicDeepScraperModels,
+  ]) {
+    expect(findTimeouts(dossierChain, "gemini-3.5-flash-lite")).toEqual([60000, 60000]);
+    expect(findTimeouts(dossierChain, "gemini-3.1-flash-lite")).toEqual([60000, 60000]);
+  }
+
+  // 4. Discovery & Infographic thinking stages
+  expect(findTimeouts(vectorHypothesizerModels, "gemini-3.5-flash-lite")).toEqual([45000, 45000]);
+  expect(findTimeouts(vectorHypothesizerModels, "gemini-3.1-flash-lite")).toEqual([45000, 45000]);
+  expect(findTimeouts(infographicStrategistAgents, "gemini-3.5-flash-lite")).toEqual([50000, 50000]);
+  expect(findTimeouts(infographicStrategistAgents, "gemini-3.1-flash-lite")).toEqual([50000, 50000]);
+
+  for (const discoveryCascade of [tensionExtractionModels, angleFormulatorModels]) {
+    expect(findTimeouts(discoveryCascade, "gemini-4-hydrogen")).toEqual([60000, 60000]);
+    expect(findTimeouts(discoveryCascade, "gemini-3.8-flash")).toEqual([60000, 60000]);
+    expect(findTimeouts(discoveryCascade, "gemini-3.6-flash")).toEqual([75000, 75000]);
+  }
+});
+
 
 
 

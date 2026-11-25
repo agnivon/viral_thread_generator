@@ -52,9 +52,9 @@ import { runDiscoverySubgraph } from "../discovery/graph.js";
 import { extractDiscoveryTopic } from "../discovery/nodes.js";
 
 
-const socialMediaScraperModels = [
-  withTimeout(googleGemini35FlashLiteT01Key1, 35000),
-  withTimeout(googleGemini35FlashLiteT01Key2, 35000),
+export const socialMediaScraperModels = [
+  withTimeout(googleGemini35FlashLiteT01Key1, 45000),
+  withTimeout(googleGemini35FlashLiteT01Key2, 45000),
   withTimeout(googleGemini31FlashLiteT01Key1, 45000),
   withTimeout(googleGemini31FlashLiteT01Key2, 45000),
   withTimeout(deepSeekFlashT01ReasoningNone, 45000)
@@ -103,12 +103,12 @@ const socialMediaResearcherSchema = z.object({
 });
 
 // Thinking Gemini Flash-Lite (`thinkingLevel: "medium"`) MUST use `toolStrategy`; DeepSeek (`response_format: { type: "json_object" }`) uses `providerStrategy`.
-const socialMediaContextResearcherAgents = buildAgents<z.infer<typeof socialMediaResearcherSchema>>(
+export const socialMediaContextResearcherAgents = buildAgents<z.infer<typeof socialMediaResearcherSchema>>(
   [
-    withTimeout(googleGemini35FlashLiteT02Key1, 45000),
-    withTimeout(googleGemini35FlashLiteT02Key2, 45000),
-    withTimeout(googleGemini31FlashLiteT02Key1, 45000),
-    withTimeout(googleGemini31FlashLiteT02Key2, 45000),
+    withTimeout(googleGemini35FlashLiteT02Key1, 60000),
+    withTimeout(googleGemini35FlashLiteT02Key2, 60000),
+    withTimeout(googleGemini31FlashLiteT02Key1, 60000),
+    withTimeout(googleGemini31FlashLiteT02Key2, 60000),
     withTimeout(deepSeekFlashT02ReasoningNone, 45000)
   ],
   {
@@ -183,10 +183,10 @@ const socialMediaHookSchema = z.object({
 });
 
 // Thinking Gemini Flash-Lite (`thinkingLevel: "high"`/`"medium"`) MUST use `toolStrategy`; DeepSeek (`json_object`) uses `providerStrategy`.
-const socialMediaHookStrategistAgents = buildAgents<z.infer<typeof socialMediaHookSchema>>(
+export const socialMediaHookStrategistAgents = buildAgents<z.infer<typeof socialMediaHookSchema>>(
   [
-    withTimeout(googleGemini35FlashLiteT08Key1, 45000),
-    withTimeout(googleGemini35FlashLiteT08Key2, 45000),
+    withTimeout(googleGemini35FlashLiteT08Key1, 60000),
+    withTimeout(googleGemini35FlashLiteT08Key2, 60000),
     withTimeout(googleGemini31FlashLiteT08Key1, 45000),
     withTimeout(googleGemini31FlashLiteT08Key2, 45000),
     withTimeout(deepSeekFlashT08ReasoningNone, 45000)
@@ -215,7 +215,7 @@ export const HookStrategistNode = async (state: SocialMediaThreadFactoryStateTyp
       : "";
     result = await invokeWithFallbacks(socialMediaHookStrategistAgents, {
       messages: [{ role: "user", content: `<SOURCE>\n${state.raw_markdown}\n</SOURCE>${researchContextStr}${anglesContext}${deltaContext}${guidanceContext}` }]
-    }, { ...config, timeout: 45000 });
+    }, { ...config, timeout: 60000 });
     parse_success = true;
   } catch (_e) {
     parse_success = false;

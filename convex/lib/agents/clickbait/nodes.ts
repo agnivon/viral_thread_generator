@@ -51,12 +51,12 @@ import { extractDiscoveryTopic } from "../discovery/nodes.js";
 import { runDiscoverySubgraph } from "../discovery/graph.js";
 
 // Unstructured Markdown scraper models (`deepSeekFlashT01TextReasoningHigh` omits `response_format: { type: "json_object" }`).
-const clickbaitScraperModels = [
+export const clickbaitScraperModels = [
   withTimeout(googleGemini38FlashT01ThinkingKey1, 60000),
-  withTimeout(googleGemini38FlashT01ThinkingKey2, 45000),
-  withTimeout(googleGemini36FlashT01ThinkingKey1, 60000),
-  withTimeout(googleGemini36FlashT01ThinkingKey2, 45000),
-  withTimeout(deepSeekFlashT01TextReasoningHigh, 60000),
+  withTimeout(googleGemini38FlashT01ThinkingKey2, 60000),
+  withTimeout(googleGemini36FlashT01ThinkingKey1, 75000),
+  withTimeout(googleGemini36FlashT01ThinkingKey2, 75000),
+  withTimeout(deepSeekFlashT01TextReasoningHigh, 90000),
   withTimeout(googleGemini35FlashLiteT01ThinkingKey1, 45000),
 ];
 
@@ -86,7 +86,7 @@ export const ClickbaitScraperNode = async (
           }),
         },
       ],
-      { ...config, timeout: 60000 }
+      { ...config, timeout: 90000 }
     );
     return {
       raw_markdown: extractMessageText(summary.content),
@@ -132,13 +132,13 @@ const clickbaitAngleSchema = z.object({
 
 // Thinking Gemini (`thinkingLevel: "high"`) MUST use `toolStrategy` (`ProviderStrategy.parse` breaks on thought blocks);
 // thinking DeepSeek MUST use `providerStrategy` paired with `modelKwargs.response_format: { type: "json_object" }`.
-const clickbaitAngleAgents = buildAgents<z.infer<typeof clickbaitAngleSchema>>(
+export const clickbaitAngleAgents = buildAgents<z.infer<typeof clickbaitAngleSchema>>(
   [
     withTimeout(googleGemini38FlashT01ThinkingKey1, 60000),
-    withTimeout(googleGemini38FlashT01ThinkingKey2, 45000),
-    withTimeout(googleGemini36FlashT01ThinkingKey1, 60000),
-    withTimeout(googleGemini36FlashT01ThinkingKey2, 45000),
-    withTimeout(deepSeekFlashT01ReasoningHigh, 60000),
+    withTimeout(googleGemini38FlashT01ThinkingKey2, 60000),
+    withTimeout(googleGemini36FlashT01ThinkingKey1, 75000),
+    withTimeout(googleGemini36FlashT01ThinkingKey2, 75000),
+    withTimeout(deepSeekFlashT01ReasoningHigh, 90000),
   ],
   {
     systemPrompt: CLICKBAIT_ANGLE_PROMPT,
@@ -173,7 +173,7 @@ export const ClickbaitAngleStrategistNode = async (
           },
         ],
       },
-      { ...config, timeout: 60000 }
+      { ...config, timeout: 90000 }
     );
     parse_success = true;
   } catch (err) {
@@ -207,13 +207,13 @@ const clickbaitHookSchema = z.object({
 });
 
 // Thinking Gemini (`thinkingLevel: "high"`) MUST use `toolStrategy`; thinking DeepSeek uses `providerStrategy` + `json_object`.
-const clickbaitHookStrategistAgents = buildAgents<z.infer<typeof clickbaitHookSchema>>(
+export const clickbaitHookStrategistAgents = buildAgents<z.infer<typeof clickbaitHookSchema>>(
   [
     withTimeout(googleGemini38FlashT08ThinkingKey1, 60000),
-    withTimeout(googleGemini38FlashT08ThinkingKey2, 45000),
-    withTimeout(googleGemini36FlashT08ThinkingKey1, 60000),
-    withTimeout(googleGemini36FlashT08ThinkingKey2, 45000),
-    withTimeout(deepSeekFlashT08ReasoningHigh, 60000),
+    withTimeout(googleGemini38FlashT08ThinkingKey2, 60000),
+    withTimeout(googleGemini36FlashT08ThinkingKey1, 75000),
+    withTimeout(googleGemini36FlashT08ThinkingKey2, 75000),
+    withTimeout(deepSeekFlashT08ReasoningHigh, 90000),
   ],
   {
     systemPrompt: CLICKBAIT_HOOK_PROMPT,
@@ -255,7 +255,7 @@ export const ClickbaitHookStrategistNode = async (
           },
         ],
       },
-      { ...config, timeout: 60000 }
+      { ...config, timeout: 90000 }
     );
     parse_success = true;
   } catch (err) {

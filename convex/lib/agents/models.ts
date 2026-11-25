@@ -119,15 +119,15 @@ export const threadWriterSchema = z.object({
  */
 export const threadWriterModelCandidates = [
   withTimeout(googleGemini4HydrogenT08Key1.withStructuredOutput(threadWriterSchema, { name: "thread_writer", method: "functionCalling" }), 60000),
-  withTimeout(googleGemini4HydrogenT08Key2.withStructuredOutput(threadWriterSchema, { name: "thread_writer", method: "functionCalling" }), 45000),
+  withTimeout(googleGemini4HydrogenT08Key2.withStructuredOutput(threadWriterSchema, { name: "thread_writer", method: "functionCalling" }), 60000),
   withTimeout(googleGemini38FlashT08Key1.withStructuredOutput(threadWriterSchema, { name: "thread_writer", method: "functionCalling" }), 60000),
-  withTimeout(googleGemini38FlashT08Key2.withStructuredOutput(threadWriterSchema, { name: "thread_writer", method: "functionCalling" }), 45000),
+  withTimeout(googleGemini38FlashT08Key2.withStructuredOutput(threadWriterSchema, { name: "thread_writer", method: "functionCalling" }), 60000),
   withTimeout(googleGemini36FlashT08Key1.withStructuredOutput(threadWriterSchema, { name: "thread_writer", method: "functionCalling" }), 90000),
-  withTimeout(googleGemini36FlashT08Key2.withStructuredOutput(threadWriterSchema, { name: "thread_writer", method: "functionCalling" }), 60000),
+  withTimeout(googleGemini36FlashT08Key2.withStructuredOutput(threadWriterSchema, { name: "thread_writer", method: "functionCalling" }), 90000),
   withTimeout(deepSeekFlashT085ReasoningHigh.withStructuredOutput(threadWriterSchema, { name: "thread_writer", method: "jsonMode" }), 90000),
   withTimeout(openAiGpt54T08Penalty04.withStructuredOutput(threadWriterSchema, { name: "thread_writer", method: "functionCalling" }), 90000),
   withTimeout(googleGemini3FlashPreviewT08Key1.withStructuredOutput(threadWriterSchema, { name: "thread_writer", method: "functionCalling" }), 60000),
-  withTimeout(googleGemini3FlashPreviewT08Key2.withStructuredOutput(threadWriterSchema, { name: "thread_writer", method: "functionCalling" }), 45000)
+  withTimeout(googleGemini3FlashPreviewT08Key2.withStructuredOutput(threadWriterSchema, { name: "thread_writer", method: "functionCalling" }), 60000)
 ];
 
 // ViralityCriticNode Models
@@ -147,14 +147,14 @@ export const googleGemini3FlashPreviewT00Key2 = createGoogleModel("gemini-3-flas
 // Unified Fallback Candidate Chain for Virality & Differential Critics (DeepSeek uses reasoning; every model has its own timeout)
 export const criticModelCandidates = [
   withTimeout(googleGemini4HydrogenT00Key1, 60000),
-  withTimeout(googleGemini4HydrogenT00Key2, 45000),
+  withTimeout(googleGemini4HydrogenT00Key2, 60000),
   withTimeout(googleGemini38FlashT00Key1, 60000),
-  withTimeout(googleGemini38FlashT00Key2, 45000),
+  withTimeout(googleGemini38FlashT00Key2, 60000),
   withTimeout(googleGemini36FlashT00Key1, 75000),
-  withTimeout(googleGemini36FlashT00Key2, 60000),
+  withTimeout(googleGemini36FlashT00Key2, 75000),
   withTimeout(deepSeekFlashT00ReasoningHigh, 90000),
   withTimeout(googleGemini3FlashPreviewT00Key1, 60000),
-  withTimeout(googleGemini3FlashPreviewT00Key2, 45000),
+  withTimeout(googleGemini3FlashPreviewT00Key2, 60000),
 ];
 
 // ContextResearcherNode Models (medium thinking for dual-query synthesis & infographic structured plans)

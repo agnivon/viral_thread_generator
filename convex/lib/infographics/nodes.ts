@@ -16,11 +16,11 @@ import { buildAgents, invokeWithFallbacks, withTimeout } from "../agents/utils.j
 // Thinking Gemini Flash-Lite (`thinkingLevel: "medium"`) MUST use `toolStrategy`; DeepSeek (`json_object`) uses `providerStrategy`.
 export const infographicStrategistAgents = buildAgents<InfographicSpec>(
   [
-    withTimeout(googleGemini35FlashLiteT02Key1, 35000),
-    withTimeout(googleGemini35FlashLiteT02Key2, 35000),
-    withTimeout(googleGemini31FlashLiteT02Key1, 35000),
-    withTimeout(googleGemini31FlashLiteT02Key2, 35000),
-    withTimeout(deepSeekFlashT02ReasoningNone, 35000),
+    withTimeout(googleGemini35FlashLiteT02Key1, 50000),
+    withTimeout(googleGemini35FlashLiteT02Key2, 50000),
+    withTimeout(googleGemini31FlashLiteT02Key1, 50000),
+    withTimeout(googleGemini31FlashLiteT02Key2, 50000),
+    withTimeout(deepSeekFlashT02ReasoningNone, 45000),
   ],
   {
     systemPrompt: INFOGRAPHIC_STRATEGIST_PROMPT,

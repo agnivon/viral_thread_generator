@@ -54,12 +54,12 @@ const topicResearchOrchestratorSchema = z.object({
 });
 
 // Thinking Gemini Flash-Lite (`thinkingLevel: "medium"`) MUST use `toolStrategy`; DeepSeek (`json_object`) uses `providerStrategy`.
-const topicResearchOrchestratorAgents = buildAgents<z.infer<typeof topicResearchOrchestratorSchema>>(
+export const topicResearchOrchestratorAgents = buildAgents<z.infer<typeof topicResearchOrchestratorSchema>>(
   [
-    withTimeout(googleGemini35FlashLiteT02Key1, 45000),
-    withTimeout(googleGemini35FlashLiteT02Key2, 45000),
-    withTimeout(googleGemini31FlashLiteT02Key1, 45000),
-    withTimeout(googleGemini31FlashLiteT02Key2, 45000),
+    withTimeout(googleGemini35FlashLiteT02Key1, 60000),
+    withTimeout(googleGemini35FlashLiteT02Key2, 60000),
+    withTimeout(googleGemini31FlashLiteT02Key1, 60000),
+    withTimeout(googleGemini31FlashLiteT02Key2, 60000),
     withTimeout(deepSeekFlashT02ReasoningNone, 45000)
   ],
   {
@@ -128,11 +128,11 @@ const topicDeepScraperSchema = z.object({
 });
 
 // Direct `withStructuredOutput`: thinking Gemini Flash-Lite (`thinkingLevel: "low"`) MUST use `functionCalling`; DeepSeek uses `jsonMode` (`json_object`).
-const topicDeepScraperModels = [
-  withTimeout(googleGemini35FlashLiteT01Key1.withStructuredOutput(topicDeepScraperSchema, { name: "deep_scraper", method: "functionCalling" }), 45000),
-  withTimeout(googleGemini35FlashLiteT01Key2.withStructuredOutput(topicDeepScraperSchema, { name: "deep_scraper", method: "functionCalling" }), 45000),
-  withTimeout(googleGemini31FlashLiteT01Key1.withStructuredOutput(topicDeepScraperSchema, { name: "deep_scraper", method: "functionCalling" }), 45000),
-  withTimeout(googleGemini31FlashLiteT01Key2.withStructuredOutput(topicDeepScraperSchema, { name: "deep_scraper", method: "functionCalling" }), 45000),
+export const topicDeepScraperModels = [
+  withTimeout(googleGemini35FlashLiteT01Key1.withStructuredOutput(topicDeepScraperSchema, { name: "deep_scraper", method: "functionCalling" }), 60000),
+  withTimeout(googleGemini35FlashLiteT01Key2.withStructuredOutput(topicDeepScraperSchema, { name: "deep_scraper", method: "functionCalling" }), 60000),
+  withTimeout(googleGemini31FlashLiteT01Key1.withStructuredOutput(topicDeepScraperSchema, { name: "deep_scraper", method: "functionCalling" }), 60000),
+  withTimeout(googleGemini31FlashLiteT01Key2.withStructuredOutput(topicDeepScraperSchema, { name: "deep_scraper", method: "functionCalling" }), 60000),
   withTimeout(deepSeekFlashT01JsonReasoningNone.withStructuredOutput(topicDeepScraperSchema, { name: "deep_scraper", method: "jsonMode" }), 45000)
 ];
 
@@ -210,9 +210,9 @@ const topicHookStrategistSchema = z.object({
 });
 
 // Direct `withStructuredOutput`: thinking Gemini Flash-Lite (`thinkingLevel: "high"`/`"medium"`) MUST use `functionCalling`; DeepSeek uses `jsonMode` (`json_object`).
-const topicHookStrategistModels = [
-  withTimeout(googleGemini35FlashLiteT08Key1.withStructuredOutput(topicHookStrategistSchema, { name: "hook_strategist", method: "functionCalling" }), 45000),
-  withTimeout(googleGemini35FlashLiteT08Key2.withStructuredOutput(topicHookStrategistSchema, { name: "hook_strategist", method: "functionCalling" }), 45000),
+export const topicHookStrategistModels = [
+  withTimeout(googleGemini35FlashLiteT08Key1.withStructuredOutput(topicHookStrategistSchema, { name: "hook_strategist", method: "functionCalling" }), 60000),
+  withTimeout(googleGemini35FlashLiteT08Key2.withStructuredOutput(topicHookStrategistSchema, { name: "hook_strategist", method: "functionCalling" }), 60000),
   withTimeout(googleGemini31FlashLiteT08Key1.withStructuredOutput(topicHookStrategistSchema, { name: "hook_strategist", method: "functionCalling" }), 45000),
   withTimeout(googleGemini31FlashLiteT08Key2.withStructuredOutput(topicHookStrategistSchema, { name: "hook_strategist", method: "functionCalling" }), 45000),
   withTimeout(deepSeekFlashT08ReasoningNone.withStructuredOutput(topicHookStrategistSchema, { name: "hook_strategist", method: "jsonMode" }), 45000)
@@ -236,7 +236,7 @@ export const HookStrategistNode = async (state: TopicThreadFactoryStateType, con
         { role: "system", content: TOPIC_HOOK_STRATEGIST_PROMPT },
         { role: "user", content: `<DOSSIER>\n${state.research_dossier}\n</DOSSIER>${anglesContext}${deltaContext}${guidanceContext}` }
       ],
-      { ...config, timeout: 45000 }
+      { ...config, timeout: 60000 }
     );
     if (!result) parse_success = false;
   } catch (_e) {

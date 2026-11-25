@@ -193,41 +193,41 @@ const vectorHypothesizerSchema = z.object({
 });
 
 // Direct `withStructuredOutput`: `functionCalling` is safe for thinking Flash-Lite (`thinkingLevel: "medium"`) and non-thinking DeepSeek (`ReasoningNone`).
-const vectorHypothesizerModels = [
+export const vectorHypothesizerModels = [
   withTimeout(
     googleGemini35FlashLiteT02Key1.withStructuredOutput(vectorHypothesizerSchema, {
       name: "vector_hypothesizer",
       method: "functionCalling",
     }),
-    35000
+    45000
   ),
   withTimeout(
     googleGemini35FlashLiteT02Key2.withStructuredOutput(vectorHypothesizerSchema, {
       name: "vector_hypothesizer",
       method: "functionCalling",
     }),
-    35000
+    45000
   ),
   withTimeout(
     googleGemini31FlashLiteT02Key1.withStructuredOutput(vectorHypothesizerSchema, {
       name: "vector_hypothesizer",
       method: "functionCalling",
     }),
-    35000
+    45000
   ),
   withTimeout(
     googleGemini31FlashLiteT02Key2.withStructuredOutput(vectorHypothesizerSchema, {
       name: "vector_hypothesizer",
       method: "functionCalling",
     }),
-    35000
+    45000
   ),
   withTimeout(
     deepSeekFlashT02ReasoningNone.withStructuredOutput(vectorHypothesizerSchema, {
       name: "vector_hypothesizer",
       method: "functionCalling",
     }),
-    35000
+    45000
   ),
 ];
 
@@ -410,7 +410,7 @@ function createDiscoveryReasoningCascade<T extends z.ZodTypeAny>(schema: T, name
         name,
         method: "functionCalling",
       }),
-      45000
+      60000
     ),
     withTimeout(
       googleGemini38FlashT00Key1.withStructuredOutput(schema, {
@@ -424,21 +424,21 @@ function createDiscoveryReasoningCascade<T extends z.ZodTypeAny>(schema: T, name
         name,
         method: "functionCalling",
       }),
-      45000
+      60000
     ),
     withTimeout(
       googleGemini36FlashT00Key1.withStructuredOutput(schema, {
         name,
         method: "functionCalling",
       }),
-      60000
+      75000
     ),
     withTimeout(
       googleGemini36FlashT00Key2.withStructuredOutput(schema, {
         name,
         method: "functionCalling",
       }),
-      45000
+      75000
     ),
     withTimeout(
       deepSeekFlashT00ReasoningNone.withStructuredOutput(schema, {
@@ -454,7 +454,7 @@ const tensionExtractionSchema = z.object({
   extracted_tensions: z.array(ExtractedTensionSchema).min(1),
 });
 
-const tensionExtractionModels = createDiscoveryReasoningCascade(
+export const tensionExtractionModels = createDiscoveryReasoningCascade(
   tensionExtractionSchema,
   "tension_extraction"
 );
@@ -479,7 +479,7 @@ export const TensionExtractionNode = async (
         { role: "system", content: TENSION_EXTRACTION_PROMPT },
         { role: "user", content: userPrompt },
       ],
-      { ...config, timeout: 60000 }
+      { ...config, timeout: 75000 }
     );
 
     const rawData = (result && typeof result === "object" && "structuredResponse" in result)
@@ -530,7 +530,7 @@ const angleFormulatorSchema = z.object({
   research_dossier: z.string().min(1, "Must synthesize research dossier"),
 });
 
-const angleFormulatorModels = createDiscoveryReasoningCascade(
+export const angleFormulatorModels = createDiscoveryReasoningCascade(
   angleFormulatorSchema,
   "angle_formulator"
 );
@@ -553,7 +553,7 @@ export const AngleFormulatorNode = async (
           content: `<TOPIC>\n${state.topic}\n</TOPIC>\n\n<EXTRACTED_TENSIONS>\n${tensionsContext}\n</EXTRACTED_TENSIONS>${state.guidance ? `\n\n<GUIDANCE>\n${state.guidance}\n</GUIDANCE>` : ""}`,
         },
       ],
-      { ...config, timeout: 60000 }
+      { ...config, timeout: 75000 }
     );
 
     const rawData = (result && typeof result === "object" && "structuredResponse" in result)

@@ -48,9 +48,9 @@ import { runDiscoverySubgraph } from "../discovery/graph.js";
 import { extractDiscoveryTopic } from "../discovery/nodes.js";
 
 
-const scraperModels = [
-  withTimeout(googleGemini35FlashLiteT01Key1, 35000),
-  withTimeout(googleGemini35FlashLiteT01Key2, 35000),
+export const scraperModels = [
+  withTimeout(googleGemini35FlashLiteT01Key1, 45000),
+  withTimeout(googleGemini35FlashLiteT01Key2, 45000),
   withTimeout(googleGemini31FlashLiteT01Key1, 45000),
   withTimeout(googleGemini31FlashLiteT01Key2, 45000),
   withTimeout(deepSeekFlashT01ReasoningNone, 45000)
@@ -102,12 +102,12 @@ const newsResearcherSchema = z.object({
 });
 
 // Thinking Gemini Flash-Lite (`thinkingLevel: "medium"`) MUST use `toolStrategy`; DeepSeek (`response_format: { type: "json_object" }`) uses `providerStrategy`.
-const newsContextResearcherAgents = buildAgents<z.infer<typeof newsResearcherSchema>>(
+export const newsContextResearcherAgents = buildAgents<z.infer<typeof newsResearcherSchema>>(
   [
-    withTimeout(googleGemini35FlashLiteT02Key1, 45000),
-    withTimeout(googleGemini35FlashLiteT02Key2, 45000),
-    withTimeout(googleGemini31FlashLiteT02Key1, 45000),
-    withTimeout(googleGemini31FlashLiteT02Key2, 45000),
+    withTimeout(googleGemini35FlashLiteT02Key1, 60000),
+    withTimeout(googleGemini35FlashLiteT02Key2, 60000),
+    withTimeout(googleGemini31FlashLiteT02Key1, 60000),
+    withTimeout(googleGemini31FlashLiteT02Key2, 60000),
     withTimeout(deepSeekFlashT02ReasoningNone, 45000)
   ],
   {
@@ -182,10 +182,10 @@ const newsHookSchema = z.object({
 });
 
 // Thinking Gemini Flash-Lite (`thinkingLevel: "high"`/`"medium"`) MUST use `toolStrategy`; DeepSeek (`json_object`) uses `providerStrategy`.
-const newsHookStrategistAgents = buildAgents<z.infer<typeof newsHookSchema>>(
+export const newsHookStrategistAgents = buildAgents<z.infer<typeof newsHookSchema>>(
   [
-    withTimeout(googleGemini35FlashLiteT08Key1, 45000),
-    withTimeout(googleGemini35FlashLiteT08Key2, 45000),
+    withTimeout(googleGemini35FlashLiteT08Key1, 60000),
+    withTimeout(googleGemini35FlashLiteT08Key2, 60000),
     withTimeout(googleGemini31FlashLiteT08Key1, 45000),
     withTimeout(googleGemini31FlashLiteT08Key2, 45000),
     withTimeout(deepSeekFlashT08ReasoningNone, 45000)
@@ -214,7 +214,7 @@ export const HookStrategistNode = async (state: NewsThreadFactoryStateType, conf
       : "";
     result = await invokeWithFallbacks(newsHookStrategistAgents, {
       messages: [{ role: "user", content: `<SOURCE>\n${state.raw_markdown}\n</SOURCE>${researchContext}${anglesContext}${deltaContext}${guidanceContext}` }]
-    }, { ...config, timeout: 45000 });
+    }, { ...config, timeout: 60000 });
     parse_success = true;
   } catch (_e) {
     parse_success = false;

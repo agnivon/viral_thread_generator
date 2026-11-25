@@ -15,6 +15,7 @@ export const TopicThreadFactoryState = new StateSchema({
   core_hooks: z.array(z.string()).default(() => []),
   core_delta: z.string().optional(),
   thread_draft: z.array(z.string()).default(() => []),
+  previous_thread_draft: z.array(z.string()).optional(),
   virality_score: z.number().optional(),
   critique: z.string().default(""),
   post_critiques: z.array(

@@ -39,8 +39,10 @@ import {
   buildHookWriterContext,
   runCharacterValidation,
   differentialCriticSchema,
+  buildDifferentialCriticUserPrompt,
   processDifferentialEvaluation,
 } from "../utils.js";
+import { parseScraperToolResult, formatScraperUserPrompt } from "../scrapeUtils.js";
 import { extractSelectedHook } from "../nodes.js";
 import { runDiscoverySubgraph } from "../discovery/graph.js";
 import { extractDiscoveryTopic } from "../discovery/nodes.js";
@@ -59,28 +61,30 @@ export const ScraperNode = async (state: NewsThreadFactoryStateType, config?: Ru
   const scraperResultStr = isYoutube
     ? await YoutubeScraperTool.invoke({ url: state.url }, { ...config, timeout: 60000 })
     : await WebScraperTool.invoke({ url: state.url }, { ...config, timeout: 60000 });
-  let markdown = scraperResultStr;
-  let images: string[] = [];
-  try {
-    const parsed = JSON.parse(scraperResultStr);
-    markdown = parsed.markdown;
-    images = parsed.images || [];
-  } catch {
-    // Fallback if the tool returned raw string
-  }
+  const { markdown, images, title: articleTitle, description: articleDescription } =
+    parseScraperToolResult(scraperResultStr);
 
   try {
     const summary = await invokeWithFallbacks(
       scraperModels,
       [
         { role: "system", content: NEWS_SCRAPER_PROMPT },
-        { role: "user", content: markdown }
+        {
+          role: "user",
+          content: formatScraperUserPrompt({
+            url: state.url,
+            title: articleTitle,
+            description: articleDescription,
+            markdown,
+          }),
+        },
       ],
       { ...config, timeout: 60000 }
     );
     return {
       raw_markdown: extractMessageText(summary.content),
       images,
+      article_title: articleTitle || undefined,
       parse_success: true,
       retries: { ...(state.retries || {}), scraper: (state.retries?.scraper || 0) + 1 }
     };
@@ -158,7 +162,7 @@ export const ContextResearcherNode = async (state: NewsThreadFactoryStateType, c
 };
 
 export const NewsDiscoveryNode = async (state: NewsThreadFactoryStateType, config?: RunnableConfig) => {
-  const topicCandidate = extractDiscoveryTopic(state.url, state.raw_markdown, "News topic");
+  const topicCandidate = extractDiscoveryTopic(state.url, state.raw_markdown, "News topic", state.article_title);
   return await runDiscoverySubgraph({
     nodeLabel: "NewsDiscoveryNode",
     topic: topicCandidate,
@@ -361,9 +365,11 @@ export const ViralityCriticNode = async (state: NewsThreadFactoryStateType, conf
 
   if (isDifferentialMode) {
     // ── DIFFERENTIAL VERIFICATION MODE (Iteration >= 2, Pillars 2 & 3) ──
-    const priorPunchlistStr = priorActionableCritiques
-      .map((pc) => `Post ${pc.post_index}: ${pc.critique}${pc.fix_directive ? `\nFix Directive: ${pc.fix_directive}` : ""}`)
-      .join("\n\n");
+    const sourceContext = `\n\n<SOURCE_MATERIAL>\n${state.raw_markdown || ""}\n</SOURCE_MATERIAL>${
+      state.research_context
+        ? `\n\n<RESEARCH_CONTEXT>\n${state.research_context}\n</RESEARCH_CONTEXT>`
+        : ""
+    }`;
 
     let result;
     let parse_success = false;
@@ -374,7 +380,15 @@ export const ViralityCriticNode = async (state: NewsThreadFactoryStateType, conf
           messages: [
             {
               role: "user",
-              content: `<CURRENT_ITERATION_ATTEMPT>\n${state.iterations + 1}\n</CURRENT_ITERATION_ATTEMPT>\n\n<PRIOR_ISSUES_PUNCHLIST>\n${priorPunchlistStr}\n</PRIOR_ISSUES_PUNCHLIST>\n\n<THREAD>\n${JSON.stringify(state.thread_draft, null, 2)}\n</THREAD>${deltaContext}${guidanceContext}`,
+              content: buildDifferentialCriticUserPrompt({
+                iterations: state.iterations,
+                priorActionableCritiques,
+                threadDraft: state.thread_draft,
+                previousThreadDraft: state.previous_thread_draft,
+                sourceContext,
+                deltaContext,
+                guidanceContext,
+              }),
             },
           ],
         },
@@ -402,6 +416,7 @@ export const ViralityCriticNode = async (state: NewsThreadFactoryStateType, conf
 
     const evalResult = processDifferentialEvaluation({
       threadDraft: state.thread_draft,
+      previousThreadDraft: state.previous_thread_draft,
       iterations: state.iterations,
       previousScore: state.virality_score,
       bestThreadDraft: state.best_thread_draft,
@@ -413,6 +428,7 @@ export const ViralityCriticNode = async (state: NewsThreadFactoryStateType, conf
 
     return {
       ...evalResult,
+      previous_thread_draft: state.thread_draft,
       iterations: state.iterations + 1,
       retries: { ...(state.retries || {}), critic: (state.retries?.critic || 0) + 1, validator: 0 },
       parse_success: true,
@@ -490,6 +506,7 @@ export const ViralityCriticNode = async (state: NewsThreadFactoryStateType, conf
     post_critiques: nextPostCritiques,
     best_thread_draft,
     best_virality_score,
+    previous_thread_draft: state.thread_draft,
     audit_history: updatedAuditHistory,
     iterations: state.iterations + 1,
     retries: { ...(state.retries || {}), critic: (state.retries?.critic || 0) + 1, validator: 0 },

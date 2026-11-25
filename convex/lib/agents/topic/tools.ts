@@ -8,6 +8,14 @@ import "dotenv/config";
 import { JinaClient } from "../../clients/jina.js";
 import FirecrawlApp from "@mendable/firecrawl-js";
 import { validateThreadDraftContent } from "../tools.js";
+import {
+  extractJinaContent,
+  extractMarkdownImages,
+  FIRECRAWL_EXCLUDE_TAGS,
+  isBlockedOrThinScrape,
+  JINA_READER_OPTIONS,
+  sanitizeScrapedMarkdown,
+} from "../scrapeUtils.js";
 
 export const TavilySearchTool = tool(
   async ({ query, topic, days, maxResults, includeDomains, excludeDomains }) => {
@@ -50,19 +58,40 @@ import { search as ddgSearch, SafeSearchType } from "duck-duck-scrape";
 
 export const DuckDuckGoSearchTool = tool(
   async ({ query }) => {
+    let ddgErrorMessage = "";
     try {
       const response = await ddgSearch(query, {
         safeSearch: SafeSearchType.MODERATE,
       });
-      return JSON.stringify(response.results.slice(0, 5));
+      if (Array.isArray(response?.results) && response.results.length > 0) {
+        return JSON.stringify(response.results.slice(0, 5));
+      }
+      ddgErrorMessage = "DuckDuckGo returned zero results";
     } catch (e: unknown) {
-      const message = e instanceof Error ? e.message : "DuckDuckGo search failed";
-      return JSON.stringify({ error: message });
+      ddgErrorMessage = e instanceof Error ? e.message : "DuckDuckGo search failed";
+      console.warn(`[DuckDuckGoSearchTool] DDG failed ("${ddgErrorMessage}"), falling back to Tavily basic search...`);
+    }
+
+    try {
+      const client = tavily({ apiKey: process.env.TAVILY_API_KEY });
+      const fallbackResponse = await client.search(query, {
+        searchDepth: "basic",
+        maxResults: 5,
+      });
+      const normalized = (fallbackResponse.results || []).slice(0, 5).map((r) => ({
+        title: r.title || "",
+        url: r.url || "",
+        description: r.content || "",
+      }));
+      return JSON.stringify(normalized);
+    } catch (fallbackErr: unknown) {
+      const fallbackMessage = fallbackErr instanceof Error ? fallbackErr.message : "Tavily fallback failed";
+      return JSON.stringify({ error: `${ddgErrorMessage}; fallback failed: ${fallbackMessage}` });
     }
   },
   {
     name: "duckduckgo_search",
-    description: "Executes DuckDuckGo Search to discover high-volume entity metadata and breaking references.",
+    description: "Executes DuckDuckGo Search (with automatic Tavily fallback on rate limits) to discover high-volume entity metadata and breaking references.",
     schema: z.object({
       query: z.string().describe("The search query for entity discovery"),
     }),
@@ -73,27 +102,17 @@ export const JinaReaderTool = tool(
   async ({ url }) => {
     try {
       const jina = new JinaClient();
-      const response = await jina.read(url, { respondWith: 'markdown' });
+      const response = await jina.read(url, JINA_READER_OPTIONS);
+      const { markdown: rawMarkdown, title } = extractJinaContent(response);
+      const markdown = sanitizeScrapedMarkdown(rawMarkdown);
 
-      let markdown = "";
-      let title = "";
-
-      if (typeof response === 'string') {
-        markdown = response;
-      } else if (response && typeof response === 'object') {
-        const typedResponse = response;
-        const data = typedResponse.data;
-        if (data) {
-          if (typeof data === 'string') {
-            markdown = data;
-          } else {
-            markdown = data.content || data.text || "";
-            title = data.title || "";
-          }
-        }
+      if (!markdown || isBlockedOrThinScrape(markdown, title, url)) {
+        return JSON.stringify({
+          error: "Target URL blocked or returned insufficient readable article content via Jina Reader.",
+        });
       }
 
-      const images = Array.from(markdown.matchAll(/!\[.*?\]\((.*?)\)/g)).map((m) => m[1]);
+      const images = extractMarkdownImages(markdown);
 
       return JSON.stringify({
         markdown,
@@ -118,7 +137,13 @@ export const FirecrawlScrapeTool = tool(
   async ({ url }) => {
     try {
       const app = new FirecrawlApp({ apiKey: process.env.FIRECRAWL_API_KEY });
-      const response = await app.scrape(url, { formats: ["markdown", "images"] });
+      const response = await app.scrape(url, {
+        onlyMainContent: true,
+        blockAds: true,
+        removeBase64Images: true,
+        excludeTags: FIRECRAWL_EXCLUDE_TAGS,
+        formats: ["markdown", "images"],
+      });
 
       if (typeof response === "object" && response !== null) {
         const respObj = response as { success?: boolean; error?: string };
@@ -127,10 +152,21 @@ export const FirecrawlScrapeTool = tool(
         }
       }
 
-      const markdown = response.markdown || "";
+      const metadata = (response.metadata || {}) as {
+        title?: string;
+        ogTitle?: string;
+      };
+      const title = (metadata.ogTitle || metadata.title || "").trim();
+      const markdown = sanitizeScrapedMarkdown(response.markdown || "");
+      if (!markdown || isBlockedOrThinScrape(markdown, title, url)) {
+        return JSON.stringify({
+          error: "Target URL blocked or returned insufficient readable article content via Firecrawl.",
+        });
+      }
+
       let images = response.images || [];
       if (images.length === 0 && markdown) {
-        images = Array.from(markdown.matchAll(/!\[.*?\]\((.*?)\)/g)).map((m) => m[1]);
+        images = extractMarkdownImages(markdown);
       }
 
       return JSON.stringify({

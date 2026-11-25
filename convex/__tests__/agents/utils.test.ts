@@ -905,8 +905,17 @@ test("calculateMonotonicScore - guarantees Score_N >= Score_{N-1} and passes >= 
     resolvedCount: 3,
     hasNewViolations: false,
   });
-  expect(fullResolution).toBeGreaterThanOrEqual(88);
-  expect(fullResolution).toBe(88);
+  // Option A calibration: suggestedScore 75 (< 85) is respected rather than inflated to 88
+  expect(fullResolution).toBe(75);
+
+  const approvedResolution = calculateMonotonicScore({
+    previousScore: 72,
+    suggestedScore: 86,
+    totalIssues: 3,
+    resolvedCount: 3,
+    hasNewViolations: false,
+  });
+  expect(approvedResolution).toBe(88);
 
   // Case 2: Full resolution with already high previous score adds +10 floor
   const highResolution = calculateMonotonicScore({
@@ -977,7 +986,7 @@ test("reconcileSurgicalDraft - handles explicitly labeled posts and respects whi
   const result = reconcileSurgicalDraft(previousDraft, candidateDraft, [2, 3]);
 
   expect(result[0]).toBe("Hook 1");
-  expect(result[1]).toBe("Post 2: Revised Body 2");
+  expect(result[1]).toBe("Revised Body 2");
   expect(result[2]).toBe("Closer 3"); // Whitespace candidate falls back to original
 });
 
@@ -1077,7 +1086,7 @@ test("processDifferentialEvaluation - enforces Closed-World invariant and drops 
         // Disallowed subjective violation type:
         { post_index: 2, violation_type: "tone", critique: "Tone is too informal" },
       ],
-      suggested_score: 82,
+      suggested_score: 88,
     },
   });
 
@@ -1101,7 +1110,7 @@ test("reconcileSurgicalDraft - handles mixed labeled and unlabeled candidate pos
   expect(result[0]).toBe("Post 1 (Hook)");
   expect(result[1]).toBe("New Body 1 rewrite");
   expect(result[2]).toBe("Post 3 (Body 2)");
-  expect(result[3]).toBe("Post 4: New Closer/Body 3");
+  expect(result[3]).toBe("New Closer/Body 3");
   expect(result[4]).toBe("Post 5 (Closer)");
 });
 

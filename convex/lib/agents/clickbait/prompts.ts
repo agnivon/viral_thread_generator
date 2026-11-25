@@ -1,6 +1,10 @@
 "use node";
 
-export const CLICKBAIT_SCRAPER_PROMPT = `
+export const CLICKBAIT_SCRAPER_PROMPT = `[SCOPE & ANTI-POLLUTION RULES]
+You will receive a <TARGET_URL>, optional <ARTICLE_TITLE>/<ARTICLE_DESCRIPTION>, and <SCRAPED_MARKDOWN>.
+ANCHOR STRICTLY ON <TARGET_URL> AND <ARTICLE_TITLE>: Extract ONLY the primary story matching that URL/title. Ignore portal sidebars, "Trending Now", "Related Stories", newsletter popups, and unrelated news ticker items. Never substitute sidebar stories if the target article is blocked or missing.
+
+
 You are an elite, predatory Attention & Information Asymmetry Extraction Agent running at temperature 0.1 with deep deliberative reasoning. Your sole objective is to mine raw webpage markdown for the highest-arousal, most sensational, and most psychologically provocative material possible. You do not summarize politely. You hunt for the hidden bombshells, the catastrophic mistakes, the buried admissions, and the extreme numerical disparities that make humans stop scrolling.
 
 Extract and organize information from the provided text into the following strict structure:
@@ -146,7 +150,7 @@ ANTI-AI & PROSE DISCIPLINE
 
 ### SURGICAL REWRITES:
 If you receive <CRITIQUE_TO_ADDRESS> or <POST_SPECIFIC_CRITIQUES> and a <PREVIOUS_THREAD_DRAFT>, you are repairing an existing draft:
-- Repair ONLY the flagged post indices. Keep the rest identical.
+- Repair ONLY the flagged post indices and return the complete 'thread_draft' array matching the full thread length, keeping unflagged posts verbatim and omitting any "Post N:" prefix labels inside post strings.
 - Post index in critiques starts at 1 (Post 1 = Hook).
 - **Hook Override:** If Post 1 is flagged in <POST_SPECIFIC_CRITIQUES>, <CHARACTER_AND_FORMATTING_CONSTRAINTS_FAILED>, or <HOOK_OVERRIDE_REQUIRED>, rewrite Post 1 directly per the fix directive rather than preserving the original <SELECTED_HOOK>.
 
@@ -218,12 +222,18 @@ Evaluate every item in <PRIOR_ISSUES_PUNCHLIST> honestly:
 - 'resolved': Only mark 'resolved' if the rewritten post genuinely fixes the exact prior defect while preserving the thread's curiosity gap and payoff integrity.
 - 'unresolved': Mark 'unresolved' if the flaw remains, was only cosmetically altered, or regressed tension.
 
-Also scan all posts for new mechanical violations only ('violation_type' in: "url", "em_dash", "asterisk", "formatting", "character_limit", "banned_phrase"). A score >= 85 passes.
+STRICT CLOSED-WORLD RULE ON UNCHANGED POSTS: Do NOT raise subjective style nitpicks on unflagged posts that stayed unchanged from <PREVIOUS_THREAD_DRAFT>.
+
+NEW VIOLATIONS EXCEPTION: Report entries in 'new_violations' ONLY for:
+- Mechanical/platform violations on ANY post: "url", "em_dash", "asterisk", "formatting", "character_limit", "banned_phrase".
+- Duplication or factual regressions on ANY post: "duplicate_post" (post clones or heavily overlaps another post), "repetition" (repetitive beat), or "factual_error" (new claim contradicts <SOURCE_MATERIAL> or invents ungrounded facts).
+- Edited-post regressions (on <MODIFIED_POST_INDICES> or prior flagged posts): "coherence_break" or "ai_tell".
+Only suggest a score >= 85 if ALL prior issues are resolved AND zero regressions remain AND the revised thread hits clickbait standards.
 
 REQUIRED JSON FORMAT SPECIFICATION:
 Return a raw JSON object (no markdown wrappers) matching this exact structure:
 {
-  "overall_critique": "Differential evaluation summarizing resolved fixes, remaining gaps, and retention impact.",
+  "overall_critique": "Differential evaluation summarizing resolved fixes, grounding against source facts, remaining gaps, and retention impact.",
   "issue_evaluations": [
     {
       "post_index": 2,
@@ -236,7 +246,8 @@ Return a raw JSON object (no markdown wrappers) matching this exact structure:
     {
       "post_index": 3,
       "violation_type": "em_dash",
-      "critique": "Specific violation details."
+      "critique": "Specific violation details.",
+      "fix_directive": "Exact instruction telling the writer how to fix it."
     }
   ],
   "suggested_score": 85

@@ -6,48 +6,102 @@ import FirecrawlApp from "@mendable/firecrawl-js";
 import { tavily } from "@tavily/core";
 import "dotenv/config";
 import { JinaClient } from "../../clients/jina.js";
+import { isAccessDeniedOrGenericTitle } from "../../urlMetadata.js";
 import { YoutubeTranscript } from "youtube-transcript-plus";
+import {
+  extractJinaContent,
+  extractMarkdownImages,
+  FIRECRAWL_EXCLUDE_TAGS,
+  isBlockedOrThinScrape,
+  JINA_READER_OPTIONS,
+  sanitizeScrapedMarkdown,
+} from "../scrapeUtils.js";
 
 // 1. WebScraperTool (Firecrawl API)
 export const WebScraperTool = tool(
   async ({ url }) => {
+    let firecrawlMarkdown = "";
+    let firecrawlImages: string[] = [];
+    let title = "";
+    let safeFirecrawlTitle = "";
+    let description = "";
+    let firecrawlThrew = false;
+
     try {
       const app = new FirecrawlApp({ apiKey: process.env.FIRECRAWL_API_KEY });
-      const scrapeResult = await app.scrape(url, { onlyMainContent: true, maxAge: 172800000, formats: ["markdown", "images"] });
+      const scrapeResult = await app.scrape(url, {
+        onlyMainContent: true,
+        blockAds: true,
+        removeBase64Images: true,
+        excludeTags: FIRECRAWL_EXCLUDE_TAGS,
+        maxAge: 172800000,
+        formats: ["markdown", "images"],
+      });
 
-      const markdown = scrapeResult.markdown || "No content found.";
-      let images = scrapeResult.images || [];
-      if (images.length === 0 && markdown !== "No content found.") {
-        images = Array.from(markdown.matchAll(/!\[.*?\]\((.*?)\)/g)).map((m) => m[1]);
+      const metadata = (scrapeResult.metadata || {}) as {
+        title?: string;
+        ogTitle?: string;
+        description?: string;
+        ogDescription?: string;
+      };
+      title = (metadata.ogTitle || metadata.title || "").trim();
+      safeFirecrawlTitle = title && !isAccessDeniedOrGenericTitle(title, url) ? title : "";
+      description = (metadata.ogDescription || metadata.description || "").trim();
+      firecrawlMarkdown = sanitizeScrapedMarkdown(scrapeResult.markdown || "");
+      firecrawlImages = scrapeResult.images || [];
+      if (firecrawlImages.length === 0 && firecrawlMarkdown) {
+        firecrawlImages = extractMarkdownImages(firecrawlMarkdown);
       }
-      return JSON.stringify({ markdown, images });
-      } catch (_e) {
+
+      if (firecrawlMarkdown && !isBlockedOrThinScrape(firecrawlMarkdown, title, url)) {
+        return JSON.stringify({
+          markdown: firecrawlMarkdown,
+          images: firecrawlImages,
+          ...(safeFirecrawlTitle ? { title: safeFirecrawlTitle } : {}),
+          ...(description ? { description } : {}),
+        });
+      }
+
+      console.warn(
+        `[WebScraperTool] Firecrawl returned blocked or thin content for ${url}, falling back to Jina Reader...`
+      );
+    } catch (_e) {
+      firecrawlThrew = true;
       console.warn(`[WebScraperTool] Firecrawl failed for ${url}, falling back to Jina Reader...`);
-      try {
-        const jina = new JinaClient();
-        const jinaResult = await jina.read(url, { respondWith: 'markdown' });
-        
-        let markdown = "No content found.";
-        if (typeof jinaResult === 'string') {
-          markdown = jinaResult;
-        } else if (jinaResult && typeof jinaResult === 'object' && jinaResult !== null) {
-          const typedResponse = jinaResult;
-          if (typedResponse.data) {
-            if (typeof typedResponse.data === 'string') {
-              markdown = typedResponse.data;
-            } else {
-              markdown = typedResponse.data.content || typedResponse.data.text || markdown;
-            }
-          }
-        }
-        
-        const images = Array.from(markdown.matchAll(/!\[.*?\]\((.*?)\)/g)).map((m) => m[1]);
-        return JSON.stringify({ markdown, images });
-      } catch (fallbackErr) {
+    }
+
+    try {
+      const jina = new JinaClient();
+      const jinaResult = await jina.read(url, JINA_READER_OPTIONS);
+      const { markdown: rawJinaMarkdown, title: jinaTitle } = extractJinaContent(jinaResult);
+      const jinaMarkdown = sanitizeScrapedMarkdown(rawJinaMarkdown);
+      const safeJinaTitle = jinaTitle && !isAccessDeniedOrGenericTitle(jinaTitle, url) ? jinaTitle : "";
+      const resolvedTitle = safeJinaTitle || safeFirecrawlTitle;
+
+      if (jinaMarkdown && (!isBlockedOrThinScrape(jinaMarkdown, resolvedTitle, url) || firecrawlThrew || !firecrawlMarkdown)) {
+        const images = extractMarkdownImages(jinaMarkdown);
+        return JSON.stringify({
+          markdown: jinaMarkdown,
+          images: images.length > 0 ? images : firecrawlImages,
+          ...(resolvedTitle ? { title: resolvedTitle } : {}),
+          ...(description ? { description } : {}),
+        });
+      }
+    } catch (fallbackErr) {
+      if (firecrawlThrew || !firecrawlMarkdown) {
         console.error(`[WebScraperTool] Jina Reader fallback failed for ${url}`, fallbackErr);
         throw fallbackErr;
       }
+      console.warn(`[WebScraperTool] Jina Reader fallback failed for ${url}; returning sanitized Firecrawl output.`);
     }
+
+    const markdown = firecrawlMarkdown || "No content found.";
+    return JSON.stringify({
+      markdown,
+      images: firecrawlImages,
+      ...(safeFirecrawlTitle ? { title: safeFirecrawlTitle } : {}),
+      ...(description ? { description } : {}),
+    });
   },
   {
     name: "web_scraper",

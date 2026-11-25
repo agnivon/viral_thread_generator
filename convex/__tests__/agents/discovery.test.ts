@@ -170,7 +170,7 @@ describe("Discovery Agent - Node Execution", () => {
 
     expect(result.parse_success).toBe(false);
     expect(result.search_vectors).toHaveLength(5);
-    expect(result.search_vectors[0].vector).toBe("bom_paradox");
+    expect(result.search_vectors[0].vector).toBe("structural_dependencies");
     expect(result.search_vectors[0].queries[0]).toContain("Tesla Cybercab");
     expect(result.retries?.hypothesizer).toBe(1);
   });

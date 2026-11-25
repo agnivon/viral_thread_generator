@@ -42,6 +42,7 @@ import {
   buildHookWriterContext,
   runCharacterValidation,
   differentialCriticSchema,
+  buildDifferentialCriticUserPrompt,
   processDifferentialEvaluation,
 } from "../utils.js";
 import { extractSelectedHook } from "../nodes.js";
@@ -372,10 +373,6 @@ export const ViralityCriticNode = async (state: TopicThreadFactoryStateType, con
 
   if (isDifferentialMode) {
     // ── DIFFERENTIAL VERIFICATION MODE (Iteration >= 2, Pillars 2 & 3) ──
-    const priorPunchlistStr = priorActionableCritiques
-      .map((pc) => `Post ${pc.post_index}: ${pc.critique}${pc.fix_directive ? `\nFix Directive: ${pc.fix_directive}` : ""}`)
-      .join("\n\n");
-
     let result;
     let parse_success = false;
     try {
@@ -385,7 +382,15 @@ export const ViralityCriticNode = async (state: TopicThreadFactoryStateType, con
           messages: [
             {
               role: "user",
-              content: `<CURRENT_ITERATION_ATTEMPT>\n${state.iterations + 1}\n</CURRENT_ITERATION_ATTEMPT>\n\n<PRIOR_ISSUES_PUNCHLIST>\n${priorPunchlistStr}\n</PRIOR_ISSUES_PUNCHLIST>\n\n<THREAD>\n${JSON.stringify(state.thread_draft, null, 2)}\n</THREAD>${deltaContext}${guidanceContext}`,
+              content: buildDifferentialCriticUserPrompt({
+                iterations: state.iterations,
+                priorActionableCritiques,
+                threadDraft: state.thread_draft,
+                previousThreadDraft: state.previous_thread_draft,
+                sourceContext: dossierContext,
+                deltaContext,
+                guidanceContext,
+              }),
             },
           ],
         },
@@ -413,6 +418,7 @@ export const ViralityCriticNode = async (state: TopicThreadFactoryStateType, con
 
     const evalResult = processDifferentialEvaluation({
       threadDraft: state.thread_draft,
+      previousThreadDraft: state.previous_thread_draft,
       iterations: state.iterations,
       previousScore: state.virality_score,
       bestThreadDraft: state.best_thread_draft,
@@ -424,6 +430,7 @@ export const ViralityCriticNode = async (state: TopicThreadFactoryStateType, con
 
     return {
       ...evalResult,
+      previous_thread_draft: state.thread_draft,
       iterations: state.iterations + 1,
       retries: { ...(state.retries || {}), critic: (state.retries?.critic || 0) + 1, validator: 0 },
       parse_success: true,
@@ -499,6 +506,7 @@ export const ViralityCriticNode = async (state: TopicThreadFactoryStateType, con
     post_critiques: nextPostCritiques,
     best_thread_draft,
     best_virality_score,
+    previous_thread_draft: state.thread_draft,
     audit_history: updatedAuditHistory,
     iterations: state.iterations + 1,
     retries: { ...(state.retries || {}), critic: (state.retries?.critic || 0) + 1, validator: 0 },

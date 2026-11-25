@@ -42,8 +42,10 @@ import {
   buildHookWriterContext,
   runCharacterValidation,
   differentialCriticSchema,
+  buildDifferentialCriticUserPrompt,
   processDifferentialEvaluation,
 } from "../utils.js";
+import { parseScraperToolResult, formatScraperUserPrompt } from "../scrapeUtils.js";
 import { extractSelectedHook } from "../nodes.js";
 import { extractDiscoveryTopic } from "../discovery/nodes.js";
 import { runDiscoverySubgraph } from "../discovery/graph.js";
@@ -66,28 +68,30 @@ export const ClickbaitScraperNode = async (
   const scraperResultStr = isYoutube
     ? await YoutubeScraperTool.invoke({ url: state.url }, { ...config, timeout: 60000 })
     : await WebScraperTool.invoke({ url: state.url }, { ...config, timeout: 60000 });
-  let markdown = scraperResultStr;
-  let images: string[] = [];
-  try {
-    const parsed = JSON.parse(scraperResultStr);
-    markdown = parsed.markdown;
-    images = parsed.images || [];
-  } catch {
-    // Fallback if the tool returned raw string
-  }
+  const { markdown, images, title: articleTitle, description: articleDescription } =
+    parseScraperToolResult(scraperResultStr);
 
   try {
     const summary = await invokeWithFallbacks(
       clickbaitScraperModels,
       [
         { role: "system", content: CLICKBAIT_SCRAPER_PROMPT },
-        { role: "user", content: markdown },
+        {
+          role: "user",
+          content: formatScraperUserPrompt({
+            url: state.url,
+            title: articleTitle,
+            description: articleDescription,
+            markdown,
+          }),
+        },
       ],
       { ...config, timeout: 60000 }
     );
     return {
       raw_markdown: extractMessageText(summary.content),
       images,
+      article_title: articleTitle || undefined,
       parse_success: true,
       retries: { ...(state.retries || {}), scraper: (state.retries?.scraper || 0) + 1 },
     };
@@ -104,7 +108,7 @@ export const ClickbaitDiscoveryNode = async (
   state: ClickbaitThreadFactoryStateType,
   config?: RunnableConfig
 ) => {
-  const topicCandidate = extractDiscoveryTopic(state.url, state.raw_markdown, "Viral story");
+  const topicCandidate = extractDiscoveryTopic(state.url, state.raw_markdown, "Viral story", state.article_title);
   const result = await runDiscoverySubgraph({
     nodeLabel: "ClickbaitDiscoveryNode",
     topic: topicCandidate,
@@ -438,14 +442,11 @@ export const ClickbaitViralityCriticNode = async (
   const isDifferentialMode = state.iterations >= 1 && priorActionableCritiques.length > 0;
 
   if (isDifferentialMode) {
-    const priorPunchlistStr = priorActionableCritiques
-      .map(
-        (pc) =>
-          `Post ${pc.post_index}: ${pc.critique}${
-            pc.fix_directive ? `\nFix Directive: ${pc.fix_directive}` : ""
-          }`
-      )
-      .join("\n\n");
+    const sourceContext = `\n\n<SOURCE_MATERIAL>\n${state.raw_markdown || ""}\n</SOURCE_MATERIAL>${
+      state.research_context
+        ? `\n\n<RESEARCH_CONTEXT>\n${state.research_context}\n</RESEARCH_CONTEXT>`
+        : ""
+    }`;
 
     let result;
     let parse_success = false;
@@ -456,13 +457,16 @@ export const ClickbaitViralityCriticNode = async (
           messages: [
             {
               role: "user",
-              content: `<CURRENT_ITERATION_ATTEMPT>\n${
-                state.iterations + 1
-              }\n</CURRENT_ITERATION_ATTEMPT>\n\n<PRIOR_ISSUES_PUNCHLIST>\n${priorPunchlistStr}\n</PRIOR_ISSUES_PUNCHLIST>\n\n<THREAD>\n${JSON.stringify(
-                state.thread_draft,
-                null,
-                2
-              )}\n</THREAD>${angleContext}${deltaContext}${guidanceContext}`,
+              content: buildDifferentialCriticUserPrompt({
+                iterations: state.iterations,
+                priorActionableCritiques,
+                threadDraft: state.thread_draft,
+                previousThreadDraft: state.previous_thread_draft,
+                sourceContext,
+                extraContext: angleContext,
+                deltaContext,
+                guidanceContext,
+              }),
             },
           ],
         },
@@ -490,6 +494,7 @@ export const ClickbaitViralityCriticNode = async (
 
     const evalResult = processDifferentialEvaluation({
       threadDraft: state.thread_draft,
+      previousThreadDraft: state.previous_thread_draft,
       iterations: state.iterations,
       previousScore: state.virality_score,
       bestThreadDraft: state.best_thread_draft,
@@ -501,6 +506,7 @@ export const ClickbaitViralityCriticNode = async (
 
     return {
       ...evalResult,
+      previous_thread_draft: state.thread_draft,
       iterations: state.iterations + 1,
       retries: {
         ...(state.retries || {}),
@@ -590,6 +596,7 @@ export const ClickbaitViralityCriticNode = async (
     post_critiques: nextPostCritiques,
     best_thread_draft,
     best_virality_score,
+    previous_thread_draft: state.thread_draft,
     audit_history: updatedAuditHistory,
     iterations: state.iterations + 1,
     retries: {

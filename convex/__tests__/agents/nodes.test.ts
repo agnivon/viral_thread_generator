@@ -843,7 +843,7 @@ test("News ViralityCriticNode - differential verification mode marks issues reso
         },
       ],
       new_violations: [],
-      suggested_score: 82,
+      suggested_score: 88,
     },
   });
 

@@ -106,6 +106,8 @@ test("generateNewsThread action runs graph and saves result", async () => {
     discovery_agent: false,
     discovery_angles: undefined,
     research_context: "",
+    article_title: undefined,
+    previous_thread_draft: undefined,
     best_thread_draft: undefined,
     best_virality_score: 90,
     audit_history: [],
@@ -211,6 +213,8 @@ test("resumeNewsThreadGeneration action resumes graph and saves result", async (
     discovery_agent: false,
     discovery_angles: undefined,
     research_context: "",
+    article_title: undefined,
+    previous_thread_draft: undefined,
     best_thread_draft: undefined,
     best_virality_score: 95,
     audit_history: [],
@@ -1188,6 +1192,8 @@ test("iterateThreadInternal updates state on ManualHookSelectionNode and execute
     discovery_agent: false,
     discovery_angles: undefined,
     research_context: "",
+    article_title: undefined,
+    previous_thread_draft: undefined,
     best_thread_draft: undefined,
     best_virality_score: 92,
     audit_history: [],
@@ -1288,6 +1294,8 @@ test("handleGraphCompletion restores best_thread_draft and synchronizes approval
     discovery_agent: false,
     discovery_angles: undefined,
     research_context: "",
+    article_title: undefined,
+    previous_thread_draft: undefined,
     audit_history: [
       { iteration: 1, virality_score: 91, post_critiques: [] },
       {
@@ -1362,6 +1370,8 @@ test("handleGraphCompletion filters out resolved critiques when restoring unappr
     discovery_agent: false,
     discovery_angles: undefined,
     research_context: "",
+    article_title: undefined,
+    previous_thread_draft: undefined,
     audit_history: [
       {
         iteration: 1,
@@ -1624,6 +1634,8 @@ test("handleGraphCompletion re-renders infographic PNG when infographic_spec upd
     discovery_agent: false,
     discovery_angles: undefined,
     research_context: "",
+    article_title: undefined,
+    previous_thread_draft: undefined,
     best_thread_draft: undefined,
     best_virality_score: 93,
     audit_history: [],

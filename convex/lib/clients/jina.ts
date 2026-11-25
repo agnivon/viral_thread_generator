@@ -139,29 +139,45 @@ export class JinaClient {
     }
 
     const url = new URL(endpoint, baseUrl).toString();
+    const optionTimeoutSec = (payload as { timeout?: unknown }).timeout;
+    const timeoutMs =
+      typeof optionTimeoutSec === "number" && Number.isFinite(optionTimeoutSec) && optionTimeoutSec > 0
+        ? Math.min(180000, optionTimeoutSec * 1000 + 5000)
+        : 25000;
 
-    const response = await fetch(url, {
-      method,
-      headers,
-      body: JSON.stringify(payload),
-    });
+    const controller = new AbortController();
+    const timer = setTimeout(() => {
+      controller.abort(new Error(`Jina API request timed out after ${timeoutMs}ms`));
+    }, timeoutMs);
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Jina API Error (${response.status}): ${errorText}`);
+    let response: Response;
+    try {
+      response = await fetch(url, {
+        method,
+        headers,
+        body: JSON.stringify(payload),
+        signal: controller.signal,
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Jina API Error (${response.status}): ${errorText}`);
+      }
+
+      // Usually Jina returns JSON when Accept is application/json.
+      // However, if it returns plain text markdown (e.g. when simply asking for markdown),
+      // it depends on how the Jina API responds based on headers.
+      // Because we use Accept: application/json, Jina returns a structured JSON wrapper.
+      const contentType = response.headers.get('content-type') || '';
+      if (contentType.includes('application/json')) {
+        return await response.json();
+      }
+
+      // Fallback if not JSON
+      return (await response.text()) as unknown as T;
+    } finally {
+      clearTimeout(timer);
     }
-
-    // Usually Jina returns JSON when Accept is application/json.
-    // However, if it returns plain text markdown (e.g. when simply asking for markdown), 
-    // it depends on how the Jina API responds based on headers.
-    // Because we use Accept: application/json, Jina returns a structured JSON wrapper.
-    const contentType = response.headers.get('content-type') || '';
-    if (contentType.includes('application/json')) {
-      return await response.json();
-    }
-    
-    // Fallback if not JSON
-    return (await response.text()) as unknown as T;
   }
 
   /**

@@ -901,16 +901,45 @@ export const differentialCriticSchema = z.object({
     z.object({
       post_index: z.number(),
       violation_type: z.union([
-        z.enum(["url", "em_dash", "asterisk", "formatting", "character_limit", "banned_phrase"]),
+        z.enum([
+          "url",
+          "em_dash",
+          "asterisk",
+          "formatting",
+          "character_limit",
+          "banned_phrase",
+          "duplicate_post",
+          "factual_error",
+          "repetition",
+          "coherence_break",
+          "ai_tell",
+        ]),
         z.string(),
       ]),
       critique: z.string(),
+      fix_directive: z.string().optional(),
     })
   ).default([]),
   suggested_score: z.number(),
 });
 
 export type DifferentialCriticResponse = z.infer<typeof differentialCriticSchema>;
+
+const EXPLICIT_POST_PREFIX_STRIP_REGEX = /^\[?Post\s+\d+\]?\s*[:-]\s*/i;
+
+function stripSyntheticPostPrefix(
+  candidatePost: string,
+  originalPost: string | undefined
+): string {
+  if (!EXPLICIT_POST_PREFIX_STRIP_REGEX.test(candidatePost)) {
+    return candidatePost;
+  }
+  if (originalPost && EXPLICIT_POST_PREFIX_STRIP_REGEX.test(originalPost)) {
+    return candidatePost;
+  }
+  const stripped = candidatePost.replace(EXPLICIT_POST_PREFIX_STRIP_REGEX, "").trim();
+  return stripped.length > 0 ? stripped : candidatePost;
+}
 
 /**
  * Surgically reconciles a revised draft with the previous draft based on flagged post indices.
@@ -944,7 +973,9 @@ export function reconcileSurgicalDraft(
 
   // If every single post is flagged and candidate draft covers the length, accept candidate
   if (validFlagged.length === previousDraft.length && candidateDraft.length >= previousDraft.length) {
-    return candidateDraft;
+    return candidateDraft.map((cand, i) =>
+      typeof cand === "string" ? stripSyntheticPostPrefix(cand, previousDraft[i]) : cand
+    );
   }
 
   const flaggedSet = new Set(validFlagged);
@@ -960,7 +991,10 @@ export function reconcileSurgicalDraft(
       if (match) {
         const postIdx = parseInt(match[1], 10);
         if (flaggedSet.has(postIdx) && !flagToCandidateMap.has(postIdx)) {
-          flagToCandidateMap.set(postIdx, cand);
+          flagToCandidateMap.set(
+            postIdx,
+            stripSyntheticPostPrefix(cand, previousDraft[postIdx - 1])
+          );
           explicitlyLabeledIndices.add(postIdx);
           consumedCandidateIndices.add(candIdx);
         }
@@ -971,22 +1005,32 @@ export function reconcileSurgicalDraft(
   const remainingFlagged = sortedFlagged.filter((idx) => !explicitlyLabeledIndices.has(idx));
 
   if (remainingFlagged.length > 0) {
-    if (candidateDraft.length === previousDraft.length) {
-      // Model returned a full thread array; map by 1-based post_index
-      remainingFlagged.forEach((postIdx) => {
-        const candidateAtPos = candidateDraft[postIdx - 1];
-        if (candidateAtPos?.trim()) {
-          flagToCandidateMap.set(postIdx, candidateAtPos);
-        }
-      });
-    } else {
-      // Model returned revised posts only.
-      // Map remaining unconsumed candidates in order to remaining flagged indices.
-      const unconsumedCandidates = candidateDraft.filter((_, candIdx) => !consumedCandidateIndices.has(candIdx));
+    const unconsumedCandidates = candidateDraft.filter((_, candIdx) => !consumedCandidateIndices.has(candIdx));
+    const isRevisedOnlyShape =
+      unconsumedCandidates.length === remainingFlagged.length &&
+      candidateDraft.length < previousDraft.length;
+
+    if (isRevisedOnlyShape) {
+      // Model returned revised posts only, exact count matching remaining flagged indices.
       remainingFlagged.forEach((postIdx, k) => {
         const candidateAtPos = unconsumedCandidates[k];
         if (candidateAtPos?.trim()) {
-          flagToCandidateMap.set(postIdx, candidateAtPos);
+          flagToCandidateMap.set(
+            postIdx,
+            stripSyntheticPostPrefix(candidateAtPos, previousDraft[postIdx - 1])
+          );
+        }
+      });
+    } else {
+      // Model returned a full or near-full thread array; map by 1-based post_index
+      // so candidateDraft[0] (Post 1 / Hook) never shifts onto Post 2 when length differs.
+      remainingFlagged.forEach((postIdx) => {
+        const candidateAtPos = candidateDraft[postIdx - 1];
+        if (candidateAtPos?.trim()) {
+          flagToCandidateMap.set(
+            postIdx,
+            stripSyntheticPostPrefix(candidateAtPos, previousDraft[postIdx - 1])
+          );
         }
       });
     }
@@ -1012,9 +1056,9 @@ export interface CalculateMonotonicScoreOptions {
 
 /**
  * Calculates a monotonic score invariant enforcing Pillar 3:
- * Score_{N} = min(100, max(Score_{N-1}, RawScore_N) + sum_{j in Resolved} Delta_j)
- * Guarantees Score_{N} >= Score_{N-1}.
- * If all prior issues are resolved and zero platform penalties exist, score is guaranteed >= 88.
+ * - Guarantees Score_{N} >= Score_{N-1}.
+ * - Requires all prior issues resolved, zero violations, AND suggestedScore >= 85
+ *   (when provided) before granting a >= 88 pass score, preventing synthetic score inflation.
  */
 export function calculateMonotonicScore(options: CalculateMonotonicScoreOptions): number {
   const {
@@ -1046,10 +1090,15 @@ export function calculateMonotonicScore(options: CalculateMonotonicScoreOptions)
 
   let calculatedScore: number;
   if (isFullResolution) {
-    // Guaranteed pass floor (>= 88) when all prior issues are resolved with zero violations
-    calculatedScore = Math.max(safePrev + 10, 88);
-    if (safeSuggested !== undefined) {
-      calculatedScore = Math.max(calculatedScore, safeSuggested);
+    if (safeSuggested !== undefined && safeSuggested < 85) {
+      // Do NOT snap an explicitly low critic score (< 85) across the 85-point pass line.
+      calculatedScore = Math.min(84, Math.max(safePrev, safeSuggested));
+    } else {
+      // Passing floor (>= 88) when all prior issues are resolved with zero violations and critic concurs (>= 85)
+      calculatedScore = Math.max(safePrev + 10, 88);
+      if (safeSuggested !== undefined) {
+        calculatedScore = Math.max(calculatedScore, safeSuggested);
+      }
     }
   } else {
     // Proportional progress credit based on fraction of resolved issues
@@ -1129,7 +1178,7 @@ export function buildSurgicalWriterContext(
     "\n\n<PINNED_POSTS>\n" +
     "The following posts are PINNED and already approved. Do NOT alter or rephrase them:\n" +
     pinnedLines.join("\n\n") +
-    `\n\nSURGICAL REWRITE DIRECTIVE: You must revise ONLY the flagged posts (Post ${sortedFlagged.join(", ")}). Keep all unflagged posts identical.\n` +
+    `\n\nSURGICAL REWRITE DIRECTIVE: You must revise ONLY the flagged posts (Post ${sortedFlagged.join(", ")}). Output the complete ${previousDraft.length}-post thread_draft array keeping all unflagged posts verbatim at their original positions, with no "Post N:" prefix labels inside the strings.\n` +
     "</PINNED_POSTS>";
 
   return {
@@ -1277,8 +1326,242 @@ export function buildWriterRevisionContext(params: {
   };
 }
 
+export interface BuildDifferentialCriticPromptOptions {
+  iterations: number;
+  priorActionableCritiques: ActionablePostCritique[];
+  threadDraft: string[];
+  previousThreadDraft?: string[];
+  sourceContext?: string;
+  extraContext?: string;
+  deltaContext?: string;
+  guidanceContext?: string;
+}
+
+/**
+ * Formats the user prompt payload for Differential Critic Mode (Iteration >= 2)
+ * with source/dossier grounding and modified-post indicators.
+ */
+export function buildDifferentialCriticUserPrompt({
+  iterations,
+  priorActionableCritiques,
+  threadDraft,
+  previousThreadDraft,
+  sourceContext = "",
+  extraContext = "",
+  deltaContext = "",
+  guidanceContext = "",
+}: BuildDifferentialCriticPromptOptions): string {
+  const priorPunchlistStr = priorActionableCritiques
+    .map(
+      (pc) =>
+        `Post ${pc.post_index}: ${pc.critique}${
+          pc.fix_directive ? `\nFix Directive: ${pc.fix_directive}` : ""
+        }`
+    )
+    .join("\n\n");
+
+  const modifiedIndices: number[] = [];
+  if (Array.isArray(previousThreadDraft) && previousThreadDraft.length > 0) {
+    const maxLen = Math.max(previousThreadDraft.length, threadDraft.length);
+    for (let i = 0; i < maxLen; i++) {
+      if (previousThreadDraft[i] !== threadDraft[i]) {
+        modifiedIndices.push(i + 1);
+      }
+    }
+  }
+
+  const prevDraftBlock =
+    Array.isArray(previousThreadDraft) && previousThreadDraft.length > 0
+      ? `\n\n<PREVIOUS_THREAD_DRAFT>\n${JSON.stringify(previousThreadDraft, null, 2)}\n</PREVIOUS_THREAD_DRAFT>`
+      : "";
+
+  const modifiedBlock =
+    modifiedIndices.length > 0
+      ? `\n\n<MODIFIED_POST_INDICES>\n${modifiedIndices.map((idx) => `Post ${idx}`).join(", ")}\n</MODIFIED_POST_INDICES>`
+      : "";
+
+  return `<CURRENT_ITERATION_ATTEMPT>\n${iterations + 1}\n</CURRENT_ITERATION_ATTEMPT>${sourceContext}${extraContext}${deltaContext}\n\n<PRIOR_ISSUES_PUNCHLIST>\n${priorPunchlistStr}\n</PRIOR_ISSUES_PUNCHLIST>${prevDraftBlock}${modifiedBlock}\n\n<THREAD>\n${JSON.stringify(threadDraft, null, 2)}\n</THREAD>${guidanceContext}`;
+}
+
+const MECHANICAL_VIOLATION_TYPES = new Set([
+  "url",
+  "em_dash",
+  "asterisk",
+  "character_limit",
+  "formatting",
+  "banned_phrase",
+]);
+
+const THREAD_WIDE_SEMANTIC_VIOLATIONS = new Set([
+  "factual_error",
+  "repetition",
+]);
+
+const EDIT_SCOPED_SEMANTIC_VIOLATIONS = new Set([
+  "coherence_break",
+  "ai_tell",
+]);
+
+function normalizePostForSimilarity(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[^\w\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function buildTokenAndBigramSets(normalizedText: string): {
+  tokens: string[];
+  tokenSet: Set<string>;
+  bigrams: Set<string>;
+} {
+  const tokens = normalizedText.split(" ").filter(Boolean);
+  const tokenSet = new Set(tokens);
+  const bigrams = new Set<string>();
+  for (let i = 0; i < tokens.length - 1; i++) {
+    bigrams.add(`${tokens[i]}::${tokens[i + 1]}`);
+  }
+  return { tokens, tokenSet, bigrams };
+}
+
+function computeJaccard(a: Set<string>, b: Set<string>): number {
+  if (a.size === 0 || b.size === 0) return 0;
+  let intersection = 0;
+  for (const item of a) {
+    if (b.has(item)) intersection++;
+  }
+  const union = a.size + b.size - intersection;
+  return union === 0 ? 0 : intersection / union;
+}
+
+export function verifyMechanicalViolation(postText: string, violationType: string): boolean {
+  const vType = violationType.toLowerCase().trim();
+  if (vType === "url") {
+    return /(https?:\/\/[^\s]+|www\.[^\s]+)/i.test(postText);
+  }
+  if (vType === "em_dash") {
+    return /(\u2014|\u2013|--)/.test(postText);
+  }
+  if (vType === "asterisk") {
+    return /\*/.test(postText);
+  }
+  if (vType === "character_limit") {
+    return postText.length > 500;
+  }
+  if (vType === "formatting") {
+    const lineBreaks = (postText.match(/\n/g) || []).length;
+    const hasMarkdown = /(__|~~|`|#\s+|>+\s+|\[.*?\]\(.*?\))/.test(postText);
+    return lineBreaks > 4 || postText.length > 500 || hasMarkdown;
+  }
+  if (vType === "banned_phrase") {
+    const lower = postText.toLowerCase();
+    return BANNED_ENGAGEMENT_PHRASES.some((phrase) => lower.includes(phrase));
+  }
+  return false;
+}
+
+export interface DeterministicDraftRegression {
+  post_index: number;
+  violation_type: string;
+  critique: string;
+  fix_directive: string;
+}
+
+/**
+ * Runs deterministic post-rewrite sanity checks across a drafted thread:
+ * 1. Exact and high-overlap near-duplicate posts across the thread.
+ * 2. Hard mechanical platform rules (URL, em/en dash, asterisk, formatting, >500 chars, banned phrase).
+ * 3. Synthetic "Post N:" prefix leaks when absent from the prior draft.
+ */
+export function detectDeterministicDraftRegressions(
+  threadDraft: string[],
+  previousDraft?: string[]
+): DeterministicDraftRegression[] {
+  const regressions: DeterministicDraftRegression[] = [];
+  if (!Array.isArray(threadDraft) || threadDraft.length === 0) {
+    return regressions;
+  }
+
+  const normalizedEntries = threadDraft.map((post) => {
+    const text = typeof post === "string" ? post : "";
+    const norm = normalizePostForSimilarity(text);
+    return { text, norm, ...buildTokenAndBigramSets(norm) };
+  });
+
+  const duplicateFlagged = new Set<number>();
+  for (let i = 0; i < normalizedEntries.length; i++) {
+    const first = normalizedEntries[i];
+    if (!first.norm) continue;
+
+    for (let j = i + 1; j < normalizedEntries.length; j++) {
+      if (duplicateFlagged.has(j)) continue;
+      const second = normalizedEntries[j];
+      if (!second.norm) continue;
+
+      if (first.norm === second.norm) {
+        duplicateFlagged.add(j);
+        regressions.push({
+          post_index: j + 1,
+          violation_type: "duplicate_post",
+          critique: `Post ${j + 1} is an exact duplicate of Post ${i + 1}.`,
+          fix_directive: `Rewrite Post ${j + 1} with distinct facts, mechanism, or progression instead of repeating Post ${i + 1}.`,
+        });
+        continue;
+      }
+
+      if (first.tokens.length >= 6 && second.tokens.length >= 6) {
+        const tokenSim = computeJaccard(first.tokenSet, second.tokenSet);
+        const bigramSim = computeJaccard(first.bigrams, second.bigrams);
+        if (tokenSim >= 0.72 && bigramSim >= 0.55) {
+          duplicateFlagged.add(j);
+          regressions.push({
+            post_index: j + 1,
+            violation_type: "duplicate_post",
+            critique: `Post ${j + 1} closely duplicates Post ${i + 1} (${Math.round(tokenSim * 100)}% word overlap).`,
+            fix_directive: `Rewrite Post ${j + 1} to introduce genuinely new information rather than paraphrasing Post ${i + 1}.`,
+          });
+        }
+      }
+    }
+  }
+
+  const mechanicalTypes = ["url", "em_dash", "asterisk", "character_limit", "formatting", "banned_phrase"] as const;
+  for (let i = 0; i < normalizedEntries.length; i++) {
+    const postText = normalizedEntries[i].text;
+    const postIndex = i + 1;
+
+    if (
+      previousDraft &&
+      EXPLICIT_POST_PREFIX_STRIP_REGEX.test(postText) &&
+      !EXPLICIT_POST_PREFIX_STRIP_REGEX.test(previousDraft[i] || "")
+    ) {
+      regressions.push({
+        post_index: postIndex,
+        violation_type: "formatting",
+        critique: `Post ${postIndex} contains an unintended "Post N:" prefix label.`,
+        fix_directive: `Remove the leading "Post ${postIndex}:" label while keeping the post content intact.`,
+      });
+    }
+
+    for (const mType of mechanicalTypes) {
+      if (verifyMechanicalViolation(postText, mType)) {
+        regressions.push({
+          post_index: postIndex,
+          violation_type: mType,
+          critique: `Deterministic check detected ${mType} violation in Post ${postIndex}.`,
+          fix_directive: `Remove ${mType} violation immediately.`,
+        });
+      }
+    }
+  }
+
+  return regressions;
+}
+
 export interface ProcessDifferentialEvaluationOptions {
   threadDraft: string[];
+  previousThreadDraft?: string[];
+  editablePostIndices?: number[];
   iterations: number;
   previousScore?: number;
   bestThreadDraft?: string[];
@@ -1301,8 +1584,11 @@ export interface DifferentialEvaluationResult {
 /**
  * Reconciles differential critic evaluations for Iteration >= 2 across all thread factories.
  * Enforces:
- * - Pillar 2 (Closed-World Audit Registry): Filters out any new subjective critiques on unflagged posts.
- * - Pillar 3 (Algorithmic Score Monotonicity): Guaranteed floor Score_N >= Score_{N-1} and pass >= 88.
+ * - Pillar 2 (Change-Scoped Closed-World Audit): Unchanged, unflagged posts are shielded from
+ *   subjective style churn, while flagged/rewritten posts, factual regressions, repetition,
+ *   and deterministic duplicates/platform defects are strictly caught.
+ * - Pillar 3 (Algorithmic Score Monotonicity): Guaranteed floor Score_N >= Score_{N-1} without
+ *   synthetically inflating weak (< 85 suggested) drafts into automatic approval.
  * - Pillar 4 (Pareto Checkpointing): Tracks best performing thread draft and score frontier.
  */
 export function processDifferentialEvaluation(
@@ -1310,6 +1596,8 @@ export function processDifferentialEvaluation(
 ): DifferentialEvaluationResult {
   const {
     threadDraft,
+    previousThreadDraft,
+    editablePostIndices,
     iterations,
     previousScore = 70,
     bestThreadDraft,
@@ -1380,54 +1668,106 @@ export function processDifferentialEvaluation(
     }
   }
 
-  // 2. Validate and filter new violations: must be in-bounds and verified against actual content
-  const allowedViolationTypes = new Set(["url", "em_dash", "asterisk", "character_limit", "formatting", "banned_phrase"]);
+  // Track posts eligible for change-scoped semantic review (flagged prior or modified vs previousThreadDraft)
+  const editablePostSet = new Set<number>([
+    ...priorActionableCritiques.map((pc) => pc.post_index),
+    ...(editablePostIndices || []),
+  ]);
+  if (Array.isArray(previousThreadDraft)) {
+    const maxLen = Math.max(previousThreadDraft.length, threadDraft.length);
+    for (let i = 0; i < maxLen; i++) {
+      if (previousThreadDraft[i] !== threadDraft[i]) {
+        editablePostSet.add(i + 1);
+      }
+    }
+  }
+
+  // 2. Validate LLM new_violations + merge deterministic post-rewrite sanity checks
   const verifiedViolations: AuditPostCritique[] = [];
+  const recordedViolationKeys = new Set<string>();
+
+  const recordVerifiedViolation = (params: {
+    post_index: number;
+    vType: string;
+    critique: string;
+    fix_directive: string;
+  }) => {
+    const dedupeKey = `${params.post_index}::${params.vType}`;
+    if (recordedViolationKeys.has(dedupeKey)) {
+      return;
+    }
+    recordedViolationKeys.add(dedupeKey);
+
+    const existingViolation = verifiedViolations.find((vi) => vi.post_index === params.post_index);
+    if (existingViolation) {
+      existingViolation.critique += ` | [New Platform Violation - ${params.vType}]: ${params.critique}`;
+      existingViolation.fix_directive = existingViolation.fix_directive
+        ? `${existingViolation.fix_directive}; ${params.fix_directive}`
+        : params.fix_directive;
+    } else {
+      verifiedViolations.push({
+        post_index: params.post_index,
+        critique: `[New Platform Violation - ${params.vType}]: ${params.critique}`,
+        fix_directive: params.fix_directive,
+        status: "open" as const,
+      });
+    }
+  };
+
   for (const v of new_violations) {
     if (typeof v.post_index !== "number" || v.post_index < 1 || v.post_index > threadDraft.length) {
       continue;
     }
     const postText = threadDraft[v.post_index - 1] || "";
     const vType = (v.violation_type || "").toLowerCase().trim();
+    const customFix = (v.fix_directive || "").trim();
 
-    // Reject non-platform/subjective critiques (Pillar 2: Closed-World Invariant)
-    if (!allowedViolationTypes.has(vType)) {
+    if (MECHANICAL_VIOLATION_TYPES.has(vType)) {
+      if (verifyMechanicalViolation(postText, vType)) {
+        recordVerifiedViolation({
+          post_index: v.post_index,
+          vType,
+          critique: v.critique,
+          fix_directive: customFix || `Remove ${vType} violation immediately.`,
+        });
+      }
       continue;
     }
 
-    // Objective deterministic content verification against postText
-    let isGenuineViolation = false;
-    if (vType === "url") {
-      isGenuineViolation = /(https?:\/\/[^\s]+|www\.[^\s]+)/i.test(postText);
-    } else if (vType === "em_dash") {
-      isGenuineViolation = /(\u2014|\u2013|--)/.test(postText);
-    } else if (vType === "asterisk") {
-      isGenuineViolation = /\*/.test(postText);
-    } else if (vType === "character_limit") {
-      isGenuineViolation = postText.length > 500;
-    } else if (vType === "formatting") {
-      const lineBreaks = (postText.match(/\n/g) || []).length;
-      const hasMarkdown = /(__|~~|`|#\s+|>+\s+|\[.*?\]\(.*?\))/.test(postText);
-      isGenuineViolation = lineBreaks > 4 || postText.length > 500 || hasMarkdown;
-    } else if (vType === "banned_phrase") {
-      const lower = postText.toLowerCase();
-      isGenuineViolation = BANNED_ENGAGEMENT_PHRASES.some((phrase) => lower.includes(phrase));
+    if (vType === "duplicate_post") {
+      // Verified deterministically below (prevents hallucinated duplicate claims on distinct posts)
+      continue;
     }
 
-    if (isGenuineViolation) {
-      const existingViolation = verifiedViolations.find((vi) => vi.post_index === v.post_index);
-      if (existingViolation) {
-        existingViolation.critique += ` | [New Platform Violation - ${v.violation_type}]: ${v.critique}`;
-        existingViolation.fix_directive += ` and ${v.violation_type}`;
-      } else {
-        verifiedViolations.push({
-          post_index: v.post_index,
-          critique: `[New Platform Violation - ${v.violation_type}]: ${v.critique}`,
-          fix_directive: `Remove ${v.violation_type} violation immediately.`,
-          status: "open" as const,
-        });
-      }
+    if (THREAD_WIDE_SEMANTIC_VIOLATIONS.has(vType)) {
+      recordVerifiedViolation({
+        post_index: v.post_index,
+        vType,
+        critique: v.critique,
+        fix_directive: customFix || v.critique || `Resolve ${vType} immediately.`,
+      });
+      continue;
     }
+
+    if (EDIT_SCOPED_SEMANTIC_VIOLATIONS.has(vType) && editablePostSet.has(v.post_index)) {
+      recordVerifiedViolation({
+        post_index: v.post_index,
+        vType,
+        critique: v.critique,
+        fix_directive: customFix || v.critique || `Resolve ${vType} in edited post.`,
+      });
+    }
+  }
+
+  // Deterministic pass guarantees duplicates or missed platform violations cannot slip past LLM auditor
+  const deterministicRegressions = detectDeterministicDraftRegressions(threadDraft, previousThreadDraft);
+  for (const reg of deterministicRegressions) {
+    recordVerifiedViolation({
+      post_index: reg.post_index,
+      vType: reg.violation_type,
+      critique: reg.critique,
+      fix_directive: reg.fix_directive,
+    });
   }
 
   // 3. Score calculation (Pillar 3)

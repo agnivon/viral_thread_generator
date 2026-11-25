@@ -32,29 +32,107 @@ import type {
   DiscoveryAgentStateType,
   DiscoverySearchVector,
 } from "./state.js";
+import { isAccessDeniedOrGenericTitle } from "../../urlMetadata.js";
 
 /**
  * Safely extracts a meaningful, descriptive topic candidate from a URL and/or raw markdown.
  * Avoids picking template section headers (e.g. "VIRAL METRICS, MILESTONES & MICRO-ASSETS")
  * and extracts the true semantic subject (e.g. from the URL slug or the source catalyst).
  */
+function stripMarkdownSyntax(text: string): string {
+  return text
+    .replace(/!\[([^\]]*)\]\([^)]+\)/g, "$1")
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+    .replace(/(\*\*|__|\*|_|`)/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function truncateAtWordBoundary(text: string, maxLen = 150): string {
+  const trimmed = text.trim();
+  if (trimmed.length <= maxLen) return trimmed;
+  const sliced = trimmed.slice(0, maxLen);
+  const lastSpace = sliced.lastIndexOf(" ");
+  return lastSpace >= Math.floor(maxLen * 0.6) ? sliced.slice(0, lastSpace).trim() : sliced.trim();
+}
+
+function isBoilerplateOrBlockedTopicCandidate(text: string, url?: string): boolean {
+  if (
+    /VIRAL METRICS|NEWSJACKING MATRIX|AGGREGATION CORE|TRANSFORMATION TIMELINE|HUMAN MOMENT|THE RECEIPTS|CATALYST & ASYMMETRY|CRITICAL GUARDRAILS/i.test(
+      text
+    )
+  ) {
+    return true;
+  }
+  if (
+    /^(?:top stories|trending(?:\s+now)?|recommended(?:\s+(?:stories|videos|for you))?|related(?:\s+(?:articles|stories|news))?|more\s+(?:from\b|stories|news)|latest\s+news|popular(?:\s+stories)?|read\s+next|up\s+next)\b/i.test(
+      text
+    )
+  ) {
+    return true;
+  }
+  return isAccessDeniedOrGenericTitle(text, url || "");
+}
+
+function extractUrlSlugTopic(url?: string): string {
+  if (!url) return "";
+  try {
+    const parsed = new URL(url);
+    const segments = parsed.pathname.split("/").filter(Boolean);
+    for (let i = segments.length - 1; i >= 0; i--) {
+      const seg = decodeURIComponent(segments[i]);
+      const stripped = seg
+        .replace(/\.(?:html?|php|aspx?)$/i, "")
+        .replace(/[-_](?:(?=.*\d)[0-9a-f]{6,}|[0-9a-f]{10,})$/i, "");
+      if (/^\d{4}[-/]\d{2}[-/]\d{2}$/.test(stripped) || /^\d+$/.test(stripped)) {
+        continue;
+      }
+      if ((stripped.includes("-") || stripped.includes("_")) && stripped.length > 8) {
+        const words = stripped.split(/[-_]+/).filter(Boolean);
+        if (words.length >= 2) {
+          return truncateAtWordBoundary(words.join(" "), 150);
+        }
+      }
+    }
+  } catch {
+    // Ignore URL parse error
+  }
+  return "";
+}
+
 export function extractDiscoveryTopic(
   url?: string,
   raw_markdown?: string,
-  fallback = "Technology Topic"
+  fallback = "Technology Topic",
+  articleTitle?: string
 ): string {
-  // 1. Try looking in raw_markdown for an explicit Catalyst line or non-template heading first
+  // 1. Prefer verified article title/ogTitle when non-generic
+  if (articleTitle) {
+    const cleanTitle = stripMarkdownSyntax(articleTitle);
+    if (cleanTitle.length > 8 && !isBoilerplateOrBlockedTopicCandidate(cleanTitle, url)) {
+      return truncateAtWordBoundary(cleanTitle, 150);
+    }
+  }
+
+  const slugTopic = extractUrlSlugTopic(url);
+
+  // 2. Try looking in raw_markdown for an explicit Catalyst line or non-template heading first
   if (raw_markdown) {
     const lines = raw_markdown.split("\n");
-    // Check if there is an explicit Catalyst line (e.g. "- [The Catalyst: ...]" or "- Catalyst: ...")
     const catalystLine = lines.find((l) => /^[-*#\s]*\[?\s*(?:the\s+)?catalyst\s*:/i.test(l.trim()));
     if (catalystLine) {
-      const cleaned = catalystLine
-        .replace(/^[-*#\s]*\[?\s*(?:the\s+)?catalyst\s*:\s*/i, "")
-        .replace(/[\])}]+$/, "")
-        .trim();
-      if (cleaned.length > 8) {
-        return cleaned.slice(0, 150);
+      const cleaned = stripMarkdownSyntax(
+        catalystLine
+          .replace(/^[-*#\s]*\[?\s*(?:the\s+)?catalyst\s*:\s*/i, "")
+          .replace(/[\])}]+$/, "")
+      );
+      const isRoundupCatalyst = /(?:top stories|daily roundup|news digest|multiple stories)/i.test(cleaned);
+      if (
+        cleaned.length > 8 &&
+        !isRoundupCatalyst &&
+        !isBoilerplateOrBlockedTopicCandidate(cleaned, url)
+      ) {
+        return truncateAtWordBoundary(cleaned, 150);
       }
     }
 
@@ -62,76 +140,47 @@ export function extractDiscoveryTopic(
     for (const line of lines) {
       const trimmed = line.trim();
       if (!trimmed) continue;
-      if (
-        /VIRAL METRICS|NEWSJACKING MATRIX|AGGREGATION CORE|TRANSFORMATION TIMELINE|HUMAN MOMENT|THE RECEIPTS|CATALYST & ASYMMETRY|CRITICAL GUARDRAILS/i.test(
-          trimmed
-        )
-      ) {
-        continue;
-      }
       if (/^#+\s+/.test(trimmed)) {
-        const heading = trimmed.replace(/^#+\s*/, "").trim();
-        // Skip numbered sections like "1. ..." or "2. ..."
-        if (heading.length > 8 && !/^\d+\./.test(heading)) {
-          return heading.slice(0, 150);
+        const heading = stripMarkdownSyntax(trimmed.replace(/^#+\s*/, ""));
+        if (
+          heading.length > 8 &&
+          !/^\d+\./.test(heading) &&
+          !isBoilerplateOrBlockedTopicCandidate(heading, url)
+        ) {
+          return truncateAtWordBoundary(heading, 150);
         }
       }
     }
   }
 
-  // 2. Try URL slug if it contains a meaningful headline-style slug
-  if (url) {
-    try {
-      const parsed = new URL(url);
-      const segments = parsed.pathname.split("/").filter(Boolean);
-      for (let i = segments.length - 1; i >= 0; i--) {
-        const seg = decodeURIComponent(segments[i]);
-        // Strip trailing .html or .htm
-        const stripped = seg.replace(/\.html?$/i, "");
-        // Ignore date segments like 2026-09-17 or simple numeric IDs
-        if (/^\d{4}[-/]\d{2}[-/]\d{2}$/.test(stripped) || /^\d+$/.test(stripped)) {
-          continue;
-        }
-        if (stripped.includes("-") && stripped.length > 8) {
-          const words = stripped.split("-").filter(Boolean);
-          if (words.length >= 2) {
-            return words.join(" ").slice(0, 150).trim();
-          }
-        }
-      }
-    } catch {
-      // Ignore URL parse error
-    }
+  // 3. Try URL slug if it contains a meaningful headline-style slug
+  if (slugTopic) {
+    return slugTopic;
   }
 
-  // 3. Fallback to first non-template bullet point or sentence in raw_markdown
+  // 4. Fallback to first non-template, non-blocked bullet point or sentence in raw_markdown
   if (raw_markdown) {
     const lines = raw_markdown.split("\n");
     for (const line of lines) {
       const trimmed = line.trim();
       if (!trimmed) continue;
-      if (
-        /VIRAL METRICS|NEWSJACKING MATRIX|AGGREGATION CORE|TRANSFORMATION TIMELINE|HUMAN MOMENT|THE RECEIPTS|CATALYST & ASYMMETRY|CRITICAL GUARDRAILS/i.test(
-          trimmed
-        )
-      ) {
-        continue;
-      }
       if (/^[-*]\s+/.test(trimmed)) {
-        const bullet = trimmed
-          .replace(/^[-*]\s*/, "")
-          .replace(/^\[.*?\]\s*/, "")
-          .trim();
-        if (bullet.length > 15) {
-          return bullet.slice(0, 150);
+        const bullet = stripMarkdownSyntax(
+          trimmed.replace(/^[-*]\s*/, "").replace(/^\[.*?\]\s*/, "")
+        );
+        if (bullet.length > 15 && !isBoilerplateOrBlockedTopicCandidate(bullet, url)) {
+          return truncateAtWordBoundary(bullet, 150);
         }
-      } else if (!trimmed.startsWith("#") && trimmed.length > 15) {
-        return trimmed.slice(0, 150);
+      } else if (!trimmed.startsWith("#")) {
+        const cleanedLine = stripMarkdownSyntax(trimmed);
+        if (cleanedLine.length > 15 && !isBoilerplateOrBlockedTopicCandidate(cleanedLine, url)) {
+          return truncateAtWordBoundary(cleanedLine, 150);
+        }
       }
     }
   }
 
-  // 4. Fallback to URL or default
+  // 5. Fallback to URL or default
   return url || fallback;
 }
 
@@ -223,52 +272,52 @@ export const VectorHypothesizerNode = async (
     parse_success = false;
   }
 
-  // Ensure default vectors if model omitted any of the 5
+  // Ensure default vectors if model omitted any
   let finalVectors: DiscoverySearchVector[] = [];
   if (parse_success && result?.search_vectors) {
     finalVectors = result.search_vectors;
   } else {
-    // Deterministic fallback search pairs
-    const topic = state.topic || "tech product";
+    // Deterministic domain-neutral fallback search pairs
+    const topic = state.topic || "subject";
     finalVectors = [
       {
-        vector: "bom_paradox",
-        vector_name: "The BOM Paradox (Symbiotic Rivals)",
+        vector: "structural_dependencies",
+        vector_name: "Underlying Economics & Dependencies",
         queries: [
-          `${topic} key component suppliers Bill of Materials teardown`,
-          `${topic} competitor supply contracts margins`,
+          `${topic} underlying infrastructure economics dependencies`,
+          `${topic} key stakeholders incentives business model`,
         ],
       },
       {
-        vector: "production_stagecraft",
-        vector_name: "Production Stagecraft & PR Mitigation",
+        vector: "execution_vs_narrative",
+        vector_name: "Execution Reality vs. Public Narrative",
         queries: [
-          `${topic} live demo failure glitch prototype delay`,
-          `${topic} staged presentation unaddressed bugs`,
+          `${topic} independent analysis criticism limitations`,
+          `${topic} official claims verification methodology`,
         ],
       },
       {
-        vector: "supply_chain_arbitrage",
-        vector_name: "Supply Chain Arbitrage & Reverse Feature Flow",
+        vector: "historical_precedent",
+        vector_name: "Historical Precedent & Origin",
         queries: [
-          `${topic} patent filing Shenzhen ODM Chinese smartphone first introduced`,
-          `${topic} supply chain component origin white-label`,
+          `${topic} historical precedent prior developments comparison`,
+          `${topic} timeline origins background context`,
         ],
       },
       {
-        vector: "engineering_tradeoffs",
-        vector_name: "Engineering Trade-offs vs. Marketing Framing",
+        vector: "tradeoffs_and_constraints",
+        vector_name: "Operational & Technical Trade-offs",
         queries: [
-          `${topic} sustained benchmark thermal throttling battery compromise`,
-          `${topic} hardware trade-offs engineering limitations`,
+          `${topic} trade-offs bottlenecks reliability constraints`,
+          `${topic} independent benchmarks real-world impact`,
         ],
       },
       {
-        vector: "regulatory_asymmetry",
-        vector_name: "Regulatory & Litigation Asymmetry",
+        vector: "regulatory_market_impact",
+        vector_name: "Market, Competitive & Regulatory Impact",
         queries: [
-          `${topic} antitrust compliance mandate court order EU regulation`,
-          `${topic} regulatory fine compliance docket patent dispute`,
+          `${topic} market reaction competitive impact analysis`,
+          `${topic} policy regulation compliance consequences`,
         ],
       },
     ];
@@ -288,6 +337,19 @@ export const VectorHypothesizerNode = async (
 // Node 2: Dialectic Retrieval Node
 // ─────────────────────────────────────────────────────────────
 
+function buildEmptyRetrievalFallback(
+  vectors: DiscoverySearchVector[],
+  topic: string
+) {
+  return (vectors || []).map((sv) => ({
+    vector: sv.vector,
+    query: sv.queries?.[0] || topic,
+    title: `${sv.vector_name} (No External Results)`,
+    snippet: `No external search results were retrieved for "${topic}" under "${sv.vector_name}". Rely strictly on the primary source text and avoid fabricating external facts or statistics.`,
+    source: "empty_retrieval_notice",
+  }));
+}
+
 export const DialecticRetrievalNode = async (
   state: DiscoveryAgentStateType,
   _config?: RunnableConfig
@@ -303,26 +365,14 @@ export const DialecticRetrievalNode = async (
     });
 
     if (evidence.length === 0) {
-      // Create fallback baseline evidence so downstream nodes proceed smoothly
-      evidence = state.search_vectors.map((sv) => ({
-        vector: sv.vector,
-        query: sv.queries[0] || state.topic,
-        title: `${sv.vector_name} Context`,
-        snippet: `Investigation into ${state.topic} regarding ${sv.vector_name}. Official narratives frame this as an innovation breakthrough, while engineering and supply chain realities dictate component tradeoffs and supplier interdependencies.`,
-        source: "forensic_baseline",
-      }));
+      parse_success = false;
+      evidence = buildEmptyRetrievalFallback(state.search_vectors, state.topic);
     }
   } catch (err) {
     console.warn("[DialecticRetrievalNode] Retrieval error:", err);
     parse_success = false;
     if (evidence.length === 0) {
-      evidence = (state.search_vectors || []).map((sv) => ({
-        vector: sv.vector,
-        query: sv.queries?.[0] || state.topic,
-        title: `${sv.vector_name} Context`,
-        snippet: `Investigation into ${state.topic} regarding ${sv.vector_name}. Official narratives frame this as an innovation breakthrough, while engineering and supply chain realities dictate component tradeoffs and supplier interdependencies.`,
-        source: "forensic_baseline",
-      }));
+      evidence = buildEmptyRetrievalFallback(state.search_vectors || [], state.topic);
     }
   }
 

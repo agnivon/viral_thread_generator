@@ -42,6 +42,7 @@ import type * as lib_agents_news_state from "../lib/agents/news/state.js";
 import type * as lib_agents_news_tools from "../lib/agents/news/tools.js";
 import type * as lib_agents_nodes from "../lib/agents/nodes.js";
 import type * as lib_agents_prompts from "../lib/agents/prompts.js";
+import type * as lib_agents_scrapeUtils from "../lib/agents/scrapeUtils.js";
 import type * as lib_agents_sharedRouters from "../lib/agents/sharedRouters.js";
 import type * as lib_agents_sharedState from "../lib/agents/sharedState.js";
 import type * as lib_agents_social_media_graph from "../lib/agents/social_media/graph.js";
@@ -123,6 +124,7 @@ declare const fullApi: ApiFromModules<{
   "lib/agents/news/tools": typeof lib_agents_news_tools;
   "lib/agents/nodes": typeof lib_agents_nodes;
   "lib/agents/prompts": typeof lib_agents_prompts;
+  "lib/agents/scrapeUtils": typeof lib_agents_scrapeUtils;
   "lib/agents/sharedRouters": typeof lib_agents_sharedRouters;
   "lib/agents/sharedState": typeof lib_agents_sharedState;
   "lib/agents/social_media/graph": typeof lib_agents_social_media_graph;

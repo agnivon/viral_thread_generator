@@ -14,13 +14,7 @@ export const DiscoveryAngleSchema = z.object({
 export type DiscoveryAngle = z.infer<typeof DiscoveryAngleSchema>;
 
 export const DiscoverySearchVectorSchema = z.object({
-  vector: z.enum([
-    "bom_paradox",
-    "production_stagecraft",
-    "supply_chain_arbitrage",
-    "engineering_tradeoffs",
-    "regulatory_asymmetry",
-  ]),
+  vector: z.string().min(1),
   vector_name: z.string(),
   queries: z.array(z.string()).min(1).max(3),
 });
